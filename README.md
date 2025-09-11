@@ -15,38 +15,6 @@ A production-ready PySpark + Delta Lake pipeline engine with the Medallion Archi
 - **🧪 Comprehensive Testing**: 280+ tests with real Spark integration and Delta Lake support
 - **📦 Production Ready**: Complete Python package with proper distribution and documentation
 
-## 📁 Project Structure
-
-```
-sparkforge/
-├── sparkforge/               # Main package
-│   ├── __init__.py          # Package exports and version
-│   ├── pipeline_builder.py  # Core PipelineBuilder & PipelineRunner
-│   ├── models.py            # Pydantic data models
-│   ├── config.py            # Configuration management
-│   ├── logger.py            # Logging and timing utilities
-│   ├── utils.py             # Utility functions
-│   ├── dependency_analyzer.py # Parallel execution analysis
-│   ├── execution_engine.py  # Pipeline execution engine
-│   └── log_writer.py        # Logging and monitoring
-├── tests/                   # Comprehensive test suite (280+ tests)
-│   ├── conftest.py          # Pytest configuration
-│   ├── conftest_delta.py    # Delta Lake test configuration
-│   ├── test_*.py            # Unit and integration tests
-│   └── run_tests.py         # Test runner
-├── examples/                # Usage examples
-│   └── basic_pipeline.py    # Basic pipeline example
-├── setup.py                 # Package setup
-├── pyproject.toml           # Modern Python packaging
-├── requirements.txt         # Python dependencies
-├── pytest.ini              # Test configuration
-├── MANIFEST.in              # Package distribution files
-├── LICENSE                  # MIT License
-├── CHANGELOG.md             # Version history
-├── CONTRIBUTING.md          # Contribution guidelines
-└── README.md               # This file
-```
-
 ## 🛠️ Installation
 
 ### Prerequisites
