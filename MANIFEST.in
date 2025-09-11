@@ -1,0 +1,12 @@
+include README.md
+include LICENSE
+include requirements.txt
+include CHANGELOG.md
+include CONTRIBUTING.md
+recursive-include sparkforge *.py
+recursive-include tests *.py
+recursive-include docs *.rst *.md
+global-exclude *.pyc
+global-exclude __pycache__
+global-exclude .git*
+global-exclude .DS_Store
