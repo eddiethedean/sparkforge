@@ -8,7 +8,7 @@ using SparkForge.
 
 from pyspark.sql import SparkSession, functions as F
 from sparkforge import PipelineBuilder, PipelineRunner
-from sparkforge.models import ValidationThresholds, ParallelConfig, PipelineConfig
+# No additional imports needed - PipelineBuilder takes individual parameters
 
 
 def main():
@@ -38,31 +38,19 @@ def main():
         
         print("🔧 Building SparkForge Pipeline...")
         
-        # Configure validation thresholds
-        thresholds = ValidationThresholds(
-            bronze=90.0,  # 90% of Bronze data must pass validation
-            silver=95.0,  # 95% of Silver data must pass validation
-            gold=98.0     # 98% of Gold data must pass validation
-        )
+        # Clean up and create database
+        spark.sql("DROP DATABASE IF EXISTS example_schema CASCADE")
+        spark.sql("CREATE DATABASE example_schema")
         
-        # Configure parallel execution
-        parallel_config = ParallelConfig(
-            enabled=True,
-            max_workers=2,
-            timeout_secs=60
-        )
-        
-        # Create pipeline configuration
-        config = PipelineConfig(
-            thresholds=thresholds,
-            parallel=parallel_config
-        )
-        
-        # Build the pipeline
+        # Build the pipeline with configuration
         builder = PipelineBuilder(
             spark=spark,
             schema="example_schema",
-            config=config,
+            min_bronze_rate=90.0,  # 90% of Bronze data must pass validation
+            min_silver_rate=95.0,  # 95% of Silver data must pass validation
+            min_gold_rate=98.0,    # 98% of Gold data must pass validation
+            enable_parallel_silver=True,
+            max_parallel_workers=2,
             verbose=True
         )
         
@@ -83,11 +71,12 @@ def main():
         builder.add_silver_transform(
             name="enriched_events",
             source_bronze="events",
-            transform=lambda df: (
+            transform=lambda spark, df, prior_silvers: (
                 df.withColumn("processed_at", F.current_timestamp())
                   .withColumn("event_date", F.to_date("timestamp"))
                   .withColumn("hour", F.hour("timestamp"))
                   .filter(F.col("user_id").isNotNull())
+                  .select("user_id", "action", "value", "event_date", "processed_at", "hour")
             ),
             rules={
                 "user_id": [F.col("user_id").isNotNull()],
@@ -95,6 +84,7 @@ def main():
                 "event_date": [F.col("event_date").isNotNull()],
                 "processed_at": [F.col("processed_at").isNotNull()]
             },
+            table_name="enriched_events",
             watermark_col="timestamp",
             description="Enriched event data with processing metadata"
         )
@@ -103,8 +93,8 @@ def main():
         builder.add_gold_transform(
             name="daily_analytics",
             source_silvers=["enriched_events"],
-            transform=lambda df: (
-                df.groupBy("event_date")
+            transform=lambda spark, silvers: (
+                silvers["enriched_events"].groupBy("event_date")
                   .agg(
                       F.count("*").alias("total_events"),
                       F.countDistinct("user_id").alias("unique_users"),
@@ -120,15 +110,17 @@ def main():
                 "total_events": [F.col("total_events") > 0],
                 "unique_users": [F.col("unique_users") > 0]
             },
+            table_name="daily_analytics",
             description="Daily analytics and business metrics"
         )
         
         # Create the pipeline
         pipeline = builder.to_pipeline()
-        print(f"✅ Pipeline created with {len(pipeline.steps)} steps")
+        total_steps = len(pipeline.bronze_steps) + len(pipeline.silver_steps) + len(pipeline.gold_steps)
+        print(f"✅ Pipeline created with {total_steps} steps")
         
-        # Create runner and execute
-        runner = PipelineRunner(pipeline)
+        # Pipeline is already a runner, execute directly
+        runner = pipeline
         
         print("🚀 Running pipeline...")
         result = runner.initial_load(

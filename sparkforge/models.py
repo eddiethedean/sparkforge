@@ -25,6 +25,8 @@ import uuid
 import json
 from abc import ABC
 
+from .exceptions import PipelineValidationError
+
 # DataFrame will be imported from pyspark.sql when available
 try:
     from pyspark.sql import DataFrame
@@ -37,11 +39,6 @@ except ImportError:
 # ============================================================================
 # Custom Exceptions
 # ============================================================================
-
-class PipelineValidationError(ValueError):
-    """Raised when pipeline validation fails."""
-    pass
-
 
 class PipelineConfigurationError(ValueError):
     """Raised when pipeline configuration is invalid."""
@@ -303,7 +300,8 @@ class BronzeStep(BaseModel):
     Attributes:
         name: Step name
         rules: Validation rules for the step
-        incremental_col: Column used for incremental processing
+        incremental_col: Column used for incremental processing (optional)
+                        If None, forces full refresh of downstream Silver tables
     """
     name: str
     rules: ColumnRules
@@ -317,6 +315,11 @@ class BronzeStep(BaseModel):
             raise PipelineValidationError("Rules must be a dictionary")
         if self.incremental_col is not None and not isinstance(self.incremental_col, str):
             raise PipelineValidationError("Incremental column must be a string")
+    
+    @property
+    def has_incremental_capability(self) -> bool:
+        """Check if this Bronze step supports incremental processing."""
+        return self.incremental_col is not None
 
 
 @dataclass

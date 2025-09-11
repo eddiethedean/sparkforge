@@ -8,6 +8,9 @@ A production-ready PySpark + Delta Lake pipeline engine with the Medallion Archi
 - **⚡ Parallel Execution**: Independent Silver steps run concurrently for maximum performance
 - **✅ Data Validation**: Configurable validation thresholds and comprehensive quality checks
 - **🔄 Incremental Processing**: Watermarking and incremental updates with Delta Lake
+- **📅 Flexible Bronze Tables**: Support for Bronze tables with or without datetime columns
+- **🔄 Smart Write Modes**: Automatic overwrite mode for Silver tables when Bronze lacks temporal data
+- **💧 Optional Watermarks**: Silver steps can omit watermark columns when sourcing from non-temporal Bronze tables
 - **📊 Structured Logging**: Detailed execution logging, timing, and monitoring
 - **🛡️ Error Handling**: Comprehensive error handling, recovery, and retry mechanisms
 - **⚙️ Configuration Management**: Flexible configuration with Pydantic models
@@ -52,7 +55,7 @@ import sparkforge
 print(f"SparkForge version: {sparkforge.__version__}")
 
 # Test basic functionality
-from sparkforge import PipelineBuilder, ExecutionMode
+from sparkforge import PipelineBuilder
 print("✅ SparkForge installed successfully!")
 ```
 
@@ -91,7 +94,7 @@ Expected output: **280+ tests passed** ✅
 ### Basic Pipeline
 
 ```python
-from sparkforge import PipelineBuilder, ExecutionMode
+from sparkforge import PipelineBuilder
 from pyspark.sql import functions as F
 
 # Initialize Spark (if not already done)
@@ -102,7 +105,7 @@ spark = SparkSession.builder \
     .getOrCreate()
 
 # Create pipeline with fluent API
-builder = PipelineBuilder(spark=spark)
+builder = PipelineBuilder(spark=spark, schema="my_schema")
 
 # Define transforms
 def silver_transform(spark, bronze_df):
@@ -113,15 +116,62 @@ def gold_transform(spark, silvers):
     return events_df.groupBy("category").count()
 
 # Build and run pipeline
-result = (builder
-    .with_bronze_rules(min_quality_rate=95.0)
-    .add_silver_transform("silver_events", silver_transform)
-    .add_gold_transform("gold_summary", gold_transform)
-    .run(mode=ExecutionMode.INITIAL)
+pipeline = (builder
+    .with_bronze_rules(
+        name="events",
+        rules={"user_id": [F.col("user_id").isNotNull()]}
+    )
+    .add_silver_transform(
+        name="silver_events",
+        source_bronze="events",
+        transform=silver_transform,
+        rules={"status": [F.col("status").isNotNull()]},
+        table_name="silver_events"
+    )
+    .add_gold_transform(
+        name="gold_summary",
+        transform=gold_transform,
+        rules={"category": [F.col("category").isNotNull()]},
+        table_name="gold_summary"
+    )
+    .to_pipeline()
 )
+
+result = pipeline.initial_load(bronze_sources={"events": source_df})
 
 print(f"Pipeline completed: {result.success}")
 print(f"Rows written: {result.totals['total_rows_written']}")
+```
+
+### Bronze Tables Without Datetime Columns
+
+SparkForge supports Bronze tables without datetime columns, which forces Silver tables to use overwrite mode for full refresh on each run:
+
+```python
+# Bronze step WITHOUT incremental column
+builder.with_bronze_rules(
+    name="events_no_datetime",
+    rules={
+        "user_id": [F.col("user_id").isNotNull()],
+        "action": [F.col("action").isNotNull()],
+        "value": [F.col("value").isNotNull()]
+    }
+    # Note: No incremental_col parameter - forces full refresh
+)
+
+# Silver step will automatically use overwrite mode
+# Note: watermark_col is optional when Bronze has no datetime column
+builder.add_silver_transform(
+    name="enriched_events",
+    source_bronze="events_no_datetime",
+    transform=lambda spark, df, prior_silvers: df.withColumn("processed_at", F.current_timestamp()),
+    rules={"processed_at": [F.col("processed_at").isNotNull()]},
+    table_name="enriched_events"
+    # No watermark_col needed since Bronze has no datetime column
+)
+
+# Even in incremental mode, Silver will use overwrite due to Bronze having no datetime
+result = runner.run_incremental(bronze_sources={"events_no_datetime": source_df})
 ```
 
 ### Advanced Pipeline with Configuration
@@ -137,16 +187,47 @@ config = PipelineConfig(
     verbose=True
 )
 
-builder = PipelineBuilder(spark=spark, config=config)
+builder = PipelineBuilder(
+    spark=spark, 
+    schema="my_schema",
+    min_bronze_rate=95.0,
+    min_silver_rate=90.0,
+    min_gold_rate=85.0,
+    enable_parallel_silver=True,
+    max_parallel_workers=4,
+    verbose=True
+)
 
 # Add multiple silver steps (run in parallel)
-result = (builder
-    .with_bronze_rules(min_quality_rate=95.0)
-    .add_silver_transform("silver_events", events_transform)
-    .add_silver_transform("silver_users", users_transform)
-    .add_gold_transform("gold_summary", gold_transform)
-    .run(mode=ExecutionMode.INCREMENTAL)
+pipeline = (builder
+    .with_bronze_rules(
+        name="events",
+        rules={"user_id": [F.col("user_id").isNotNull()]}
+    )
+    .add_silver_transform(
+        name="silver_events",
+        source_bronze="events",
+        transform=events_transform,
+        rules={"user_id": [F.col("user_id").isNotNull()]},
+        table_name="silver_events"
+    )
+    .add_silver_transform(
+        name="silver_users",
+        source_bronze="events",
+        transform=users_transform,
+        rules={"user_id": [F.col("user_id").isNotNull()]},
+        table_name="silver_users"
+    )
+    .add_gold_transform(
+        name="gold_summary",
+        transform=gold_transform,
+        rules={"user_id": [F.col("user_id").isNotNull()]},
+        table_name="gold_summary"
+    )
+    .to_pipeline()
 )
+
+result = pipeline.run_incremental(bronze_sources={"events": events_df, "users": users_df})
 ```
 
 ### Delta Lake Integration
@@ -156,7 +237,7 @@ from sparkforge import PipelineBuilder
 from pyspark.sql import functions as F
 
 # Delta Lake pipeline with ACID transactions
-builder = PipelineBuilder(spark=spark)
+builder = PipelineBuilder(spark=spark, schema="my_schema")
 
 def silver_transform(spark, bronze_df):
     # Clean and validate data
@@ -174,12 +255,28 @@ def gold_transform(spark, silvers):
     )
 
 # Run with Delta Lake support
-result = (builder
-    .with_bronze_rules(min_quality_rate=95.0)
-    .add_silver_transform("silver_events", silver_transform)
-    .add_gold_transform("gold_summary", gold_transform)
-    .run(mode=ExecutionMode.INCREMENTAL)
+pipeline = (builder
+    .with_bronze_rules(
+        name="events",
+        rules={"user_id": [F.col("user_id").isNotNull()]}
+    )
+    .add_silver_transform(
+        name="silver_events",
+        source_bronze="events",
+        transform=silver_transform,
+        rules={"status": [F.col("status").isNotNull()]},
+        table_name="silver_events"
+    )
+    .add_gold_transform(
+        name="gold_summary",
+        transform=gold_transform,
+        rules={"category": [F.col("category").isNotNull()]},
+        table_name="gold_summary"
+    )
+    .to_pipeline()
 )
+
+result = pipeline.run_incremental(bronze_sources={"events": source_df})
 
 # Access Delta Lake features
 print(f"Delta Lake tables created: {result.totals['tables_created']}")
@@ -212,19 +309,29 @@ config = PipelineConfig(
     verbose=True
 )
 
-builder = PipelineBuilder(spark=spark, config=config)
+builder = PipelineBuilder(
+    spark=spark, 
+    schema="my_schema",
+    min_bronze_rate=95.0,
+    min_silver_rate=90.0,
+    min_gold_rate=85.0,
+    enable_parallel_silver=True,
+    max_parallel_workers=4,
+    verbose=True
+)
 ```
 
 ### Execution Modes
 
 ```python
-from sparkforge import ExecutionMode
 
 # Different execution modes
-builder.run(mode=ExecutionMode.INITIAL)        # Full refresh
-builder.run(mode=ExecutionMode.INCREMENTAL)    # Incremental processing
-builder.run(mode=ExecutionMode.FULL_REFRESH)   # Force full refresh
-builder.run(mode=ExecutionMode.VALIDATION_ONLY) # Validation only
+pipeline = builder.to_pipeline()
+
+pipeline.initial_load(bronze_sources={"events": source_df})        # Full refresh
+pipeline.run_incremental(bronze_sources={"events": source_df})     # Incremental processing
+pipeline.run_full_refresh(bronze_sources={"events": source_df})    # Force full refresh
+pipeline.run_validation_only(bronze_sources={"events": source_df}) # Validation only
 ```
 
 ## 📊 Monitoring & Logging
@@ -310,7 +417,16 @@ config = PipelineConfig(
     verbose=True
 )
 
-builder = PipelineBuilder(spark=spark, config=config)
+builder = PipelineBuilder(
+    spark=spark, 
+    schema="my_schema",
+    min_bronze_rate=95.0,
+    min_silver_rate=90.0,
+    min_gold_rate=85.0,
+    enable_parallel_silver=True,
+    max_parallel_workers=4,
+    verbose=True
+)
 ```
 
 ### AWS EMR / Azure Synapse
@@ -320,8 +436,9 @@ builder = PipelineBuilder(spark=spark, config=config)
 from sparkforge import PipelineBuilder
 
 # Configure for cloud storage
-builder = PipelineBuilder(spark=spark)
-result = builder.run(mode=ExecutionMode.INCREMENTAL)
+builder = PipelineBuilder(spark=spark, schema="my_schema")
+pipeline = builder.to_pipeline()
+result = pipeline.run_incremental(bronze_sources={"events": source_df})
 ```
 
 ### Local Development
@@ -368,7 +485,7 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 ### Quick Start for Contributors
 
 1. **Fork the repository**
-2. **Clone your fork**: `git clone https://github.com/your-username/sparkforge.git`
+2. **Clone your fork**: `git clone https://github.com/eddiethedean/sparkforge.git`
 3. **Install in development mode**: `pip install -e .`
 4. **Run tests**: `pytest`
 5. **Create a feature branch**: `git checkout -b feature/amazing-feature`
@@ -396,27 +513,12 @@ mypy sparkforge/
 pytest --cov=sparkforge --cov-report=html
 ```
 
-## 📞 Support
-
-- **Documentation**: [Full documentation](https://sparkforge.readthedocs.io)
-- **Issues**: [GitHub Issues](https://github.com/your-username/sparkforge/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-username/sparkforge/discussions)
-- **Email**: support@sparkforge.dev
-
 ## 🏆 Acknowledgments
 
 - Built on top of [Apache Spark](https://spark.apache.org/)
 - Powered by [Delta Lake](https://delta.io/)
 - Inspired by the Medallion Architecture pattern
 - Thanks to the PySpark and Delta Lake communities
-
-## 📈 Roadmap
-
-- [ ] **v0.2.0**: Enhanced Delta Lake features (MERGE, VACUUM, OPTIMIZE)
-- [ ] **v0.3.0**: Streaming pipeline support
-- [ ] **v0.4.0**: ML pipeline integration
-- [ ] **v0.5.0**: Cloud-native optimizations
-- [ ] **v1.0.0**: Production-ready release
 
 ---
 

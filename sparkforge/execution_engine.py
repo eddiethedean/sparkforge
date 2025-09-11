@@ -20,10 +20,10 @@ from pyspark.sql import DataFrame, SparkSession
 
 from .models import SilverStep, StageStats, ExecutionContext
 from .logger import PipelineLogger
-from .utils import (
-    fqn, now_dt, time_write_operation, create_validation_dict, 
-    create_transform_dict, create_write_dict, apply_column_rules
-)
+from .table_operations import fqn
+from .performance import now_dt, time_write_operation
+from .reporting import create_validation_dict, create_transform_dict, create_write_dict
+from .validation import apply_column_rules
 
 
 class ExecutionMode(Enum):
@@ -127,6 +127,7 @@ class ExecutionEngine:
         bronze_in: DataFrame, 
         prior_silvers: Dict[str, DataFrame], 
         mode: str,
+        bronze_steps: Optional[Dict[str, Any]] = None,
         context: Optional[ExecutionContext] = None
     ) -> Tuple[str, Dict[str, Any]]:
         """
@@ -147,8 +148,8 @@ class ExecutionEngine:
         start_time = time.time()
         
         try:
-            # Check cache first
-            if self.config.enable_caching and sname in self._execution_cache:
+            # Check cache first (but not for incremental runs to ensure fresh data)
+            if self.config.enable_caching and mode != "incremental" and sname in self._execution_cache:
                 self._execution_stats.cache_hits += 1
                 self.logger.debug(f"Using cached result for step {sname}")
                 return sname, self._execution_cache[sname]
@@ -160,7 +161,7 @@ class ExecutionEngine:
                 result = self._execute_existing_silver(sname, sstep, fqn_name, context)
             else:
                 result = self._execute_transform_silver(
-                    sname, sstep, bronze_in, prior_silvers, mode, fqn_name, context
+                    sname, sstep, bronze_in, prior_silvers, mode, fqn_name, bronze_steps, context
                 )
             
             # Cache successful results
@@ -188,6 +189,8 @@ class ExecutionEngine:
             }
             
             self.logger.error(f"Silver step {sname} failed: {e}")
+            import traceback
+            self.logger.error(f"Silver step {sname} traceback: {traceback.format_exc()}")
             return sname, error_entry
     
     def execute_silver_steps(
@@ -197,6 +200,7 @@ class ExecutionEngine:
         bronze_valid: Dict[str, DataFrame], 
         prior_silvers: Dict[str, DataFrame], 
         mode: str,
+        bronze_steps: Optional[Dict[str, Any]] = None,
         context: Optional[ExecutionContext] = None
     ) -> Dict[str, Any]:
         """
@@ -208,6 +212,7 @@ class ExecutionEngine:
             bronze_valid: Valid bronze DataFrames
             prior_silvers: Prior silver DataFrames
             mode: Execution mode
+            bronze_steps: Dictionary of Bronze step configurations (optional)
             context: Execution context
             
         Returns:
@@ -223,19 +228,19 @@ class ExecutionEngine:
         try:
             if self.config.mode == ExecutionMode.SEQUENTIAL:
                 results = self._execute_sequential(
-                    silver_steps_to_execute, silver_steps, bronze_valid, prior_silvers, mode, context
+                    silver_steps_to_execute, silver_steps, bronze_valid, prior_silvers, mode, bronze_steps, context
                 )
             elif self.config.mode == ExecutionMode.PARALLEL:
                 results = self._execute_parallel(
-                    silver_steps_to_execute, silver_steps, bronze_valid, prior_silvers, mode, context
+                    silver_steps_to_execute, silver_steps, bronze_valid, prior_silvers, mode, bronze_steps, context
                 )
             elif self.config.mode == ExecutionMode.ADAPTIVE:
                 results = self._execute_adaptive(
-                    silver_steps_to_execute, silver_steps, bronze_valid, prior_silvers, mode, context
+                    silver_steps_to_execute, silver_steps, bronze_valid, prior_silvers, mode, bronze_steps, context
                 )
             elif self.config.mode == ExecutionMode.BATCH:
                 results = self._execute_batch(
-                    silver_steps_to_execute, silver_steps, bronze_valid, prior_silvers, mode, context
+                    silver_steps_to_execute, silver_steps, bronze_valid, prior_silvers, mode, bronze_steps, context
                 )
             else:
                 raise ValueError(f"Unknown execution mode: {self.config.mode}")
@@ -258,6 +263,7 @@ class ExecutionEngine:
         bronze_valid: Dict[str, DataFrame], 
         prior_silvers: Dict[str, DataFrame], 
         mode: str,
+        bronze_steps: Optional[Dict[str, Any]] = None,
         context: Optional[ExecutionContext] = None
     ) -> Dict[str, Any]:
         """Execute steps sequentially."""
@@ -267,7 +273,7 @@ class ExecutionEngine:
             sstep = silver_steps[sname]
             bronze_in = bronze_valid[sstep.source_bronze]
             
-            step_name, entry = self.execute_silver_step(sname, sstep, bronze_in, prior_silvers, mode, context)
+            step_name, entry = self.execute_silver_step(sname, sstep, bronze_in, prior_silvers, mode, bronze_steps, context)
             results[step_name] = entry
             
             # Update prior_silvers for next iteration
@@ -287,12 +293,13 @@ class ExecutionEngine:
         bronze_valid: Dict[str, DataFrame], 
         prior_silvers: Dict[str, DataFrame], 
         mode: str,
+        bronze_steps: Optional[Dict[str, Any]] = None,
         context: Optional[ExecutionContext] = None
     ) -> Dict[str, Any]:
         """Execute steps in parallel."""
         if len(silver_steps_to_execute) <= 1:
             return self._execute_sequential(
-                silver_steps_to_execute, silver_steps, bronze_valid, prior_silvers, mode, context
+                silver_steps_to_execute, silver_steps, bronze_valid, prior_silvers, mode, bronze_steps, context
             )
         
         self.logger.parallel_start(silver_steps_to_execute, 0)
@@ -307,7 +314,7 @@ class ExecutionEngine:
                 
                 future = executor.submit(
                     self.execute_silver_step,
-                    sname, sstep, bronze_in, prior_silvers, mode, context
+                    sname, sstep, bronze_in, prior_silvers, mode, bronze_steps, context
                 )
                 future_to_step[future] = sname
                 self._active_futures.add(future)
@@ -320,7 +327,9 @@ class ExecutionEngine:
                     results[step_name] = entry
                     self.logger.parallel_complete(step_name)
                 except Exception as e:
-                    self.logger.error(f"Silver step {sname} failed: {e}")
+                    self.logger.error(f"Silver step {sname} failed in parallel execution: {e}")
+                    import traceback
+                    self.logger.error(f"Silver step {sname} parallel execution traceback: {traceback.format_exc()}")
                     results[sname] = {"error": str(e), "skipped": False}
                 finally:
                     self._active_futures.discard(future)
@@ -334,6 +343,7 @@ class ExecutionEngine:
         bronze_valid: Dict[str, DataFrame], 
         prior_silvers: Dict[str, DataFrame], 
         mode: str,
+        bronze_steps: Optional[Dict[str, Any]] = None,
         context: Optional[ExecutionContext] = None
     ) -> Dict[str, Any]:
         """Execute steps using adaptive strategy based on step characteristics."""
@@ -355,7 +365,7 @@ class ExecutionEngine:
         if independent_steps:
             self.logger.info(f"Executing {len(independent_steps)} independent steps in parallel")
             parallel_results = self._execute_parallel(
-                independent_steps, silver_steps, bronze_valid, prior_silvers, mode, context
+                independent_steps, silver_steps, bronze_valid, prior_silvers, mode, bronze_steps, context
             )
             results.update(parallel_results)
         
@@ -363,7 +373,7 @@ class ExecutionEngine:
         if dependent_steps:
             self.logger.info(f"Executing {len(dependent_steps)} dependent steps sequentially")
             sequential_results = self._execute_sequential(
-                dependent_steps, silver_steps, bronze_valid, prior_silvers, mode, context
+                dependent_steps, silver_steps, bronze_valid, prior_silvers, mode, bronze_steps, context
             )
             results.update(sequential_results)
         
@@ -376,6 +386,7 @@ class ExecutionEngine:
         bronze_valid: Dict[str, DataFrame], 
         prior_silvers: Dict[str, DataFrame], 
         mode: str,
+        bronze_steps: Optional[Dict[str, Any]] = None,
         context: Optional[ExecutionContext] = None
     ) -> Dict[str, Any]:
         """Execute steps in batches."""
@@ -387,7 +398,7 @@ class ExecutionEngine:
             self.logger.info(f"Executing batch {i//batch_size + 1}: {len(batch)} steps")
             
             batch_results = self._execute_parallel(
-                batch, silver_steps, bronze_valid, prior_silvers, mode, context
+                batch, silver_steps, bronze_valid, prior_silvers, mode, bronze_steps, context
             )
             results.update(batch_results)
         
@@ -429,6 +440,7 @@ class ExecutionEngine:
         prior_silvers: Dict[str, DataFrame], 
         mode: str, 
         fqn_name: str,
+        bronze_steps: Optional[Dict[str, Any]] = None,
         context: Optional[ExecutionContext] = None
     ) -> Dict[str, Any]:
         """Execute Silver transform step with enhanced error handling."""
@@ -454,7 +466,25 @@ class ExecutionEngine:
         
         svalid, sstats, v_start, v_end = self._validate_silver(sout, sstep.rules, sname)
         
-        write_mode = "overwrite" if mode == "initial" else "append"
+        # Determine write mode based on Bronze step incremental capability
+        if mode == "initial":
+            write_mode = "overwrite"
+        else:
+            # Check if source Bronze step has incremental capability
+            source_bronze_has_incremental = True  # Default to True for backward compatibility
+            if bronze_steps and sstep.source_bronze in bronze_steps:
+                bronze_step = bronze_steps[sstep.source_bronze]
+                if hasattr(bronze_step, 'has_incremental_capability'):
+                    source_bronze_has_incremental = bronze_step.has_incremental_capability
+                elif hasattr(bronze_step, 'incremental_col'):
+                    source_bronze_has_incremental = bronze_step.incremental_col is not None
+            
+            if source_bronze_has_incremental:
+                write_mode = "append"
+            else:
+                write_mode = "overwrite"  # Force full refresh when Bronze has no incremental column
+                self.logger.info(f"Silver step {sname} using overwrite mode (Bronze step {sstep.source_bronze} has no incremental column)")
+        
         rows_written, w_secs, w_start, w_end = time_write_operation(write_mode, svalid, fqn_name)
         
         entry = {

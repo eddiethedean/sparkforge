@@ -33,10 +33,10 @@ from .models import (
 )
 from .config import ConfigManager, ConfigTemplate
 from .logger import PipelineLogger, ExecutionTimer
-from .utils import (
-    fqn, now_dt, time_write_operation, create_validation_dict,
-    create_transform_dict, create_write_dict, apply_column_rules
-)
+from .table_operations import fqn
+from .performance import now_dt, time_write_operation
+from .reporting import create_validation_dict, create_transform_dict, create_write_dict
+from .validation import apply_column_rules
 from .dependency_analyzer import DependencyAnalyzer, DependencyAnalysisResult
 from .execution_engine import ExecutionEngine, ExecutionConfig, ExecutionMode
 
@@ -221,16 +221,30 @@ class PipelineBuilder:
         *, 
         name: str, 
         rules: Dict[str, List[Any]], 
-        incremental_col: str,
+        incremental_col: Optional[str] = None,
         description: Optional[str] = None
     ) -> 'PipelineBuilder':
-        """Add Bronze step validation rules."""
+        """
+        Add Bronze step validation rules.
+        
+        Args:
+            name: Step name
+            rules: Validation rules for the step
+            incremental_col: Column used for incremental processing (optional)
+                           If None, forces full refresh of downstream Silver tables
+            description: Optional description of the step
+        """
         step = BronzeStep(name, rules, incremental_col)
         if description:
             step.description = description
         
         self.bronze_steps[name] = step
-        self.logger.info(f"➕ Bronze step registered: {name}")
+        
+        if incremental_col:
+            self.logger.info(f"➕ Bronze step registered: {name} (incremental: {incremental_col})")
+        else:
+            self.logger.info(f"➕ Bronze step registered: {name} (full refresh mode)")
+        
         return self
     
     def with_silver_rules(
@@ -267,11 +281,24 @@ class PipelineBuilder:
         transform: Callable[..., DataFrame], 
         rules: Dict[str, List[Any]], 
         table_name: str, 
-        watermark_col: str,
+        watermark_col: Optional[str] = None,
         description: Optional[str] = None,
         depends_on: Optional[List[str]] = None
     ) -> 'PipelineBuilder':
-        """Add Silver transform step."""
+        """
+        Add Silver transform step.
+        
+        Args:
+            name: Step name
+            source_bronze: Source bronze step name
+            transform: Transform function
+            rules: Validation rules for the step
+            table_name: Target table name
+            watermark_col: Watermark column for incremental processing (optional)
+                         If None, the step will use overwrite mode for all runs
+            description: Optional description of the step
+            depends_on: Optional list of other Silver steps this depends on
+        """
         step = SilverStep(
             name=name, 
             source_bronze=source_bronze, 
@@ -444,10 +471,6 @@ class PipelineRunner:
     def run_validation_only(self, *, bronze_sources: Dict[str, DataFrame]) -> PipelineReport:
         """Execute validation-only pipeline run."""
         return self._run(PipelineMode.VALIDATION_ONLY, bronze_sources=bronze_sources)
-    
-    def run(self, *, bronze_sources: Dict[str, DataFrame]) -> PipelineReport:
-        """Execute pipeline with automatic mode detection."""
-        return self._run(PipelineMode.INITIAL, bronze_sources=bronze_sources)
     
     def _run(self, mode: PipelineMode, *, bronze_sources: Dict[str, DataFrame]) -> PipelineReport:
         """Main execution engine for all pipeline modes."""
@@ -708,6 +731,7 @@ class PipelineRunner:
             bronze_valid,
             {},
             mode.value,
+            self.bronze_steps,
             context
         )
         

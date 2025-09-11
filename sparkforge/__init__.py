@@ -17,16 +17,28 @@ Example:
     
     # Create a pipeline
     builder = PipelineBuilder(spark=spark, schema="my_schema")
-    builder.with_bronze_rules("events", rules={"user_id": [F.col("user_id").isNotNull()]})
-    builder.add_silver_transform("enriched_events", source_bronze="events", 
-                                transform=lambda df: df.withColumn("processed_at", F.current_timestamp()))
-    builder.add_gold_transform("daily_analytics", source_silvers=["enriched_events"],
-                              transform=lambda df: df.groupBy("date").agg(F.count("*").alias("events")))
+    builder.with_bronze_rules(
+        name="events", 
+        rules={"user_id": [F.col("user_id").isNotNull()]}
+    )
+    builder.add_silver_transform(
+        name="enriched_events", 
+        source_bronze="events", 
+        transform=lambda spark, df, prior_silvers: df.withColumn("processed_at", F.current_timestamp()),
+        rules={"user_id": [F.col("user_id").isNotNull()]},
+        table_name="enriched_events"
+    )
+    builder.add_gold_transform(
+        name="daily_analytics", 
+        transform=lambda spark, silvers: silvers["enriched_events"].groupBy("date").agg(F.count("*").alias("events")),
+        rules={"date": [F.col("date").isNotNull()]},
+        table_name="daily_analytics",
+        source_silvers=["enriched_events"]
+    )
     
     # Run the pipeline
     pipeline = builder.to_pipeline()
-    runner = PipelineRunner(pipeline)
-    result = runner.initial_load(bronze_sources={"events": source_df})
+    result = pipeline.initial_load(bronze_sources={"events": source_df})
 """
 
 __version__ = "0.1.0"
@@ -55,11 +67,8 @@ from .models import (
     SilverDependencyInfo
 )
 from .log_writer import LogWriter, PIPELINE_LOG_SCHEMA
-from .utils import (
-    create_validation_dict,
-    create_write_dict,
-    ValidationError
-)
+from .reporting import create_validation_dict, create_write_dict
+from .exceptions import ValidationError
 
 # Make key classes available at package level
 __all__ = [
