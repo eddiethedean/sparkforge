@@ -514,6 +514,9 @@ class PipelineRunner:
         self._is_running = False
         self._cancelled = False
         
+        # Shared step executor for troubleshooting
+        self._step_executor: Optional['StepExecutor'] = None
+        
         self.logger.info(f"🔩 PipelineRunner ready (ID: {self.pipeline_id})")
     
     def initial_load(self, *, bronze_sources: Dict[str, DataFrame]) -> PipelineReport:
@@ -1178,3 +1181,160 @@ class PipelineRunner:
         finally:
             if self._is_running:
                 self.cancel()
+    
+    # ============================================================================
+    # STEP-BY-STEP EXECUTION FOR TROUBLESHOOTING
+    # ============================================================================
+    
+    def create_step_executor(self) -> 'StepExecutor':
+        """Create or get the shared StepExecutor for troubleshooting individual steps."""
+        if self._step_executor is None:
+            from .step_executor import StepExecutor
+            
+            self._step_executor = StepExecutor(
+                spark=self.spark,
+                config=self.config,
+                bronze_steps=self.bronze_steps,
+                silver_steps=self.silver_steps,
+                gold_steps=self.gold_steps,
+                logger=self.logger,
+                dependency_analyzer=self.dependency_analyzer
+            )
+        
+        return self._step_executor
+    
+    def list_steps(self) -> Dict[str, List[str]]:
+        """List all available steps by type."""
+        return {
+            'bronze': list(self.bronze_steps.keys()),
+            'silver': list(self.silver_steps.keys()),
+            'gold': list(self.gold_steps.keys())
+        }
+    
+    def get_step_info(self, step_name: str) -> Optional[Dict[str, Any]]:
+        """Get detailed information about a step."""
+        # Check Bronze steps
+        if step_name in self.bronze_steps:
+            step = self.bronze_steps[step_name]
+            return {
+                'name': step_name,
+                'type': 'bronze',
+                'rules': step.rules,
+                'incremental_col': step.incremental_col,
+                'description': getattr(step, 'description', None),
+                'dependencies': [],  # Bronze steps have no dependencies
+                'dependents': self._get_bronze_dependents(step_name)
+            }
+        
+        # Check Silver steps
+        if step_name in self.silver_steps:
+            step = self.silver_steps[step_name]
+            return {
+                'name': step_name,
+                'type': 'silver',
+                'rules': step.rules,
+                'watermark_col': step.watermark_col,
+                'table_name': step.table_name,
+                'source_bronze': step.source_bronze,
+                'description': getattr(step, 'description', None),
+                'dependencies': [step.source_bronze] if step.source_bronze else [],
+                'dependents': self._get_silver_dependents(step_name)
+            }
+        
+        # Check Gold steps
+        if step_name in self.gold_steps:
+            step = self.gold_steps[step_name]
+            return {
+                'name': step_name,
+                'type': 'gold',
+                'rules': step.rules,
+                'table_name': step.table_name,
+                'source_silvers': step.source_silvers,
+                'description': getattr(step, 'description', None),
+                'dependencies': step.source_silvers or [],
+                'dependents': []  # Gold steps are leaves
+            }
+        
+        return None
+    
+    def execute_step(
+        self,
+        step_name: str,
+        input_data: Optional[DataFrame] = None,
+        output_to_table: bool = True,
+        force_input: bool = False
+    ) -> 'StepExecutionResult':
+        """Execute a single step for troubleshooting."""
+        executor = self.create_step_executor()
+        
+        return executor.execute_step(
+            step_name=step_name,
+            input_data=input_data,
+            output_to_table=output_to_table,
+            force_input=force_input
+        )
+    
+    def execute_bronze_step(
+        self,
+        step_name: str,
+        input_data: DataFrame,
+        output_to_table: bool = True
+    ) -> 'StepExecutionResult':
+        """Execute a single Bronze step for troubleshooting."""
+        executor = self.create_step_executor()
+        
+        return executor.execute_bronze_step(
+            step_name=step_name,
+            input_data=input_data,
+            output_to_table=output_to_table
+        )
+    
+    def execute_silver_step(
+        self,
+        step_name: str,
+        input_data: Optional[DataFrame] = None,
+        output_to_table: bool = True,
+        force_input: bool = False
+    ) -> 'StepExecutionResult':
+        """Execute a single Silver step for troubleshooting."""
+        executor = self.create_step_executor()
+        
+        return executor.execute_silver_step(
+            step_name=step_name,
+            input_data=input_data,
+            output_to_table=output_to_table,
+            force_input=force_input
+        )
+    
+    def execute_gold_step(
+        self,
+        step_name: str,
+        input_data: Optional[DataFrame] = None,
+        output_to_table: bool = True,
+        force_input: bool = False
+    ) -> 'StepExecutionResult':
+        """Execute a single Gold step for troubleshooting."""
+        executor = self.create_step_executor()
+        
+        return executor.execute_gold_step(
+            step_name=step_name,
+            input_data=input_data,
+            output_to_table=output_to_table,
+            force_input=force_input
+        )
+    
+    def _get_bronze_dependents(self, step_name: str) -> List[str]:
+        """Get Silver steps that depend on this Bronze step."""
+        dependents = []
+        for name, step in self.silver_steps.items():
+            if step.source_bronze == step_name:
+                dependents.append(name)
+        return dependents
+    
+    def _get_silver_dependents(self, step_name: str) -> List[str]:
+        """Get Gold steps that depend on this Silver step."""
+        dependents = []
+        for name, step in self.gold_steps.items():
+            if step_name in (step.source_silvers or []):
+                dependents.append(name)
+        return dependents

@@ -48,6 +48,7 @@ __description__ = "A powerful data pipeline builder for Apache Spark and Databri
 
 # Import main classes for easy access
 from .pipeline_builder import PipelineBuilder, PipelineRunner
+from .step_executor import StepExecutor, StepExecutionResult, StepValidationResult, StepType, StepStatus
 from .models import (
     ExecutionMode,
     PipelinePhase,
@@ -76,6 +77,13 @@ __all__ = [
     "PipelineBuilder",
     "PipelineRunner",
     "LogWriter",
+    
+    # Step execution classes
+    "StepExecutor",
+    "StepExecutionResult",
+    "StepValidationResult",
+    "StepType",
+    "StepStatus",
     
     # Models
     "ExecutionMode",

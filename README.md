@@ -53,12 +53,18 @@ pipeline = (builder
 
 result = pipeline.initial_load(bronze_sources={"events": source_df})
 print(f"Pipeline completed: {result.success}")
+
+# Debug individual steps
+bronze_result = pipeline.execute_bronze_step("events", input_data=source_df)
+silver_result = pipeline.execute_silver_step("silver_events")
+print(f"Step debugging: Bronze={bronze_result.status.value}, Silver={silver_result.status.value}")
 ```
 
 ## ✨ Key Features
 
 - **🏗️ Medallion Architecture**: Bronze → Silver → Gold data layering with automatic dependency management
 - **⚡ Parallel Execution**: Independent Silver steps run concurrently for maximum performance
+- **🔍 Step-by-Step Debugging**: Execute individual pipeline steps independently for troubleshooting
 - **✅ Data Validation**: Configurable validation thresholds and comprehensive quality checks
 - **🔄 Incremental Processing**: Watermarking and incremental updates with Delta Lake
 - **📅 Flexible Bronze Tables**: Support for Bronze tables with or without datetime columns
@@ -292,6 +298,100 @@ print(f"Total duration: {result.metrics.total_duration:.2f}s")
 - **Optimal resource utilization**: Maximum parallelization based on actual dependencies
 - **Better performance**: Significantly faster execution for complex pipelines
 
+### Step-by-Step Execution for Troubleshooting
+
+Debug and troubleshoot individual pipeline steps without running the entire pipeline. This powerful feature allows you to inspect intermediate outputs, modify transforms, and iterate quickly during development.
+
+```python
+from sparkforge import PipelineBuilder, StepType, StepStatus
+
+# Build your pipeline
+pipeline = (builder
+    .with_bronze_rules(name="events", rules={"user_id": [F.col("user_id").isNotNull()]})
+    .add_silver_transform(name="silver_events", source_bronze="events", ...)
+    .add_gold_transform(name="gold_summary", source_silvers=["silver_events"], ...)
+    .to_pipeline()
+)
+
+# Execute individual steps for debugging
+bronze_result = pipeline.execute_bronze_step("events", input_data=source_df)
+silver_result = pipeline.execute_silver_step("silver_events")
+gold_result = pipeline.execute_gold_step("gold_summary")
+
+# Inspect results
+print(f"Bronze validation passed: {bronze_result.validation_result.validation_passed}")
+print(f"Silver output rows: {silver_result.output_count}")
+print(f"Gold duration: {gold_result.duration_seconds:.2f}s")
+```
+
+**Step Execution Features:**
+- **🔍 Independent Execution**: Run any Bronze, Silver, or Gold step in isolation
+- **📊 Inspect Intermediate Data**: Examine data at each stage with full schema and content
+- **🛠️ Modify and Re-run**: Change transform functions and re-execute specific steps
+- **⚡ Fast Iteration**: No need to rerun previous steps when debugging downstream issues
+- **📈 Performance Insights**: Detailed timing and validation metrics for each step
+
+**Advanced Step Execution:**
+
+```python
+# Get step information and dependencies
+step_info = pipeline.get_step_info("silver_events")
+print(f"Step type: {step_info['type']}")
+print(f"Dependencies: {step_info['dependencies']}")
+print(f"Dependents: {step_info['dependents']}")
+
+# List all available steps
+steps = pipeline.list_steps()
+print(f"Bronze steps: {steps['bronze']}")
+print(f"Silver steps: {steps['silver']}")
+print(f"Gold steps: {steps['gold']}")
+
+# Get step output for detailed inspection
+executor = pipeline.create_step_executor()
+silver_output = executor.get_step_output("silver_events")
+silver_output.show()
+silver_output.printSchema()
+
+# Check execution state
+completed_steps = executor.list_completed_steps()
+failed_steps = executor.list_failed_steps()
+print(f"Completed: {completed_steps}")
+print(f"Failed: {failed_steps}")
+
+# Clear execution state for fresh start
+executor.clear_execution_state()
+```
+
+**Troubleshooting Workflow:**
+
+```python
+# 1. Execute Bronze step and inspect
+bronze_result = pipeline.execute_bronze_step("events", input_data=source_df)
+if not bronze_result.validation_result.validation_passed:
+    print(f"Bronze validation failed: {bronze_result.validation_result.validation_rate:.2f}%")
+    # Fix data quality issues and re-run
+
+# 2. Execute Silver step with custom input (if needed)
+silver_result = pipeline.execute_silver_step("silver_events", force_input=True)
+
+# 3. Modify transform function and re-run
+def improved_silver_transform(spark, bronze_df):
+    return bronze_df.withColumn("enhanced_field", F.lit("processed"))
+
+pipeline.silver_steps["silver_events"].transform = improved_silver_transform
+silver_result_2 = pipeline.execute_silver_step("silver_events")
+
+# 4. Continue with Gold step
+gold_result = pipeline.execute_gold_step("gold_summary")
+```
+
+**Key Benefits:**
+- **Rapid Debugging**: Isolate and fix issues without full pipeline runs
+- **Interactive Development**: Experiment with transforms and validations step-by-step
+- **Production Troubleshooting**: Debug specific failing steps in production pipelines
+- **Performance Optimization**: Profile individual steps for bottlenecks
+- **Data Quality Investigation**: Deep dive into validation failures at any stage
+
 ## 📊 Monitoring & Logging
 
 ### Execution Monitoring
@@ -457,6 +557,7 @@ pytest
 
 # Run examples
 python examples/basic_pipeline.py
+python examples/step_by_step_execution.py
 
 # Build package
 python -m build
