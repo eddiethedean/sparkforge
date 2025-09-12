@@ -41,7 +41,7 @@ Example:
     result = pipeline.initial_load(bronze_sources={"events": source_df})
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "Odos Matthews"
 __email__ = "odosmattthewsm@gmail.com"
 __description__ = "A powerful data pipeline builder for Apache Spark and Databricks"

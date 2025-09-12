@@ -39,6 +39,8 @@ from .reporting import create_validation_dict, create_transform_dict, create_wri
 from .validation import apply_column_rules
 from .dependency_analyzer import DependencyAnalyzer, DependencyAnalysisResult
 from .execution_engine import ExecutionEngine, ExecutionConfig, ExecutionMode
+from .unified_execution_engine import UnifiedExecutionEngine, UnifiedExecutionConfig
+from .unified_dependency_analyzer import UnifiedDependencyAnalyzer
 
 
 class PipelineMode(Enum):
@@ -392,6 +394,58 @@ class PipelineBuilder:
         
         return errors
     
+    def enable_unified_execution(
+        self,
+        max_workers: int = 4,
+        timeout_seconds: int = 300,
+        retry_attempts: int = 3,
+        retry_delay: float = 1.0,
+        enable_parallel_execution: bool = True,
+        enable_dependency_optimization: bool = True
+    ) -> 'PipelineBuilder':
+        """
+        Enable unified dependency-aware parallel execution across all step types.
+        
+        This allows Bronze, Silver, and Gold steps to run in parallel based on their
+        actual dependencies rather than layer boundaries.
+        
+        Args:
+            max_workers: Maximum number of parallel workers
+            timeout_seconds: Timeout for step execution
+            retry_attempts: Number of retry attempts for failed steps
+            retry_delay: Delay between retry attempts
+            enable_parallel_execution: Enable parallel execution within groups
+            enable_dependency_optimization: Enable dependency-based optimization
+            
+        Returns:
+            Self for method chaining
+        """
+        # Create unified execution configuration
+        unified_config = UnifiedExecutionConfig(
+            max_workers=max_workers,
+            timeout_seconds=timeout_seconds,
+            retry_attempts=retry_attempts,
+            retry_delay=retry_delay,
+            enable_parallel_execution=enable_parallel_execution,
+            enable_dependency_optimization=enable_dependency_optimization,
+            verbose=self.config.verbose
+        )
+        
+        # Create unified execution engine
+        self.unified_execution_engine = UnifiedExecutionEngine(
+            spark=self.spark,
+            config=unified_config,
+            logger=self.logger
+        )
+        
+        # Create unified dependency analyzer
+        self.unified_dependency_analyzer = UnifiedDependencyAnalyzer(self.logger)
+        
+        self.logger.info(f"🔧 Unified execution enabled (max_workers: {max_workers}, "
+                        f"parallel: {enable_parallel_execution})")
+        
+        return self
+
     def to_pipeline(self) -> 'PipelineRunner':
         """Create a PipelineRunner from the configured steps."""
         # Validate pipeline before creating runner
@@ -409,7 +463,9 @@ class PipelineBuilder:
             gold_steps=self.gold_steps,
             logger=self.logger,
             dependency_analyzer=self.dependency_analyzer,
-            execution_engine=self.execution_engine
+            execution_engine=self.execution_engine,
+            unified_execution_engine=getattr(self, 'unified_execution_engine', None),
+            unified_dependency_analyzer=getattr(self, 'unified_dependency_analyzer', None)
         )
 
 
@@ -437,7 +493,9 @@ class PipelineRunner:
         gold_steps: Dict[str, GoldStep],
         logger: PipelineLogger,
         dependency_analyzer: DependencyAnalyzer,
-        execution_engine: ExecutionEngine
+        execution_engine: ExecutionEngine,
+        unified_execution_engine: Optional[UnifiedExecutionEngine] = None,
+        unified_dependency_analyzer: Optional[UnifiedDependencyAnalyzer] = None
     ) -> None:
         self.pipeline_id = pipeline_id
         self.spark = spark
@@ -448,6 +506,8 @@ class PipelineRunner:
         self.logger = logger
         self.dependency_analyzer = dependency_analyzer
         self.execution_engine = execution_engine
+        self.unified_execution_engine = unified_execution_engine
+        self.unified_dependency_analyzer = unified_dependency_analyzer
         
         # Execution state
         self._current_report: Optional[PipelineReport] = None
@@ -463,6 +523,94 @@ class PipelineRunner:
     def run_incremental(self, *, bronze_sources: Dict[str, DataFrame]) -> PipelineReport:
         """Execute incremental pipeline run."""
         return self._run(PipelineMode.INCREMENTAL, bronze_sources=bronze_sources)
+    
+    def run_unified(self, *, bronze_sources: Dict[str, DataFrame], mode: str = "incremental") -> PipelineReport:
+        """
+        Execute pipeline with unified dependency-aware parallel execution.
+        
+        This method runs all steps (Bronze, Silver, Gold) in parallel based on their
+        actual dependencies rather than layer boundaries.
+        
+        Args:
+            bronze_sources: Dictionary of source DataFrames for Bronze steps
+            mode: Execution mode (incremental, full_refresh, etc.)
+            
+        Returns:
+            Pipeline execution report
+        """
+        if not self.unified_execution_engine:
+            raise ValueError("Unified execution not enabled. Call enable_unified_execution() first.")
+        
+        self.logger.info("🚀 Starting unified dependency-aware pipeline execution")
+        
+        try:
+            # Execute with unified engine
+            result = self.unified_execution_engine.execute_unified_pipeline(
+                bronze_steps=self.bronze_steps,
+                silver_steps=self.silver_steps,
+                gold_steps=self.gold_steps,
+                bronze_sources=bronze_sources,
+                mode=mode,
+                context=None
+            )
+            
+            # Convert to PipelineReport format
+            return self._convert_unified_result_to_report(result, mode)
+            
+        except Exception as e:
+            self.logger.error(f"❌ Unified pipeline execution failed: {e}")
+            raise
+    
+    def _convert_unified_result_to_report(self, result, mode: str) -> PipelineReport:
+        """Convert unified execution result to PipelineReport format."""
+        from .models import PipelineMetrics
+        
+        # Create basic report structure
+        report = PipelineReport(
+            pipeline_id=self.pipeline_id,
+            execution_id=str(uuid.uuid4()),
+            mode=PipelineMode(mode),
+            status=PipelineStatus.COMPLETED if result.failed_steps == 0 else PipelineStatus.FAILED,
+            start_time=now_dt(),
+            end_time=now_dt(),
+            duration_seconds=result.total_duration,
+            metrics=PipelineMetrics(
+                total_steps=result.successful_steps + result.failed_steps,
+                successful_steps=result.successful_steps,
+                failed_steps=result.failed_steps,
+                total_duration_secs=result.total_duration,
+                total_rows_processed=result.total_rows_processed,
+                total_rows_written=result.total_rows_written,
+                avg_validation_rate=100.0  # Default for now
+            ),
+            bronze_results={},
+            silver_results={},
+            gold_results={},
+            errors=result.errors,
+            warnings=[],
+            recommendations=[]
+        )
+        
+        # Populate step results
+        for step_name, step_result in result.step_results.items():
+            step_data = {
+                "success": step_result.success,
+                "duration_seconds": step_result.duration_seconds,
+                "rows_processed": step_result.rows_processed,
+                "rows_written": step_result.rows_written
+            }
+            
+            if step_result.error_message:
+                step_data["error"] = step_result.error_message
+            
+            if step_result.step_type.value == "bronze":
+                report.bronze_results[step_name] = step_data
+            elif step_result.step_type.value == "silver":
+                report.silver_results[step_name] = step_data
+            elif step_result.step_type.value == "gold":
+                report.gold_results[step_name] = step_data
+        
+        return report
     
     def run_full_refresh(self, *, bronze_sources: Dict[str, DataFrame]) -> PipelineReport:
         """Execute full refresh pipeline run."""

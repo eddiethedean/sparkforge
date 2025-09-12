@@ -759,6 +759,96 @@ class SilverDependencyInfo(BaseModel):
 
 
 # ============================================================================
+# Cross-Layer Dependency Models
+# ============================================================================
+
+@dataclass
+class CrossLayerDependency(BaseModel):
+    """
+    Represents a dependency between steps across different layers.
+    
+    Attributes:
+        source_step: Name of the source step
+        target_step: Name of the target step
+        dependency_type: Type of dependency (data, validation, etc.)
+        is_required: Whether this dependency is required for execution
+    """
+    source_step: str
+    target_step: str
+    dependency_type: str = "data"
+    is_required: bool = True
+    
+    def validate(self) -> None:
+        """Validate dependency information."""
+        if not self.source_step or not isinstance(self.source_step, str):
+            raise PipelineValidationError("Source step must be a non-empty string")
+        if not self.target_step or not isinstance(self.target_step, str):
+            raise PipelineValidationError("Target step must be a non-empty string")
+        if self.source_step == self.target_step:
+            raise PipelineValidationError("Source and target steps cannot be the same")
+
+
+@dataclass
+class UnifiedStepConfig(BaseModel):
+    """
+    Unified configuration for any pipeline step type.
+    
+    Attributes:
+        name: Step name
+        step_type: Type of step (bronze, silver, gold)
+        dependencies: List of step names this step depends on
+        estimated_duration: Estimated execution time in seconds
+        priority: Execution priority (higher = more important)
+        can_run_parallel: Whether this step can run in parallel
+        resource_requirements: Resource requirements for execution
+    """
+    name: str
+    step_type: str
+    dependencies: List[str] = field(default_factory=list)
+    estimated_duration: float = 1.0
+    priority: int = 0
+    can_run_parallel: bool = True
+    resource_requirements: Dict[str, Any] = field(default_factory=dict)
+    
+    def validate(self) -> None:
+        """Validate step configuration."""
+        if not self.name or not isinstance(self.name, str):
+            raise PipelineValidationError("Step name must be a non-empty string")
+        if self.step_type not in ["bronze", "silver", "gold"]:
+            raise PipelineValidationError("Step type must be 'bronze', 'silver', or 'gold'")
+        if self.estimated_duration < 0:
+            raise PipelineValidationError("Estimated duration must be non-negative")
+        if not isinstance(self.dependencies, list):
+            raise PipelineValidationError("Dependencies must be a list")
+
+
+@dataclass
+class UnifiedExecutionPlan(BaseModel):
+    """
+    Unified execution plan for cross-layer parallel execution.
+    
+    Attributes:
+        execution_groups: Groups of steps that can run in parallel
+        total_estimated_duration: Total estimated execution time
+        parallel_efficiency: Percentage of steps that can run in parallel
+        critical_path: Steps that are on the critical path
+        recommendations: Optimization recommendations
+    """
+    execution_groups: List[List[str]] = field(default_factory=list)
+    total_estimated_duration: float = 0.0
+    parallel_efficiency: float = 0.0
+    critical_path: List[str] = field(default_factory=list)
+    recommendations: List[str] = field(default_factory=list)
+    
+    def validate(self) -> None:
+        """Validate execution plan."""
+        if self.total_estimated_duration < 0:
+            raise PipelineValidationError("Total estimated duration must be non-negative")
+        if not 0 <= self.parallel_efficiency <= 100:
+            raise PipelineValidationError("Parallel efficiency must be between 0 and 100")
+
+
+# ============================================================================
 # Factory Functions
 # ============================================================================
 
