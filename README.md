@@ -174,62 +174,6 @@ builder.add_silver_transform(
 result = runner.run_incremental(bronze_sources={"events_no_datetime": source_df})
 ```
 
-### Advanced Pipeline with Configuration
-
-```python
-from sparkforge import PipelineBuilder, PipelineConfig, ValidationThresholds, ParallelConfig
-
-# Custom configuration
-config = PipelineConfig(
-    schema="my_schema",
-    thresholds=ValidationThresholds(bronze=95.0, silver=90.0, gold=85.0),
-    parallel=ParallelConfig(enabled=True, max_workers=4),
-    verbose=True
-)
-
-builder = PipelineBuilder(
-    spark=spark, 
-    schema="my_schema",
-    min_bronze_rate=95.0,
-    min_silver_rate=90.0,
-    min_gold_rate=85.0,
-    enable_parallel_silver=True,
-    max_parallel_workers=4,
-    verbose=True
-)
-
-# Add multiple silver steps (run in parallel)
-pipeline = (builder
-    .with_bronze_rules(
-        name="events",
-        rules={"user_id": [F.col("user_id").isNotNull()]}
-    )
-    .add_silver_transform(
-        name="silver_events",
-        source_bronze="events",
-        transform=events_transform,
-        rules={"user_id": [F.col("user_id").isNotNull()]},
-        table_name="silver_events"
-    )
-    .add_silver_transform(
-        name="silver_users",
-        source_bronze="events",
-        transform=users_transform,
-        rules={"user_id": [F.col("user_id").isNotNull()]},
-        table_name="silver_users"
-    )
-    .add_gold_transform(
-        name="gold_summary",
-        transform=gold_transform,
-        rules={"user_id": [F.col("user_id").isNotNull()]},
-        table_name="gold_summary"
-    )
-    .to_pipeline()
-)
-
-result = pipeline.run_incremental(bronze_sources={"events": events_df, "users": users_df})
-```
-
 ### Delta Lake Integration
 
 ```python

@@ -59,10 +59,10 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/eddiethedan/sparkforge"
+Homepage = "https://github.com/eddiethedean/sparkforge"
 Documentation = "https://sparkforge.readthedocs.io/"
-Repository = "https://github.com/eddiethedan/sparkforge"
-"Bug Tracker" = "https://github.com/eddiethedan/sparkforge/issues"
+Repository = "https://github.com/eddiethedean/sparkforge"
+"Bug Tracker" = "https://github.com/eddiethedean/sparkforge/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
