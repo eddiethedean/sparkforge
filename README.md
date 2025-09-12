@@ -1,33 +1,81 @@
 # SparkForge
 
-A production-ready PySpark + Delta Lake pipeline engine with the Medallion Architecture (Bronze → Silver → Gold). SparkForge provides a powerful, flexible framework for building scalable data pipelines with built-in parallel execution, comprehensive validation, and enterprise-grade monitoring.
+A production-ready PySpark + Delta Lake pipeline engine with the Medallion Architecture (Bronze → Silver → Gold). Build scalable data pipelines with built-in parallel execution, comprehensive validation, and enterprise-grade monitoring.
 
-## 🚀 Features
+## 🚀 Quick Start
+
+```bash
+pip install sparkforge
+```
+
+```python
+from sparkforge import PipelineBuilder
+from pyspark.sql import functions as F
+
+# Initialize Spark
+from pyspark.sql import SparkSession
+spark = SparkSession.builder \
+    .appName("SparkForge Example") \
+    .master("local[*]") \
+    .getOrCreate()
+
+# Create a simple pipeline
+builder = PipelineBuilder(spark=spark, schema="my_schema")
+
+def silver_transform(spark, bronze_df):
+    return bronze_df.filter(F.col("status") == "active")
+
+def gold_transform(spark, silvers):
+    events_df = silvers["silver_events"]
+    return events_df.groupBy("category").count()
+
+# Build and run pipeline
+pipeline = (builder
+    .with_bronze_rules(
+        name="events",
+        rules={"user_id": [F.col("user_id").isNotNull()]}
+    )
+    .add_silver_transform(
+        name="silver_events",
+        source_bronze="events",
+        transform=silver_transform,
+        rules={"status": [F.col("status").isNotNull()]},
+        table_name="silver_events"
+    )
+    .add_gold_transform(
+        name="gold_summary",
+        transform=gold_transform,
+        rules={"category": [F.col("category").isNotNull()]},
+        table_name="gold_summary"
+    )
+    .to_pipeline()
+)
+
+result = pipeline.initial_load(bronze_sources={"events": source_df})
+print(f"Pipeline completed: {result.success}")
+```
+
+## ✨ Key Features
 
 - **🏗️ Medallion Architecture**: Bronze → Silver → Gold data layering with automatic dependency management
 - **⚡ Parallel Execution**: Independent Silver steps run concurrently for maximum performance
 - **✅ Data Validation**: Configurable validation thresholds and comprehensive quality checks
 - **🔄 Incremental Processing**: Watermarking and incremental updates with Delta Lake
 - **📅 Flexible Bronze Tables**: Support for Bronze tables with or without datetime columns
-- **🔄 Smart Write Modes**: Automatic overwrite mode for Silver tables when Bronze lacks temporal data
-- **💧 Optional Watermarks**: Silver steps can omit watermark columns when sourcing from non-temporal Bronze tables
+- **💧 Delta Lake Integration**: Full support for ACID transactions, time travel, and schema evolution
 - **📊 Structured Logging**: Detailed execution logging, timing, and monitoring
 - **🛡️ Error Handling**: Comprehensive error handling, recovery, and retry mechanisms
-- **⚙️ Configuration Management**: Flexible configuration with Pydantic models
-- **🏔️ Delta Lake Integration**: Full support for ACID transactions, time travel, and schema evolution
-- **🧪 Comprehensive Testing**: 280+ tests with real Spark integration and Delta Lake support
-- **📦 Production Ready**: Complete Python package with proper distribution and documentation
 
 ## 🛠️ Installation
 
 ### Prerequisites
 
 - Python 3.8+
-- Java 11+
+- Java 8+ (for PySpark 3.2.4)
 - PySpark 3.2.4+
-- Delta Lake 2.0.2+
+- Delta Lake 1.2.0+
 
-### Install from PyPI (Recommended)
+### Install from PyPI
 
 ```bash
 pip install sparkforge
@@ -36,16 +84,9 @@ pip install sparkforge
 ### Install from Source
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/sparkforge.git
+git clone https://github.com/eddiethedean/sparkforge.git
 cd sparkforge
-
-# Install in development mode
 pip install -e .
-
-# Or build and install
-python -m build
-pip install dist/sparkforge-*.whl
 ```
 
 ### Verify Installation
@@ -59,37 +100,7 @@ from sparkforge import PipelineBuilder
 print("✅ SparkForge installed successfully!")
 ```
 
-## 🧪 Testing
-
-Run the comprehensive test suite with 280+ tests:
-
-```bash
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=sparkforge --cov-report=html
-
-# Run specific test categories
-pytest -m "not slow"                    # Skip slow tests
-pytest -m "delta"                       # Delta Lake tests only
-pytest tests/test_integration_*.py      # Integration tests only
-
-# Run tests with verbose output
-pytest -v --tb=short
-```
-
-### Test Categories
-
-- **Unit Tests**: Individual component testing
-- **Integration Tests**: End-to-end pipeline testing
-- **Delta Lake Tests**: Delta Lake specific features
-- **Performance Tests**: Load and performance validation
-- **Error Handling Tests**: Comprehensive error scenario testing
-
-Expected output: **280+ tests passed** ✅
-
-## 📖 Usage
+## 📖 Usage Examples
 
 ### Basic Pipeline
 
@@ -97,14 +108,13 @@ Expected output: **280+ tests passed** ✅
 from sparkforge import PipelineBuilder
 from pyspark.sql import functions as F
 
-# Initialize Spark (if not already done)
-from pyspark.sql import SparkSession
+# Initialize Spark
 spark = SparkSession.builder \
     .appName("SparkForge Example") \
     .master("local[*]") \
     .getOrCreate()
 
-# Create pipeline with fluent API
+# Create pipeline
 builder = PipelineBuilder(spark=spark, schema="my_schema")
 
 # Define transforms
@@ -138,9 +148,6 @@ pipeline = (builder
 )
 
 result = pipeline.initial_load(bronze_sources={"events": source_df})
-
-print(f"Pipeline completed: {result.success}")
-print(f"Rows written: {result.totals['total_rows_written']}")
 ```
 
 ### Bronze Tables Without Datetime Columns
@@ -160,7 +167,6 @@ builder.with_bronze_rules(
 )
 
 # Silver step will automatically use overwrite mode
-# Note: watermark_col is optional when Bronze has no datetime column
 builder.add_silver_transform(
     name="enriched_events",
     source_bronze="events_no_datetime",
@@ -171,7 +177,7 @@ builder.add_silver_transform(
 )
 
 # Even in incremental mode, Silver will use overwrite due to Bronze having no datetime
-result = runner.run_incremental(bronze_sources={"events_no_datetime": source_df})
+result = pipeline.run_incremental(bronze_sources={"events_no_datetime": source_df})
 ```
 
 ### Delta Lake Integration
@@ -231,36 +237,17 @@ print(f"Delta Lake tables created: {result.totals['tables_created']}")
 ### Pipeline Configuration
 
 ```python
-from sparkforge import PipelineConfig, ValidationThresholds, ParallelConfig
+from sparkforge import PipelineBuilder
 
-# Custom configuration with Pydantic models
-thresholds = ValidationThresholds(
-    bronze=95.0,    # 95% data quality threshold for Bronze
-    silver=90.0,    # 90% data quality threshold for Silver
-    gold=85.0       # 85% data quality threshold for Gold
-)
-
-parallel = ParallelConfig(
-    enabled=True,       # Enable parallel Silver execution
-    max_workers=4,      # Maximum parallel workers
-    timeout_secs=300    # Timeout for parallel operations
-)
-
-config = PipelineConfig(
-    schema="my_schema",
-    thresholds=thresholds,
-    parallel=parallel,
-    verbose=True
-)
-
+# Configure validation thresholds
 builder = PipelineBuilder(
     spark=spark, 
     schema="my_schema",
-    min_bronze_rate=95.0,
-    min_silver_rate=90.0,
-    min_gold_rate=85.0,
-    enable_parallel_silver=True,
-    max_parallel_workers=4,
+    min_bronze_rate=95.0,    # 95% data quality threshold for Bronze
+    min_silver_rate=90.0,    # 90% data quality threshold for Silver
+    min_gold_rate=85.0,      # 85% data quality threshold for Gold
+    enable_parallel_silver=True,  # Enable parallel Silver execution
+    max_parallel_workers=4,       # Maximum parallel workers
     verbose=True
 )
 ```
@@ -268,7 +255,6 @@ builder = PipelineBuilder(
 ### Execution Modes
 
 ```python
-
 # Different execution modes
 pipeline = builder.to_pipeline()
 
@@ -280,13 +266,11 @@ pipeline.run_validation_only(bronze_sources={"events": source_df}) # Validation 
 
 ## 📊 Monitoring & Logging
 
-SparkForge provides comprehensive monitoring and logging capabilities:
-
 ### Execution Monitoring
 
 ```python
 # Get detailed execution results
-result = builder.run()
+result = pipeline.run_incremental(bronze_sources={"events": source_df})
 
 # Access execution metrics
 print(f"Success: {result.success}")
@@ -314,14 +298,35 @@ log_writer = LogWriter(
 log_writer.log_pipeline_execution(result)
 ```
 
-### Key Monitoring Features
+## 🧪 Testing
 
-- **⏱️ Execution Timing**: Detailed timing for each stage and step
-- **📈 Data Quality Metrics**: Validation results, row counts, and quality rates
-- **🛡️ Error Handling**: Detailed error messages, stack traces, and recovery info
-- **📊 Structured Logging**: JSON-formatted logs for monitoring systems
-- **🔍 Delta Lake Integration**: Time travel, history, and metadata access
-- **📋 Performance Metrics**: Memory usage, processing rates, and optimization hints
+Run the comprehensive test suite with 400+ tests:
+
+```bash
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=sparkforge --cov-report=html
+
+# Run specific test categories
+pytest -m "not slow"                    # Skip slow tests
+pytest -m "delta"                       # Delta Lake tests only
+pytest tests/test_integration_*.py      # Integration tests only
+
+# Run tests with verbose output
+pytest -v --tb=short
+```
+
+### Test Categories
+
+- **Unit Tests**: Individual component testing
+- **Integration Tests**: End-to-end pipeline testing
+- **Delta Lake Tests**: Delta Lake specific features
+- **Performance Tests**: Load and performance validation
+- **Error Handling Tests**: Comprehensive error scenario testing
+
+Expected output: **400+ tests passed** ✅
 
 ## 🏗️ Architecture
 
@@ -351,24 +356,17 @@ SparkForge is optimized for Databricks environments:
 
 ```python
 # In Databricks notebook
-from sparkforge import PipelineBuilder, PipelineConfig
+from sparkforge import PipelineBuilder
 
 # Spark session is automatically available
-config = PipelineConfig(
-    schema="production_schema",
-    thresholds=ValidationThresholds(bronze=99.0, silver=95.0, gold=90.0),
-    parallel=ParallelConfig(enabled=True, max_workers=8),
-    verbose=True
-)
-
 builder = PipelineBuilder(
     spark=spark, 
-    schema="my_schema",
-    min_bronze_rate=95.0,
-    min_silver_rate=90.0,
-    min_gold_rate=85.0,
+    schema="production_schema",
+    min_bronze_rate=99.0,
+    min_silver_rate=95.0,
+    min_gold_rate=90.0,
     enable_parallel_silver=True,
-    max_parallel_workers=4,
+    max_parallel_workers=8,
     verbose=True
 )
 ```
@@ -401,23 +399,6 @@ python examples/basic_pipeline.py
 python -m build
 ```
 
-### Docker Deployment
-
-```dockerfile
-FROM python:3.8-slim
-
-# Install Java and Spark dependencies
-RUN apt-get update && apt-get install -y openjdk-11-jdk
-
-# Install SparkForge
-COPY . /app
-WORKDIR /app
-RUN pip install -e .
-
-# Run pipeline
-CMD ["python", "examples/basic_pipeline.py"]
-```
-
 ## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -441,7 +422,7 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 
 ```bash
 # Clone and setup
-git clone https://github.com/your-username/sparkforge.git
+git clone https://github.com/eddiethedean/sparkforge.git
 cd sparkforge
 pip install -e .
 
