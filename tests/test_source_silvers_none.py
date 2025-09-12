@@ -9,18 +9,9 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pipeline_builder import PipelineBuilder
+from sparkforge import PipelineBuilder
 
-# Create Spark session for testing
-spark = SparkSession.builder \
-    .appName("SourceSilversNoneTest") \
-    .master("local[*]") \
-    .config("spark.sql.warehouse.dir", "/tmp/spark-warehouse") \
-    .getOrCreate()
-
-spark.sparkContext.setLogLevel("WARN")
-
-def test_source_silvers_none():
+def test_source_silvers_none(spark_session):
     """Test that source_silvers=None uses all available silvers."""
     print("🧪 Testing source_silvers=None behavior...")
     
@@ -31,7 +22,7 @@ def test_source_silvers_none():
         ("user3", "purchase", "2024-01-01 12:00:00"),
     ]
     
-    bronze_df = spark.createDataFrame(
+    bronze_df = spark_session.createDataFrame(
         bronze_data, 
         ["user_id", "action", "timestamp"]
     )
@@ -101,11 +92,11 @@ def test_source_silvers_none():
                     .select("action", "total_events", "unique_users")
                    )
         else:
-            return spark.createDataFrame([], ["action", "total_events", "unique_users"])
+            return spark_session.createDataFrame([], ["action", "total_events", "unique_users"])
     
     # Build pipeline with source_silvers=None (should use all silvers)
     builder = PipelineBuilder(
-        spark=spark,
+        spark=spark_session,
         schema="test_schema",
         verbose=False
     )
@@ -169,7 +160,7 @@ def test_source_silvers_none():
         traceback.print_exc()
         assert False
 
-def test_source_silvers_specific():
+def test_source_silvers_specific(spark_session):
     """Test that source_silvers with specific list works correctly."""
     print("\n🧪 Testing source_silvers with specific list...")
     
@@ -179,7 +170,7 @@ def test_source_silvers_specific():
         ("user2", "view", "2024-01-01 11:00:00"),
     ]
     
-    bronze_df = spark.createDataFrame(
+    bronze_df = spark_session.createDataFrame(
         bronze_data, 
         ["user_id", "action", "timestamp"]
     )
@@ -246,11 +237,11 @@ def test_source_silvers_specific():
                     .orderBy("action")
                    )
         else:
-            return spark.createDataFrame([], ["action", "event_count"])
+            return spark_session.createDataFrame([], ["action", "event_count"])
     
     # Build pipeline with source_silvers=["silver_events"] (should use only specified silver)
     builder = PipelineBuilder(
-        spark=spark,
+        spark=spark_session,
         schema="test_schema",
         verbose=False
     )

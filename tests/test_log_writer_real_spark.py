@@ -12,8 +12,8 @@ from pyspark.sql import SparkSession, DataFrame, functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, TimestampType
 
 # Import pipeline components
-from pipeline_builder import PipelineBuilder, LogWriter
-from pipeline_builder.models import ValidationThresholds, ParallelConfig, PipelineConfig
+from sparkforge import PipelineBuilder, LogWriter
+from sparkforge.models import ValidationThresholds, ParallelConfig, PipelineConfig
 
 
 class TestLogWriterPipelineIntegration:
@@ -112,7 +112,7 @@ class TestLogWriterPipelineIntegration:
     def test_log_writer_dataframe_creation(self, log_writer, sample_pipeline_result, spark_session):
         """Test LogWriter can create DataFrames from pipeline results."""
         # Test creating DataFrame from pipeline result using flatten_pipeline_report
-        from pipeline_builder.log_writer import flatten_pipeline_report, PIPELINE_LOG_SCHEMA
+        from sparkforge.log_writer import flatten_pipeline_report, PIPELINE_LOG_SCHEMA
         
         # Flatten the report into log rows
         log_rows = flatten_pipeline_report(sample_pipeline_result, "test_schema")
@@ -136,7 +136,7 @@ class TestLogWriterPipelineIntegration:
     @pytest.mark.spark
     def test_log_writer_dataframe_content(self, log_writer, sample_pipeline_result, spark_session):
         """Test LogWriter DataFrame content is correct."""
-        from pipeline_builder.log_writer import flatten_pipeline_report, PIPELINE_LOG_SCHEMA
+        from sparkforge.log_writer import flatten_pipeline_report, PIPELINE_LOG_SCHEMA
         log_rows = flatten_pipeline_report(sample_pipeline_result, "test_schema")
         df = spark_session.createDataFrame(log_rows, schema=PIPELINE_LOG_SCHEMA)
         
@@ -169,7 +169,7 @@ class TestLogWriterPipelineIntegration:
     def test_log_writer_query_functionality(self, log_writer, sample_pipeline_result, spark_session):
         """Test LogWriter query functionality with real DataFrames."""
         # Create and write logs
-        from pipeline_builder.log_writer import flatten_pipeline_report, PIPELINE_LOG_SCHEMA
+        from sparkforge.log_writer import flatten_pipeline_report, PIPELINE_LOG_SCHEMA
         log_rows = flatten_pipeline_report(sample_pipeline_result, "test_schema")
         df = spark_session.createDataFrame(log_rows, schema=PIPELINE_LOG_SCHEMA)
         
@@ -188,7 +188,7 @@ class TestLogWriterPipelineIntegration:
     @pytest.mark.spark
     def test_log_writer_summary_functionality(self, log_writer, sample_pipeline_result, spark_session):
         """Test LogWriter summary functionality with real DataFrames."""
-        from pipeline_builder.log_writer import flatten_pipeline_report, PIPELINE_LOG_SCHEMA
+        from sparkforge.log_writer import flatten_pipeline_report, PIPELINE_LOG_SCHEMA
         log_rows = flatten_pipeline_report(sample_pipeline_result, "test_schema")
         df = spark_session.createDataFrame(log_rows, schema=PIPELINE_LOG_SCHEMA)
         
@@ -226,7 +226,7 @@ class TestLogWriterPipelineIntegration:
         }
     
         # Should still create a DataFrame (possibly with error rows)
-        from pipeline_builder.log_writer import flatten_pipeline_report, PIPELINE_LOG_SCHEMA
+        from sparkforge.log_writer import flatten_pipeline_report, PIPELINE_LOG_SCHEMA
         log_rows = flatten_pipeline_report(invalid_result, "test_schema")
         df = spark_session.createDataFrame(log_rows, schema=PIPELINE_LOG_SCHEMA)
         assert df is not None
@@ -245,7 +245,7 @@ class TestLogWriterPipelineIntegration:
     @pytest.mark.spark
     def test_log_writer_performance_monitoring(self, log_writer, sample_pipeline_result, spark_session):
         """Test LogWriter performance monitoring with real DataFrames."""
-        from pipeline_builder.log_writer import flatten_pipeline_report, PIPELINE_LOG_SCHEMA
+        from sparkforge.log_writer import flatten_pipeline_report, PIPELINE_LOG_SCHEMA
         log_rows = flatten_pipeline_report(sample_pipeline_result, "test_schema")
         df = spark_session.createDataFrame(log_rows, schema=PIPELINE_LOG_SCHEMA)
         
@@ -271,7 +271,7 @@ class TestLogWriterPipelineIntegration:
     @pytest.mark.spark
     def test_log_writer_data_types(self, log_writer, sample_pipeline_result, spark_session):
         """Test LogWriter DataFrame data types are correct."""
-        from pipeline_builder.log_writer import flatten_pipeline_report, PIPELINE_LOG_SCHEMA
+        from sparkforge.log_writer import flatten_pipeline_report, PIPELINE_LOG_SCHEMA
         log_rows = flatten_pipeline_report(sample_pipeline_result, "test_schema")
         df = spark_session.createDataFrame(log_rows, schema=PIPELINE_LOG_SCHEMA)
         
@@ -315,7 +315,7 @@ class TestLogWriterPipelineIntegration:
         }
     
         # Test with larger dataset
-        from pipeline_builder.log_writer import flatten_pipeline_report, PIPELINE_LOG_SCHEMA
+        from sparkforge.log_writer import flatten_pipeline_report, PIPELINE_LOG_SCHEMA
         log_rows = flatten_pipeline_report(large_result, "test_schema")
         df = spark_session.createDataFrame(log_rows, schema=PIPELINE_LOG_SCHEMA)
         assert df is not None

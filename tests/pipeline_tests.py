@@ -9,11 +9,11 @@ from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, TimestampType
 from datetime import datetime
 
-from pipeline_builder import PipelineBuilder
-from pipeline_builder.models import BronzeStep, SilverStep, GoldStep
-from pipeline_builder.pipeline_builder import PipelineMode
-from pipeline_builder.config import get_default_config, get_high_performance_config, get_conservative_config
-from pipeline_builder.logger import PipelineLogger
+from sparkforge import PipelineBuilder
+from sparkforge.models import BronzeStep, SilverStep, GoldStep
+from sparkforge.pipeline_builder import PipelineMode
+from sparkforge.config import get_default_config, get_high_performance_config, get_conservative_config
+from sparkforge.logger import PipelineLogger
 
 # Initialize Spark session for testing
 from pyspark.sql import SparkSession

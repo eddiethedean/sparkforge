@@ -10,9 +10,9 @@ from pyspark.sql import SparkSession
 # Add the project root to the Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def spark_session():
-    """Create a Spark session for testing with Delta Lake support."""
+    """Create a Spark session with Delta Lake support for testing."""
     import shutil
     import os
     
@@ -21,16 +21,39 @@ def spark_session():
     if os.path.exists(warehouse_dir):
         shutil.rmtree(warehouse_dir, ignore_errors=True)
     
-    # Use basic Spark configuration for stability
-    print("🔧 Using basic Spark configuration for test stability")
-    builder = SparkSession.builder \
-        .appName("PipelineBuilderTests") \
-        .master("local[*]") \
-        .config("spark.sql.warehouse.dir", warehouse_dir) \
-        .config("spark.sql.adaptive.enabled", "true") \
-        .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
-    
-    spark = builder.getOrCreate()
+    # Configure Spark with Delta Lake support
+    try:
+        from delta import configure_spark_with_delta_pip
+        print("🔧 Configuring Spark with Delta Lake support for all tests")
+        
+        builder = SparkSession.builder \
+            .appName("PipelineBuilderTests") \
+            .master("local[*]") \
+            .config("spark.sql.warehouse.dir", warehouse_dir) \
+            .config("spark.sql.adaptive.enabled", "true") \
+            .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
+            .config("spark.driver.host", "127.0.0.1") \
+            .config("spark.driver.bindAddress", "127.0.0.1") \
+            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+            .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+        
+        # Configure Delta Lake with explicit version
+        spark = configure_spark_with_delta_pip(builder).getOrCreate()
+        
+    except Exception as e:
+        print(f"⚠️ Delta Lake configuration failed: {e}")
+        # Fall back to basic Spark if Delta Lake is not available
+        print("🔧 Falling back to basic Spark configuration")
+        builder = SparkSession.builder \
+            .appName("PipelineBuilderTests") \
+            .master("local[*]") \
+            .config("spark.sql.warehouse.dir", warehouse_dir) \
+            .config("spark.sql.adaptive.enabled", "true") \
+            .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
+            .config("spark.driver.host", "127.0.0.1") \
+            .config("spark.driver.bindAddress", "127.0.0.1")
+        
+        spark = builder.getOrCreate()
     
     # Set log level to WARN to reduce noise
     spark.sparkContext.setLogLevel("WARN")
@@ -43,19 +66,21 @@ def spark_session():
         print(f"❌ Could not create test_schema database: {e}")
         # Continue anyway - some tests might not need the database
     
-    # Skip Delta Lake verification for basic tests
-    print("⚠️ Using basic Spark - Delta Lake tests are in separate test file")
-    
     yield spark
     
     # Cleanup
     try:
-        # Drop test database and tables
-        spark.sql("DROP DATABASE IF EXISTS test_schema CASCADE")
+        # Check if SparkContext is still valid before cleanup
+        if hasattr(spark, 'sparkContext') and spark.sparkContext._jsc is not None:
+            # Drop test database and tables
+            spark.sql("DROP DATABASE IF EXISTS test_schema CASCADE")
     except Exception as e:
         print(f"Warning: Could not drop test_schema database: {e}")
     
-    spark.stop()
+    try:
+        spark.stop()
+    except Exception as e:
+        print(f"Warning: Could not stop Spark session: {e}")
     
     # Clean up warehouse directory
     if os.path.exists(warehouse_dir):
@@ -67,11 +92,13 @@ def cleanup_test_tables(spark_session):
     yield
     # Cleanup after each test
     try:
-        # Drop any tables that might have been created
-        tables = spark_session.sql("SHOW TABLES IN test_schema").collect()
-        for table in tables:
-            table_name = table.tableName
-            spark_session.sql(f"DROP TABLE IF EXISTS test_schema.{table_name}")
+        # Check if SparkContext is still valid
+        if hasattr(spark_session, 'sparkContext') and spark_session.sparkContext._jsc is not None:
+            # Drop any tables that might have been created
+            tables = spark_session.sql("SHOW TABLES IN test_schema").collect()
+            for table in tables:
+                table_name = table.tableName
+                spark_session.sql(f"DROP TABLE IF EXISTS test_schema.{table_name}")
     except Exception as e:
         # Ignore cleanup errors
         pass
@@ -88,6 +115,7 @@ def sample_bronze_data(spark_session):
         data, 
         ["user_id", "action", "timestamp"]
     )
+
 
 @pytest.fixture
 def sample_bronze_rules():
@@ -121,7 +149,7 @@ def sample_gold_rules():
 @pytest.fixture
 def pipeline_builder(spark_session):
     """Create a PipelineBuilder instance for testing."""
-    from pipeline_builder import PipelineBuilder
+    from sparkforge import PipelineBuilder
     return PipelineBuilder(
         spark=spark_session,
         schema="test_schema",
@@ -133,7 +161,7 @@ def pipeline_builder(spark_session):
 @pytest.fixture
 def pipeline_builder_sequential(spark_session):
     """Create a PipelineBuilder instance with sequential execution for testing."""
-    from pipeline_builder import PipelineBuilder
+    from sparkforge import PipelineBuilder
     return PipelineBuilder(
         spark=spark_session,
         schema="test_schema",

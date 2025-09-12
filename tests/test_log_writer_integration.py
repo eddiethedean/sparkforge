@@ -12,8 +12,8 @@ from pyspark.sql import SparkSession, DataFrame, functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, TimestampType
 
 # Import pipeline components
-from pipeline_builder import PipelineBuilder, LogWriter
-from pipeline_builder.models import ValidationThresholds, ParallelConfig, PipelineConfig
+from sparkforge import PipelineBuilder, LogWriter
+from sparkforge.models import ValidationThresholds, ParallelConfig, PipelineConfig
 
 
 class TestLogWriterPipelineIntegration(unittest.TestCase):

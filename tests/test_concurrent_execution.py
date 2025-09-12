@@ -9,20 +9,12 @@ import sys
 import os
 import time
 import threading
+import pytest
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pipeline_builder import PipelineBuilder
+from sparkforge import PipelineBuilder
 
-# Create Spark session for testing
-spark = SparkSession.builder \
-    .appName("ConcurrentExecutionTest") \
-    .master("local[*]") \
-    .config("spark.sql.warehouse.dir", "/tmp/spark-warehouse") \
-    .getOrCreate()
-
-spark.sparkContext.setLogLevel("WARN")
-
-def test_concurrent_bronze_execution():
+def test_concurrent_bronze_execution(spark_session):
     """Test that multiple Bronze steps can run concurrently."""
     print("🧪 Testing concurrent Bronze execution...")
     
@@ -37,12 +29,12 @@ def test_concurrent_bronze_execution():
         ("user4", "view", "2024-01-01 13:00:00"),
     ]
     
-    bronze_df1 = spark.createDataFrame(
+    bronze_df1 = spark_session.createDataFrame(
         bronze_data1, 
         ["user_id", "action", "timestamp"]
     )
     
-    bronze_df2 = spark.createDataFrame(
+    bronze_df2 = spark_session.createDataFrame(
         bronze_data2, 
         ["user_id", "action", "timestamp"]
     )
@@ -66,7 +58,7 @@ def test_concurrent_bronze_execution():
     
     # Build pipeline with multiple bronze steps
     builder = PipelineBuilder(
-        spark=spark,
+        spark=spark_session,
         schema="test_schema",
         verbose=False,
         enable_parallel_silver=True,
@@ -120,7 +112,7 @@ def test_concurrent_bronze_execution():
         traceback.print_exc()
         assert False
 
-def test_concurrent_gold_execution():
+def test_concurrent_gold_execution(spark_session):
     """Test that multiple Gold steps can run concurrently."""
     print("\n🧪 Testing concurrent Gold execution...")
     
@@ -131,7 +123,7 @@ def test_concurrent_gold_execution():
         ("user3", "purchase", "2024-01-01 12:00:00"),
     ]
     
-    bronze_df = spark.createDataFrame(
+    bronze_df = spark_session.createDataFrame(
         bronze_data, 
         ["user_id", "action", "timestamp"]
     )
@@ -184,7 +176,7 @@ def test_concurrent_gold_execution():
     
     # Build pipeline with multiple gold steps
     builder = PipelineBuilder(
-        spark=spark,
+        spark=spark_session,
         schema="test_schema",
         verbose=False,
         enable_parallel_silver=True,
@@ -253,13 +245,13 @@ def test_concurrent_gold_execution():
         traceback.print_exc()
         assert False
 
-def test_parallel_configuration():
+def test_parallel_configuration(spark_session):
     """Test that parallel configuration is properly applied."""
     print("\n🧪 Testing parallel configuration...")
     
     # Test with parallel enabled
     builder_parallel = PipelineBuilder(
-        spark=spark,
+        spark=spark_session,
         schema="test_schema",
         verbose=False,
         enable_parallel_silver=True,
@@ -276,7 +268,7 @@ def test_parallel_configuration():
     
     # Test with parallel disabled
     builder_sequential = PipelineBuilder(
-        spark=spark,
+        spark=spark_session,
         schema="test_schema",
         verbose=False,
         enable_parallel_silver=False,
@@ -294,7 +286,7 @@ def test_parallel_configuration():
     
     assert True
 
-def test_execution_timing():
+def test_execution_timing(spark_session):
     """Test that concurrent execution is actually faster than sequential."""
     print("\n🧪 Testing execution timing...")
     
@@ -305,7 +297,7 @@ def test_execution_timing():
         ("user3", "purchase", "2024-01-01 12:00:00"),
     ]
     
-    bronze_df = spark.createDataFrame(
+    bronze_df = spark_session.createDataFrame(
         bronze_data, 
         ["user_id", "action", "timestamp"]
     )
@@ -319,7 +311,7 @@ def test_execution_timing():
     
     # Test with parallel execution
     builder_parallel = PipelineBuilder(
-        spark=spark,
+        spark=spark_session,
         schema="test_schema",
         verbose=False,
         enable_parallel_silver=True,
@@ -343,7 +335,7 @@ def test_execution_timing():
     
     # Test with sequential execution
     builder_sequential = PipelineBuilder(
-        spark=spark,
+        spark=spark_session,
         schema="test_schema",
         verbose=False,
         enable_parallel_silver=False,

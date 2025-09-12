@@ -14,7 +14,7 @@ import json
 import yaml
 from pathlib import Path
 
-from pipeline_builder.config import (
+from sparkforge.config import (
     ConfigManager, ConfigTemplate, ConfigEnvironment, ConfigMetadata,
     ConfigurationError, ConfigurationValidationError, ConfigurationTemplateError, ConfigurationSerializationError,
     get_default_config, get_high_performance_config, get_conservative_config,
@@ -22,7 +22,7 @@ from pipeline_builder.config import (
     validate_config_file, diff_config_files, migrate_config
 )
 
-from pipeline_builder.models import PipelineConfig, ValidationThresholds, ParallelConfig
+from sparkforge.models import PipelineConfig, ValidationThresholds, ParallelConfig
 
 
 class TestConfigTemplate(unittest.TestCase):

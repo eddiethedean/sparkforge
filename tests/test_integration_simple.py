@@ -11,8 +11,8 @@ from datetime import datetime, timedelta
 from pyspark.sql import SparkSession, DataFrame, functions as F
 
 # Import pipeline components
-from pipeline_builder import PipelineBuilder, PipelineRunner, LogWriter
-from pipeline_builder.models import ExecutionMode
+from sparkforge import PipelineBuilder, PipelineRunner, LogWriter
+from sparkforge.models import ExecutionMode
 
 
 class TestSimpleIntegration:

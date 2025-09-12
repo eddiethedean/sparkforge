@@ -12,12 +12,12 @@ from typing import Dict, Any
 import time
 from concurrent.futures import Future
 
-from pipeline_builder.execution_engine import (
+from sparkforge.execution_engine import (
     ExecutionEngine, ExecutionMode, RetryStrategy, ExecutionConfig,
     ExecutionResult, ExecutionStats
 )
-from pipeline_builder.models import SilverStep, StageStats, ExecutionContext
-from pipeline_builder.logger import PipelineLogger
+from sparkforge.models import SilverStep, StageStats, ExecutionContext
+from sparkforge.logger import PipelineLogger
 
 
 class TestExecutionMode(unittest.TestCase):
@@ -225,7 +225,7 @@ class TestExecutionEngine(unittest.TestCase):
         self.spark.table.return_value = mock_df
         
         # Mock validation
-        with patch('pipeline_builder.execution_engine.apply_column_rules') as mock_apply_rules:
+        with patch('sparkforge.execution_engine.apply_column_rules') as mock_apply_rules:
             mock_stats = StageStats(
                 stage="silver",
                 step="test_step",
@@ -238,7 +238,7 @@ class TestExecutionEngine(unittest.TestCase):
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
             
             # Mock write operation
-            with patch('pipeline_builder.execution_engine.time_write_operation') as mock_write:
+            with patch('sparkforge.execution_engine.time_write_operation') as mock_write:
                 mock_write.return_value = (100, 0.5, None, None)
                 
                 step_name, result = self.engine.execute_silver_step(
@@ -295,7 +295,7 @@ class TestExecutionEngine(unittest.TestCase):
         self.spark.table.return_value = mock_df
         
         # Mock validation
-        with patch('pipeline_builder.execution_engine.apply_column_rules') as mock_apply_rules:
+        with patch('sparkforge.execution_engine.apply_column_rules') as mock_apply_rules:
             mock_stats = StageStats(
                 stage="silver",
                 step="test_step",
@@ -308,7 +308,7 @@ class TestExecutionEngine(unittest.TestCase):
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
             
             # Mock write operation
-            with patch('pipeline_builder.execution_engine.time_write_operation') as mock_write:
+            with patch('sparkforge.execution_engine.time_write_operation') as mock_write:
                 mock_write.return_value = (100, 0.5, None, None)
                 
                 step_name, result = self.engine.execute_silver_step(
@@ -518,7 +518,7 @@ class TestExecutionEngine(unittest.TestCase):
         self.spark.table.return_value = mock_df
         
         # Mock validation
-        with patch('pipeline_builder.execution_engine.apply_column_rules') as mock_apply_rules:
+        with patch('sparkforge.execution_engine.apply_column_rules') as mock_apply_rules:
             mock_stats = StageStats(
                 stage="silver",
                 step="test_step",
@@ -531,7 +531,7 @@ class TestExecutionEngine(unittest.TestCase):
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
             
             # Mock write operation
-            with patch('pipeline_builder.execution_engine.time_write_operation') as mock_write:
+            with patch('sparkforge.execution_engine.time_write_operation') as mock_write:
                 mock_write.return_value = (100, 0.5, None, None)
                 
                 # First execution

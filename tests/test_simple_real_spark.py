@@ -12,9 +12,11 @@ from pyspark.sql import SparkSession, DataFrame, functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, TimestampType
 
 # Import the actual functions we're testing
-from pipeline_builder.utils import (
+from sparkforge.validation import (
     and_all_rules, apply_column_rules, assess_data_quality,
-    get_dataframe_info, validate_dataframe_schema,
+    get_dataframe_info, validate_dataframe_schema
+)
+from sparkforge.data_utils import (
     add_metadata_columns, remove_metadata_columns
 )
 

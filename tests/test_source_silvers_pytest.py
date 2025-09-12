@@ -4,7 +4,7 @@ Pytest tests for source_silvers=None functionality.
 
 import pytest
 from pyspark.sql import functions as F
-from pipeline_builder.models import GoldStep
+from sparkforge.models import GoldStep
 
 
 class TestSourceSilversNone:

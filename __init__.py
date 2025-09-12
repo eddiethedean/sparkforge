@@ -67,11 +67,8 @@ from .models import (
     SilverDependencyInfo
 )
 from .log_writer import LogWriter, PIPELINE_LOG_SCHEMA
-from .utils import (
-    create_validation_dict,
-    create_write_dict,
-    ValidationError
-)
+from .reporting import create_validation_dict, create_write_dict
+from .exceptions import ValidationError
 
 # Make key classes available at package level
 __all__ = [

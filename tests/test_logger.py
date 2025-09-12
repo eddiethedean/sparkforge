@@ -13,7 +13,7 @@ import os
 import json
 import logging
 
-from pipeline_builder.logger import (
+from sparkforge.logger import (
     PipelineLogger, ExecutionTimer, log_performance,
     create_logger, create_file_logger, create_console_logger,
     get_global_logger, set_global_logger, reset_global_logger,

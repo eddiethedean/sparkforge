@@ -13,7 +13,7 @@ class TestDataFrameAccess:
     @pytest.mark.spark
     def test_gold_transform_dataframe_access(self, spark_session, sample_bronze_data, sample_bronze_rules, sample_silver_rules, sample_gold_rules):
         """Test that Gold transforms receive actual DataFrames."""
-        from pipeline_builder import PipelineBuilder
+        from sparkforge import PipelineBuilder
         
         # Track what silvers are received
         received_silvers = {}
@@ -87,7 +87,7 @@ class TestDataFrameAccess:
     @pytest.mark.spark
     def test_silver_transform_dataframe_access(self, spark_session, sample_bronze_data, sample_bronze_rules, sample_silver_rules):
         """Test that Silver transforms receive actual DataFrames from Bronze."""
-        from pipeline_builder import PipelineBuilder
+        from sparkforge import PipelineBuilder
         
         # Track what bronze DataFrames are received
         received_bronze = {}
@@ -139,7 +139,7 @@ class TestDataFrameAccess:
     @pytest.mark.spark
     def test_dataframe_type_validation(self, spark_session, sample_bronze_data, sample_bronze_rules, sample_silver_rules, sample_gold_rules):
         """Test that type annotations match actual data structures."""
-        from pipeline_builder import PipelineBuilder
+        from sparkforge import PipelineBuilder
         
         def silver_transform(spark, bronze_df):
             return (bronze_df
@@ -203,7 +203,7 @@ class TestDataFrameAccess:
     @pytest.mark.spark
     def test_dataframe_method_access_validation(self, spark_session, sample_bronze_data, sample_bronze_rules, sample_silver_rules, sample_gold_rules):
         """Test that various DataFrame methods work on inputs."""
-        from pipeline_builder import PipelineBuilder
+        from sparkforge import PipelineBuilder
         
         def silver_transform(spark, bronze_df):
             # Test various DataFrame methods

@@ -12,12 +12,12 @@ from typing import Dict, Any
 import time
 from datetime import datetime
 
-from pipeline_builder.pipeline_builder import (
+from sparkforge.pipeline_builder import (
     PipelineBuilder, PipelineRunner, PipelineMode, PipelineStatus,
     PipelineMetrics, PipelineReport, StepValidator
 )
-from pipeline_builder.models import BronzeStep, SilverStep, GoldStep, ExecutionContext
-from pipeline_builder.logger import PipelineLogger
+from sparkforge.models import BronzeStep, SilverStep, GoldStep, ExecutionContext
+from sparkforge.logger import PipelineLogger
 
 
 class TestPipelineMode(unittest.TestCase):
@@ -450,8 +450,8 @@ class TestPipelineRunner(unittest.TestCase):
         self.spark.table.return_value = mock_df
         
         # Mock validation
-        with patch('pipeline_builder.pipeline_builder.apply_column_rules') as mock_apply_rules:
-            from pipeline_builder.models import StageStats
+        with patch('sparkforge.pipeline_builder.apply_column_rules') as mock_apply_rules:
+            from sparkforge.models import StageStats
             
             # Mock different validation rates for different stages
             def mock_apply_rules_side_effect(df, rules, stage, step):
@@ -498,7 +498,7 @@ class TestPipelineRunner(unittest.TestCase):
                 mock_execute_silver.return_value = {"silver1": mock_silver_df}
                 
                 # Mock write operation
-                with patch('pipeline_builder.pipeline_builder.time_write_operation') as mock_write:
+                with patch('sparkforge.pipeline_builder.time_write_operation') as mock_write:
                     mock_write.return_value = (100, 0.5, None, None)
                     
                     report = self.pipeline.initial_load(bronze_sources=self.bronze_sources)
@@ -516,8 +516,8 @@ class TestPipelineRunner(unittest.TestCase):
         self.spark.table.return_value = mock_df
         
         # Mock validation
-        with patch('pipeline_builder.pipeline_builder.apply_column_rules') as mock_apply_rules:
-            from pipeline_builder.models import StageStats
+        with patch('sparkforge.pipeline_builder.apply_column_rules') as mock_apply_rules:
+            from sparkforge.models import StageStats
             
             # Mock different validation rates for different stages
             def mock_apply_rules_side_effect(df, rules, stage, step):
@@ -564,7 +564,7 @@ class TestPipelineRunner(unittest.TestCase):
                 mock_execute_silver.return_value = {"silver1": mock_silver_df}
                 
                 # Mock write operation
-                with patch('pipeline_builder.pipeline_builder.time_write_operation') as mock_write:
+                with patch('sparkforge.pipeline_builder.time_write_operation') as mock_write:
                     mock_write.return_value = (100, 0.5, None, None)
                     
                     report = self.pipeline.run_incremental(bronze_sources=self.bronze_sources)
@@ -581,8 +581,8 @@ class TestPipelineRunner(unittest.TestCase):
         self.spark.table.return_value = mock_df
         
         # Mock validation
-        with patch('pipeline_builder.pipeline_builder.apply_column_rules') as mock_apply_rules:
-            from pipeline_builder.models import StageStats
+        with patch('sparkforge.pipeline_builder.apply_column_rules') as mock_apply_rules:
+            from sparkforge.models import StageStats
             
             # Mock different validation rates for different stages
             def mock_apply_rules_side_effect(df, rules, stage, step):
@@ -629,7 +629,7 @@ class TestPipelineRunner(unittest.TestCase):
                 mock_execute_silver.return_value = {"silver1": mock_silver_df}
                 
                 # Mock write operation
-                with patch('pipeline_builder.pipeline_builder.time_write_operation') as mock_write:
+                with patch('sparkforge.pipeline_builder.time_write_operation') as mock_write:
                     mock_write.return_value = (100, 0.5, None, None)
                     
                     report = self.pipeline.run_full_refresh(bronze_sources=self.bronze_sources)
@@ -646,8 +646,8 @@ class TestPipelineRunner(unittest.TestCase):
         self.spark.table.return_value = mock_df
         
         # Mock validation
-        with patch('pipeline_builder.pipeline_builder.apply_column_rules') as mock_apply_rules:
-            from pipeline_builder.models import StageStats
+        with patch('sparkforge.pipeline_builder.apply_column_rules') as mock_apply_rules:
+            from sparkforge.models import StageStats
             
             # Mock different validation rates for different stages
             def mock_apply_rules_side_effect(df, rules, stage, step):
@@ -694,7 +694,7 @@ class TestPipelineRunner(unittest.TestCase):
                 mock_execute_silver.return_value = {"silver1": mock_silver_df}
                 
                 # Mock write operation
-                with patch('pipeline_builder.pipeline_builder.time_write_operation') as mock_write:
+                with patch('sparkforge.pipeline_builder.time_write_operation') as mock_write:
                     mock_write.return_value = (100, 0.5, None, None)
                     
                     report = self.pipeline.run_validation_only(bronze_sources=self.bronze_sources)
@@ -749,8 +749,8 @@ class TestPipelineRunner(unittest.TestCase):
         self.spark.table.return_value = mock_df
         
         # Mock validation
-        with patch('pipeline_builder.pipeline_builder.apply_column_rules') as mock_apply_rules:
-            from pipeline_builder.models import StageStats
+        with patch('sparkforge.pipeline_builder.apply_column_rules') as mock_apply_rules:
+            from sparkforge.models import StageStats
             
             # Mock different validation rates for different stages
             def mock_apply_rules_side_effect(df, rules, stage, step):
@@ -797,7 +797,7 @@ class TestPipelineRunner(unittest.TestCase):
                 mock_execute_silver.return_value = {"silver1": mock_silver_df}
                 
                 # Mock write operation
-                with patch('pipeline_builder.pipeline_builder.time_write_operation') as mock_write:
+                with patch('sparkforge.pipeline_builder.time_write_operation') as mock_write:
                     mock_write.return_value = (100, 0.5, None, None)
                     
                     with self.pipeline.execution_context(PipelineMode.INITIAL, self.bronze_sources) as report:
@@ -812,8 +812,8 @@ class TestPipelineRunner(unittest.TestCase):
         self.spark.table.return_value = mock_df
         
         # Mock validation to fail
-        with patch('pipeline_builder.pipeline_builder.apply_column_rules') as mock_apply_rules:
-            from pipeline_builder.models import StageStats
+        with patch('sparkforge.pipeline_builder.apply_column_rules') as mock_apply_rules:
+            from sparkforge.models import StageStats
             mock_stats = StageStats(
                 stage="bronze",
                 step="bronze1",

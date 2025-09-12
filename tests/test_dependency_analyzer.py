@@ -9,14 +9,14 @@ import unittest
 from unittest.mock import Mock, patch
 from typing import Dict, Set
 
-from pipeline_builder.dependency_analyzer import (
+from sparkforge.dependency_analyzer import (
     DependencyAnalyzer, AnalysisStrategy, ExecutionMode,
     DependencyAnalysisError, CircularDependencyError, InvalidDependencyError, DependencyConflictError,
     DependencyAnalysisResult, StepComplexity
 )
 
-from pipeline_builder.models import SilverStep, SilverDependencyInfo, BronzeStep, GoldStep
-from pipeline_builder.logger import PipelineLogger
+from sparkforge.models import SilverStep, SilverDependencyInfo, BronzeStep, GoldStep
+from sparkforge.logger import PipelineLogger
 
 
 class TestAnalysisStrategy(unittest.TestCase):

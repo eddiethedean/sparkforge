@@ -14,8 +14,8 @@ from pyspark.sql import SparkSession, DataFrame, functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, TimestampType, DoubleType
 
 # Import pipeline components
-from pipeline_builder import PipelineBuilder, PipelineRunner, LogWriter
-from pipeline_builder.models import (
+from sparkforge import PipelineBuilder, PipelineRunner, LogWriter
+from sparkforge.models import (
     ValidationThresholds, ParallelConfig, PipelineConfig, ExecutionContext,
     BronzeStep, SilverStep, GoldStep, ExecutionMode
 )

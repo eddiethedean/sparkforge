@@ -15,13 +15,17 @@ from pyspark.sql.types import StructType, StructField, StringType, IntegerType, 
 from pyspark.sql import functions as F
 
 # Import the actual functions we're testing
-from pipeline_builder.utils import (
+from sparkforge.validation import (
     and_all_rules, apply_column_rules, assess_data_quality,
-    get_dataframe_info, validate_dataframe_schema,
-    add_metadata_columns, remove_metadata_columns,
+    get_dataframe_info, validate_dataframe_schema
+)
+from sparkforge.data_utils import (
+    add_metadata_columns, remove_metadata_columns
+)
+from sparkforge.reporting import (
     create_validation_dict, create_write_dict
 )
-from pipeline_builder.models import StageStats, ValidationThresholds, ParallelConfig, PipelineConfig
+from sparkforge.models import StageStats, ValidationThresholds, ParallelConfig, PipelineConfig
 
 
 class TestDataValidation:
@@ -93,7 +97,7 @@ class TestDataValidation:
     @pytest.mark.spark
     def test_apply_column_rules_none_rules(self, sample_dataframe):
         """Test column rule application with None rules."""
-        from pipeline_builder.utils import ValidationError
+        from sparkforge.exceptions import ValidationError
         
         with pytest.raises(ValidationError):
             apply_column_rules(sample_dataframe, None, "bronze", "test_step")

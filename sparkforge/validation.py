@@ -22,12 +22,60 @@ from .exceptions import ValidationError
 logger = logging.getLogger(__name__)
 
 
+def _convert_rule_to_expression(rule: str, column_name: str) -> Any:
+    """
+    Convert a string rule to a PySpark Column expression.
+    
+    Args:
+        rule: String rule name (e.g., "not_null", "positive")
+        column_name: Name of the column to apply the rule to
+        
+    Returns:
+        PySpark Column expression
+    """
+    if rule == "not_null":
+        return F.col(column_name).isNotNull()
+    elif rule == "positive":
+        return F.col(column_name) > 0
+    elif rule == "non_negative":
+        return F.col(column_name) >= 0
+    elif rule == "non_zero":
+        return F.col(column_name) != 0
+    else:
+        # For unknown rules, assume it's a valid PySpark expression
+        # This allows for custom rules to be passed as expressions
+        return rule
+
+
+def _convert_rules_to_expressions(rules: ColumnRules) -> ColumnRules:
+    """
+    Convert string rules to PySpark Column expressions.
+    
+    Args:
+        rules: Dictionary of column rules (can contain strings or expressions)
+        
+    Returns:
+        Dictionary with all rules converted to PySpark expressions
+    """
+    converted_rules = {}
+    for column_name, rule_list in rules.items():
+        converted_rule_list = []
+        for rule in rule_list:
+            if isinstance(rule, str):
+                converted_rule_list.append(_convert_rule_to_expression(rule, column_name))
+            else:
+                # Already a PySpark expression
+                converted_rule_list.append(rule)
+        converted_rules[column_name] = converted_rule_list
+    return converted_rules
+
+
 def and_all_rules(rules: ColumnRules) -> Any:
     """
     Combine all validation rules with AND logic.
     
     Args:
-        rules: Dictionary of column rules
+        rules: Dictionary of column rules (can contain strings or expressions)
         
     Returns:
         Combined predicate expression
@@ -35,8 +83,11 @@ def and_all_rules(rules: ColumnRules) -> Any:
     if not rules:
         return F.lit(True)
     
+    # Convert string rules to PySpark expressions
+    converted_rules = _convert_rules_to_expressions(rules)
+    
     pred = F.lit(True)
-    for _, exprs in rules.items():
+    for _, exprs in converted_rules.items():
         for e in exprs:
             pred = pred & e
     return pred
@@ -126,14 +177,19 @@ def apply_column_rules(
     total = df.count()
 
     if rules:
+        # Convert string rules to PySpark expressions
+        converted_rules = _convert_rules_to_expressions(rules)
+        logger.debug(f"[{stage}:{step}] Original rules: {rules}")
+        logger.debug(f"[{stage}:{step}] Converted rules: {converted_rules}")
         pred = and_all_rules(rules)
         marked = df.withColumn("__is_valid__", pred)
         valid_df = marked.filter(F.col("__is_valid__")).drop("__is_valid__")
         invalid_df = marked.filter(~F.col("__is_valid__")).drop("__is_valid__")
+        logger.debug(f"[{stage}:{step}] Validation completed - valid rows: {valid_df.count()}, invalid rows: {invalid_df.count()}")
 
         # Add detailed failure information
         failed_arrays = []
-        for col_name, exprs in rules.items():
+        for col_name, exprs in converted_rules.items():
             for idx, e in enumerate(exprs):
                 tag = F.lit(f"{col_name}#{idx + 1}")
                 failed_arrays.append(
@@ -151,9 +207,13 @@ def apply_column_rules(
     invalid_count = total - valid_count
     rate = safe_divide(valid_count * 100.0, total, 100.0)
 
-    # Select only columns that have rules (if any)
+    # Select only columns that have rules (if any) for all stages
     keep_cols = [c for c in rules.keys() if c in valid_df.columns] if rules else valid_df.columns
     valid_proj = valid_df.select(*keep_cols) if keep_cols else valid_df
+    logger.debug(f"[{stage}:{step}] Filtering columns based on rules keys: {list(rules.keys()) if rules else 'no rules'}")
+    logger.debug(f"[{stage}:{step}] Available columns: {valid_df.columns}")
+    logger.debug(f"[{stage}:{step}] Keeping columns: {keep_cols}")
+    logger.debug(f"[{stage}:{step}] Final columns: {valid_proj.columns}")
 
     stats = StageStats(
         stage=stage,
