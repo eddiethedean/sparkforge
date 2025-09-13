@@ -10,6 +10,10 @@ from pyspark.sql import SparkSession
 # Add the project root to the Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+def get_test_schema():
+    """Get the test schema name."""
+    return "test_schema"
+
 @pytest.fixture(scope="function")
 def spark_session():
     """Create a Spark session with Delta Lake support for testing."""

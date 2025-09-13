@@ -41,6 +41,7 @@ from .dependency_analyzer import DependencyAnalyzer, DependencyAnalysisResult
 from .execution_engine import ExecutionEngine, ExecutionConfig, ExecutionMode
 from .unified_execution_engine import UnifiedExecutionEngine, UnifiedExecutionConfig
 from .unified_dependency_analyzer import UnifiedDependencyAnalyzer
+from .step_executor import StepExecutor, StepExecutionResult, StepValidationResult, StepType, StepStatus
 
 
 class PipelineMode(Enum):

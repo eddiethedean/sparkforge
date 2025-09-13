@@ -23,7 +23,7 @@ def read_requirements():
 
 setup(
     name="sparkforge",
-    version="0.3.0",
+    version="0.3.1",
     author="Odos Matthews",
     author_email="odosmatthew@gmail.com",
     description="A powerful data pipeline builder for Apache Spark and Databricks",
