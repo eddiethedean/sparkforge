@@ -14,11 +14,11 @@ from pyspark.sql import functions as F
 import time
 from tests.conftest import get_test_schema
 
-from sparkforge.unified_dependency_analyzer import (
-    UnifiedDependencyAnalyzer, StepType, UnifiedStepInfo, ExecutionGroup
+from sparkforge.dependencies import (
+    DependencyAnalyzer, StepType, UnifiedStepInfo, ExecutionGroup
 )
-from sparkforge.unified_execution_engine import (
-    UnifiedExecutionEngine, UnifiedExecutionConfig, StepExecutionResult
+from sparkforge.execution import (
+    ExecutionEngine, ExecutionConfig, StepExecutionResult
 )
 from sparkforge.models import BronzeStep, SilverStep, GoldStep
 from sparkforge.pipeline import PipelineBuilder
@@ -68,7 +68,7 @@ class TestUnifiedExecutionEdgeCases:
     
     def test_circular_dependency_detection(self, spark_session):
         """Test detection and resolution of circular dependencies."""
-        analyzer = UnifiedDependencyAnalyzer()
+        analyzer = DependencyAnalyzer()
         
         # Create step info with circular dependency
         step_info = {
@@ -124,7 +124,7 @@ class TestUnifiedExecutionEdgeCases:
     
     def test_impossible_dependencies(self, spark_session):
         """Test detection of impossible dependencies (e.g., Bronze depending on Silver)."""
-        analyzer = UnifiedDependencyAnalyzer()
+        analyzer = DependencyAnalyzer()
         
         # Create step info with impossible dependency
         step_info = {
@@ -156,7 +156,7 @@ class TestUnifiedExecutionEdgeCases:
     def test_missing_source_data(self, spark_session):
         """Test handling of missing source data."""
         # Create execution engine
-        engine = UnifiedExecutionEngine(spark_session, UnifiedExecutionConfig())
+        engine = ExecutionEngine(spark_session, ExecutionConfig())
         
         # Create Silver step without source data
         silver_step = SilverStep(
@@ -190,7 +190,7 @@ class TestUnifiedExecutionEdgeCases:
         source_df = spark_session.createDataFrame(test_data, ["id", "user"])
         
         # Create execution engine
-        engine = UnifiedExecutionEngine(spark_session, UnifiedExecutionConfig())
+        engine = ExecutionEngine(spark_session, ExecutionConfig())
         
         # Create Silver step with error-prone transform
         def error_transform(spark, df, silvers):
@@ -230,7 +230,7 @@ class TestUnifiedExecutionEdgeCases:
         source_df = spark_session.createDataFrame(test_data, ["id", "user"])
         
         # Create execution engine
-        engine = UnifiedExecutionEngine(spark_session, UnifiedExecutionConfig())
+        engine = ExecutionEngine(spark_session, ExecutionConfig())
         
         # Create Bronze step with invalid validation rules
         bronze_step = BronzeStep("bronze_events", {"invalid_col": ["not_null"]})
@@ -257,8 +257,8 @@ class TestUnifiedExecutionEdgeCases:
         source_df = spark_session.createDataFrame(test_data, ["id", "user"])
         
         # Create execution engine with short timeout
-        config = UnifiedExecutionConfig(timeout_seconds=1)
-        engine = UnifiedExecutionEngine(spark_session, config)
+        config = ExecutionConfig(timeout_seconds=1)
+        engine = ExecutionEngine(spark_session, config)
         
         # Create Silver step with long-running transform
         def slow_transform(spark, df, silvers):

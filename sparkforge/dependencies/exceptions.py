@@ -15,6 +15,14 @@ class DependencyError(Exception):
         self.step_name = step_name
 
 
+class DependencyAnalysisError(DependencyError):
+    """Raised when dependency analysis fails."""
+    
+    def __init__(self, message: str, analysis_step: Optional[str] = None):
+        super().__init__(message, analysis_step)
+        self.analysis_step = analysis_step
+
+
 class CircularDependencyError(DependencyError):
     """Raised when circular dependencies are detected."""
     

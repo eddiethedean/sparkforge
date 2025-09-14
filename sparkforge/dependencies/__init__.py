@@ -13,16 +13,23 @@ Key Features:
 - Performance analysis
 """
 
-from .analyzer import DependencyAnalyzer, DependencyAnalysisResult
+from .analyzer import DependencyAnalyzer, DependencyAnalysisResult, AnalysisStrategy
 from .graph import DependencyGraph, StepNode
-from .exceptions import DependencyError, CircularDependencyError, InvalidDependencyError
+from .exceptions import DependencyError, CircularDependencyError, InvalidDependencyError, DependencyConflictError, DependencyAnalysisError
+from ..models import ExecutionMode
+from ..execution.engine import StepComplexity
 
 __all__ = [
     "DependencyAnalyzer",
     "DependencyAnalysisResult", 
+    "AnalysisStrategy",
     "DependencyGraph",
     "StepNode",
     "DependencyError",
     "CircularDependencyError",
-    "InvalidDependencyError"
+    "InvalidDependencyError",
+    "DependencyConflictError",
+    "DependencyAnalysisError",
+    "ExecutionMode",
+    "StepComplexity"
 ]

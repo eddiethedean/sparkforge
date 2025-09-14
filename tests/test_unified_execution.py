@@ -14,25 +14,25 @@ from concurrent.futures import ThreadPoolExecutor
 import time
 from tests.conftest import get_test_schema
 
-from sparkforge.unified_dependency_analyzer import (
-    UnifiedDependencyAnalyzer, UnifiedDependencyResult, StepType, 
+from sparkforge.dependencies import (
+    DependencyAnalyzer, DependencyAnalysisResult, StepType, 
     UnifiedStepInfo, ExecutionGroup
 )
-from sparkforge.unified_execution_engine import (
-    UnifiedExecutionEngine, UnifiedExecutionConfig, StepExecutionResult,
-    UnifiedExecutionResult
+from sparkforge.execution import (
+    ExecutionEngine, ExecutionConfig, StepExecutionResult,
+    ExecutionResult
 )
 from sparkforge.models import BronzeStep, SilverStep, GoldStep, ExecutionContext
 from sparkforge.pipeline import PipelineBuilder
 from sparkforge.pipeline.models import PipelineStatus
 
 
-class TestUnifiedDependencyAnalyzer:
+class TestDependencyAnalyzer:
     """Test the unified dependency analyzer."""
     
     def test_build_unified_step_info(self, spark_session):
         """Test building unified step information from all step types."""
-        analyzer = UnifiedDependencyAnalyzer()
+        analyzer = DependencyAnalyzer()
         
         # Create test steps
         bronze_steps = {
@@ -91,7 +91,7 @@ class TestUnifiedDependencyAnalyzer:
     
     def test_analyze_cross_layer_dependencies(self, spark_session):
         """Test analyzing dependencies across different layer types."""
-        analyzer = UnifiedDependencyAnalyzer()
+        analyzer = DependencyAnalyzer()
         
         # Create step info with dependencies
         step_info = {
@@ -130,7 +130,7 @@ class TestUnifiedDependencyAnalyzer:
     
     def test_detect_cycles_unified(self, spark_session):
         """Test detecting circular dependencies in unified step graph."""
-        analyzer = UnifiedDependencyAnalyzer()
+        analyzer = DependencyAnalyzer()
         
         # Create step info with cycle
         step_info = {
@@ -165,7 +165,7 @@ class TestUnifiedDependencyAnalyzer:
     
     def test_create_execution_groups(self, spark_session):
         """Test creating execution groups based on dependencies."""
-        analyzer = UnifiedDependencyAnalyzer()
+        analyzer = DependencyAnalyzer()
         
         # Create step info with dependencies
         step_info = {
@@ -236,7 +236,7 @@ class TestUnifiedDependencyAnalyzer:
     
     def test_analyze_unified_dependencies(self, spark_session):
         """Test complete unified dependency analysis."""
-        analyzer = UnifiedDependencyAnalyzer()
+        analyzer = DependencyAnalyzer()
         
         # Create test steps
         bronze_steps = {
@@ -267,14 +267,14 @@ class TestUnifiedDependencyAnalyzer:
         result = analyzer.analyze_unified_dependencies(bronze_steps, silver_steps, gold_steps)
         
         # Verify result structure
-        assert isinstance(result, UnifiedDependencyResult)
+        assert isinstance(result, DependencyAnalysisResult)
         assert len(result.step_info) == 3
         assert len(result.execution_groups) == 3
         assert result.parallel_efficiency >= 0  # Sequential pipeline has 0% parallel efficiency
         assert len(result.execution_order) == 3
 
 
-class TestUnifiedExecutionEngine:
+class TestExecutionEngine:
     """Test the unified execution engine."""
     
     def test_execute_unified_pipeline(self, spark_session):
@@ -309,8 +309,8 @@ class TestUnifiedExecutionEngine:
         }
         
         # Create execution engine
-        config = UnifiedExecutionConfig(max_workers=2, enable_parallel_execution=True)
-        engine = UnifiedExecutionEngine(spark_session, config)
+        config = ExecutionConfig(max_workers=2, enable_parallel_execution=True)
+        engine = ExecutionEngine(spark_session, config)
         
         # Execute pipeline
         result = engine.execute_unified_pipeline(
@@ -322,7 +322,7 @@ class TestUnifiedExecutionEngine:
         )
         
         # Verify result
-        assert isinstance(result, UnifiedExecutionResult)
+        assert isinstance(result, ExecutionResult)
         assert result.successful_steps == 3
         assert result.failed_steps == 0
         assert result.total_rows_processed > 0
@@ -339,7 +339,7 @@ class TestUnifiedExecutionEngine:
         bronze_step = BronzeStep("bronze_events", {"id": ["not_null"]})
         
         # Create execution engine
-        engine = UnifiedExecutionEngine(spark_session, UnifiedExecutionConfig())
+        engine = ExecutionEngine(spark_session, ExecutionConfig())
         
         # Set up bronze sources
         engine._bronze_sources = {"bronze_events": source_df}
@@ -378,7 +378,7 @@ class TestUnifiedExecutionEngine:
         )
         
         # Create execution engine
-        engine = UnifiedExecutionEngine(spark_session, UnifiedExecutionConfig())
+        engine = ExecutionEngine(spark_session, ExecutionConfig())
         
         # Set up available data
         engine._available_data["bronze_events"] = source_df
@@ -417,7 +417,7 @@ class TestUnifiedExecutionEngine:
         )
         
         # Create execution engine
-        engine = UnifiedExecutionEngine(spark_session, UnifiedExecutionConfig())
+        engine = ExecutionEngine(spark_session, ExecutionConfig())
         
         # Set up available data
         engine._available_data["silver_events"] = source_df
@@ -453,8 +453,8 @@ class TestUnifiedExecutionEngine:
         }
         
         # Create execution engine
-        config = UnifiedExecutionConfig(max_workers=2, enable_parallel_execution=True)
-        engine = UnifiedExecutionEngine(spark_session, config)
+        config = ExecutionConfig(max_workers=2, enable_parallel_execution=True)
+        engine = ExecutionEngine(spark_session, config)
         
         # Set up available data
         engine._available_data = {"bronze_events": source_df, "bronze_users": source_df}
@@ -490,8 +490,8 @@ class TestUnifiedExecutionEngine:
         }
         
         # Create execution engine
-        config = UnifiedExecutionConfig(enable_parallel_execution=False)
-        engine = UnifiedExecutionEngine(spark_session, config)
+        config = ExecutionConfig(enable_parallel_execution=False)
+        engine = ExecutionEngine(spark_session, config)
         
         # Set up available data
         engine._available_data = {"bronze_events": source_df, "bronze_users": source_df}

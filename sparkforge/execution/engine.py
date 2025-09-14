@@ -33,6 +33,17 @@ class ExecutionMode(Enum):
     ADAPTIVE = "adaptive"
 
 
+@dataclass
+class StepComplexity:
+    """Represents the complexity of a pipeline step."""
+    step_name: str
+    complexity_score: float
+    estimated_duration: float
+    dependencies_count: int
+    fan_out: int
+    critical_path: bool
+
+
 class RetryStrategy(Enum):
     """Retry strategies for failed steps."""
     NONE = "none"

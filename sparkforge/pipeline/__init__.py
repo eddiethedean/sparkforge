@@ -15,7 +15,7 @@ Key Components:
 from .builder import PipelineBuilder
 from .runner import PipelineRunner
 from .executor import StepExecutor
-from .validator import PipelineValidator
+from .validator import PipelineValidator, StepValidator
 from .monitor import PipelineMonitor, PipelineMetrics, PipelineReport
 from .models import PipelineMode, PipelineStatus
 
@@ -24,6 +24,7 @@ __all__ = [
     "PipelineRunner", 
     "StepExecutor",
     "PipelineValidator",
+    "StepValidator",
     "PipelineMonitor",
     "PipelineMetrics",
     "PipelineReport",
