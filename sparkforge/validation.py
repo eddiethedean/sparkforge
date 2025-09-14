@@ -2,8 +2,19 @@
 """
 Data validation utilities for the SparkForge pipeline framework.
 
-This module contains functions for validating DataFrames, applying column rules,
-and assessing data quality.
+This module provides comprehensive data validation capabilities for the Medallion Architecture,
+including column-level validation, data quality assessment, and quality threshold enforcement.
+
+Key Features:
+- Column-level validation with PySpark expressions
+- Data quality rate calculation and threshold enforcement
+- Flexible rule definition system supporting custom validations
+- Comprehensive validation reporting with detailed statistics
+- Integration with Bronze, Silver, and Gold layer validation
+- Performance-optimized validation with caching support
+
+The validation system ensures data quality at each layer of the pipeline,
+preventing low-quality data from propagating through the system.
 """
 
 from __future__ import annotations
@@ -156,19 +167,66 @@ def apply_column_rules(
     step: str,
 ) -> Tuple[DataFrame, DataFrame, StageStats]:
     """
-    Apply validation rules to a DataFrame and return valid/invalid DataFrames with stats.
+    Apply validation rules to a DataFrame and return valid/invalid DataFrames with statistics.
+    
+    This function is the core validation engine for SparkForge pipelines. It applies
+    column-level validation rules to a DataFrame and separates valid from invalid records,
+    providing comprehensive statistics about data quality.
     
     Args:
-        df: DataFrame to validate
-        rules: Column validation rules
-        stage: Stage name (bronze/silver/gold)
-        step: Step name
-        
+        df: DataFrame to validate. Must contain the columns referenced in the rules.
+        rules: Dictionary mapping column names to lists of validation rules.
+               Rules can be PySpark Column expressions or string shortcuts:
+               - "not_null": Column must not be null
+               - "positive": Column must be greater than 0
+               - "non_negative": Column must be >= 0
+               - "non_zero": Column must not equal 0
+               - Custom PySpark expressions for complex validations
+        stage: Pipeline stage name ("bronze", "silver", or "gold").
+              Used for logging and statistics tracking.
+        step: Step name within the stage. Used for logging and statistics tracking.
+    
     Returns:
-        Tuple of (valid_df, invalid_df, stats)
-        
+        Tuple containing:
+        - valid_df: DataFrame containing only records that passed all validation rules
+        - invalid_df: DataFrame containing records that failed validation rules.
+                    Includes additional "__validation_failures__" column with failure details.
+        - stats: StageStats object with comprehensive validation statistics including:
+                total_rows, valid_rows, invalid_rows, validation_rate, duration_secs
+    
     Raises:
-        ValidationError: If validation fails
+        ValidationError: If validation rules are None or validation process fails
+        
+    Example:
+        >>> from pyspark.sql import functions as F
+        >>> 
+        >>> # Define validation rules
+        >>> rules = {
+        ...     "user_id": [F.col("user_id").isNotNull(), F.col("user_id") > 0],
+        ...     "email": ["not_null", F.col("email").contains("@")],
+        ...     "age": ["non_negative", F.col("age") < 120],
+        ...     "status": [F.col("status").isin(["active", "inactive", "pending"])]
+        ... }
+        >>> 
+        >>> # Apply validation
+        >>> valid_df, invalid_df, stats = apply_column_rules(
+        ...     df=raw_data_df,
+        ...     rules=rules,
+        ...     stage="bronze",
+        ...     step="user_events"
+        ... )
+        >>> 
+        >>> # Check results
+        >>> print(f"Validation rate: {stats.validation_rate:.2f}%")
+        >>> print(f"Valid rows: {stats.valid_rows}")
+        >>> print(f"Invalid rows: {stats.invalid_rows}")
+        >>> 
+        >>> # Process valid data
+        >>> clean_df = valid_df.filter(F.col("status") == "active")
+        >>> 
+        >>> # Analyze invalid data
+        >>> if stats.invalid_rows > 0:
+        ...     invalid_df.select("__validation_failures__").show(truncate=False)
     """
     if rules is None:
         raise ValidationError(f"[{stage}:{step}] Validation rules cannot be None.")

@@ -4,6 +4,18 @@ Execution engine for pipeline steps with parallel processing support.
 
 This module provides comprehensive execution capabilities for pipeline steps,
 including parallel processing, error handling, retry mechanisms, and performance monitoring.
+
+Key Features:
+- Multiple execution modes (sequential, parallel, adaptive, batch)
+- Advanced retry strategies with exponential backoff
+- Comprehensive error handling and recovery
+- Performance monitoring and optimization
+- Thread-safe execution with proper resource management
+- Dependency-aware parallel execution
+- Configurable timeouts and resource limits
+
+The ExecutionEngine orchestrates the execution of Bronze, Silver, and Gold steps,
+managing dependencies, parallelization, and error recovery automatically.
 """
 
 from __future__ import annotations
@@ -88,12 +100,52 @@ class ExecutionEngine:
     """
     Advanced execution engine for pipeline steps with comprehensive features.
     
+    The ExecutionEngine orchestrates the execution of pipeline steps with support for
+    multiple execution strategies, retry mechanisms, and performance optimization.
+    It automatically manages dependencies, parallelization, and error recovery.
+    
     Features:
     - Multiple execution modes (sequential, parallel, adaptive, batch)
-    - Retry mechanisms with different strategies
+    - Advanced retry strategies with exponential backoff
     - Performance monitoring and caching
     - Error handling and recovery
     - Resource management and optimization
+    - Thread-safe execution with proper synchronization
+    - Dependency-aware parallel execution
+    - Configurable timeouts and resource limits
+    
+    Execution Modes:
+    - SEQUENTIAL: Execute steps one at a time (safe, slower)
+    - PARALLEL: Execute independent steps concurrently (fast, resource-intensive)
+    - ADAPTIVE: Automatically choose between sequential and parallel based on load
+    - BATCH: Execute steps in optimized batches (balanced performance)
+    
+    Example:
+        >>> from sparkforge.execution_engine import ExecutionEngine, ExecutionConfig, ExecutionMode
+        >>> 
+        >>> # Configure execution engine
+        >>> config = ExecutionConfig(
+        ...     mode=ExecutionMode.ADAPTIVE,
+        ...     max_workers=4,
+        ...     timeout_seconds=300
+        ... )
+        >>> 
+        >>> engine = ExecutionEngine(
+        ...     spark=spark,
+        ...     logger=logger,
+        ...     thresholds={"bronze": 95.0, "silver": 98.0, "gold": 99.0},
+        ...     schema="analytics",
+        ...     config=config
+        ... )
+        >>> 
+        >>> # Execute Silver steps
+        >>> results = engine.execute_silver_steps(
+        ...     silver_steps_to_execute=["step1", "step2"],
+        ...     silver_steps=silver_step_configs,
+        ...     bronze_valid=bronze_dataframes,
+        ...     prior_silvers=existing_silver_dataframes,
+        ...     mode="incremental"
+        ... )
     """
     
     def __init__(
@@ -104,6 +156,33 @@ class ExecutionEngine:
         schema: str = "",
         config: Optional[ExecutionConfig] = None
     ):
+        """
+        Initialize the ExecutionEngine with configuration and dependencies.
+        
+        Args:
+            spark: Active SparkSession instance for data processing
+            logger: PipelineLogger instance for logging execution details
+            thresholds: Dictionary mapping layer names to minimum quality thresholds.
+                      Keys should include "bronze", "silver", and "gold" with values 0-100.
+            schema: Database schema name for table operations
+            config: ExecutionConfig instance for engine behavior customization.
+                   If None, uses default configuration with ADAPTIVE mode.
+        
+        Example:
+            >>> thresholds = {
+            ...     "bronze": 95.0,  # 95% minimum quality for Bronze layer
+            ...     "silver": 98.0,  # 98% minimum quality for Silver layer
+            ...     "gold": 99.0     # 99% minimum quality for Gold layer
+            ... }
+            >>> 
+            >>> engine = ExecutionEngine(
+            ...     spark=spark_session,
+            ...     logger=pipeline_logger,
+            ...     thresholds=thresholds,
+            ...     schema="analytics",
+            ...     config=ExecutionConfig(mode=ExecutionMode.PARALLEL, max_workers=8)
+            ... )
+        """
         self.spark = spark
         self.logger = logger
         self.thresholds = thresholds
@@ -206,17 +285,61 @@ class ExecutionEngine:
         """
         Execute Silver steps using the configured execution mode.
         
+        This method orchestrates the execution of multiple Silver steps, automatically
+        choosing the appropriate execution strategy based on the configured mode.
+        It handles parallelization, error recovery, and performance monitoring.
+        
         Args:
-            silver_steps_to_execute: List of step names to execute
-            silver_steps: Dictionary of step configurations
-            bronze_valid: Valid bronze DataFrames
-            prior_silvers: Prior silver DataFrames
-            mode: Execution mode
-            bronze_steps: Dictionary of Bronze step configurations (optional)
-            context: Execution context
-            
+            silver_steps_to_execute: List of Silver step names to execute in this batch.
+                                   Steps are executed in dependency order.
+            silver_steps: Dictionary mapping step names to SilverStep configurations.
+                        Contains all step definitions including transforms and validation rules.
+            bronze_valid: Dictionary of validated Bronze DataFrames by step name.
+                        Provides input data for Silver transformations.
+            prior_silvers: Dictionary of previously computed Silver DataFrames by step name.
+                         Used for steps that depend on other Silver steps.
+            mode: Execution mode string ("initial", "incremental", "full_refresh").
+                 Affects watermarking and data processing behavior.
+            bronze_steps: Dictionary of Bronze step configurations (optional).
+                        Used for dependency analysis and validation.
+            context: ExecutionContext instance (optional).
+                   Provides runtime information and configuration.
+        
         Returns:
-            Dictionary of execution results
+            Dict[str, Any]: Dictionary mapping step names to execution results.
+                          Each result contains:
+                          - "table_fqn": Fully qualified table name
+                          - "duration_seconds": Execution time
+                          - "rows_written": Number of rows written to target table
+                          - "validation_rate": Data quality validation rate (0-100)
+                          - "success": Boolean indicating if step completed successfully
+                          - "error": Error message if step failed (optional)
+        
+        Raises:
+            ValueError: If execution mode is invalid or required parameters are missing
+            RuntimeError: If execution fails or exceeds configured timeouts
+            
+        Example:
+            >>> # Execute multiple Silver steps in parallel
+            >>> results = engine.execute_silver_steps(
+            ...     silver_steps_to_execute=["clean_events", "user_profiles", "product_catalog"],
+            ...     silver_steps={
+            ...         "clean_events": clean_events_step,
+            ...         "user_profiles": user_profiles_step,
+            ...         "product_catalog": product_catalog_step
+            ...     },
+            ...     bronze_valid={"events": events_df, "users": users_df, "products": products_df},
+            ...     prior_silvers={},
+            ...     mode="incremental",
+            ...     context=execution_context
+            ... )
+            >>> 
+            >>> # Check results
+            >>> for step_name, result in results.items():
+            ...     if result["success"]:
+            ...         print(f"✅ {step_name}: {result['rows_written']} rows written")
+            ...     else:
+            ...         print(f"❌ {step_name}: {result['error']}")
         """
         if not silver_steps_to_execute:
             return {}
