@@ -8,7 +8,7 @@ for the unified execution system.
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from sparkforge.pipeline_builder import PipelineStatus
+from sparkforge.pipeline.models import PipelineStatus
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 import time
@@ -21,8 +21,8 @@ from sparkforge.unified_execution_engine import (
     UnifiedExecutionEngine, UnifiedExecutionConfig, StepExecutionResult
 )
 from sparkforge.models import BronzeStep, SilverStep, GoldStep
-from sparkforge.pipeline_builder import PipelineBuilder
-from sparkforge.exceptions import PipelineValidationError
+from sparkforge.pipeline import PipelineBuilder
+from sparkforge.errors.pipeline import PipelineValidationError
 
 
 class TestUnifiedExecutionEdgeCases:

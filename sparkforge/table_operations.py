@@ -7,13 +7,12 @@ in the data lake.
 """
 
 from __future__ import annotations
-from typing import Any, Dict, Optional
 import logging
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.utils import AnalysisException
 
-from .exceptions import TableOperationError
+from .errors.data import TableOperationError
 from .performance import time_operation
 
 logger = logging.getLogger(__name__)

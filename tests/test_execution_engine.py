@@ -12,7 +12,7 @@ from typing import Dict, Any
 import time
 from concurrent.futures import Future
 
-from sparkforge.execution_engine import (
+from sparkforge.execution import (
     ExecutionEngine, ExecutionMode, RetryStrategy, ExecutionConfig,
     ExecutionResult, ExecutionStats
 )

@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import Mock, patch
 from typing import Dict, Set
 
-from sparkforge.dependency_analyzer import (
+from sparkforge.dependencies import (
     DependencyAnalyzer, AnalysisStrategy, ExecutionMode,
     DependencyAnalysisError, CircularDependencyError, InvalidDependencyError, DependencyConflictError,
     DependencyAnalysisResult, StepComplexity

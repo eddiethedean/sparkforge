@@ -6,14 +6,11 @@ This module tests all custom exceptions used throughout the framework.
 """
 
 import pytest
-from sparkforge.exceptions import (
-    ValidationError,
-    TableOperationError,
-    PerformanceError,
-    PipelineValidationError,
-    ExecutionError,
-    ConfigurationError
-)
+from sparkforge.errors.data import ValidationError, TableOperationError
+from sparkforge.errors.pipeline import PipelineValidationError
+from sparkforge.errors.execution import ExecutionError
+from sparkforge.errors.system import ConfigurationError
+from sparkforge.errors.performance import PerformanceError
 
 
 class TestValidationError:

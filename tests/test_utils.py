@@ -97,7 +97,7 @@ class TestDataValidation:
     @pytest.mark.spark
     def test_apply_column_rules_none_rules(self, sample_dataframe):
         """Test column rule application with None rules."""
-        from sparkforge.exceptions import ValidationError
+        from sparkforge.errors.data import ValidationError
         
         with pytest.raises(ValidationError):
             apply_column_rules(sample_dataframe, None, "bronze", "test_step")

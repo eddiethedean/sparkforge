@@ -6,7 +6,7 @@ both ExecutionEngine and UnifiedExecutionEngine with a cleaner, more maintainabl
 """
 
 from __future__ import annotations
-from typing import Dict, List, Optional, Any, Union, Callable
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
 import time
@@ -16,20 +16,14 @@ from contextlib import contextmanager
 from pyspark.sql import DataFrame, SparkSession
 
 from ..types import (
-    StepName, StepType, PipelineId, ExecutionId, TableName, SchemaName,
-    TransformFunction, BronzeTransformFunction, SilverTransformFunction, GoldTransformFunction,
-    ColumnRules, ValidationRules, QualityThresholds, ExecutionContext,
-    StepResult, PipelineResult, ValidationResult, ExecutionResult,
-    PipelineConfig, ExecutionConfig, ValidationConfig, MonitoringConfig,
-    ErrorCode, ErrorContext, ErrorSuggestions,
-    OptionalDict, OptionalList, StringDict, AnyDict, NumericDict
+    StepType, ExecutionContext, ExecutionResult, ExecutionConfig
 )
 
 from .results import ExecutionResult, ExecutionStats, StepExecutionResult, StepStatus, StepType
 from .strategies import ExecutionStrategy, SequentialStrategy, ParallelStrategy, AdaptiveStrategy
-from .exceptions import ExecutionError, StepExecutionError, DependencyError
+from .exceptions import ExecutionError, StepExecutionError
 from ..logger import PipelineLogger
-from ..models import BronzeStep, SilverStep, GoldStep, ExecutionContext
+from ..models import ExecutionContext
 
 
 class ExecutionMode(Enum):

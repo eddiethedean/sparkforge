@@ -15,7 +15,12 @@ from .validation import safe_divide
 from .performance import format_duration
 
 
-def create_validation_dict(stats: StageStats, *, start_at: datetime, end_at: datetime) -> Dict[str, Any]:
+def create_validation_dict(
+    stats: StageStats,
+    *,
+    start_at: datetime,
+    end_at: datetime
+) -> Dict[str, Any]:
     """
     Create validation dictionary for reporting.
     

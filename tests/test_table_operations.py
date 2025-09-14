@@ -17,7 +17,7 @@ from sparkforge.table_operations import (
     table_exists,
     drop_table
 )
-from sparkforge.exceptions import TableOperationError
+from sparkforge.errors.data import TableOperationError
 
 
 @pytest.fixture

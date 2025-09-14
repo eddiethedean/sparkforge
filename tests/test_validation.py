@@ -17,7 +17,7 @@ from sparkforge.validation import (
     assess_data_quality,
     safe_divide
 )
-from sparkforge.exceptions import ValidationError
+from sparkforge.errors.data import ValidationError
 
 
 @pytest.fixture

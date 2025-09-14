@@ -23,7 +23,8 @@ from sparkforge.unified_execution_engine import (
     UnifiedExecutionResult
 )
 from sparkforge.models import BronzeStep, SilverStep, GoldStep, ExecutionContext
-from sparkforge.pipeline_builder import PipelineBuilder, PipelineStatus
+from sparkforge.pipeline import PipelineBuilder
+from sparkforge.pipeline.models import PipelineStatus
 
 
 class TestUnifiedDependencyAnalyzer:

@@ -9,14 +9,14 @@ for the unified execution system.
 import pytest
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
-from sparkforge.pipeline_builder import PipelineStatus
+from sparkforge.pipeline.models import PipelineStatus
 from tests.conftest import get_test_schema
 
 from sparkforge.unified_dependency_analyzer import (
     UnifiedDependencyAnalyzer, StepType, UnifiedStepInfo, ExecutionGroup
 )
 from sparkforge.models import BronzeStep, SilverStep, GoldStep
-from sparkforge.pipeline_builder import PipelineBuilder
+from sparkforge.pipeline import PipelineBuilder
 
 
 class TestDependencyScenarios:

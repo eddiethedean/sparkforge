@@ -87,7 +87,7 @@ from .models import (
 )
 from .log_writer import LogWriter, PIPELINE_LOG_SCHEMA
 from .reporting import create_validation_dict, create_write_dict
-from .exceptions import ValidationError
+from .errors.data import ValidationError
 
 # Import standardized error handling
 from .errors import (

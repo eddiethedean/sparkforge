@@ -7,16 +7,10 @@ by the unified execution engine for different execution patterns.
 
 from __future__ import annotations
 from typing import Dict, List, Optional, Any, Protocol
-from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor, as_completed, Future
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
-import threading
-from contextlib import contextmanager
-
-from pyspark.sql import DataFrame, SparkSession
 
 from .results import ExecutionResult, StepExecutionResult, StepStatus, StepType
-from .exceptions import ExecutionError, StepExecutionError
 from ..logger import PipelineLogger
 
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Any, Protocol
 from dataclasses import dataclass
 
-from .models import PipelineConfig, PipelineMode
+from .models import PipelineConfig
 from ..models import BronzeStep, SilverStep, GoldStep, ExecutionContext
 from ..logger import PipelineLogger
 

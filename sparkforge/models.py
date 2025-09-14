@@ -25,15 +25,9 @@ import uuid
 import json
 from abc import ABC
 
-from .exceptions import PipelineValidationError
+from pyspark.sql import DataFrame
 
-# DataFrame will be imported from pyspark.sql when available
-try:
-    from pyspark.sql import DataFrame
-except ImportError:
-    # Mock DataFrame for testing
-    class DataFrame:
-        pass
+from .errors.pipeline import PipelineValidationError
 
 
 # ============================================================================

@@ -12,7 +12,7 @@ from typing import Dict, Any
 import time
 from datetime import datetime
 
-from sparkforge.pipeline_builder import (
+from sparkforge.pipeline import (
     PipelineBuilder, PipelineRunner, PipelineMode, PipelineStatus,
     PipelineMetrics, PipelineReport, StepValidator
 )

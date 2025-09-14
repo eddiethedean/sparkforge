@@ -6,7 +6,7 @@ error recovery, and error reporting across all SparkForge modules.
 """
 
 from __future__ import annotations
-from typing import Optional, Dict, Any, List, Callable, Type, Union
+from typing import Optional, Dict, Any, List, Callable, Type
 from functools import wraps
 import traceback
 import logging

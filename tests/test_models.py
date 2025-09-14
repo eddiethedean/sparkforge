@@ -25,7 +25,7 @@ from sparkforge.models import (
     SilverDependencyInfo,
     PipelinePhase
 )
-from sparkforge.exceptions import PipelineValidationError
+from sparkforge.errors.pipeline import PipelineValidationError
 
 
 @pytest.fixture

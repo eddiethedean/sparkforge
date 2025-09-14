@@ -7,7 +7,7 @@ and managing execution metrics.
 """
 
 from __future__ import annotations
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Callable, Optional, Tuple
 from datetime import datetime
 import time
 import logging
@@ -105,7 +105,7 @@ def time_write_operation(mode: str, df: DataFrame, fqn: str, **options) -> Tuple
         TableOperationError: If write operation fails
     """
     from .table_operations import write_overwrite_table, write_append_table
-    from .exceptions import TableOperationError
+    from .errors.data import TableOperationError
     
     start = now_dt()
     t0 = time.time()

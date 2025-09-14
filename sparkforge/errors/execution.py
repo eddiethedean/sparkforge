@@ -6,8 +6,7 @@ providing detailed error context for execution-related issues.
 """
 
 from __future__ import annotations
-from typing import Optional, Dict, Any
-from datetime import datetime
+from typing import Optional
 
 from .base import SparkForgeError, ErrorCategory, ErrorSeverity
 

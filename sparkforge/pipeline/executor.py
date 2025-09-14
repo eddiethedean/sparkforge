@@ -6,9 +6,8 @@ step execution with proper validation, error handling, and monitoring.
 """
 
 from __future__ import annotations
-from typing import Dict, List, Optional, Any, Callable
+from typing import Dict, List, Optional, Any
 from datetime import datetime
-import time
 
 from pyspark.sql import DataFrame, SparkSession
 
