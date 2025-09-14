@@ -7,6 +7,7 @@ pipeline construction, delegating execution and monitoring to specialized compon
 
 from __future__ import annotations
 from typing import Dict, List, Optional
+from datetime import datetime
 
 from pyspark.sql import SparkSession
 
@@ -15,12 +16,13 @@ from ..types import (
     ColumnRules, PipelineConfig, ExecutionConfig
 )
 
-from .models import PipelineConfig
+from ..models import PipelineConfig, ParallelConfig
 from .validator import PipelineValidator
 from .runner import PipelineRunner
 from ..models import BronzeStep, SilverStep, GoldStep
 from ..logger import PipelineLogger
 from ..execution import ExecutionEngine, ExecutionConfig, ExecutionMode
+from ..errors.pipeline import PipelineValidationError
 from ..dependencies import DependencyAnalyzer
 from ..errors import (
     PipelineConfigurationError,
@@ -129,22 +131,31 @@ class PipelineBuilder:
             )
         
         # Store configuration
+        from ..models import ValidationThresholds
+        thresholds = ValidationThresholds(
+            bronze=min_bronze_rate,
+            silver=min_silver_rate,
+            gold=min_gold_rate
+        )
+        parallel_config = ParallelConfig(
+            enabled=enable_parallel_silver,
+            max_workers=max_parallel_workers
+        )
         self.config = PipelineConfig(
             schema=schema,
-            min_bronze_rate=min_bronze_rate,
-            min_silver_rate=min_silver_rate,
-            min_gold_rate=min_gold_rate,
-            verbose=verbose,
-            enable_parallel_silver=enable_parallel_silver,
-            max_parallel_workers=max_parallel_workers,
-            enable_caching=enable_caching,
-            enable_monitoring=enable_monitoring
+            thresholds=thresholds,
+            parallel=parallel_config,
+            verbose=verbose
         )
         
         # Initialize components
         self.spark = spark
         self.logger = PipelineLogger(verbose=verbose)
         self.validator = PipelineValidator(self.logger)
+        
+        # Expose schema for backward compatibility
+        self.schema = schema
+        self.pipeline_id = f"pipeline_{schema}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
         # Pipeline definition
         self.bronze_steps: Dict[str, BronzeStep] = {}
@@ -440,7 +451,7 @@ class PipelineBuilder:
         # Create execution engine
         execution_config = ExecutionConfig(
             mode=ExecutionMode.ADAPTIVE,
-            max_workers=self.config.max_parallel_workers,
+            max_workers=self.config.parallel.max_workers,
             timeout_seconds=300
         )
         
@@ -449,9 +460,9 @@ class PipelineBuilder:
             logger=self.logger,
             config=execution_config,
             thresholds={
-                "bronze": self.config.min_bronze_rate,
-                "silver": self.config.min_silver_rate,
-                "gold": self.config.min_gold_rate
+                "bronze": self.config.thresholds.bronze,
+                "silver": self.config.thresholds.silver,
+                "gold": self.config.thresholds.gold
             },
             schema=self.config.schema
         )

@@ -8,12 +8,14 @@ pipeline execution, delegating monitoring and validation to specialized componen
 from __future__ import annotations
 from typing import Dict, List, Optional, Any, Tuple
 import uuid
+from datetime import datetime
 
 from pyspark.sql import DataFrame, SparkSession
 
 from ..types import StepName, PipelineConfig
 
-from .models import PipelineConfig, PipelineMode, PipelineStatus, PipelineReport
+from .models import PipelineMode, PipelineStatus, PipelineReport
+from ..models import PipelineConfig
 from .monitor import PipelineMonitor
 from .validator import PipelineValidator
 from ..models import BronzeStep, SilverStep, GoldStep
@@ -85,6 +87,9 @@ class PipelineRunner:
         self._current_report: Optional[PipelineReport] = None
         self._is_running = False
         self._cancelled = False
+        
+        # Pipeline identification
+        self.pipeline_id = f"pipeline_{config.schema}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
         self.logger.info("🚀 PipelineRunner ready")
     

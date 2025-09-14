@@ -11,6 +11,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
+# Import from main models to avoid duplication
+from ..models import PipelineMetrics, ParallelConfig, PipelineConfig
+
 
 class PipelineMode(Enum):
     """Pipeline execution modes."""
@@ -30,30 +33,7 @@ class PipelineStatus(Enum):
     PAUSED = "paused"
 
 
-@dataclass
-class PipelineMetrics:
-    """Metrics for pipeline execution."""
-    total_steps: int = 0
-    successful_steps: int = 0
-    failed_steps: int = 0
-    skipped_steps: int = 0
-    total_duration: float = 0.0
-    bronze_duration: float = 0.0
-    silver_duration: float = 0.0
-    gold_duration: float = 0.0
-    total_rows_processed: int = 0
-    total_rows_written: int = 0
-    parallel_efficiency: float = 0.0
-    cache_hit_rate: float = 0.0
-    error_count: int = 0
-    retry_count: int = 0
-    
-    @property
-    def success_rate(self) -> float:
-        """Success rate as a percentage."""
-        if self.total_steps == 0:
-            return 0.0
-        return (self.successful_steps / self.total_steps) * 100.0
+# PipelineMetrics moved to main models.py to avoid duplication
 
 
 @dataclass
@@ -114,52 +94,7 @@ class PipelineReport:
         }
 
 
-@dataclass
-class ParallelConfig:
-    """Parallel execution configuration."""
-    enabled: bool = True
-    max_workers: int = 4
-    timeout_secs: int = 300
-    
-    def __post_init__(self):
-        """Validate parallel configuration."""
-        if self.max_workers < 1:
-            raise ValueError(f"max_workers must be at least 1, got {self.max_workers}")
-        if self.timeout_secs < 1:
-            raise ValueError(f"timeout_secs must be at least 1, got {self.timeout_secs}")
-
-
-@dataclass
-class PipelineConfig:
-    """Configuration for pipeline execution."""
-    schema: str
-    min_bronze_rate: float = 95.0
-    min_silver_rate: float = 98.0
-    min_gold_rate: float = 99.0
-    verbose: bool = True
-    enable_parallel_silver: bool = True
-    max_parallel_workers: int = 4
-    enable_caching: bool = True
-    enable_monitoring: bool = True
-    parallel: Optional[ParallelConfig] = None
-    
-    def __post_init__(self):
-        """Validate configuration after initialization."""
-        if not (0 <= self.min_bronze_rate <= 100):
-            raise ValueError(f"min_bronze_rate must be between 0 and 100, got {self.min_bronze_rate}")
-        if not (0 <= self.min_silver_rate <= 100):
-            raise ValueError(f"min_silver_rate must be between 0 and 100, got {self.min_silver_rate}")
-        if not (0 <= self.min_gold_rate <= 100):
-            raise ValueError(f"min_gold_rate must be between 0 and 100, got {self.min_gold_rate}")
-        if self.max_parallel_workers < 1:
-            raise ValueError(f"max_parallel_workers must be at least 1, got {self.max_parallel_workers}")
-        
-        # Create default parallel config if not provided
-        if self.parallel is None:
-            self.parallel = ParallelConfig(
-                enabled=self.enable_parallel_silver,
-                max_workers=self.max_parallel_workers
-            )
+# ParallelConfig and PipelineConfig moved to main models.py to avoid duplication
 
 
 @dataclass

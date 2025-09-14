@@ -16,7 +16,8 @@ from .builder import PipelineBuilder
 from .runner import PipelineRunner
 from .executor import StepExecutor
 from .validator import PipelineValidator, StepValidator
-from .monitor import PipelineMonitor, PipelineMetrics, PipelineReport
+from .monitor import PipelineMonitor, PipelineReport
+from ..models import PipelineMetrics
 from .models import PipelineMode, PipelineStatus
 
 __all__ = [

@@ -10,7 +10,8 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 import uuid
 
-from .models import PipelineMetrics, PipelineReport, PipelineMode, PipelineStatus
+from .models import PipelineReport, PipelineMode, PipelineStatus
+from ..models import PipelineMetrics
 from ..logger import PipelineLogger
 
 

@@ -753,18 +753,34 @@ class PipelineMetrics(BaseModel):
         total_steps: Total number of steps
         successful_steps: Number of successful steps
         failed_steps: Number of failed steps
+        skipped_steps: Number of skipped steps
         total_duration_secs: Total execution duration
+        bronze_duration: Bronze layer duration
+        silver_duration: Silver layer duration
+        gold_duration: Gold layer duration
         total_rows_processed: Total rows processed
         total_rows_written: Total rows written
         avg_validation_rate: Average validation rate
+        parallel_efficiency: Parallel execution efficiency
+        cache_hit_rate: Cache hit rate
+        error_count: Number of errors
+        retry_count: Number of retries
     """
-    total_steps: int
-    successful_steps: int
-    failed_steps: int
-    total_duration_secs: float
-    total_rows_processed: int
-    total_rows_written: int
-    avg_validation_rate: float
+    total_steps: int = 0
+    successful_steps: int = 0
+    failed_steps: int = 0
+    skipped_steps: int = 0
+    total_duration: float = 0.0
+    bronze_duration: float = 0.0
+    silver_duration: float = 0.0
+    gold_duration: float = 0.0
+    total_rows_processed: int = 0
+    total_rows_written: int = 0
+    avg_validation_rate: float = 0.0
+    parallel_efficiency: float = 0.0
+    cache_hit_rate: float = 0.0
+    error_count: int = 0
+    retry_count: int = 0
     
     @property
     def success_rate(self) -> float:

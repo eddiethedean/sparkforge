@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Any, Protocol
 from dataclasses import dataclass
 
-from .models import PipelineConfig
+from ..models import PipelineConfig
 from ..models import BronzeStep, SilverStep, GoldStep, ExecutionContext
 from ..logger import PipelineLogger
 
@@ -162,17 +162,19 @@ class PipelineValidator:
         if not config.schema:
             errors.append("Schema name cannot be empty")
         
-        if config.min_bronze_rate < 0 or config.min_bronze_rate > 100:
-            errors.append(f"min_bronze_rate must be between 0 and 100, got {config.min_bronze_rate}")
+        # Validate thresholds
+        if config.thresholds.bronze < 0 or config.thresholds.bronze > 100:
+            errors.append(f"bronze threshold must be between 0 and 100, got {config.thresholds.bronze}")
         
-        if config.min_silver_rate < 0 or config.min_silver_rate > 100:
-            errors.append(f"min_silver_rate must be between 0 and 100, got {config.min_silver_rate}")
+        if config.thresholds.silver < 0 or config.thresholds.silver > 100:
+            errors.append(f"silver threshold must be between 0 and 100, got {config.thresholds.silver}")
         
-        if config.min_gold_rate < 0 or config.min_gold_rate > 100:
-            errors.append(f"min_gold_rate must be between 0 and 100, got {config.min_gold_rate}")
+        if config.thresholds.gold < 0 or config.thresholds.gold > 100:
+            errors.append(f"gold threshold must be between 0 and 100, got {config.thresholds.gold}")
         
-        if config.max_parallel_workers < 1:
-            errors.append(f"max_parallel_workers must be at least 1, got {config.max_parallel_workers}")
+        # Validate parallel config
+        if config.parallel.max_workers < 1:
+            errors.append(f"max_workers must be at least 1, got {config.parallel.max_workers}")
         
         return errors
     
@@ -273,17 +275,17 @@ class PipelineValidator:
         recommendations = []
         
         # Performance recommendations
-        if len(silver_steps) > 5 and not config.enable_parallel_silver:
+        if len(silver_steps) > 5 and not config.parallel.enabled:
             recommendations.append("Consider enabling parallel silver execution for better performance")
         
-        if config.max_parallel_workers < 4 and len(silver_steps) > 3:
-            recommendations.append("Consider increasing max_parallel_workers for better parallelization")
+        if config.parallel.max_workers < 4 and len(silver_steps) > 3:
+            recommendations.append("Consider increasing max_workers for better parallelization")
         
         # Data quality recommendations
-        if config.min_bronze_rate < 90:
+        if config.thresholds.bronze < 90:
             recommendations.append("Consider increasing bronze data quality threshold")
         
-        if config.min_silver_rate < 95:
+        if config.thresholds.silver < 95:
             recommendations.append("Consider increasing silver data quality threshold")
         
         # Architecture recommendations
