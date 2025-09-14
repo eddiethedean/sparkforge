@@ -246,6 +246,13 @@ class TestPipelineBuilder(unittest.TestCase):
         def mock_transform(spark, df):
             return df
         
+        # Add required bronze step first
+        self.builder.with_bronze_rules(
+            name="bronze1",
+            rules={"id": ["not_null"]},
+            incremental_col="created_at"
+        )
+        
         result = self.builder.add_silver_transform(
             name="silver_transform",
             source_bronze="bronze1",
@@ -253,8 +260,7 @@ class TestPipelineBuilder(unittest.TestCase):
             rules={"id": ["not_null"]},
             table_name="silver_table",
             watermark_col="updated_at",
-            description="Test silver transform",
-            depends_on=["silver1"]
+            description="Test silver transform"
         )
         
         # Should return self for chaining
@@ -274,6 +280,31 @@ class TestPipelineBuilder(unittest.TestCase):
         """Test adding gold transform step."""
         def mock_transform(spark, silvers):
             return list(silvers.values())[0]
+        
+        # Add required bronze and silver steps first
+        self.builder.with_bronze_rules(
+            name="bronze1",
+            rules={"id": ["not_null"]},
+            incremental_col="created_at"
+        )
+        
+        self.builder.add_silver_transform(
+            name="silver1",
+            source_bronze="bronze1",
+            transform=lambda spark, df: df,
+            rules={"id": ["not_null"]},
+            table_name="silver1_table",
+            watermark_col="updated_at"
+        )
+        
+        self.builder.add_silver_transform(
+            name="silver2",
+            source_bronze="bronze1",
+            transform=lambda spark, df: df,
+            rules={"id": ["not_null"]},
+            table_name="silver2_table",
+            watermark_col="updated_at"
+        )
         
         result = self.builder.add_gold_transform(
             name="gold_transform",

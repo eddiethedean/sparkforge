@@ -214,7 +214,7 @@ class PipelineValidator:
             
             if hasattr(step, 'source_bronze') and step.source_bronze:
                 if step.source_bronze not in bronze_steps:
-                    errors.append(f"Silver step {name} references non-existent bronze step: {step.source_bronze}")
+                    errors.append(f"Silver step {name} source bronze '{step.source_bronze}' not found")
         
         return errors, warnings
     

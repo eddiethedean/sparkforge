@@ -157,6 +157,9 @@ class PipelineBuilder:
         self.schema = schema
         self.pipeline_id = f"pipeline_{schema}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
+        # Expose validators for backward compatibility
+        self.validators = self.validator.custom_validators
+        
         # Pipeline definition
         self.bronze_steps: Dict[str, BronzeStep] = {}
         self.silver_steps: Dict[str, SilverStep] = {}
@@ -222,6 +225,97 @@ class PipelineBuilder:
         self.bronze_steps[name] = bronze_step
         self.logger.info(f"✅ Added Bronze step: {name}")
         
+        return self
+    
+    def with_silver_rules(
+        self,
+        *,
+        name: StepName,
+        table_name: TableName,
+        rules: ColumnRules,
+        watermark_col: Optional[str] = None,
+        description: Optional[str] = None
+    ) -> 'PipelineBuilder':
+        """
+        Add existing Silver layer table for validation and monitoring.
+        
+        This method is used when you have an existing Silver table that you want to
+        include in the pipeline for validation and monitoring purposes, but don't
+        need to transform the data.
+        
+        Args:
+            name: Unique identifier for this Silver step
+            table_name: Existing Delta table name
+            rules: Dictionary mapping column names to validation rule lists
+            watermark_col: Column name for watermarking (optional)
+            description: Optional description of this Silver step
+            
+        Returns:
+            Self for method chaining
+            
+        Example:
+            >>> builder.with_silver_rules(
+            ...     name="existing_clean_events",
+            ...     table_name="clean_events",
+            ...     rules={"user_id": [F.col("user_id").isNotNull()]},
+            ...     watermark_col="updated_at"
+            ... )
+        """
+        if not name:
+            raise StepError(
+                "Silver step name cannot be empty",
+                step_name=name or "unknown",
+                step_type="silver",
+                suggestions=["Provide a valid step name", "Check step naming conventions"]
+            )
+        
+        if name in self.silver_steps:
+            raise StepError(
+                f"Silver step '{name}' already exists",
+                step_name=name,
+                step_type="silver",
+                suggestions=["Use a different step name", "Remove the existing step first"]
+            )
+        
+        # Create SilverStep for existing table
+        silver_step = SilverStep(
+            name=name,
+            source_bronze="",  # No source for existing tables
+            transform=None,    # No transform for existing tables
+            rules=rules,
+            table_name=table_name,
+            watermark_col=watermark_col,
+            existing=True
+        )
+        
+        self.silver_steps[name] = silver_step
+        self.logger.info(f"✅ Added existing Silver step: {name}")
+        
+        return self
+    
+    def add_validator(self, validator: 'StepValidator') -> 'PipelineBuilder':
+        """
+        Add a custom step validator to the pipeline.
+        
+        Custom validators allow you to add additional validation logic
+        beyond the built-in validation rules.
+        
+        Args:
+            validator: Custom validator implementing StepValidator protocol
+            
+        Returns:
+            Self for method chaining
+            
+        Example:
+            >>> class CustomValidator(StepValidator):
+            ...     def validate(self, step, context):
+            ...         if step.name == "special_step":
+            ...             return ["Special validation failed"]
+            ...         return []
+            >>> 
+            >>> builder.add_validator(CustomValidator())
+        """
+        self.validator.add_validator(validator)
         return self
     
     def add_silver_transform(
@@ -290,13 +384,8 @@ class PipelineBuilder:
                 suggestions=["Use a different step name", "Remove the existing step first"]
             )
         
-        if source_bronze not in self.bronze_steps:
-            raise DependencyError(
-                f"Source bronze step '{source_bronze}' not found",
-                step_name=name,
-                dependency_name=source_bronze,
-                suggestions=["Check bronze step name spelling", "Ensure bronze step is defined before silver step"]
-            )
+        # Note: Dependency validation is deferred to validate_pipeline()
+        # This allows for more flexible pipeline construction
         
         # Create silver step
         silver_step = SilverStep(
@@ -378,15 +467,8 @@ class PipelineBuilder:
         if source_silvers is None:
             source_silvers = list(self.silver_steps.keys())
         
-        # Validate source silvers
-        for silver_name in source_silvers:
-            if silver_name not in self.silver_steps:
-                raise DependencyError(
-                    f"Source silver step '{silver_name}' not found",
-                    step_name=name,
-                    dependency_name=silver_name,
-                    suggestions=["Check silver step name spelling", "Ensure silver step is defined before gold step"]
-                )
+        # Note: Dependency validation is deferred to validate_pipeline()
+        # This allows for more flexible pipeline construction
         
         # Create gold step
         gold_step = GoldStep(
@@ -438,14 +520,8 @@ class PipelineBuilder:
         # Validate pipeline before building
         validation_errors = self.validate_pipeline()
         if validation_errors:
-            raise PipelineValidationError(
-                f"Pipeline validation failed with {len(validation_errors)} errors",
-                validation_errors=validation_errors,
-                suggestions=[
-                    "Review validation error messages",
-                    "Check pipeline configuration",
-                    "Verify step definitions and dependencies"
-                ]
+            raise ValueError(
+                f"Pipeline validation failed with {len(validation_errors)} errors: {', '.join(validation_errors)}"
             )
         
         # Create execution engine
