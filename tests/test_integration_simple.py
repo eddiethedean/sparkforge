@@ -148,7 +148,7 @@ class TestSimpleIntegration:
         assert len(table_names) > 0
         
         # Verify the pipeline processed data correctly
-        assert result.metrics.total_rows_written == 103  # 100 bronze + 3 gold summary rows
+        assert result.metrics.total_rows_written == 203  # 100 bronze + 100 silver + 3 gold summary rows
     
     @pytest.mark.spark
     def test_pipeline_with_logging(self, spark_session, sample_events_data):

@@ -47,10 +47,29 @@ __email__ = "odosmattthewsm@gmail.com"
 __description__ = "A powerful data pipeline builder for Apache Spark and Databricks"
 
 # Import main classes for easy access
-from .pipeline_builder import PipelineBuilder, PipelineRunner
+from .pipeline import PipelineBuilder, PipelineRunner
 from .step_executor import StepExecutor, StepExecutionResult, StepValidationResult, StepType, StepStatus
-from .models import (
+
+# Import unified execution system
+from .execution import (
+    ExecutionEngine as UnifiedExecutionEngine,
+    ExecutionConfig,
     ExecutionMode,
+    RetryStrategy,
+    ExecutionResult,
+    ExecutionStats,
+    StepExecutionResult as UnifiedStepExecutionResult
+)
+
+# Import unified dependency analysis
+from .dependencies import (
+    DependencyAnalyzer as UnifiedDependencyAnalyzer,
+    DependencyAnalysisResult,
+    DependencyGraph,
+    StepNode
+)
+
+from .models import (
     PipelinePhase,
     ValidationResult,
     WriteMode,
@@ -64,12 +83,42 @@ from .models import (
     StageStats,
     StepResult,
     PipelineMetrics,
-    ExecutionResult,
     SilverDependencyInfo
 )
 from .log_writer import LogWriter, PIPELINE_LOG_SCHEMA
 from .reporting import create_validation_dict, create_write_dict
 from .exceptions import ValidationError
+
+# Import standardized error handling
+from .errors import (
+    SparkForgeError,
+    ConfigurationError,
+    ValidationError as DataValidationError,
+    ExecutionError,
+    DataQualityError,
+    ResourceError,
+    PipelineError,
+    PipelineConfigurationError,
+    PipelineExecutionError,
+    PipelineValidationError,
+    StepError,
+    StepExecutionError,
+    StepValidationError,
+    DependencyError,
+    CircularDependencyError,
+    InvalidDependencyError
+)
+
+# Import type system
+from .types import (
+    StepName, StepType, PipelineId, ExecutionId, TableName, SchemaName,
+    TransformFunction, BronzeTransformFunction, SilverTransformFunction, GoldTransformFunction,
+    ColumnRules, ValidationRules, QualityThresholds, ExecutionContext,
+    StepResult, PipelineResult, ValidationResult, ExecutionResult,
+    PipelineConfig, ExecutionConfig, ValidationConfig, MonitoringConfig,
+    ErrorCode, ErrorContext, ErrorSuggestions,
+    OptionalDict, OptionalList, StringDict, AnyDict, NumericDict
+)
 
 # Make key classes available at package level
 __all__ = [
@@ -85,8 +134,22 @@ __all__ = [
     "StepType",
     "StepStatus",
     
-    # Models
+    # Unified execution system
+    "UnifiedExecutionEngine",
+    "ExecutionConfig",
     "ExecutionMode",
+    "RetryStrategy",
+    "ExecutionResult",
+    "ExecutionStats",
+    "UnifiedStepExecutionResult",
+    
+    # Unified dependency analysis
+    "UnifiedDependencyAnalyzer",
+    "DependencyAnalysisResult",
+    "DependencyGraph",
+    "StepNode",
+    
+    # Models
     "PipelinePhase", 
     "ValidationResult",
     "WriteMode",
@@ -100,7 +163,6 @@ __all__ = [
     "StageStats",
     "StepResult",
     "PipelineMetrics",
-    "ExecutionResult",
     "SilverDependencyInfo",
     
     # Utilities
@@ -108,6 +170,56 @@ __all__ = [
     "create_write_dict", 
     "ValidationError",
     "PIPELINE_LOG_SCHEMA",
+    
+    # Error handling
+    "SparkForgeError",
+    "ConfigurationError",
+    "DataValidationError",
+    "ExecutionError",
+    "DataQualityError",
+    "ResourceError",
+    "PipelineError",
+    "PipelineConfigurationError",
+    "PipelineExecutionError",
+    "PipelineValidationError",
+    "StepError",
+    "StepExecutionError",
+    "StepValidationError",
+    "DependencyError",
+    "CircularDependencyError",
+    "InvalidDependencyError",
+    
+    # Type system
+    "StepName",
+    "StepType",
+    "PipelineId",
+    "ExecutionId",
+    "TableName",
+    "SchemaName",
+    "TransformFunction",
+    "BronzeTransformFunction",
+    "SilverTransformFunction",
+    "GoldTransformFunction",
+    "ColumnRules",
+    "ValidationRules",
+    "QualityThresholds",
+    "ExecutionContext",
+    "StepResult",
+    "PipelineResult",
+    "ValidationResult",
+    "ExecutionResult",
+    "PipelineConfig",
+    "ExecutionConfig",
+    "ValidationConfig",
+    "MonitoringConfig",
+    "ErrorCode",
+    "ErrorContext",
+    "ErrorSuggestions",
+    "OptionalDict",
+    "OptionalList",
+    "StringDict",
+    "AnyDict",
+    "NumericDict",
     
     # Package info
     "__version__",
