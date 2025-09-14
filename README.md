@@ -2,21 +2,29 @@
 
 A production-ready PySpark + Delta Lake pipeline engine with the Medallion Architecture (Bronze → Silver → Gold). Build scalable data pipelines with built-in parallel execution, comprehensive validation, and enterprise-grade monitoring.
 
+[![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://sparkforge.readthedocs.io/)
+[![PyPI version](https://badge.fury.io/py/sparkforge.svg)](https://badge.fury.io/py/sparkforge)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 ## 🚀 Start Here - Choose Your Path
 
 ### New to SparkForge? 
-**[📖 5-Minute Quick Start](QUICK_START_5_MIN.md)** - Get running in under 5 minutes with a simple example
-
-### Know What You Want to Build?
-- **[🛒 E-commerce Analytics](USECASE_ECOMMERCE.md)** - Order processing, customer analytics, revenue tracking
-- **[📡 IoT Data Processing](USECASE_IOT.md)** - Sensor data, anomaly detection, real-time analytics  
-- **[📊 Business Intelligence](USECASE_BI.md)** - Dashboards, KPIs, reporting pipelines
-
-### Want to Learn Step-by-Step?
+**[📖 5-Minute Quick Start](https://sparkforge.readthedocs.io/en/latest/quick_start_5_min.html)** - Get running in under 5 minutes ⭐ **START HERE**
 **[🌍 Hello World Example](examples/hello_world.py)** - The absolute simplest pipeline (just 3 lines!)
 
-### Ready for More?
-**[📚 User Guide](USER_GUIDE.md)** - Complete guide to all features and patterns
+### Know What You Want to Build?
+- **[🛒 E-commerce Analytics](https://sparkforge.readthedocs.io/en/latest/usecase_ecommerce.html)** - Order processing, customer analytics, revenue tracking
+- **[📡 IoT Data Processing](https://sparkforge.readthedocs.io/en/latest/usecase_iot.html)** - Sensor data, anomaly detection, real-time analytics  
+- **[📊 Business Intelligence](https://sparkforge.readthedocs.io/en/latest/usecase_bi.html)** - Dashboards, KPIs, reporting pipelines
+
+### Want to Learn Step-by-Step?
+**[📚 User Guide](https://sparkforge.readthedocs.io/en/latest/user_guide.html)** - Complete guide to all features and patterns
+**[💡 Progressive Examples](https://sparkforge.readthedocs.io/en/latest/progressive_examples.html)** - Learn step-by-step with increasing complexity
+
+### Need Help?
+**[🔧 Troubleshooting](https://sparkforge.readthedocs.io/en/latest/troubleshooting.html)** - Common issues and solutions
+**[📋 Quick Reference](https://sparkforge.readthedocs.io/en/latest/quick_reference.html)** - Essential syntax and patterns
 
 ## ⚡ Super Quick Start (30 seconds)
 
@@ -47,6 +55,8 @@ That's it! You just ran a complete Bronze → Silver → Gold pipeline.
 - **💧 Delta Lake Integration**: Full support for ACID transactions, time travel, and schema evolution
 - **📊 Structured Logging**: Detailed execution logging, timing, and monitoring
 - **🛡️ Error Handling**: Comprehensive error handling, recovery, and retry mechanisms
+- **📖 Professional Documentation**: Complete Read the Docs documentation with search, examples, and API reference
+- **🎯 Enhanced User Experience**: Progressive learning paths, troubleshooting guides, and comprehensive examples
 
 ## 🛠️ Installation
 
@@ -84,31 +94,112 @@ print("✅ SparkForge installed successfully!")
 
 ## 📚 Documentation
 
+**📖 [Complete Documentation](https://sparkforge.readthedocs.io/)** - Professional documentation with search, navigation, and examples
+
+### 🆕 Enhanced Documentation Experience
+
+SparkForge now features **professional-grade documentation** hosted on Read the Docs with:
+
+- **🔍 Interactive Search**: Find any function, class, or concept instantly
+- **📱 Mobile-Friendly**: Responsive design works on all devices
+- **🎯 Progressive Learning**: Structured learning paths from beginner to advanced
+- **💡 Rich Examples**: Complete, runnable code examples for every feature
+- **🔧 Troubleshooting**: Comprehensive problem-solving guides
+- **📋 Quick Reference**: Essential syntax and patterns at your fingertips
+- **🏗️ Use Case Guides**: Real-world examples for e-commerce, IoT, and BI
+- **🔗 Cross-References**: Smart linking between related concepts
+- **📊 API Documentation**: Auto-generated from enhanced docstrings
+- **🌐 Always Up-to-Date**: Automatically updated with every code change
+
+### 📖 Documentation Highlights
+
+- **5-Minute Quick Start**: Get running in under 5 minutes with a complete example
+- **Progressive Examples**: Learn step-by-step with increasing complexity
+- **E-commerce Pipeline**: Complete end-to-end example with Bronze, Silver, and Gold layers
+- **Troubleshooting Guide**: Solutions to common issues and error patterns
+- **Decision Trees**: Choose the right configuration for your use case
+- **Migration Guides**: Migrate from other frameworks with confidence
+
 ### 🎯 Getting Started
-- **[5-Minute Quick Start](QUICK_START_5_MIN.md)** - Get running in under 5 minutes ⭐ **START HERE**
+- **[5-Minute Quick Start](https://sparkforge.readthedocs.io/en/latest/quick_start_5_min.html)** - Get running in under 5 minutes ⭐ **START HERE**
 - **[Hello World](examples/hello_world.py)** - Simplest possible example
-- **[Getting Started](GETTING_STARTED.md)** - Original quick start guide
+- **[Getting Started Guide](https://sparkforge.readthedocs.io/en/latest/getting_started.html)** - Original quick start guide
 
 ### 🏗️ Use Case Guides  
-- **[E-commerce Analytics](USECASE_ECOMMERCE.md)** - Order processing, customer analytics
-- **[IoT Data Processing](USECASE_IOT.md)** - Sensor data, anomaly detection
-- **[Business Intelligence](USECASE_BI.md)** - Dashboards, KPIs, reporting
+- **[E-commerce Analytics](https://sparkforge.readthedocs.io/en/latest/usecase_ecommerce.html)** - Order processing, customer analytics
+- **[IoT Data Processing](https://sparkforge.readthedocs.io/en/latest/usecase_iot.html)** - Sensor data, anomaly detection
+- **[Business Intelligence](https://sparkforge.readthedocs.io/en/latest/usecase_bi.html)** - Dashboards, KPIs, reporting
 
 ### 📖 Reference Documentation
-- **[User Guide](USER_GUIDE.md)** - Comprehensive guide to all features
-- **[Quick Reference](QUICK_REFERENCE.md)** - Quick reference for developers
-- **[API Reference](API_REFERENCE.md)** - Complete API documentation
+- **[User Guide](https://sparkforge.readthedocs.io/en/latest/user_guide.html)** - Comprehensive guide to all features
+- **[Quick Reference](https://sparkforge.readthedocs.io/en/latest/quick_reference.html)** - Quick reference for developers
+- **[API Reference](https://sparkforge.readthedocs.io/en/latest/api_reference.html)** - Complete API documentation with enhanced docstrings
+
+### 🔧 Enhanced API Documentation
+
+All SparkForge classes and methods now feature **comprehensive docstrings** with:
+
+- **📝 Detailed Parameter Descriptions**: Clear explanations of all parameters with type information
+- **💡 Practical Examples**: Real-world code examples for every method
+- **⚠️ Error Documentation**: Clear documentation of exceptions and error conditions
+- **🎯 Usage Patterns**: Best practices and common usage scenarios
+- **🔗 Cross-References**: Links to related methods and concepts
+- **📊 Return Value Details**: Comprehensive documentation of return types and structures
+
+**Example Enhanced Docstring**:
+```python
+def add_silver_transform(self, *, name: str, source_bronze: str, 
+                        transform: Callable[..., DataFrame], 
+                        rules: Dict[str, List[Any]], 
+                        table_name: str, 
+                        watermark_col: Optional[str] = None,
+                        description: Optional[str] = None,
+                        depends_on: Optional[List[str]] = None) -> 'PipelineBuilder':
+    """
+    Add Silver layer transformation step for data cleaning and enrichment.
+    
+    Silver steps represent the second layer of the Medallion Architecture,
+    transforming raw Bronze data into clean, business-ready datasets.
+    
+    Args:
+        name: Unique identifier for this Silver step
+        transform: Transformation function with signature:
+                 (spark: SparkSession, bronze_df: DataFrame, prior_silvers: Dict[str, DataFrame]) -> DataFrame
+        rules: Dictionary mapping column names to validation rule lists.
+               Each rule should be a PySpark Column expression.
+        table_name: Target Delta table name where results will be stored
+        watermark_col: Column name for watermarking (e.g., "timestamp", "updated_at").
+                      If provided, enables incremental processing with append mode.
+        depends_on: List of other Silver step names that must complete before this step.
+    
+    Example:
+        >>> def clean_user_events(spark, bronze_df, prior_silvers):
+        ...     return (bronze_df
+        ...         .filter(F.col("user_id").isNotNull())
+        ...         .withColumn("event_date", F.date_trunc("day", "timestamp"))
+        ...     )
+        >>> 
+        >>> builder.add_silver_transform(
+        ...     name="clean_events",
+        ...     source_bronze="user_events",
+        ...     transform=clean_user_events,
+        ...     rules={"user_id": [F.col("user_id").isNotNull()]},
+        ...     table_name="clean_user_events",
+        ...     watermark_col="timestamp"
+        ... )
+    """
+```
 
 ### 💡 Examples & Learning
 - **[Examples](examples/)** - Working code examples
-- **[Progressive Examples](PROGRESSIVE_EXAMPLES.md)** - Learn step-by-step
+- **[Progressive Examples](https://sparkforge.readthedocs.io/en/latest/progressive_examples.html)** - Learn step-by-step
 - **[Jupyter Notebooks](notebooks/)** - Interactive examples
-- **[Visual Guide](VISUAL_GUIDE.md)** - Diagrams and flowcharts
-- **[Decision Trees](DECISION_TREES.md)** - Make the right choices
+- **[Visual Guide](https://sparkforge.readthedocs.io/en/latest/visual_guide.html)** - Diagrams and flowcharts
+- **[Decision Trees](https://sparkforge.readthedocs.io/en/latest/decision_trees.html)** - Make the right choices
 
 ### 🔧 Advanced Topics
-- **[Migration Guides](MIGRATION_GUIDES.md)** - Migrate from other tools
-- **[Troubleshooting](TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Migration Guides](https://sparkforge.readthedocs.io/en/latest/migration_guides.html)** - Migrate from other tools
+- **[Troubleshooting](https://sparkforge.readthedocs.io/en/latest/troubleshooting.html)** - Common issues and solutions
 
 ## 📖 Usage Examples
 
