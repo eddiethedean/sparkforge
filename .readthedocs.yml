@@ -14,15 +14,6 @@ formats:
   - htmlzip
   - pdf
 
-# Optional but recommended. Read the Docs will automatically install this
-# package when building your documentation.
-python:
-  version: 3.8
-  install:
-    - requirements: docs/requirements.txt
-    - method: pip
-      path: .
-
 # Build documentation in the "latest", "stable", and all tags
 build:
   os: ubuntu-22.04
