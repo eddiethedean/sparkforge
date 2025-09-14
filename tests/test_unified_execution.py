@@ -15,8 +15,7 @@ import time
 from tests.conftest import get_test_schema
 
 from sparkforge.dependencies import (
-    DependencyAnalyzer, DependencyAnalysisResult, StepType, 
-    UnifiedStepInfo, ExecutionGroup
+    DependencyAnalyzer, DependencyAnalysisResult, StepType
 )
 from sparkforge.execution import (
     ExecutionEngine, ExecutionConfig, StepExecutionResult,

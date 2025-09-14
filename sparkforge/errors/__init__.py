@@ -58,6 +58,12 @@ from .system import (
     StorageError
 )
 
+from .performance import (
+    PerformanceError,
+    PerformanceThresholdError,
+    PerformanceMonitoringError
+)
+
 __all__ = [
     # Base exceptions
     "SparkForgeError",
@@ -98,5 +104,10 @@ __all__ = [
     "SystemResourceError",
     "SystemConfigurationError",
     "NetworkError",
-    "StorageError"
+    "StorageError",
+    
+    # Performance exceptions
+    "PerformanceError",
+    "PerformanceThresholdError",
+    "PerformanceMonitoringError"
 ]

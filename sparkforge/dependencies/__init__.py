@@ -14,7 +14,7 @@ Key Features:
 """
 
 from .analyzer import DependencyAnalyzer, DependencyAnalysisResult, AnalysisStrategy
-from .graph import DependencyGraph, StepNode
+from .graph import DependencyGraph, StepNode, StepType
 from .exceptions import DependencyError, CircularDependencyError, InvalidDependencyError, DependencyConflictError, DependencyAnalysisError
 from ..models import ExecutionMode
 from ..execution.engine import StepComplexity
@@ -25,6 +25,7 @@ __all__ = [
     "AnalysisStrategy",
     "DependencyGraph",
     "StepNode",
+    "StepType",
     "DependencyError",
     "CircularDependencyError",
     "InvalidDependencyError",

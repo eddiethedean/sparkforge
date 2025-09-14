@@ -11,6 +11,25 @@ from typing import Optional
 from .base import SparkForgeError, ErrorCategory, ErrorSeverity
 
 
+class ExecutionError(SparkForgeError):
+    """Raised when execution operations fail."""
+    
+    def __init__(
+        self,
+        message: str,
+        *,
+        execution_step: Optional[str] = None,
+        **kwargs
+    ):
+        super().__init__(
+            message,
+            category=ErrorCategory.EXECUTION,
+            severity=ErrorSeverity.HIGH,
+            **kwargs
+        )
+        self.execution_step = execution_step
+
+
 class ExecutionEngineError(SparkForgeError):
     """Raised when execution engine fails."""
     
@@ -144,3 +163,12 @@ class TimeoutError(SparkForgeError):
         if self.timeout_seconds > 0:
             return f"{base_msg} (Timeout: {self.timeout_seconds}s)"
         return base_msg
+
+
+__all__ = [
+    "ExecutionError",
+    "ExecutionEngineError", 
+    "ExecutionTimeoutError",
+    "RetryExhaustedError",
+    "TimeoutError"
+]
