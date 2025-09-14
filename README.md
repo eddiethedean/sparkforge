@@ -2,63 +2,39 @@
 
 A production-ready PySpark + Delta Lake pipeline engine with the Medallion Architecture (Bronze → Silver → Gold). Build scalable data pipelines with built-in parallel execution, comprehensive validation, and enterprise-grade monitoring.
 
-## 🚀 Quick Start
+## 🚀 Start Here - Choose Your Path
+
+### New to SparkForge? 
+**[📖 5-Minute Quick Start](QUICK_START_5_MIN.md)** - Get running in under 5 minutes with a simple example
+
+### Know What You Want to Build?
+- **[🛒 E-commerce Analytics](USECASE_ECOMMERCE.md)** - Order processing, customer analytics, revenue tracking
+- **[📡 IoT Data Processing](USECASE_IOT.md)** - Sensor data, anomaly detection, real-time analytics  
+- **[📊 Business Intelligence](USECASE_BI.md)** - Dashboards, KPIs, reporting pipelines
+
+### Want to Learn Step-by-Step?
+**[🌍 Hello World Example](examples/hello_world.py)** - The absolute simplest pipeline (just 3 lines!)
+
+### Ready for More?
+**[📚 User Guide](USER_GUIDE.md)** - Complete guide to all features and patterns
+
+## ⚡ Super Quick Start (30 seconds)
 
 ```bash
 pip install sparkforge
+python examples/hello_world.py
 ```
 
-```python
-from sparkforge import PipelineBuilder
-from pyspark.sql import functions as F
+That's it! You just ran a complete Bronze → Silver → Gold pipeline.
 
-# Initialize Spark
-from pyspark.sql import SparkSession
-spark = SparkSession.builder \
-    .appName("SparkForge Example") \
-    .master("local[*]") \
-    .getOrCreate()
+## 🎯 What Makes SparkForge Special?
 
-# Create a simple pipeline
-builder = PipelineBuilder(spark=spark, schema="my_schema")
-
-def silver_transform(spark, bronze_df):
-    return bronze_df.filter(F.col("status") == "active")
-
-def gold_transform(spark, silvers):
-    events_df = silvers["silver_events"]
-    return events_df.groupBy("category").count()
-
-# Build and run pipeline
-pipeline = (builder
-    .with_bronze_rules(
-        name="events",
-        rules={"user_id": [F.col("user_id").isNotNull()]}
-    )
-    .add_silver_transform(
-        name="silver_events",
-        source_bronze="events",
-        transform=silver_transform,
-        rules={"status": [F.col("status").isNotNull()]},
-        table_name="silver_events"
-    )
-    .add_gold_transform(
-        name="gold_summary",
-        transform=gold_transform,
-        rules={"category": [F.col("category").isNotNull()]},
-        table_name="gold_summary"
-    )
-    .to_pipeline()
-)
-
-result = pipeline.initial_load(bronze_sources={"events": source_df})
-print(f"Pipeline completed: {result.success}")
-
-# Debug individual steps
-bronze_result = pipeline.execute_bronze_step("events", input_data=source_df)
-silver_result = pipeline.execute_silver_step("silver_events")
-print(f"Step debugging: Bronze={bronze_result.status.value}, Silver={silver_result.status.value}")
-```
+- **🏗️ Medallion Architecture**: Bronze → Silver → Gold data layering with automatic dependency management
+- **⚡ Parallel Execution**: Independent Silver steps run concurrently for maximum performance
+- **🔍 Step-by-Step Debugging**: Execute individual pipeline steps independently for troubleshooting
+- **✅ Data Validation**: Configurable validation thresholds and comprehensive quality checks
+- **🔄 Incremental Processing**: Watermarking and incremental updates with Delta Lake
+- **💧 Delta Lake Integration**: Full support for ACID transactions, time travel, and schema evolution
 
 ## ✨ Key Features
 
@@ -108,11 +84,31 @@ print("✅ SparkForge installed successfully!")
 
 ## 📚 Documentation
 
-- **[Getting Started](GETTING_STARTED.md)** - Quick start guide for new users
-- **[User Guide](USER_GUIDE.md)** - Comprehensive guide to building data pipelines
+### 🎯 Getting Started
+- **[5-Minute Quick Start](QUICK_START_5_MIN.md)** - Get running in under 5 minutes ⭐ **START HERE**
+- **[Hello World](examples/hello_world.py)** - Simplest possible example
+- **[Getting Started](GETTING_STARTED.md)** - Original quick start guide
+
+### 🏗️ Use Case Guides  
+- **[E-commerce Analytics](USECASE_ECOMMERCE.md)** - Order processing, customer analytics
+- **[IoT Data Processing](USECASE_IOT.md)** - Sensor data, anomaly detection
+- **[Business Intelligence](USECASE_BI.md)** - Dashboards, KPIs, reporting
+
+### 📖 Reference Documentation
+- **[User Guide](USER_GUIDE.md)** - Comprehensive guide to all features
 - **[Quick Reference](QUICK_REFERENCE.md)** - Quick reference for developers
 - **[API Reference](API_REFERENCE.md)** - Complete API documentation
+
+### 💡 Examples & Learning
 - **[Examples](examples/)** - Working code examples
+- **[Progressive Examples](PROGRESSIVE_EXAMPLES.md)** - Learn step-by-step
+- **[Jupyter Notebooks](notebooks/)** - Interactive examples
+- **[Visual Guide](VISUAL_GUIDE.md)** - Diagrams and flowcharts
+- **[Decision Trees](DECISION_TREES.md)** - Make the right choices
+
+### 🔧 Advanced Topics
+- **[Migration Guides](MIGRATION_GUIDES.md)** - Migrate from other tools
+- **[Troubleshooting](TROUBLESHOOTING.md)** - Common issues and solutions
 
 ## 📖 Usage Examples
 

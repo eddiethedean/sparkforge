@@ -4,6 +4,22 @@ This directory contains practical examples demonstrating SparkForge's capabiliti
 
 ## Examples Overview
 
+### 0. Hello World (`hello_world.py`) ⭐ **START HERE**
+**Perfect for absolute beginners!**
+
+The simplest possible SparkForge pipeline - just 3 lines of pipeline code! This demonstrates the Bronze → Silver → Gold flow with minimal complexity.
+
+**Features:**
+- Simplest possible pipeline
+- Bronze → Silver → Gold flow
+- Basic data validation
+- Step-by-step execution
+
+**Run:**
+```bash
+python examples/hello_world.py
+```
+
 ### 1. E-commerce Analytics Pipeline (`ecommerce_analytics.py`)
 
 A complete e-commerce analytics pipeline that processes order data through Bronze → Silver → Gold layers.
@@ -116,9 +132,9 @@ Each example will:
 ## Learning Path
 
 ### Beginner
-1. Start with `step_by_step_debugging.py` to understand basic concepts
-2. Run `ecommerce_analytics.py` to see a complete business pipeline
-3. Explore `iot_sensor_pipeline.py` for advanced time-series processing
+1. Start with `hello_world.py` for the simplest possible example
+2. Try `step_by_step_debugging.py` to understand basic concepts
+3. Run `ecommerce_analytics.py` to see a complete business pipeline
 
 ### Intermediate
 1. Modify the examples to use your own data
