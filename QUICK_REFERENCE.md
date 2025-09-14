@@ -1,0 +1,304 @@
+# SparkForge Quick Reference
+
+A quick reference guide for SparkForge developers and users.
+
+## Installation
+
+```bash
+pip install sparkforge
+```
+
+## Basic Pipeline
+
+```python
+from sparkforge import PipelineBuilder
+from pyspark.sql import functions as F
+
+# Setup
+spark = SparkSession.builder.appName("My Pipeline").getOrCreate()
+builder = PipelineBuilder(spark=spark, schema="my_schema")
+
+# Bronze
+builder.with_bronze_rules(
+    name="events",
+    rules={"user_id": [F.col("user_id").isNotNull()]}
+)
+
+# Silver
+builder.add_silver_transform(
+    name="silver_events",
+    source_bronze="events",
+    transform=lambda spark, df, silvers: df.filter(F.col("status") == "active"),
+    rules={"status": [F.col("status").isNotNull()]},
+    table_name="silver_events"
+)
+
+# Gold
+builder.add_gold_transform(
+    name="gold_summary",
+    transform=lambda spark, silvers: silvers["silver_events"].groupBy("category").count(),
+    rules={"category": [F.col("category").isNotNull()]},
+    table_name="gold_summary"
+)
+
+# Execute
+pipeline = builder.to_pipeline()
+result = pipeline.initial_load(bronze_sources={"events": source_df})
+```
+
+## Execution Modes
+
+```python
+# Full refresh
+result = pipeline.initial_load(bronze_sources={"events": source_df})
+
+# Incremental
+result = pipeline.run_incremental(bronze_sources={"events": new_data_df})
+
+# Full refresh (force)
+result = pipeline.run_full_refresh(bronze_sources={"events": source_df})
+
+# Validation only
+result = pipeline.run_validation_only(bronze_sources={"events": source_df})
+```
+
+## Step-by-Step Debugging
+
+```python
+# Execute individual steps
+bronze_result = pipeline.execute_bronze_step("events", input_data=source_df)
+silver_result = pipeline.execute_silver_step("silver_events")
+gold_result = pipeline.execute_gold_step("gold_summary")
+
+# Get step information
+step_info = pipeline.get_step_info("silver_events")
+steps = pipeline.list_steps()
+```
+
+## Validation Rules
+
+```python
+# Basic validation
+rules = {
+    "user_id": [F.col("user_id").isNotNull()],
+    "age": [F.col("age").between(0, 120)],
+    "email": [F.col("email").rlike("^[^@]+@[^@]+\\.[^@]+$")]
+}
+
+# Custom validation
+def custom_validation(spark, df, rules):
+    invalid = df.filter(~F.col("user_id").isNotNull())
+    if invalid.count() > 0:
+        raise ValidationError("Invalid user records")
+    return df
+```
+
+## Configuration
+
+```python
+# Basic configuration
+builder = PipelineBuilder(
+    spark=spark,
+    schema="my_schema",
+    min_bronze_rate=95.0,
+    min_silver_rate=98.0,
+    min_gold_rate=99.0,
+    enable_parallel_silver=True,
+    max_parallel_workers=4,
+    verbose=True
+)
+
+# Advanced configuration
+from sparkforge.models import ValidationThresholds, ParallelConfig
+
+thresholds = ValidationThresholds(bronze=90.0, silver=95.0, gold=98.0)
+parallel_config = ParallelConfig(max_workers=8, enable_parallel_execution=True)
+
+builder = PipelineBuilder(
+    spark=spark,
+    schema="my_schema",
+    validation_thresholds=thresholds,
+    parallel_config=parallel_config
+)
+```
+
+## Delta Lake Features
+
+```python
+# ACID transactions (automatic)
+result = pipeline.run_incremental(bronze_sources={"events": source_df})
+
+# Time travel
+spark.sql("DESCRIBE HISTORY my_schema.events")
+spark.sql("SELECT * FROM my_schema.events VERSION AS OF 1")
+
+# Schema evolution (automatic)
+def add_column(spark, df, silvers):
+    return df.withColumn("new_field", F.lit("default"))
+```
+
+## Parallel Execution
+
+```python
+# Silver layer parallelization
+builder = PipelineBuilder(
+    spark=spark,
+    schema="my_schema",
+    enable_parallel_silver=True,
+    max_parallel_workers=4
+)
+
+# Unified execution (cross-layer)
+pipeline = (builder
+    .enable_unified_execution(
+        max_workers=8,
+        enable_parallel_execution=True,
+        enable_dependency_optimization=True
+    )
+    .to_pipeline()
+)
+
+result = pipeline.run_unified(bronze_sources={"events": source_df})
+```
+
+## Monitoring & Logging
+
+```python
+# Execution results
+result = pipeline.run_incremental(bronze_sources={"events": source_df})
+print(f"Success: {result.success}")
+print(f"Rows written: {result.totals['total_rows_written']}")
+print(f"Duration: {result.totals['total_duration_secs']:.2f}s")
+
+# Structured logging
+from sparkforge import LogWriter
+log_writer = LogWriter(spark=spark, table_name="my_schema.pipeline_logs")
+log_writer.log_pipeline_execution(result)
+
+# Performance monitoring
+from sparkforge.performance import performance_monitor, time_operation
+
+@time_operation("my_transform")
+def my_transform(spark, df):
+    return df.filter(F.col("status") == "active")
+
+with performance_monitor("data_processing", max_duration=300):
+    result = pipeline.run_incremental(bronze_sources={"events": source_df})
+```
+
+## Common Patterns
+
+### Bronze with Incremental Processing
+
+```python
+builder.with_bronze_rules(
+    name="events",
+    rules={"user_id": [F.col("user_id").isNotNull()]},
+    incremental_col="timestamp"  # Enable incremental
+)
+```
+
+### Silver with Watermarking
+
+```python
+builder.add_silver_transform(
+    name="silver_events",
+    source_bronze="events",
+    transform=my_transform,
+    rules={"status": [F.col("status").isNotNull()]},
+    table_name="silver_events",
+    watermark_col="timestamp"  # For streaming
+)
+```
+
+### Silver with Silver Dependencies
+
+```python
+builder.add_silver_transform(
+    name="enriched_events",
+    source_bronze="events",
+    transform=lambda spark, df, silvers: df.join(silvers["user_profiles"], "user_id"),
+    rules={"user_id": [F.col("user_id").isNotNull()]},
+    table_name="enriched_events",
+    source_silvers=["user_profiles"]  # Depend on Silver step
+)
+```
+
+### Bronze without Datetime (Full Refresh)
+
+```python
+# Bronze without incremental column
+builder.with_bronze_rules(
+    name="events_no_datetime",
+    rules={"user_id": [F.col("user_id").isNotNull()]}
+    # No incremental_col - forces full refresh
+)
+
+# Silver will use overwrite mode automatically
+builder.add_silver_transform(
+    name="enriched_events",
+    source_bronze="events_no_datetime",
+    transform=my_transform,
+    rules={"status": [F.col("status").isNotNull()]},
+    table_name="enriched_events"
+)
+```
+
+## Error Handling
+
+```python
+# Check execution results
+result = pipeline.run_incremental(bronze_sources={"events": source_df})
+if not result.success:
+    print(f"Pipeline failed: {result.error_message}")
+    print(f"Failed steps: {result.failed_steps}")
+
+# Debug specific step
+bronze_result = pipeline.execute_bronze_step("events", input_data=source_df)
+if not bronze_result.validation_result.validation_passed:
+    print(f"Bronze validation failed: {bronze_result.validation_result.validation_rate:.2f}%")
+```
+
+## Testing
+
+```python
+# Test individual steps
+bronze_result = pipeline.execute_bronze_step("events", input_data=test_df)
+silver_result = pipeline.execute_silver_step("silver_events")
+gold_result = pipeline.execute_gold_step("gold_summary")
+
+# Check step outputs
+executor = pipeline.create_step_executor()
+silver_output = executor.get_step_output("silver_events")
+silver_output.show()
+```
+
+## Performance Tips
+
+1. **Enable parallel execution** for independent steps
+2. **Use appropriate partitioning** strategies
+3. **Monitor execution times** and optimize slow steps
+4. **Use Delta Lake optimization** features
+5. **Profile individual steps** for bottlenecks
+
+## Common Issues
+
+### Validation Failures
+- Check validation rules and thresholds
+- Debug specific steps with `execute_*_step()`
+- Verify data quality in source data
+
+### Performance Issues
+- Enable parallel execution
+- Check step dependencies
+- Profile individual steps
+- Optimize slow transformations
+
+### Dependency Issues
+- Check step dependencies with `get_step_info()`
+- Verify Silver-to-Silver dependencies
+- Use `list_steps()` to see all steps
+
+---
+
+**For more details, see the [User Guide](USER_GUIDE.md) and [API Reference](README.md).**

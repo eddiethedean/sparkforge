@@ -106,6 +106,14 @@ from sparkforge import PipelineBuilder
 print("✅ SparkForge installed successfully!")
 ```
 
+## 📚 Documentation
+
+- **[Getting Started](GETTING_STARTED.md)** - Quick start guide for new users
+- **[User Guide](USER_GUIDE.md)** - Comprehensive guide to building data pipelines
+- **[Quick Reference](QUICK_REFERENCE.md)** - Quick reference for developers
+- **[API Reference](API_REFERENCE.md)** - Complete API documentation
+- **[Examples](examples/)** - Working code examples
+
 ## 📖 Usage Examples
 
 ### Basic Pipeline

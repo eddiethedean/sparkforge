@@ -101,6 +101,9 @@ class TestTimeOperation:
     
     def test_time_operation_logging(self, caplog):
         """Test that time_operation logs start and completion."""
+        import logging
+        logging.getLogger("sparkforge.performance").setLevel(logging.INFO)
+        
         @time_operation("test operation")
         def test_func():
             return "success"
@@ -118,6 +121,9 @@ class TestPerformanceMonitor:
     
     def test_performance_monitor_success(self, caplog):
         """Test performance_monitor with successful operation."""
+        import logging
+        logging.getLogger("sparkforge.performance").setLevel(logging.INFO)
+        
         with performance_monitor("test operation"):
             time.sleep(0.01)
         
@@ -126,6 +132,9 @@ class TestPerformanceMonitor:
     
     def test_performance_monitor_exception(self, caplog):
         """Test performance_monitor with exception."""
+        import logging
+        logging.getLogger("sparkforge.performance").setLevel(logging.INFO)
+        
         with pytest.raises(ValueError):
             with performance_monitor("test operation"):
                 raise ValueError("Test error")
@@ -135,6 +144,9 @@ class TestPerformanceMonitor:
     
     def test_performance_monitor_max_duration_warning(self, caplog):
         """Test performance_monitor with max duration warning."""
+        import logging
+        logging.getLogger("sparkforge.performance").setLevel(logging.INFO)
+        
         with performance_monitor("test operation", max_duration=0.001):
             time.sleep(0.01)  # Exceed max duration
         
@@ -215,6 +227,9 @@ class TestMonitorPerformance:
     
     def test_monitor_performance_success(self, caplog):
         """Test monitor_performance with successful function."""
+        import logging
+        logging.getLogger("sparkforge.performance").setLevel(logging.INFO)
+        
         @monitor_performance("test operation")
         def test_func():
             return "success"
@@ -237,6 +252,9 @@ class TestMonitorPerformance:
     
     def test_monitor_performance_exception(self, caplog):
         """Test monitor_performance with exception."""
+        import logging
+        logging.getLogger("sparkforge.performance").setLevel(logging.INFO)
+        
         @monitor_performance("test operation")
         def test_func():
             raise ValueError("Test error")
@@ -271,6 +289,9 @@ class TestPerformanceIntegration:
     
     def test_nested_performance_monitors(self, caplog):
         """Test nested performance monitors."""
+        import logging
+        logging.getLogger("sparkforge.performance").setLevel(logging.INFO)
+        
         with performance_monitor("outer operation"):
             with performance_monitor("inner operation"):
                 time.sleep(0.01)
