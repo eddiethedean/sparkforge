@@ -120,7 +120,36 @@ class Serializable(Protocol):
 
 @dataclass
 class BaseModel(ABC):
-    """Base class for all pipeline models with common functionality."""
+    """
+    Base class for all pipeline models with common functionality.
+    
+    Provides standard validation, serialization, and representation methods
+    for all pipeline data models. All models in the pipeline system inherit
+    from this base class to ensure consistent behavior.
+    
+    Features:
+    - Automatic validation support
+    - JSON serialization and deserialization
+    - Dictionary conversion for easy data exchange
+    - String representation for debugging
+    - Type-safe field access
+    
+    Example:
+        >>> @dataclass
+        >>> class MyStep(BaseModel):
+        ...     name: str
+        ...     rules: Dict[str, List[Any]]
+        ...     
+        ...     def validate(self) -> None:
+        ...         if not self.name:
+        ...             raise ValueError("Name cannot be empty")
+        ...         if not self.rules:
+        ...             raise ValueError("Rules cannot be empty")
+        >>> 
+        >>> step = MyStep(name="test", rules={"id": [F.col("id").isNotNull()]})
+        >>> step.validate()
+        >>> print(step.to_json())
+    """
     
     def validate(self) -> None:
         """Validate the model. Override in subclasses."""
@@ -295,13 +324,36 @@ class PipelineConfig(BaseModel):
 @dataclass
 class BronzeStep(BaseModel):
     """
-    Bronze layer step configuration.
+    Bronze layer step configuration for raw data validation and ingestion.
+    
+    Bronze steps represent the first layer of the Medallion Architecture,
+    handling raw data validation and establishing the foundation for downstream
+    processing. They define validation rules and incremental processing capabilities.
     
     Attributes:
-        name: Step name
-        rules: Validation rules for the step
-        incremental_col: Column used for incremental processing (optional)
-                        If None, forces full refresh of downstream Silver tables
+        name: Unique identifier for this Bronze step
+        rules: Dictionary mapping column names to validation rule lists.
+               Each rule should be a PySpark Column expression.
+        incremental_col: Column name for incremental processing (e.g., "timestamp").
+                        If provided, enables watermarking for efficient updates.
+                        If None, forces full refresh mode for downstream steps.
+    
+    Example:
+        >>> from pyspark.sql import functions as F
+        >>> 
+        >>> bronze_step = BronzeStep(
+        ...     name="user_events",
+        ...     rules={
+        ...         "user_id": [F.col("user_id").isNotNull()],
+        ...         "event_type": [F.col("event_type").isin(["click", "view", "purchase"])],
+        ...         "timestamp": [F.col("timestamp").isNotNull(), F.col("timestamp") > "2020-01-01"]
+        ...     },
+        ...     incremental_col="timestamp"
+        ... )
+        >>> 
+        >>> # Validate configuration
+        >>> bronze_step.validate()
+        >>> print(f"Supports incremental: {bronze_step.has_incremental_capability}")
     """
     name: str
     rules: ColumnRules
@@ -325,15 +377,44 @@ class BronzeStep(BaseModel):
 @dataclass
 class SilverStep(BaseModel):
     """
-    Silver layer step configuration.
+    Silver layer step configuration for data cleaning and enrichment.
+    
+    Silver steps represent the second layer of the Medallion Architecture,
+    transforming raw Bronze data into clean, business-ready datasets.
+    They apply data quality rules, business logic, and data transformations.
     
     Attributes:
-        name: Step name
-        source_bronze: Source bronze step name
-        transform: Transform function
-        rules: Validation rules for the step
-        table_name: Target table name
-        watermark_col: Watermark column for incremental processing
+        name: Unique identifier for this Silver step
+        source_bronze: Name of the Bronze step providing input data
+        transform: Transformation function with signature:
+                 (spark: SparkSession, bronze_df: DataFrame, prior_silvers: Dict[str, DataFrame]) -> DataFrame
+        rules: Dictionary mapping column names to validation rule lists.
+               Each rule should be a PySpark Column expression.
+        table_name: Target Delta table name where results will be stored
+        watermark_col: Column name for watermarking (e.g., "timestamp", "updated_at").
+                      If provided, enables incremental processing with append mode.
+                      If None, uses overwrite mode for full refresh.
+        existing: Whether this represents an existing table (for validation-only steps)
+    
+    Example:
+        >>> def clean_user_events(spark, bronze_df, prior_silvers):
+        ...     return (bronze_df
+        ...         .filter(F.col("user_id").isNotNull())
+        ...         .withColumn("event_date", F.date_trunc("day", "timestamp"))
+        ...         .withColumn("is_weekend", F.dayofweek("timestamp").isin([1, 7]))
+        ...     )
+        >>> 
+        >>> silver_step = SilverStep(
+        ...     name="clean_events",
+        ...     source_bronze="user_events",
+        ...     transform=clean_user_events,
+        ...     rules={
+        ...         "user_id": [F.col("user_id").isNotNull()],
+        ...         "event_date": [F.col("event_date").isNotNull()]
+        ...     },
+        ...     table_name="clean_user_events",
+        ...     watermark_col="timestamp"
+        ... )
     """
     name: str
     source_bronze: str
@@ -360,14 +441,49 @@ class SilverStep(BaseModel):
 @dataclass
 class GoldStep(BaseModel):
     """
-    Gold layer step configuration.
+    Gold layer step configuration for business analytics and reporting.
+    
+    Gold steps represent the third layer of the Medallion Architecture,
+    creating business-ready datasets for analytics, reporting, and dashboards.
+    They aggregate and transform Silver layer data into meaningful business insights.
     
     Attributes:
-        name: Step name
-        transform: Transform function
-        rules: Validation rules for the step
-        table_name: Target table name
-        source_silvers: List of source silver step names, or None to use all available silvers
+        name: Unique identifier for this Gold step
+        transform: Transformation function with signature:
+                 (spark: SparkSession, silvers: Dict[str, DataFrame]) -> DataFrame
+                 - spark: Active SparkSession for operations
+                 - silvers: Dictionary of all Silver DataFrames by step name
+        rules: Dictionary mapping column names to validation rule lists.
+               Each rule should be a PySpark Column expression.
+        table_name: Target Delta table name where results will be stored
+        source_silvers: List of Silver step names to use as input sources.
+                       If None, uses all available Silver steps.
+                       Allows selective consumption of Silver data.
+    
+    Example:
+        >>> def user_daily_metrics(spark, silvers):
+        ...     events_df = silvers["clean_events"]
+        ...     return (events_df
+        ...         .groupBy("user_id", "event_date")
+        ...         .agg(
+        ...             F.count("*").alias("total_events"),
+        ...             F.countDistinct("event_type").alias("unique_event_types"),
+        ...             F.max("timestamp").alias("last_activity"),
+        ...             F.sum(F.when(F.col("event_type") == "purchase", 1).otherwise(0)).alias("purchases")
+        ...         )
+        ...         .withColumn("is_active_user", F.col("total_events") > 5)
+        ...     )
+        >>> 
+        >>> gold_step = GoldStep(
+        ...     name="user_metrics",
+        ...     transform=user_daily_metrics,
+        ...     rules={
+        ...         "user_id": [F.col("user_id").isNotNull()],
+        ...         "total_events": [F.col("total_events") > 0]
+        ...     },
+        ...     table_name="user_daily_metrics",
+        ...     source_silvers=["clean_events"]
+        ... )
     """
     name: str
     transform: GoldTransformFunction

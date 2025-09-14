@@ -147,12 +147,56 @@ class PipelineBuilder:
     """
     Advanced builder for creating data pipelines with Bronze → Silver → Gold architecture.
     
+    The PipelineBuilder provides a fluent API for constructing data pipelines using the
+    Medallion Architecture pattern. It supports comprehensive validation, parallel execution,
+    and advanced monitoring capabilities.
+    
     Features:
     - Fluent API for easy pipeline construction
-    - Advanced validation and error checking
+    - Advanced validation and error checking with configurable quality thresholds
     - Support for custom step types and validators
     - Configuration management and templates
     - Performance monitoring and optimization
+    - Parallel execution of independent Silver steps
+    - Incremental processing with watermarking
+    - Comprehensive logging and reporting
+    
+    Example:
+        >>> from sparkforge import PipelineBuilder
+        >>> from pyspark.sql import SparkSession, functions as F
+        >>> 
+        >>> spark = SparkSession.builder.appName("My Pipeline").getOrCreate()
+        >>> builder = PipelineBuilder(spark=spark, schema="my_schema")
+        >>> 
+        >>> # Bronze layer - raw data validation
+        >>> builder.with_bronze_rules(
+        ...     name="events",
+        ...     rules={"user_id": [F.col("user_id").isNotNull()]},
+        ...     incremental_col="timestamp"
+        ... )
+        >>> 
+        >>> # Silver layer - data transformation
+        >>> builder.add_silver_transform(
+        ...     name="clean_events",
+        ...     source_bronze="events",
+        ...     transform=lambda spark, df, silvers: df.filter(F.col("status") == "active"),
+        ...     rules={"status": [F.col("status").isNotNull()]},
+        ...     table_name="clean_events",
+        ...     watermark_col="timestamp"
+        ... )
+        >>> 
+        >>> # Gold layer - business analytics
+        >>> builder.add_gold_transform(
+        ...     name="user_analytics",
+        ...     transform=lambda spark, silvers: silvers["clean_events"].groupBy("user_id").count(),
+        ...     rules={"user_id": [F.col("user_id").isNotNull()]},
+        ...     table_name="user_analytics",
+        ...     source_silvers=["clean_events"]
+        ... )
+        >>> 
+        >>> # Build and execute pipeline
+        >>> pipeline = builder.to_pipeline()
+        >>> result = pipeline.initial_load(bronze_sources={"events": source_df})
     """
     
     def __init__(
@@ -170,6 +214,36 @@ class PipelineBuilder:
         enable_caching: bool = True,
         enable_monitoring: bool = True
     ) -> None:
+        """
+        Initialize a new PipelineBuilder instance.
+        
+        Args:
+            spark: Active SparkSession instance for data processing
+            schema: Database schema name where tables will be created
+            min_bronze_rate: Minimum data quality rate for Bronze layer (0-100)
+            min_silver_rate: Minimum data quality rate for Silver layer (0-100)
+            min_gold_rate: Minimum data quality rate for Gold layer (0-100)
+            verbose: Enable verbose logging output
+            enable_parallel_silver: Allow parallel execution of independent Silver steps
+            max_parallel_workers: Maximum number of parallel workers for Silver steps
+            execution_mode: Execution strategy (ADAPTIVE, SEQUENTIAL, PARALLEL)
+            enable_caching: Enable DataFrame caching for performance optimization
+            enable_monitoring: Enable comprehensive execution monitoring
+            
+        Raises:
+            ValueError: If quality rates are not between 0 and 100
+            RuntimeError: If Spark session is not active
+            
+        Example:
+            >>> spark = SparkSession.builder.appName("My App").getOrCreate()
+            >>> builder = PipelineBuilder(
+            ...     spark=spark,
+            ...     schema="analytics",
+            ...     min_bronze_rate=95.0,
+            ...     enable_parallel_silver=True,
+            ...     max_parallel_workers=4
+            ... )
+        """
         self.spark = spark
         self.schema = schema
         self.pipeline_id = str(uuid.uuid4())
@@ -228,14 +302,40 @@ class PipelineBuilder:
         description: Optional[str] = None
     ) -> 'PipelineBuilder':
         """
-        Add Bronze step validation rules.
+        Add Bronze layer validation rules for raw data ingestion.
+        
+        Bronze layer represents the raw, unprocessed data that enters your pipeline.
+        This method defines validation rules to ensure data quality at the entry point.
         
         Args:
-            name: Step name
-            rules: Validation rules for the step
-            incremental_col: Column used for incremental processing (optional)
-                           If None, forces full refresh of downstream Silver tables
-            description: Optional description of the step
+            name: Unique identifier for the Bronze step
+            rules: Dictionary mapping column names to validation rule lists.
+                  Each rule should be a PySpark Column expression (e.g., F.col("id").isNotNull())
+            incremental_col: Column name for incremental processing (e.g., "timestamp", "created_at").
+                           If provided, enables watermarking for efficient incremental updates.
+                           If None, forces full refresh mode for downstream Silver tables.
+            description: Human-readable description of this Bronze step
+            
+        Returns:
+            Self for method chaining
+            
+        Raises:
+            ValueError: If step name already exists or rules are invalid
+            
+        Example:
+            >>> from pyspark.sql import functions as F
+            >>> 
+            >>> # Bronze step with basic validation
+            >>> builder.with_bronze_rules(
+            ...     name="user_events",
+            ...     rules={
+            ...         "user_id": [F.col("user_id").isNotNull()],
+            ...         "event_type": [F.col("event_type").isin(["click", "view", "purchase"])],
+            ...         "timestamp": [F.col("timestamp").isNotNull(), F.col("timestamp") > "2020-01-01"]
+            ...     },
+            ...     incremental_col="timestamp",
+            ...     description="Raw user interaction events"
+            ... )
         """
         step = BronzeStep(name, rules, incremental_col)
         if description:
@@ -289,18 +389,59 @@ class PipelineBuilder:
         depends_on: Optional[List[str]] = None
     ) -> 'PipelineBuilder':
         """
-        Add Silver transform step.
+        Add Silver layer transformation step for data cleaning and enrichment.
+        
+        Silver layer transforms raw Bronze data into clean, business-ready datasets.
+        This method defines data transformations with validation rules and dependency management.
         
         Args:
-            name: Step name
-            source_bronze: Source bronze step name
-            transform: Transform function
-            rules: Validation rules for the step
-            table_name: Target table name
-            watermark_col: Watermark column for incremental processing (optional)
-                         If None, the step will use overwrite mode for all runs
-            description: Optional description of the step
-            depends_on: Optional list of other Silver steps this depends on
+            name: Unique identifier for the Silver step
+            source_bronze: Name of the Bronze step providing input data
+            transform: Transformation function with signature:
+                     (spark: SparkSession, bronze_df: DataFrame, prior_silvers: Dict[str, DataFrame]) -> DataFrame
+                     - spark: Active SparkSession for operations
+                     - bronze_df: Input DataFrame from source Bronze step
+                     - prior_silvers: Dictionary of previously computed Silver DataFrames
+            rules: Dictionary mapping column names to validation rule lists.
+                  Each rule should be a PySpark Column expression
+            table_name: Target Delta table name (will be created in the schema)
+            watermark_col: Column name for watermarking (e.g., "timestamp", "updated_at").
+                         If provided, enables incremental processing with append mode.
+                         If None, uses overwrite mode for full refresh.
+            description: Human-readable description of this transformation
+            depends_on: List of other Silver step names that must complete before this step.
+                       Enables complex dependency chains and parallel execution optimization.
+            
+        Returns:
+            Self for method chaining
+            
+        Raises:
+            ValueError: If source Bronze step doesn't exist or step name conflicts
+            TypeError: If transform function has incorrect signature
+            
+        Example:
+            >>> from pyspark.sql import functions as F
+            >>> 
+            >>> # Simple Silver transformation
+            >>> def clean_user_events(spark, bronze_df, prior_silvers):
+            ...     return (bronze_df
+            ...         .filter(F.col("user_id").isNotNull())
+            ...         .withColumn("event_date", F.date_trunc("day", "timestamp"))
+            ...         .withColumn("is_weekend", F.dayofweek("timestamp").isin([1, 7]))
+            ...     )
+            >>> 
+            >>> builder.add_silver_transform(
+            ...     name="clean_events",
+            ...     source_bronze="user_events",
+            ...     transform=clean_user_events,
+            ...     rules={
+            ...         "user_id": [F.col("user_id").isNotNull()],
+            ...         "event_date": [F.col("event_date").isNotNull()]
+            ...     },
+            ...     table_name="clean_user_events",
+            ...     watermark_col="timestamp",
+            ...     description="Clean and enrich user event data"
+            ... )
         """
         step = SilverStep(
             name=name, 
@@ -329,7 +470,62 @@ class PipelineBuilder:
         source_silvers: Optional[List[str]] = None,
         description: Optional[str] = None
     ) -> 'PipelineBuilder':
-        """Add Gold transform step."""
+        """
+        Add Gold layer transformation step for business analytics and reporting.
+        
+        Gold layer creates business-ready datasets for analytics, reporting, and dashboards.
+        This method defines aggregations and business logic transformations.
+        
+        Args:
+            name: Unique identifier for the Gold step
+            transform: Transformation function with signature:
+                     (spark: SparkSession, silvers: Dict[str, DataFrame]) -> DataFrame
+                     - spark: Active SparkSession for operations
+                     - silvers: Dictionary of all Silver DataFrames by step name
+            rules: Dictionary mapping column names to validation rule lists.
+                  Each rule should be a PySpark Column expression
+            table_name: Target Delta table name (will be created in the schema)
+            source_silvers: List of Silver step names to use as input sources.
+                          If None, uses all available Silver steps.
+                          Allows selective consumption of Silver data.
+            description: Human-readable description of this business transformation
+            
+        Returns:
+            Self for method chaining
+            
+        Raises:
+            ValueError: If source Silver steps don't exist or step name conflicts
+            TypeError: If transform function has incorrect signature
+            
+        Example:
+            >>> from pyspark.sql import functions as F
+            >>> 
+            >>> # Business analytics transformation
+            >>> def user_daily_metrics(spark, silvers):
+            ...     events_df = silvers["clean_events"]
+            ...     return (events_df
+            ...         .groupBy("user_id", "event_date")
+            ...         .agg(
+            ...             F.count("*").alias("total_events"),
+            ...             F.countDistinct("event_type").alias("unique_event_types"),
+            ...             F.max("timestamp").alias("last_activity"),
+            ...             F.sum(F.when(F.col("event_type") == "purchase", 1).otherwise(0)).alias("purchases")
+            ...         )
+            ...         .withColumn("is_active_user", F.col("total_events") > 5)
+            ...     )
+            >>> 
+            >>> builder.add_gold_transform(
+            ...     name="user_metrics",
+            ...     transform=user_daily_metrics,
+            ...     rules={
+            ...         "user_id": [F.col("user_id").isNotNull()],
+            ...         "total_events": [F.col("total_events") > 0]
+            ...     },
+            ...     table_name="user_daily_metrics",
+            ...     source_silvers=["clean_events"],
+            ...     description="Daily user engagement and purchase metrics"
+            ... )
+        """
         step = GoldStep(
             name=name, 
             transform=transform, 
@@ -448,7 +644,42 @@ class PipelineBuilder:
         return self
 
     def to_pipeline(self) -> 'PipelineRunner':
-        """Create a PipelineRunner from the configured steps."""
+        """
+        Build and return a PipelineRunner instance from the configured steps.
+        
+        This method validates the pipeline configuration and creates a PipelineRunner
+        that can execute the pipeline in various modes (initial load, incremental, etc.).
+        
+        Returns:
+            PipelineRunner: Configured pipeline runner ready for execution
+            
+        Raises:
+            ValueError: If pipeline validation fails (missing dependencies, invalid config, etc.)
+            
+        Example:
+            >>> # Build complete pipeline
+            >>> pipeline = (builder
+            ...     .with_bronze_rules(name="events", rules={"id": [F.col("id").isNotNull()]})
+            ...     .add_silver_transform(
+            ...         name="clean_events",
+            ...         source_bronze="events",
+            ...         transform=clean_transform,
+            ...         rules={"id": [F.col("id").isNotNull()]},
+            ...         table_name="clean_events"
+            ...     )
+            ...     .add_gold_transform(
+            ...         name="analytics",
+            ...         transform=analytics_transform,
+            ...         rules={"count": [F.col("count") > 0]},
+            ...         table_name="analytics",
+            ...         source_silvers=["clean_events"]
+            ...     )
+            ...     .to_pipeline()
+            ... )
+            >>> 
+            >>> # Execute pipeline
+            >>> result = pipeline.initial_load(bronze_sources={"events": source_df})
+        """
         # Validate pipeline before creating runner
         validation_errors = self.validate_pipeline()
         if validation_errors:
@@ -474,13 +705,40 @@ class PipelineRunner:
     """
     Advanced pipeline execution engine with comprehensive monitoring and error handling.
     
+    The PipelineRunner executes data pipelines built with PipelineBuilder, providing
+    multiple execution modes, comprehensive monitoring, and robust error handling.
+    
     Features:
-    - Multiple execution modes and strategies
+    - Multiple execution modes (initial load, incremental, full refresh, validation only)
     - Advanced dependency analysis and optimization
+    - Parallel execution of independent steps
     - Comprehensive monitoring and reporting
     - Error handling and recovery mechanisms
     - Performance optimization and caching
     - Real-time status updates and progress tracking
+    - Step-by-step debugging capabilities
+    
+    Execution Modes:
+    - initial_load: Process all data from scratch (Bronze → Silver → Gold)
+    - run_incremental: Process only new/changed data using watermarking
+    - run_full_refresh: Force complete reprocessing of all steps
+    - run_validation_only: Validate data quality without writing outputs
+    
+    Example:
+        >>> # Build pipeline
+        >>> pipeline = builder.to_pipeline()
+        >>> 
+        >>> # Initial load - process all data
+        >>> result = pipeline.initial_load(bronze_sources={"events": events_df})
+        >>> print(f"Success: {result.success}, Rows: {result.totals['total_rows_written']}")
+        >>> 
+        >>> # Incremental processing - only new data
+        >>> new_events = spark.createDataFrame([...], schema)
+        >>> result = pipeline.run_incremental(bronze_sources={"events": new_events})
+        >>> 
+        >>> # Debug individual steps
+        >>> bronze_result = pipeline.execute_bronze_step("events", input_data=events_df)
+        >>> silver_result = pipeline.execute_silver_step("clean_events")
     """
     
     def __init__(
@@ -521,11 +779,92 @@ class PipelineRunner:
         self.logger.info(f"🔩 PipelineRunner ready (ID: {self.pipeline_id})")
     
     def initial_load(self, *, bronze_sources: Dict[str, DataFrame]) -> PipelineReport:
-        """Execute initial pipeline load."""
+        """
+        Execute initial pipeline load - process all data from scratch.
+        
+        This method performs a complete end-to-end pipeline execution, processing
+        all input data through Bronze → Silver → Gold layers. This is typically
+        used for first-time data processing or when reprocessing historical data.
+        
+        Args:
+            bronze_sources: Dictionary mapping Bronze step names to input DataFrames.
+                          Keys must match the names used in with_bronze_rules().
+                          Values are the raw DataFrames to be processed.
+        
+        Returns:
+            PipelineReport: Comprehensive execution report containing:
+            - success: Boolean indicating if pipeline completed successfully
+            - totals: Dictionary with execution statistics (rows processed, duration, etc.)
+            - bronze_results: Results from Bronze layer validation
+            - silver_results: Results from Silver layer transformations
+            - gold_results: Results from Gold layer analytics
+            - errors: List of any errors encountered during execution
+            
+        Raises:
+            ValueError: If bronze_sources keys don't match configured Bronze steps
+            RuntimeError: If pipeline execution fails or is cancelled
+            
+        Example:
+            >>> # Prepare input data
+            >>> events_df = spark.read.parquet("path/to/raw/events")
+            >>> users_df = spark.read.parquet("path/to/raw/users")
+            >>> 
+            >>> # Execute initial load
+            >>> result = pipeline.initial_load(bronze_sources={
+            ...     "events": events_df,
+            ...     "users": users_df
+            ... })
+            >>> 
+            >>> # Check results
+            >>> if result.success:
+            ...     print(f"✅ Pipeline completed successfully!")
+            ...     print(f"📊 Total rows processed: {result.totals['total_rows_written']}")
+            ...     print(f"⏱️  Duration: {result.totals['total_duration_secs']:.2f} seconds")
+            ... else:
+            ...     print(f"❌ Pipeline failed: {result.errors}")
+        """
         return self._run(PipelineMode.INITIAL, bronze_sources=bronze_sources)
     
     def run_incremental(self, *, bronze_sources: Dict[str, DataFrame]) -> PipelineReport:
-        """Execute incremental pipeline run."""
+        """
+        Execute incremental pipeline run - process only new/changed data.
+        
+        This method processes only new or modified data using watermarking,
+        making it efficient for regular data updates. It leverages Delta Lake's
+        time travel and merge capabilities for optimal performance.
+        
+        Args:
+            bronze_sources: Dictionary mapping Bronze step names to new/changed DataFrames.
+                          Only data newer than the last watermark will be processed.
+        
+        Returns:
+            PipelineReport: Comprehensive execution report (same format as initial_load)
+            
+        Raises:
+            ValueError: If bronze_sources keys don't match configured Bronze steps
+            RuntimeError: If pipeline execution fails or watermarking is not configured
+            
+        Note:
+            Requires Bronze steps to be configured with incremental_col parameter.
+            Steps without incremental_col will be processed in full refresh mode.
+            
+        Example:
+            >>> # Get new data since last run
+            >>> new_events = spark.read.parquet("path/to/new/events")
+            >>> new_users = spark.read.parquet("path/to/new/users")
+            >>> 
+            >>> # Execute incremental update
+            >>> result = pipeline.run_incremental(bronze_sources={
+            ...     "events": new_events,
+            ...     "users": new_users
+            ... })
+            >>> 
+            >>> # Check incremental results
+            >>> if result.success:
+            ...     print(f"✅ Incremental update completed!")
+            ...     print(f"📊 New rows processed: {result.totals['total_rows_written']}")
+            ...     print(f"⏱️  Duration: {result.totals['total_duration_secs']:.2f} seconds")
+        """
         return self._run(PipelineMode.INCREMENTAL, bronze_sources=bronze_sources)
     
     def run_unified(self, *, bronze_sources: Dict[str, DataFrame], mode: str = "incremental") -> PipelineReport:
