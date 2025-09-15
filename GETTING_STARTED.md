@@ -10,7 +10,9 @@ pip install sparkforge
 
 ## Your First Pipeline
 
-Let's build a simple e-commerce analytics pipeline:
+Let's build a simple e-commerce analytics pipeline with automatic security and performance optimization:
+
+> **🆕 New in v0.4.0**: Security and performance features are now enabled automatically! Your pipelines are more secure and faster without any code changes.
 
 ```python
 from sparkforge import PipelineBuilder
@@ -297,6 +299,54 @@ with performance_monitor("pipeline_execution"):
 
 print(f"Execution time: {result.totals['total_duration_secs']:.2f}s")
 ```
+
+## 🚀 Enterprise Features (New in v0.4.0)
+
+### Automatic Security & Performance
+
+Your pipelines now include enterprise-grade security and performance features automatically:
+
+```python
+# Security is enabled automatically - no configuration needed!
+builder = PipelineBuilder(spark=spark, schema="my_schema")
+# ✅ Input validation
+# ✅ SQL injection protection  
+# ✅ Access control
+# ✅ Audit logging
+
+# Performance optimization is enabled automatically!
+# ✅ Intelligent caching
+# ✅ Memory management
+# ✅ Resource monitoring
+```
+
+### Advanced Parallel Execution
+
+For complex workloads, use the new dynamic parallel execution:
+
+```python
+from sparkforge import DynamicParallelExecutor, ExecutionTask, TaskPriority
+
+# Create advanced executor
+executor = DynamicParallelExecutor()
+
+# Create tasks with priorities
+tasks = [
+    ExecutionTask("critical_task", critical_function, priority=TaskPriority.CRITICAL),
+    ExecutionTask("normal_task", normal_function, priority=TaskPriority.NORMAL)
+]
+
+# Execute with dynamic optimization
+result = executor.execute_parallel(tasks)
+print(f"Executed {result['metrics']['successful_tasks']} tasks successfully!")
+```
+
+### Learn More
+
+- **[Enterprise Security](USER_GUIDE.md#enterprise-security)** - Input validation, SQL injection protection, access control
+- **[Performance Optimization](USER_GUIDE.md#performance-optimization)** - Intelligent caching, memory management
+- **[Advanced Parallel Execution](USER_GUIDE.md#advanced-parallel-execution)** - Dynamic worker allocation, task prioritization
+- **[Dynamic Parallel Example](examples/dynamic_parallel_execution.py)** - Complete working example
 
 ## What's Next?
 

@@ -199,6 +199,100 @@ rules = {
 }
 ```
 
+### 7. Dynamic Parallel Execution (`dynamic_parallel_execution.py`)
+
+Advanced parallel execution with dynamic worker allocation and intelligent optimization.
+
+**Features:**
+- Dynamic worker allocation based on workload analysis
+- Intelligent task prioritization and dependency management
+- Resource-aware execution planning
+- Performance monitoring and optimization
+- Work-stealing algorithms for optimal resource utilization
+- Multiple worker allocation strategies
+
+**Key Concepts:**
+- Dynamic parallel execution
+- Worker allocation optimization
+- Task prioritization
+- Resource management
+- Performance monitoring
+- Adaptive optimization
+
+**Run:**
+```bash
+python examples/dynamic_parallel_execution.py
+```
+
+### 8. E-commerce Analytics (`ecommerce_analytics.py`)
+
+Complete e-commerce data pipeline with Bronze, Silver, and Gold layers.
+
+**Features:**
+- Order processing and customer analytics
+- Revenue tracking and business metrics
+- Data quality validation and monitoring
+- Incremental processing with Delta Lake
+- Performance optimization and caching
+
+**Key Concepts:**
+- Real-world data pipeline
+- Business intelligence
+- Customer analytics
+- Revenue tracking
+- Data quality management
+
+**Run:**
+```bash
+python examples/ecommerce_analytics.py
+```
+
+### 9. IoT Sensor Pipeline (`iot_sensor_pipeline.py`)
+
+Real-time IoT sensor data processing with anomaly detection.
+
+**Features:**
+- Time-series data processing
+- Anomaly detection and alerting
+- Real-time analytics and monitoring
+- Sensor data validation and quality checks
+- Performance optimization for high-volume data
+
+**Key Concepts:**
+- IoT data processing
+- Time-series analysis
+- Anomaly detection
+- Real-time processing
+- Sensor data validation
+
+**Run:**
+```bash
+python examples/iot_sensor_pipeline.py
+```
+
+### 10. Step-by-Step Debugging (`step_by_step_debugging.py`)
+
+Advanced debugging techniques for complex pipeline issues.
+
+**Features:**
+- Individual step execution and inspection
+- Data quality analysis and validation
+- Performance profiling and optimization
+- Error diagnosis and troubleshooting
+- Pipeline state inspection
+
+**Key Concepts:**
+- Pipeline debugging
+- Step-by-step execution
+- Data quality analysis
+- Performance profiling
+- Error diagnosis
+
+**Run:**
+```bash
+python examples/step_by_step_debugging.py
+```
+
 ## Troubleshooting
 
 ### Common Issues

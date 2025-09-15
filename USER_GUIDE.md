@@ -13,10 +13,13 @@ A comprehensive guide to building robust data pipelines with SparkForge's Bronze
 7. [Parallel Execution](#parallel-execution)
 8. [Step-by-Step Debugging](#step-by-step-debugging)
 9. [Monitoring & Logging](#monitoring--logging)
-10. [Advanced Features](#advanced-features)
-11. [Best Practices](#best-practices)
-12. [Troubleshooting](#troubleshooting)
-13. [Examples](#examples)
+10. [Enterprise Security](#enterprise-security)
+11. [Performance Optimization](#performance-optimization)
+12. [Advanced Parallel Execution](#advanced-parallel-execution)
+13. [Advanced Features](#advanced-features)
+14. [Best Practices](#best-practices)
+15. [Troubleshooting](#troubleshooting)
+16. [Examples](#examples)
 
 ## Quick Start
 
@@ -417,6 +420,260 @@ with performance_monitor("data_processing", max_duration=300):
 @time_operation("custom_transform")
 def my_transform(spark, df):
     return df.filter(F.col("status") == "active")
+```
+
+## Enterprise Security
+
+SparkForge includes comprehensive security features to protect your data pipelines from common vulnerabilities and ensure compliance.
+
+### Automatic Security Features
+
+Security is enabled by default and works transparently:
+
+```python
+from sparkforge import PipelineBuilder
+
+# Security is automatically enabled - no configuration needed
+builder = PipelineBuilder(spark=spark, schema="my_schema")
+
+# All inputs are automatically validated and protected
+builder.with_bronze_rules(
+    name="events",
+    rules={"user_id": [F.col("user_id").isNotNull()]}
+)
+```
+
+### Input Validation
+
+Automatic validation of all user inputs:
+
+```python
+from sparkforge import SecurityConfig, get_security_manager
+
+# Configure security settings
+security_config = SecurityConfig(
+    enable_input_validation=True,
+    enable_sql_injection_protection=True,
+    enable_audit_logging=True,
+    max_table_name_length=128,
+    max_schema_name_length=64
+)
+
+security_manager = get_security_manager(security_config)
+
+# Validate table names
+security_manager.validate_table_name("my_table")  # ✅ Valid
+security_manager.validate_table_name("'; DROP TABLE users; --")  # ❌ Blocked
+
+# Validate SQL expressions
+security_manager.validate_sql_expression("col('id').isNotNull()")  # ✅ Valid
+security_manager.validate_sql_expression("DROP TABLE users")  # ❌ Blocked
+```
+
+### SQL Injection Protection
+
+Built-in protection against SQL injection attacks:
+
+```python
+# These expressions are automatically blocked:
+# - DROP TABLE statements
+# - UNION SELECT attacks
+# - EXEC commands
+# - Script injection attempts
+
+# Safe expressions are allowed:
+rules = {
+    "user_id": [F.col("user_id").isNotNull()],
+    "age": [F.col("age") > 18],
+    "status": [F.col("status").like("active%")]
+}
+```
+
+### Access Control
+
+Role-based access control for pipeline operations:
+
+```python
+from sparkforge.security import AccessLevel
+
+# Grant permissions
+security_manager.grant_permission("user1", AccessLevel.READ, "my_schema.events")
+security_manager.grant_permission("user2", AccessLevel.WRITE, "my_schema.silver_events")
+
+# Check permissions
+if security_manager.check_access_permission("user1", AccessLevel.READ, "my_schema.events"):
+    # User has read access
+    pass
+```
+
+### Audit Logging
+
+Comprehensive audit trails for compliance:
+
+```python
+# Audit logs are automatically generated for:
+# - Input validation attempts
+# - SQL injection attempts
+# - Access control decisions
+# - Pipeline execution events
+
+# View audit logs
+audit_logs = security_manager.get_audit_logs(
+    start_date="2024-01-01",
+    end_date="2024-01-31"
+)
+```
+
+## Performance Optimization
+
+SparkForge includes intelligent performance optimization features that work automatically to improve pipeline execution speed and resource utilization.
+
+### Automatic Performance Caching
+
+Validation results are automatically cached to avoid redundant computations:
+
+```python
+from sparkforge import PipelineBuilder
+
+# Caching is enabled automatically - no configuration needed
+builder = PipelineBuilder(spark=spark, schema="my_schema")
+
+# Validation results are cached and reused
+builder.with_bronze_rules(
+    name="events",
+    rules={"user_id": [F.col("user_id").isNotNull()]}
+)
+```
+
+### Intelligent Caching Configuration
+
+Configure caching behavior for optimal performance:
+
+```python
+from sparkforge import CacheConfig, get_performance_cache, CacheStrategy
+
+# Configure performance cache
+cache_config = CacheConfig(
+    max_size_mb=512,           # Maximum cache size
+    ttl_seconds=3600,          # Time-to-live for cache entries
+    strategy=CacheStrategy.LRU, # Eviction strategy
+    enable_compression=True     # Enable data compression
+)
+
+cache = get_performance_cache(cache_config)
+
+# Cache statistics
+stats = cache.get_stats()
+print(f"Cache hit rate: {stats['hit_rate']:.2%}")
+print(f"Cache size: {stats['current_size_mb']:.1f} MB")
+```
+
+### Memory Management
+
+Automatic memory management and cleanup:
+
+```python
+# Cache automatically manages memory usage
+# - LRU eviction when memory limit is reached
+# - TTL-based expiration for stale data
+# - Compression to reduce memory footprint
+
+# Manual cache management
+cache.clear()  # Clear all cache entries
+cache.invalidate("validation_result_key")  # Remove specific entry
+```
+
+## Advanced Parallel Execution
+
+SparkForge includes advanced parallel execution capabilities with dynamic worker allocation and intelligent task scheduling.
+
+### Dynamic Worker Allocation
+
+Automatically adjust the number of parallel workers based on workload and system resources:
+
+```python
+from sparkforge import DynamicParallelExecutor, ExecutionTask, TaskPriority
+
+# Create dynamic executor
+executor = DynamicParallelExecutor()
+
+# Create tasks with different priorities
+tasks = [
+    ExecutionTask(
+        task_id="critical_task",
+        function=critical_function,
+        priority=TaskPriority.CRITICAL,
+        estimated_duration=30.0
+    ),
+    ExecutionTask(
+        task_id="normal_task", 
+        function=normal_function,
+        priority=TaskPriority.NORMAL,
+        estimated_duration=10.0
+    )
+]
+
+# Execute with dynamic optimization
+result = executor.execute_parallel(tasks)
+print(f"Executed {result['metrics']['successful_tasks']} tasks successfully!")
+```
+
+### Task Prioritization
+
+Intelligent task scheduling based on priority and dependencies:
+
+```python
+from sparkforge import create_execution_task, TaskPriority
+
+# Create tasks with priorities
+critical_task = create_execution_task(
+    "critical_processing",
+    critical_function,
+    priority=TaskPriority.CRITICAL,
+    dependencies={"data_validation"}  # Must complete first
+)
+
+normal_task = create_execution_task(
+    "normal_processing",
+    normal_function,
+    priority=TaskPriority.NORMAL,
+    dependencies={"critical_processing"}  # Depends on critical task
+)
+
+# Tasks are automatically scheduled based on dependencies and priority
+```
+
+### Resource Monitoring
+
+Real-time monitoring of system resources and performance:
+
+```python
+# Get performance metrics
+metrics = executor.get_performance_metrics()
+print(f"Worker count: {metrics['worker_count']}")
+print(f"Success rate: {metrics['success_rate']:.1f}%")
+print(f"Average efficiency: {metrics['average_efficiency']:.2f}")
+
+# Get optimization recommendations
+recommendations = executor.get_optimization_recommendations()
+for rec in recommendations:
+    print(f"💡 {rec}")
+```
+
+### Work-Stealing Algorithms
+
+Optimal resource utilization across workers:
+
+```python
+# Workers automatically steal work from busy workers
+# - Load balancing across all workers
+# - Optimal resource utilization
+# - Reduced idle time
+
+# Monitor worker efficiency
+worker_efficiencies = metrics['worker_efficiencies']
+for worker_id, efficiency in worker_efficiencies.items():
+    print(f"Worker {worker_id}: {efficiency:.2f} efficiency")
 ```
 
 ## Advanced Features

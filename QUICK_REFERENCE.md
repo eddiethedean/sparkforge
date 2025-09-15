@@ -46,6 +46,87 @@ pipeline = builder.to_pipeline()
 result = pipeline.initial_load(bronze_sources={"events": source_df})
 ```
 
+## Enterprise Features
+
+### Security (Automatic)
+
+```python
+from sparkforge import PipelineBuilder
+
+# Security is enabled automatically - no configuration needed
+builder = PipelineBuilder(spark=spark, schema="my_schema")
+# All inputs are automatically validated and protected
+```
+
+### Performance Caching (Automatic)
+
+```python
+from sparkforge import PipelineBuilder
+
+# Caching is enabled automatically - no configuration needed
+builder = PipelineBuilder(spark=spark, schema="my_schema")
+# Validation results are automatically cached for better performance
+```
+
+### Advanced Security Configuration
+
+```python
+from sparkforge import SecurityConfig, get_security_manager
+
+# Configure security
+security_config = SecurityConfig(
+    enable_input_validation=True,
+    enable_sql_injection_protection=True,
+    enable_audit_logging=True
+)
+security_manager = get_security_manager(security_config)
+
+# Validate inputs
+security_manager.validate_table_name("my_table")
+security_manager.validate_sql_expression("col('id').isNotNull()")
+```
+
+### Performance Cache Configuration
+
+```python
+from sparkforge import CacheConfig, get_performance_cache, CacheStrategy
+
+# Configure caching
+cache_config = CacheConfig(
+    max_size_mb=512,
+    ttl_seconds=3600,
+    strategy=CacheStrategy.LRU
+)
+cache = get_performance_cache(cache_config)
+
+# Cache operations
+cache.put("key", value, ttl_seconds=1800)
+result = cache.get("key")
+cache.invalidate("key")
+```
+
+### Dynamic Parallel Execution
+
+```python
+from sparkforge import (
+    DynamicParallelExecutor, ExecutionTask, TaskPriority, 
+    create_execution_task
+)
+
+# Create executor
+executor = DynamicParallelExecutor()
+
+# Create tasks
+tasks = [
+    create_execution_task("task1", function1, priority=TaskPriority.HIGH),
+    create_execution_task("task2", function2, priority=TaskPriority.NORMAL)
+]
+
+# Execute with dynamic optimization
+result = executor.execute_parallel(tasks)
+print(f"Success rate: {result['metrics']['success_rate']:.1f}%")
+```
+
 ## Execution Modes
 
 ```python

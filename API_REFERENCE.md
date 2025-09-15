@@ -12,7 +12,10 @@ Complete API reference for SparkForge data pipeline framework.
 6. [Validation](#validation)
 7. [Performance](#performance)
 8. [Logging](#logging)
-9. [Exceptions](#exceptions)
+9. [Security](#security)
+10. [Performance Cache](#performance-cache)
+11. [Dynamic Parallel Execution](#dynamic-parallel-execution)
+12. [Exceptions](#exceptions)
 
 ## Core Classes
 
@@ -622,6 +625,293 @@ is_valid = validate_dataframe(df, rules)
 
 # Get DataFrame statistics
 stats = get_dataframe_stats(df)
+```
+
+## Security
+
+### SecurityManager
+
+Comprehensive security management for data pipelines.
+
+```python
+from sparkforge import SecurityManager, SecurityConfig, get_security_manager
+
+# Create security manager
+security_config = SecurityConfig(
+    enable_input_validation=True,
+    enable_sql_injection_protection=True,
+    enable_audit_logging=True,
+    max_table_name_length=128,
+    max_schema_name_length=64
+)
+
+security_manager = SecurityManager(security_config)
+```
+
+#### Methods
+
+##### `validate_table_name(name)`
+Validate table name for security.
+
+**Parameters:**
+- `name` (str): Table name to validate
+
+**Returns:** `str` - Validated table name
+
+**Raises:** `InputValidationError` if invalid
+
+##### `validate_sql_expression(expression)`
+Validate SQL expression for injection attacks.
+
+**Parameters:**
+- `expression` (str): SQL expression to validate
+
+**Returns:** `str` - Validated expression
+
+**Raises:** `SQLInjectionError` if malicious
+
+##### `grant_permission(user, level, resource)`
+Grant access permission to user.
+
+**Parameters:**
+- `user` (str): User identifier
+- `level` (AccessLevel): Permission level
+- `resource` (str): Resource identifier
+
+##### `check_access_permission(user, level, resource)`
+Check if user has permission.
+
+**Parameters:**
+- `user` (str): User identifier
+- `level` (AccessLevel): Required permission level
+- `resource` (str): Resource identifier
+
+**Returns:** `bool` - True if permission granted
+
+### SecurityConfig
+
+Configuration for security features.
+
+```python
+from sparkforge import SecurityConfig
+
+config = SecurityConfig(
+    enable_input_validation=True,
+    enable_sql_injection_protection=True,
+    enable_audit_logging=True,
+    max_table_name_length=128,
+    max_schema_name_length=64,
+    allowed_sql_functions={"col", "lit", "when", "otherwise"},
+    audit_retention_days=90
+)
+```
+
+### AccessLevel
+
+Enumeration of access levels.
+
+```python
+from sparkforge.security import AccessLevel
+
+# Available levels
+AccessLevel.READ      # Read-only access
+AccessLevel.WRITE     # Write access
+AccessLevel.ADMIN     # Administrative access
+AccessLevel.EXECUTE   # Execution access
+```
+
+## Performance Cache
+
+### PerformanceCache
+
+Intelligent caching system with TTL and LRU eviction.
+
+```python
+from sparkforge import PerformanceCache, CacheConfig, CacheStrategy, get_performance_cache
+
+# Create cache
+cache_config = CacheConfig(
+    max_size_mb=512,
+    ttl_seconds=3600,
+    strategy=CacheStrategy.LRU,
+    enable_compression=True
+)
+
+cache = PerformanceCache(cache_config)
+```
+
+#### Methods
+
+##### `put(key, value, ttl_seconds=None)`
+Store value in cache.
+
+**Parameters:**
+- `key` (Any): Cache key
+- `value` (Any): Value to cache
+- `ttl_seconds` (int, optional): Time-to-live in seconds
+
+##### `get(key)`
+Retrieve value from cache.
+
+**Parameters:**
+- `key` (Any): Cache key
+
+**Returns:** `Any` - Cached value or None
+
+##### `invalidate(key)`
+Remove value from cache.
+
+**Parameters:**
+- `key` (Any): Cache key to remove
+
+##### `clear()`
+Clear all cache entries.
+
+##### `get_stats()`
+Get cache statistics.
+
+**Returns:** `dict` - Cache statistics
+
+### CacheConfig
+
+Configuration for performance cache.
+
+```python
+from sparkforge import CacheConfig, CacheStrategy
+
+config = CacheConfig(
+    max_size_mb=512,           # Maximum cache size
+    ttl_seconds=3600,          # Default TTL
+    strategy=CacheStrategy.LRU, # Eviction strategy
+    enable_compression=True,    # Enable compression
+    max_entries=10000          # Maximum entries
+)
+```
+
+### CacheStrategy
+
+Enumeration of cache eviction strategies.
+
+```python
+from sparkforge.performance_cache import CacheStrategy
+
+# Available strategies
+CacheStrategy.LRU  # Least Recently Used
+CacheStrategy.TTL  # Time To Live
+CacheStrategy.FIFO # First In First Out
+```
+
+## Dynamic Parallel Execution
+
+### DynamicParallelExecutor
+
+Advanced parallel execution with dynamic worker allocation.
+
+```python
+from sparkforge import DynamicParallelExecutor, ExecutionTask, TaskPriority
+
+# Create executor
+executor = DynamicParallelExecutor()
+
+# Create tasks
+tasks = [
+    ExecutionTask("task1", function1, priority=TaskPriority.HIGH),
+    ExecutionTask("task2", function2, priority=TaskPriority.NORMAL)
+]
+
+# Execute parallel
+result = executor.execute_parallel(tasks)
+```
+
+#### Methods
+
+##### `execute_parallel(tasks, wait_for_completion=True, timeout=None)`
+Execute tasks in parallel with dynamic optimization.
+
+**Parameters:**
+- `tasks` (List[ExecutionTask]): Tasks to execute
+- `wait_for_completion` (bool): Wait for all tasks to complete
+- `timeout` (float, optional): Timeout in seconds
+
+**Returns:** `dict` - Execution results and metrics
+
+##### `get_performance_metrics()`
+Get current performance metrics.
+
+**Returns:** `dict` - Performance metrics
+
+##### `get_optimization_recommendations()`
+Get optimization recommendations.
+
+**Returns:** `List[str]` - Optimization recommendations
+
+### ExecutionTask
+
+Represents a task to be executed.
+
+```python
+from sparkforge import ExecutionTask, TaskPriority, create_execution_task
+
+# Create task directly
+task = ExecutionTask(
+    task_id="my_task",
+    function=my_function,
+    args=(arg1, arg2),
+    kwargs={"param": "value"},
+    priority=TaskPriority.HIGH,
+    dependencies={"prerequisite_task"},
+    estimated_duration=30.0,
+    memory_requirement_mb=256.0,
+    timeout_seconds=300
+)
+
+# Or use helper function
+task = create_execution_task(
+    "my_task",
+    my_function,
+    arg1, arg2,
+    priority=TaskPriority.HIGH,
+    param="value"
+)
+```
+
+### TaskPriority
+
+Enumeration of task priority levels.
+
+```python
+from sparkforge import TaskPriority
+
+# Available priorities
+TaskPriority.CRITICAL   # Must complete first
+TaskPriority.HIGH       # High priority
+TaskPriority.NORMAL     # Normal priority
+TaskPriority.LOW        # Low priority
+TaskPriority.BACKGROUND # Background tasks
+```
+
+### DynamicWorkerPool
+
+Dynamic worker pool with intelligent allocation.
+
+```python
+from sparkforge import DynamicWorkerPool
+
+# Create worker pool
+pool = DynamicWorkerPool(
+    min_workers=1,
+    max_workers=16,
+    logger=logger
+)
+
+# Submit task
+task_id = pool.submit_task(task)
+
+# Wait for completion
+success = pool.wait_for_completion(timeout=300.0)
+
+# Get metrics
+metrics = pool.get_performance_metrics()
 ```
 
 ---

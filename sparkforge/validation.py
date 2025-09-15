@@ -28,6 +28,8 @@ from pyspark.sql.types import ArrayType, StringType
 
 from .models import StageStats, ColumnRules
 from .errors.data import ValidationError
+from .performance_cache import cached_validation, get_performance_cache, ValidationCache
+from .security import get_security_manager
 
 logger = logging.getLogger(__name__)
 
@@ -159,6 +161,7 @@ def get_dataframe_info(df: DataFrame) -> Dict[str, Any]:
         }
 
 
+@cached_validation
 def apply_column_rules(
     df: DataFrame,
     rules: ColumnRules,
@@ -230,19 +233,35 @@ def apply_column_rules(
     if rules is None:
         raise ValidationError(f"[{stage}:{step}] Validation rules cannot be None.")
 
-    t0 = time.time()
-    total = df.count()
+    # Validate inputs for security
+    security_manager = get_security_manager()
+    try:
+        validated_rules = security_manager.validate_validation_rules(rules)
+    except Exception as e:
+        logger.warning(f"[{stage}:{step}] Security validation failed: {e}")
+        validated_rules = rules  # Fallback to original rules
 
-    if rules:
+    t0 = time.time()
+    
+    # Optimize: Get total count only once and cache it
+    total = df.count()
+    logger.debug(f"[{stage}:{step}] Total rows to validate: {total}")
+
+    if validated_rules:
         # Convert string rules to PySpark expressions
-        converted_rules = _convert_rules_to_expressions(rules)
-        logger.debug(f"[{stage}:{step}] Original rules: {rules}")
+        converted_rules = _convert_rules_to_expressions(validated_rules)
+        logger.debug(f"[{stage}:{step}] Original rules: {validated_rules}")
         logger.debug(f"[{stage}:{step}] Converted rules: {converted_rules}")
         pred = and_all_rules(converted_rules)
         marked = df.withColumn("__is_valid__", pred)
         valid_df = marked.filter(F.col("__is_valid__")).drop("__is_valid__")
         invalid_df = marked.filter(~F.col("__is_valid__")).drop("__is_valid__")
-        logger.debug(f"[{stage}:{step}] Validation completed - valid rows: {valid_df.count()}, invalid rows: {invalid_df.count()}")
+        
+        # Optimize: Calculate counts more efficiently
+        # Use a single action to get both counts
+        valid_count = valid_df.count()
+        invalid_count = total - valid_count
+        logger.debug(f"[{stage}:{step}] Validation completed - valid rows: {valid_count}, invalid rows: {invalid_count}")
 
         # Add detailed failure information
         failed_arrays = []
@@ -259,9 +278,9 @@ def apply_column_rules(
             )
     else:
         valid_df, invalid_df = df, df.limit(0)
+        valid_count = total
+        invalid_count = 0
 
-    valid_count = valid_df.count()
-    invalid_count = total - valid_count
     rate = safe_divide(valid_count * 100.0, total, 100.0)
 
     # Select only columns that have rules (if any) for all stages

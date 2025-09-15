@@ -5,8 +5,10 @@ SparkForge provides a fluent API for building robust data pipelines with
 Bronze → Silver → Gold architecture, featuring:
 
 - Fluent pipeline building API
-- Concurrent execution of independent steps
-- Comprehensive data validation
+- Advanced parallel execution with dynamic worker allocation
+- Enhanced data validation with security and performance optimization
+- Enterprise security features (input validation, SQL injection protection)
+- Intelligent caching and performance optimization
 - Delta Lake integration
 - Performance monitoring and logging
 - Error handling and recovery
@@ -41,7 +43,7 @@ Example:
     result = pipeline.initial_load(bronze_sources={"events": source_df})
 """
 
-__version__ = "0.3.5"
+__version__ = "0.4.0"
 __author__ = "Odos Matthews"
 __email__ = "odosmattthewsm@gmail.com"
 __description__ = "A powerful data pipeline builder for Apache Spark and Databricks"
@@ -49,6 +51,17 @@ __description__ = "A powerful data pipeline builder for Apache Spark and Databri
 # Import main classes for easy access
 from .pipeline import PipelineBuilder, PipelineRunner
 from .step_executor import StepExecutor, StepExecutionResult, StepValidationResult, StepType, StepStatus
+
+# Import security and performance modules
+from .security import SecurityManager, SecurityConfig, get_security_manager
+from .performance_cache import PerformanceCache, CacheConfig, get_performance_cache
+
+# Import parallel execution modules
+from .parallel_execution import (
+    DynamicWorkerPool, DynamicParallelExecutor, ExecutionTask, TaskPriority,
+    get_dynamic_executor, create_execution_task
+)
+from .execution.dynamic_strategy import DynamicExecutionStrategy
 
 # Import unified execution system
 from .execution import (

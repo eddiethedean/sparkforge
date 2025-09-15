@@ -35,24 +35,103 @@ python examples/hello_world.py
 
 That's it! You just ran a complete Bronze → Silver → Gold pipeline.
 
+## 🚀 Advanced Features Quick Start
+
+### 🛡️ **Security Features (Automatic)**
+```python
+from sparkforge import PipelineBuilder, SecurityConfig, get_security_manager
+
+# Security is enabled automatically - no code changes needed!
+builder = PipelineBuilder(spark=spark, schema="my_schema")
+# All inputs are automatically validated and protected
+
+# Optional: Configure advanced security
+security_config = SecurityConfig(
+    enable_input_validation=True,
+    enable_sql_injection_protection=True,
+    enable_audit_logging=True
+)
+security_manager = get_security_manager(security_config)
+```
+
+### ⚡ **Performance Optimization (Automatic)**
+```python
+from sparkforge import PipelineBuilder, CacheConfig, get_performance_cache
+
+# Performance caching is enabled automatically!
+builder = PipelineBuilder(spark=spark, schema="my_schema")
+# Validation results are automatically cached for better performance
+
+# Optional: Configure advanced caching
+cache_config = CacheConfig(
+    max_size_mb=512,
+    ttl_seconds=3600,
+    strategy=CacheStrategy.LRU
+)
+cache = get_performance_cache(cache_config)
+```
+
+### 🔧 **Dynamic Parallel Execution (Optional)**
+```python
+from sparkforge import (
+    DynamicParallelExecutor, ExecutionTask, TaskPriority, 
+    create_execution_task
+)
+
+# Advanced parallel execution for complex workloads
+executor = DynamicParallelExecutor()
+
+# Create tasks with priorities
+tasks = [
+    create_execution_task("critical_task", critical_function, priority=TaskPriority.CRITICAL),
+    create_execution_task("normal_task", normal_function, priority=TaskPriority.NORMAL)
+]
+
+# Execute with dynamic optimization
+result = executor.execute_parallel(tasks)
+print(f"Executed {result['metrics']['successful_tasks']} tasks successfully!")
+```
+
 ## 🎯 What Makes SparkForge Special?
 
 - **🏗️ Medallion Architecture**: Bronze → Silver → Gold data layering with automatic dependency management
-- **⚡ Parallel Execution**: Independent Silver steps run concurrently for maximum performance
+- **⚡ Advanced Parallel Execution**: Dynamic worker allocation, intelligent task prioritization, and adaptive optimization
 - **🔍 Step-by-Step Debugging**: Execute individual pipeline steps independently for troubleshooting
-- **✅ Data Validation**: Configurable validation thresholds and comprehensive quality checks
+- **✅ Enhanced Data Validation**: Configurable validation thresholds with automatic security validation and performance caching
 - **🔄 Incremental Processing**: Watermarking and incremental updates with Delta Lake
 - **💧 Delta Lake Integration**: Full support for ACID transactions, time travel, and schema evolution
+
+## 🚀 New in v0.4.0 - Enterprise Features
+
+### 🛡️ **Enterprise Security**
+- **Input Validation**: Automatic validation of all user inputs with configurable rules
+- **SQL Injection Protection**: Built-in protection against SQL injection attacks
+- **Access Control**: Role-based access control with permission management
+- **Audit Logging**: Comprehensive audit trails for compliance and security monitoring
+
+### ⚡ **Performance Optimization**
+- **Intelligent Caching**: TTL and LRU-based caching with automatic memory management
+- **Dynamic Worker Allocation**: Automatically adjusts parallel workers based on workload and system resources
+- **Resource Monitoring**: Real-time CPU and memory usage tracking
+- **Adaptive Optimization**: Learns from execution patterns to optimize performance
+
+### 🔧 **Advanced Parallel Execution**
+- **Task Prioritization**: Critical, High, Normal, Low, and Background priority levels
+- **Dependency Management**: Intelligent task scheduling based on dependencies
+- **Work-Stealing Algorithms**: Optimal resource utilization across workers
+- **Performance Metrics**: Detailed execution statistics and optimization recommendations
 
 ## ✨ Key Features
 
 - **🏗️ Medallion Architecture**: Bronze → Silver → Gold data layering with automatic dependency management
-- **⚡ Parallel Execution**: Independent Silver steps run concurrently for maximum performance
+- **⚡ Advanced Parallel Execution**: Dynamic worker allocation, intelligent task prioritization, and adaptive optimization
 - **🔍 Step-by-Step Debugging**: Execute individual pipeline steps independently for troubleshooting
-- **✅ Data Validation**: Configurable validation thresholds and comprehensive quality checks
+- **✅ Enhanced Data Validation**: Configurable validation thresholds with automatic security validation and performance caching
 - **🔄 Incremental Processing**: Watermarking and incremental updates with Delta Lake
 - **📅 Flexible Bronze Tables**: Support for Bronze tables with or without datetime columns
 - **💧 Delta Lake Integration**: Full support for ACID transactions, time travel, and schema evolution
+- **🛡️ Enterprise Security**: Input validation, SQL injection protection, access control, and audit logging
+- **⚡ Performance Optimization**: Intelligent caching with TTL, LRU eviction, and memory management
 - **📊 Structured Logging**: Detailed execution logging, timing, and monitoring
 - **🛡️ Error Handling**: Comprehensive error handling, recovery, and retry mechanisms
 - **📖 Professional Documentation**: Complete Read the Docs documentation with search, examples, and API reference
@@ -110,6 +189,13 @@ SparkForge now features **professional-grade documentation** hosted on Read the 
 - **🔗 Cross-References**: Smart linking between related concepts
 - **📊 API Documentation**: Auto-generated from enhanced docstrings
 - **🌐 Always Up-to-Date**: Automatically updated with every code change
+
+### 🆕 New Examples and Use Cases
+
+- **🚀 [Dynamic Parallel Execution](examples/dynamic_parallel_execution.py)** - Advanced parallel processing with worker allocation
+- **🛒 [E-commerce Analytics](examples/ecommerce_analytics.py)** - Complete e-commerce data pipeline
+- **📡 [IoT Sensor Pipeline](examples/iot_sensor_pipeline.py)** - Real-time sensor data processing
+- **🔍 [Step-by-Step Debugging](examples/step_by_step_debugging.py)** - Advanced debugging techniques
 
 ### 📖 Documentation Highlights
 

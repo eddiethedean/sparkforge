@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2024-12-19
+
+### Added
+- **Enterprise Security Features**
+  - Input validation with configurable rules
+  - SQL injection protection
+  - Role-based access control
+  - Comprehensive audit logging
+  - SecurityManager class for advanced security management
+
+- **Performance Optimization**
+  - Intelligent caching with TTL and LRU eviction
+  - Automatic memory management
+  - Performance monitoring and metrics
+  - PerformanceCache class for advanced caching
+
+- **Advanced Parallel Execution**
+  - Dynamic worker allocation based on workload
+  - Task prioritization (Critical, High, Normal, Low, Background)
+  - Work-stealing algorithms for optimal resource utilization
+  - Real-time resource monitoring
+  - DynamicParallelExecutor for complex workloads
+
+- **Enhanced Documentation**
+  - Complete API reference for all new features
+  - Comprehensive user guide with enterprise features
+  - Advanced examples and use cases
+  - Professional documentation structure
+
+### Changed
+- Security features are now enabled automatically
+- Performance optimization is enabled by default
+- Enhanced validation with security checks
+- Improved parallel execution with dynamic allocation
+
+### Fixed
+- API compatibility issues in dynamic parallel execution
+- Simplified and more reliable parallel execution system
+- Enhanced error handling and recovery
+
+## [0.3.5] - 2024-12-18
+
 ### Added
 - Initial release of SparkForge
 - Fluent pipeline building API
