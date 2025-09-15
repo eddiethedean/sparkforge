@@ -20,10 +20,7 @@ from sparkforge.validation import (
 from sparkforge.errors.data import ValidationError
 
 
-@pytest.fixture
-def spark_session():
-    """Create Spark session for testing."""
-    return SparkSession.builder.master('local[*]').appName('test').getOrCreate()
+# Using shared spark_session fixture from conftest.py
 
 
 @pytest.fixture

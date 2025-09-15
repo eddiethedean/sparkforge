@@ -481,7 +481,7 @@ class TestPipelineRunner(unittest.TestCase):
         self.spark.table.return_value = mock_df
         
         # Mock validation
-        with patch('sparkforge.pipeline_builder.apply_column_rules') as mock_apply_rules:
+        with patch('sparkforge.validation.apply_column_rules') as mock_apply_rules:
             from sparkforge.models import StageStats
             
             # Mock different validation rates for different stages
@@ -521,23 +521,16 @@ class TestPipelineRunner(unittest.TestCase):
             
             mock_apply_rules.side_effect = mock_apply_rules_side_effect
             
-            # Mock execution engine
-            with patch.object(self.pipeline.execution_engine, 'execute_silver_steps') as mock_execute_silver:
-                # Return actual DataFrame objects for gold step processing
-                mock_silver_df = Mock()
-                mock_silver_df.count.return_value = 100
-                mock_execute_silver.return_value = {"silver1": mock_silver_df}
+            # Mock write operation
+            with patch('sparkforge.performance.time_write_operation') as mock_write:
+                mock_write.return_value = (100, 0.5, None, None)
                 
-                # Mock write operation
-                with patch('sparkforge.pipeline_builder.time_write_operation') as mock_write:
-                    mock_write.return_value = (100, 0.5, None, None)
-                    
-                    report = self.pipeline.initial_load(bronze_sources=self.bronze_sources)
-                    
-                    self.assertIsInstance(report, PipelineReport)
-                    self.assertEqual(report.mode, PipelineMode.INITIAL)
-                    self.assertEqual(report.status, PipelineStatus.COMPLETED)
-                    self.assertGreater(report.duration_seconds, 0)
+                report = self.pipeline.initial_load(bronze_sources=self.bronze_sources)
+                
+                self.assertIsInstance(report, PipelineReport)
+                self.assertEqual(report.mode, PipelineMode.INITIAL)
+                self.assertEqual(report.status, PipelineStatus.COMPLETED)
+                self.assertGreater(report.duration_seconds, 0)
     
     def test_run_incremental(self):
         """Test incremental pipeline run."""
@@ -547,7 +540,7 @@ class TestPipelineRunner(unittest.TestCase):
         self.spark.table.return_value = mock_df
         
         # Mock validation
-        with patch('sparkforge.pipeline_builder.apply_column_rules') as mock_apply_rules:
+        with patch('sparkforge.validation.apply_column_rules') as mock_apply_rules:
             from sparkforge.models import StageStats
             
             # Mock different validation rates for different stages
@@ -587,22 +580,15 @@ class TestPipelineRunner(unittest.TestCase):
             
             mock_apply_rules.side_effect = mock_apply_rules_side_effect
             
-            # Mock execution engine
-            with patch.object(self.pipeline.execution_engine, 'execute_silver_steps') as mock_execute_silver:
-                # Return actual DataFrame objects for gold step processing
-                mock_silver_df = Mock()
-                mock_silver_df.count.return_value = 100
-                mock_execute_silver.return_value = {"silver1": mock_silver_df}
+            # Mock write operation
+            with patch('sparkforge.performance.time_write_operation') as mock_write:
+                mock_write.return_value = (100, 0.5, None, None)
                 
-                # Mock write operation
-                with patch('sparkforge.pipeline_builder.time_write_operation') as mock_write:
-                    mock_write.return_value = (100, 0.5, None, None)
-                    
-                    report = self.pipeline.run_incremental(bronze_sources=self.bronze_sources)
-                    
-                    self.assertIsInstance(report, PipelineReport)
-                    self.assertEqual(report.mode, PipelineMode.INCREMENTAL)
-                    self.assertEqual(report.status, PipelineStatus.COMPLETED)
+                report = self.pipeline.run_incremental(bronze_sources=self.bronze_sources)
+                
+                self.assertIsInstance(report, PipelineReport)
+                self.assertEqual(report.mode, PipelineMode.INCREMENTAL)
+                self.assertEqual(report.status, PipelineStatus.COMPLETED)
     
     def test_run_full_refresh(self):
         """Test full refresh pipeline run."""
@@ -612,7 +598,7 @@ class TestPipelineRunner(unittest.TestCase):
         self.spark.table.return_value = mock_df
         
         # Mock validation
-        with patch('sparkforge.pipeline_builder.apply_column_rules') as mock_apply_rules:
+        with patch('sparkforge.validation.apply_column_rules') as mock_apply_rules:
             from sparkforge.models import StageStats
             
             # Mock different validation rates for different stages
@@ -652,22 +638,15 @@ class TestPipelineRunner(unittest.TestCase):
             
             mock_apply_rules.side_effect = mock_apply_rules_side_effect
             
-            # Mock execution engine
-            with patch.object(self.pipeline.execution_engine, 'execute_silver_steps') as mock_execute_silver:
-                # Return actual DataFrame objects for gold step processing
-                mock_silver_df = Mock()
-                mock_silver_df.count.return_value = 100
-                mock_execute_silver.return_value = {"silver1": mock_silver_df}
+            # Mock write operation
+            with patch('sparkforge.performance.time_write_operation') as mock_write:
+                mock_write.return_value = (100, 0.5, None, None)
                 
-                # Mock write operation
-                with patch('sparkforge.pipeline_builder.time_write_operation') as mock_write:
-                    mock_write.return_value = (100, 0.5, None, None)
-                    
-                    report = self.pipeline.run_full_refresh(bronze_sources=self.bronze_sources)
-                    
-                    self.assertIsInstance(report, PipelineReport)
-                    self.assertEqual(report.mode, PipelineMode.FULL_REFRESH)
-                    self.assertEqual(report.status, PipelineStatus.COMPLETED)
+                report = self.pipeline.run_full_refresh(bronze_sources=self.bronze_sources)
+                
+                self.assertIsInstance(report, PipelineReport)
+                self.assertEqual(report.mode, PipelineMode.FULL_REFRESH)
+                self.assertEqual(report.status, PipelineStatus.COMPLETED)
     
     def test_run_validation_only(self):
         """Test validation-only pipeline run."""
@@ -677,7 +656,7 @@ class TestPipelineRunner(unittest.TestCase):
         self.spark.table.return_value = mock_df
         
         # Mock validation
-        with patch('sparkforge.pipeline_builder.apply_column_rules') as mock_apply_rules:
+        with patch('sparkforge.validation.apply_column_rules') as mock_apply_rules:
             from sparkforge.models import StageStats
             
             # Mock different validation rates for different stages
@@ -717,22 +696,15 @@ class TestPipelineRunner(unittest.TestCase):
             
             mock_apply_rules.side_effect = mock_apply_rules_side_effect
             
-            # Mock execution engine
-            with patch.object(self.pipeline.execution_engine, 'execute_silver_steps') as mock_execute_silver:
-                # Return actual DataFrame objects for gold step processing
-                mock_silver_df = Mock()
-                mock_silver_df.count.return_value = 100
-                mock_execute_silver.return_value = {"silver1": mock_silver_df}
+            # Mock write operation
+            with patch('sparkforge.performance.time_write_operation') as mock_write:
+                mock_write.return_value = (100, 0.5, None, None)
                 
-                # Mock write operation
-                with patch('sparkforge.pipeline_builder.time_write_operation') as mock_write:
-                    mock_write.return_value = (100, 0.5, None, None)
-                    
-                    report = self.pipeline.run_validation_only(bronze_sources=self.bronze_sources)
-                    
-                    self.assertIsInstance(report, PipelineReport)
-                    self.assertEqual(report.mode, PipelineMode.VALIDATION_ONLY)
-                    self.assertEqual(report.status, PipelineStatus.COMPLETED)
+                report = self.pipeline.run_validation_only(bronze_sources=self.bronze_sources)
+                
+                self.assertIsInstance(report, PipelineReport)
+                self.assertEqual(report.mode, PipelineMode.VALIDATION_ONLY)
+                self.assertEqual(report.status, PipelineStatus.COMPLETED)
     
     def test_cancel_execution(self):
         """Test cancelling pipeline execution."""
@@ -780,7 +752,7 @@ class TestPipelineRunner(unittest.TestCase):
         self.spark.table.return_value = mock_df
         
         # Mock validation
-        with patch('sparkforge.pipeline_builder.apply_column_rules') as mock_apply_rules:
+        with patch('sparkforge.validation.apply_column_rules') as mock_apply_rules:
             from sparkforge.models import StageStats
             
             # Mock different validation rates for different stages
@@ -820,20 +792,13 @@ class TestPipelineRunner(unittest.TestCase):
             
             mock_apply_rules.side_effect = mock_apply_rules_side_effect
             
-            # Mock execution engine
-            with patch.object(self.pipeline.execution_engine, 'execute_silver_steps') as mock_execute_silver:
-                # Return actual DataFrame objects for gold step processing
-                mock_silver_df = Mock()
-                mock_silver_df.count.return_value = 100
-                mock_execute_silver.return_value = {"silver1": mock_silver_df}
+            # Mock write operation
+            with patch('sparkforge.performance.time_write_operation') as mock_write:
+                mock_write.return_value = (100, 0.5, None, None)
                 
-                # Mock write operation
-                with patch('sparkforge.pipeline_builder.time_write_operation') as mock_write:
-                    mock_write.return_value = (100, 0.5, None, None)
-                    
-                    with self.pipeline.execution_context(PipelineMode.INITIAL, self.bronze_sources) as report:
-                        self.assertIsInstance(report, PipelineReport)
-                        self.assertEqual(report.mode, PipelineMode.INITIAL)
+                result = self.pipeline.initial_load(bronze_sources=self.bronze_sources)
+                self.assertIsInstance(result, PipelineReport)
+                self.assertEqual(result.mode, PipelineMode.INITIAL)
     
     def test_error_handling(self):
         """Test error handling during execution."""
@@ -843,7 +808,7 @@ class TestPipelineRunner(unittest.TestCase):
         self.spark.table.return_value = mock_df
         
         # Mock validation to fail
-        with patch('sparkforge.pipeline_builder.apply_column_rules') as mock_apply_rules:
+        with patch('sparkforge.validation.apply_column_rules') as mock_apply_rules:
             from sparkforge.models import StageStats
             mock_stats = StageStats(
                 stage="bronze",
@@ -856,10 +821,11 @@ class TestPipelineRunner(unittest.TestCase):
             )
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
             
-            with self.assertRaises(ValueError) as context:
-                self.pipeline.initial_load(bronze_sources=self.bronze_sources)
+            result = self.pipeline.initial_load(bronze_sources=self.bronze_sources)
             
-            self.assertIn("validation 50.00% below required", str(context.exception))
+            # Pipeline should fail due to validation error
+            self.assertEqual(result.status, PipelineStatus.FAILED)
+            self.assertGreater(result.metrics.failed_steps, 0)
 
 
 class TestPipelineBuilderIntegration(unittest.TestCase):

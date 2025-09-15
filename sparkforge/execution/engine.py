@@ -110,14 +110,20 @@ class StepExecutor:
             
             duration = time.time() - start_time
             
+            # Check if the step failed based on the result dictionary
+            success = result.get('success', True)
+            status = StepStatus.COMPLETED if success else StepStatus.FAILED
+            error_message = result.get('error') if not success else None
+            
             return StepExecutionResult(
                 step_name=step_name,
                 step_type=step_type,
-                status=StepStatus.COMPLETED,
+                status=status,
                 duration_seconds=duration,
                 rows_processed=result.get('rows_processed', 0),
                 rows_written=result.get('rows_written', 0),
                 output_data=result.get('output_data'),
+                error_message=error_message,
                 metadata=result.get('metadata', {})
             )
             
@@ -191,6 +197,7 @@ class StepExecutor:
                     
                     # Store the transformed DataFrame in the result
                     return {
+                        'success': True,
                         'rows_processed': transformed_df.count(),
                         'rows_written': rows_written,
                         'output_data': transformed_df,
@@ -202,6 +209,7 @@ class StepExecutor:
                 except Exception as e:
                     self.logger.error(f"Silver transform failed for {step_name}: {str(e)}")
                     return {
+                        'success': False,
                         'rows_processed': 0,
                         'rows_written': 0,
                         'error': str(e),

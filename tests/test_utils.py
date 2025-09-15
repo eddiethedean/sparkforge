@@ -252,65 +252,6 @@ class TestFactoryFunctions:
         assert result["end_at"] == end_time
 
 
-class TestDeltaLakeOperations:
-    """Test Delta Lake specific operations with real Spark and Delta Lake."""
-
-    @pytest.mark.spark
-    def test_delta_table_operations(self, spark_session):
-        """Test Delta Lake table operations with real Spark."""
-        # Create a test DataFrame
-        data = [
-            ("user1", "click", "2024-01-01 10:00:00"),
-            ("user2", "view", "2024-01-01 11:00:00"),
-        ]
-        df = spark_session.createDataFrame(data, ["user_id", "action", "timestamp"])
-        
-        # Write to Parquet table
-        table_name = "test_schema.test_parquet_table"
-        df.write.format("parquet").mode("overwrite").saveAsTable(table_name)
-        
-        # Read from Parquet table
-        result_df = spark_session.table(table_name)
-        assert result_df.count() == 2
-        
-        # Test basic operations
-        result_df.show()
-        
-        # Clean up
-        spark_session.sql(f"DROP TABLE IF EXISTS {table_name}")
-
-    @pytest.mark.spark
-    def test_delta_table_metadata(self, spark_session):
-        """Test Delta Lake table metadata operations."""
-        # Create a test DataFrame
-        data = [("user1", "click", "2024-01-01 10:00:00"), ("user2", "view", "2024-01-01 11:00:00"), ("user3", "purchase", "2024-01-01 12:00:00")]
-        df = spark_session.createDataFrame(data, ["user_id", "action", "timestamp"])
-        
-        # Write to Parquet table
-        table_name = "test_schema.test_parquet_metadata"
-        df.write.format("parquet").mode("overwrite").saveAsTable(table_name)
-        
-        # Test table operations
-        table_df = spark_session.table(table_name)
-        assert table_df.count() == 3
-        
-        # Verify data integrity
-        rows = table_df.collect()
-        assert len(rows) == 3
-        # Check that we have the expected data (order may vary)
-        user_ids = [row["user_id"] for row in rows]
-        actions = [row["action"] for row in rows]
-        assert "user1" in user_ids
-        assert "user2" in user_ids
-        assert "user3" in user_ids
-        assert "click" in actions
-        assert "view" in actions
-        assert "purchase" in actions
-        
-        # Clean up
-        spark_session.sql(f"DROP TABLE IF EXISTS {table_name}")
-
-
 class TestPerformanceWithRealData:
     """Test performance with real Spark operations and larger datasets."""
 

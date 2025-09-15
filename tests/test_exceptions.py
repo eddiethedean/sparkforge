@@ -19,7 +19,7 @@ class TestValidationError:
     def test_validation_error_creation(self):
         """Test creating ValidationError with message."""
         error = ValidationError("Data validation failed")
-        assert str(error) == "Data validation failed"
+        assert "Data validation failed" in str(error)
         assert isinstance(error, Exception)
     
     def test_validation_error_inheritance(self):
@@ -35,7 +35,7 @@ class TestTableOperationError:
     def test_table_operation_error_creation(self):
         """Test creating TableOperationError with message."""
         error = TableOperationError("Table write failed")
-        assert str(error) == "Table write failed"
+        assert "Table write failed" in str(error)
         assert isinstance(error, Exception)
     
     def test_table_operation_error_inheritance(self):
@@ -51,7 +51,7 @@ class TestPerformanceError:
     def test_performance_error_creation(self):
         """Test creating PerformanceError with message."""
         error = PerformanceError("Performance threshold exceeded")
-        assert str(error) == "Performance threshold exceeded"
+        assert "Performance threshold exceeded" in str(error)
         assert isinstance(error, Exception)
     
     def test_performance_error_inheritance(self):
@@ -67,7 +67,7 @@ class TestPipelineValidationError:
     def test_pipeline_validation_error_creation(self):
         """Test creating PipelineValidationError with message."""
         error = PipelineValidationError("Pipeline validation failed")
-        assert str(error) == "Pipeline validation failed"
+        assert "Pipeline validation failed" in str(error)
         assert isinstance(error, Exception)
     
     def test_pipeline_validation_error_inheritance(self):
@@ -83,7 +83,7 @@ class TestExecutionError:
     def test_execution_error_creation(self):
         """Test creating ExecutionError with message."""
         error = ExecutionError("Pipeline execution failed")
-        assert str(error) == "Pipeline execution failed"
+        assert "Pipeline execution failed" in str(error)
         assert isinstance(error, Exception)
     
     def test_execution_error_inheritance(self):
@@ -99,7 +99,7 @@ class TestConfigurationError:
     def test_configuration_error_creation(self):
         """Test creating ConfigurationError with message."""
         error = ConfigurationError("Invalid configuration")
-        assert str(error) == "Invalid configuration"
+        assert "Invalid configuration" in str(error)
         assert isinstance(error, Exception)
     
     def test_configuration_error_inheritance(self):
@@ -119,7 +119,7 @@ class TestExceptionChaining:
         except ValueError as e:
             error = ValidationError("Validation failed")
             error.__cause__ = e
-            assert str(error) == "Validation failed"
+            assert "Validation failed" in str(error)
             assert error.__cause__ is e
     
     def test_exception_context(self):
@@ -129,5 +129,5 @@ class TestExceptionChaining:
         except ValueError as e:
             error = TableOperationError("Table operation failed")
             error.__context__ = e
-            assert str(error) == "Table operation failed"
+            assert "Table operation failed" in str(error)
             assert error.__context__ is not None

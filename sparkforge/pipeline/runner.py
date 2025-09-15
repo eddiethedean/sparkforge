@@ -217,7 +217,7 @@ class PipelineRunner:
         try:
             # Step 1: Execute Bronze steps
             bronze_results = self._execute_bronze_steps(mode, bronze_sources)
-            if not bronze_results:
+            if not bronze_results and self.bronze_steps:
                 self.logger.error("Bronze step execution failed")
                 return False, {}, {}, {}
             
@@ -234,12 +234,24 @@ class PipelineRunner:
                 self.logger.error("Silver step execution failed")
                 return False, bronze_results, {}, {}
             
+            # Check if any silver steps failed
+            failed_silver_steps = [name for name, result in silver_results.items() if not result.get('success', True)]
+            if failed_silver_steps:
+                self.logger.error(f"Silver steps failed: {failed_silver_steps}")
+                return False, bronze_results, silver_results, {}
+            
             # Step 3: Execute Gold steps
             gold_results = self._execute_gold_steps(mode, silver_results)
             # Only fail if there are Gold steps but execution failed
             if self.gold_steps and not gold_results:
                 self.logger.error("Gold step execution failed")
                 return False, bronze_results, silver_results, {}
+            
+            # Check if any gold steps failed
+            failed_gold_steps = [name for name, result in gold_results.items() if not result.get('success', True)]
+            if failed_gold_steps:
+                self.logger.error(f"Gold steps failed: {failed_gold_steps}")
+                return False, bronze_results, silver_results, gold_results
             
             self.logger.info("✅ All pipeline steps completed successfully")
             return True, bronze_results, silver_results, gold_results
@@ -271,16 +283,42 @@ class PipelineRunner:
                 
                 # Apply validation rules if they exist
                 if hasattr(step, 'rules') and step.rules:
-                    validation_errors = []
-                    for column, rules in step.rules.items():
-                        for rule in rules:
-                            # Apply the validation rule
-                            invalid_rows = source_df.filter(~rule).count()
-                            if invalid_rows > 0:
-                                validation_errors.append(f"Column '{column}' has {invalid_rows} invalid rows")
-                    
-                    if validation_errors:
-                        error_msg = f"Data validation failed for {step_name}: " + "; ".join(validation_errors)
+                    try:
+                        from ..validation import apply_column_rules
+                        valid_df, invalid_df, stats = apply_column_rules(
+                            df=source_df,
+                            rules=step.rules,
+                            stage="bronze",
+                            step=step_name
+                        )
+                        
+                        # Check if validation passed (use a reasonable threshold)
+                        if stats.validation_rate < 95.0:
+                            error_msg = f"Data validation failed for {step_name}: validation rate {stats.validation_rate:.1f}% below threshold"
+                            self.logger.error(error_msg)
+                            
+                            # Update monitoring with failure
+                            self.monitor.update_step_execution(
+                                step_name=step_name,
+                                step_type="bronze",
+                                success=False,
+                                duration=0.0,
+                                error_message=error_msg
+                            )
+                            
+                            bronze_results[step_name] = {
+                                "success": False,
+                                "error": error_msg,
+                                "dataframe": source_df
+                            }
+                            continue
+                        
+                        # Use validated data
+                        source_df = valid_df
+                        row_count = stats.valid_rows
+                        
+                    except Exception as e:
+                        error_msg = f"Validation error for {step_name}: {str(e)}"
                         self.logger.error(error_msg)
                         
                         # Update monitoring with failure
@@ -449,7 +487,7 @@ class PipelineRunner:
             return self._step_executor
             
         from ..step_executor import StepExecutor, StepExecutionResult
-        from ..dependency_analyzer import DependencyAnalyzer
+        from ..dependencies import DependencyAnalyzer
         from datetime import datetime
         
         executor = StepExecutor(

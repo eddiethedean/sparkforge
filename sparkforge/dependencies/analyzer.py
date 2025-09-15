@@ -166,11 +166,19 @@ class DependencyAnalyzer:
                 
                 # Add dependencies
                 if hasattr(step, 'source_bronze') and step.source_bronze:
-                    graph.add_dependency(name, step.source_bronze)
+                    # Check if the source bronze step exists
+                    if step.source_bronze in graph.nodes:
+                        graph.add_dependency(name, step.source_bronze)
+                    else:
+                        # Log warning about missing dependency
+                        self.logger.warning(f"Silver step {name} references non-existent bronze step {step.source_bronze}")
                 
                 if hasattr(step, 'depends_on') and step.depends_on:
                     for dep in step.depends_on:
-                        graph.add_dependency(name, dep)
+                        if dep in graph.nodes:
+                            graph.add_dependency(name, dep)
+                        else:
+                            self.logger.warning(f"Silver step {name} references non-existent dependency {dep}")
         
         # Add gold steps
         if gold_steps:
@@ -185,7 +193,10 @@ class DependencyAnalyzer:
                 # Add dependencies
                 if hasattr(step, 'source_silvers') and step.source_silvers:
                     for dep in step.source_silvers:
-                        graph.add_dependency(name, dep)
+                        if dep in graph.nodes:
+                            graph.add_dependency(name, dep)
+                        else:
+                            self.logger.warning(f"Gold step {name} references non-existent silver step {dep}")
         
         return graph
     

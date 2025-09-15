@@ -238,7 +238,7 @@ def apply_column_rules(
         converted_rules = _convert_rules_to_expressions(rules)
         logger.debug(f"[{stage}:{step}] Original rules: {rules}")
         logger.debug(f"[{stage}:{step}] Converted rules: {converted_rules}")
-        pred = and_all_rules(rules)
+        pred = and_all_rules(converted_rules)
         marked = df.withColumn("__is_valid__", pred)
         valid_df = marked.filter(F.col("__is_valid__")).drop("__is_valid__")
         invalid_df = marked.filter(~F.col("__is_valid__")).drop("__is_valid__")

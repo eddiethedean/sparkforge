@@ -8,9 +8,11 @@ step definitions, and execution contexts.
 from __future__ import annotations
 from typing import Dict, List, Optional, Any, Protocol
 from dataclasses import dataclass
+from datetime import datetime
 
 from ..models import PipelineConfig
 from ..models import BronzeStep, SilverStep, GoldStep, ExecutionContext
+from .models import StepExecutionContext
 from ..logger import PipelineLogger
 
 
@@ -188,11 +190,17 @@ class PipelineValidator:
             return errors, warnings
         
         for name, step in bronze_steps.items():
-            if not step.name:
-                errors.append(f"Bronze step {name} must have a name")
-            
-            if not step.rules:
-                warnings.append(f"Bronze step {name} has no validation rules")
+            # Use the validate_step method which includes custom validators
+            from ..models import ExecutionMode
+            context = StepExecutionContext(
+                step_name=name,
+                step_type="bronze",
+                mode=ExecutionMode.INITIAL,
+                start_time=datetime.now()
+            )
+            validation_result = self.validate_step(step, "bronze", context)
+            errors.extend(validation_result.errors)
+            warnings.extend(validation_result.warnings)
         
         return errors, warnings
     

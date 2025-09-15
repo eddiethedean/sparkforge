@@ -10,6 +10,9 @@ from typing import Dict, List, Set, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
 from collections import defaultdict, deque
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class StepType(Enum):
@@ -148,7 +151,17 @@ class DependencyGraph:
             if not self.nodes[node].dependencies:
                 levels[node] = 0
             else:
-                levels[node] = max(levels[dep] for dep in self.nodes[node].dependencies) + 1
+                # Ensure all dependencies have been processed
+                max_dep_level = 0
+                for dep in self.nodes[node].dependencies:
+                    if dep in levels:
+                        max_dep_level = max(max_dep_level, levels[dep])
+                    else:
+                        # If dependency not found, it might be missing from the graph
+                        # This could happen if the dependency graph is incomplete
+                        logger.warning(f"Dependency {dep} not found in levels for node {node}")
+                        max_dep_level = max(max_dep_level, 0)
+                levels[node] = max_dep_level + 1
         
         # Group nodes by level
         groups = defaultdict(list)

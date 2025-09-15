@@ -97,6 +97,7 @@ class ErrorCategory(Enum):
     SYSTEM = "system"
     NETWORK = "network"
     STORAGE = "storage"
+    PERFORMANCE = "performance"
 
 # ============================================================================
 # Function Types

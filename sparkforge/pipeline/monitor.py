@@ -133,16 +133,47 @@ class PipelineMonitor:
         self._current_report.metrics.total_duration = total_duration
         self._current_report.status = PipelineStatus.COMPLETED if success else PipelineStatus.FAILED
         
-        # Calculate total rows written from all step results
+        # Recalculate metrics from actual step results for accuracy
         total_rows_written = 0
-        if self._current_report.bronze_results:
-            total_rows_written += sum(result.get('rows_written', 0) for result in self._current_report.bronze_results.values())
-        if self._current_report.silver_results:
-            total_rows_written += sum(result.get('rows_written', 0) for result in self._current_report.silver_results.values())
-        if self._current_report.gold_results:
-            total_rows_written += sum(result.get('rows_written', 0) for result in self._current_report.gold_results.values())
+        successful_steps = 0
+        failed_steps = 0
+        total_rows_processed = 0
         
+        # Count bronze results
+        if self._current_report.bronze_results:
+            for result in self._current_report.bronze_results.values():
+                if result.get('success', False):
+                    successful_steps += 1
+                else:
+                    failed_steps += 1
+                total_rows_written += result.get('rows_written', 0)
+                total_rows_processed += result.get('rows_processed', 0)
+        
+        # Count silver results
+        if self._current_report.silver_results:
+            for result in self._current_report.silver_results.values():
+                if result.get('success', False):
+                    successful_steps += 1
+                else:
+                    failed_steps += 1
+                total_rows_written += result.get('rows_written', 0)
+                total_rows_processed += result.get('rows_processed', 0)
+        
+        # Count gold results
+        if self._current_report.gold_results:
+            for result in self._current_report.gold_results.values():
+                if result.get('success', False):
+                    successful_steps += 1
+                else:
+                    failed_steps += 1
+                total_rows_written += result.get('rows_written', 0)
+                total_rows_processed += result.get('rows_processed', 0)
+        
+        # Update metrics with recalculated values
+        self._current_report.metrics.successful_steps = successful_steps
+        self._current_report.metrics.failed_steps = failed_steps
         self._current_report.metrics.total_rows_written = total_rows_written
+        self._current_report.metrics.total_rows_processed = total_rows_processed
         
         # Calculate parallel efficiency
         if self._step_timings:
@@ -152,8 +183,7 @@ class PipelineMonitor:
         
         # Calculate average step duration
         total_steps = self._current_report.metrics.successful_steps + self._current_report.metrics.failed_steps
-        if total_steps > 0:
-            self._current_report.metrics.average_step_duration = total_duration / total_steps
+        # Average step duration is calculated on-demand in _generate_recommendations
         
         # Generate recommendations
         self._current_report.recommendations = self._generate_recommendations()
@@ -200,7 +230,7 @@ class PipelineMonitor:
             "total_duration": metrics.total_duration,
             "success_rate": metrics.success_rate,
             "parallel_efficiency": metrics.parallel_efficiency,
-            "average_step_duration": metrics.average_step_duration,
+            "average_step_duration": metrics.total_duration / metrics.total_steps if metrics.total_steps > 0 else 0,
             "total_rows_processed": metrics.total_rows_processed,
             "total_rows_written": metrics.total_rows_written,
             "error_count": metrics.error_count,
@@ -219,8 +249,11 @@ class PipelineMonitor:
         if metrics.parallel_efficiency < 0.5:
             recommendations.append("Consider optimizing parallel execution - low efficiency detected")
         
-        if metrics.average_step_duration > 60:
-            recommendations.append("Consider optimizing step execution - long average duration")
+        # Calculate average step duration
+        if metrics.total_steps > 0:
+            avg_duration = metrics.total_duration / metrics.total_steps
+            if avg_duration > 60:
+                recommendations.append("Consider optimizing step execution - long average duration")
         
         if metrics.error_count > 0:
             recommendations.append("Review error logs and consider improving error handling")

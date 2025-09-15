@@ -28,10 +28,7 @@ from sparkforge.models import (
 from sparkforge.errors.pipeline import PipelineValidationError
 
 
-@pytest.fixture
-def spark_session():
-    """Create Spark session for testing."""
-    return SparkSession.builder.master('local[*]').appName('test').getOrCreate()
+# Using shared spark_session fixture from conftest.py
 
 
 class TestValidationThresholds:
@@ -393,7 +390,7 @@ class TestPipelineMetrics:
             total_steps=10,
             successful_steps=8,
             failed_steps=2,
-            total_duration_secs=3600.0,
+            total_duration=3600.0,
             total_rows_processed=100000,
             total_rows_written=95000,
             avg_validation_rate=95.5
@@ -402,7 +399,7 @@ class TestPipelineMetrics:
         assert metrics.total_steps == 10
         assert metrics.successful_steps == 8
         assert metrics.failed_steps == 2
-        assert metrics.total_duration_secs == 3600.0
+        assert metrics.total_duration == 3600.0
         assert metrics.total_rows_processed == 100000
         assert metrics.total_rows_written == 95000
         assert metrics.avg_validation_rate == 95.5
@@ -417,7 +414,7 @@ class TestExecutionResult:
             total_steps=10,
             successful_steps=8,
             failed_steps=2,
-            total_duration_secs=3600.0,
+            total_duration=3600.0,
             total_rows_processed=100000,
             total_rows_written=95000,
             avg_validation_rate=95.5
