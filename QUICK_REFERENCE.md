@@ -8,7 +8,7 @@ A quick reference guide for SparkForge developers and users.
 pip install sparkforge
 ```
 
-## Basic Pipeline
+## Basic Pipeline (Traditional)
 
 ```python
 from sparkforge import PipelineBuilder
@@ -36,6 +36,7 @@ builder.add_silver_transform(
 # Gold
 builder.add_gold_transform(
     name="gold_summary",
+    source_silvers=["silver_events"],
     transform=lambda spark, silvers: silvers["silver_events"].groupBy("category").count(),
     rules={"category": [F.col("category").isNotNull()]},
     table_name="gold_summary"
@@ -44,6 +45,72 @@ builder.add_gold_transform(
 # Execute
 pipeline = builder.to_pipeline()
 result = pipeline.initial_load(bronze_sources={"events": source_df})
+```
+
+## Simplified Pipeline (New!)
+
+```python
+from sparkforge import PipelineBuilder
+
+# Quick setup with preset configuration
+builder = PipelineBuilder.for_development(spark=spark, schema="my_schema")
+
+# Bronze with helper methods
+builder.with_bronze_rules(
+    name="events",
+    rules=PipelineBuilder.not_null_rules(["user_id", "timestamp"])
+)
+
+# Silver - source_bronze auto-inferred!
+builder.add_silver_transform(
+    name="silver_events",
+    transform=lambda spark, df, silvers: df.filter(F.col("status") == "active"),
+    rules=PipelineBuilder.not_null_rules(["status"]),
+    table_name="silver_events"
+)
+
+# Gold - source_silvers auto-inferred!
+builder.add_gold_transform(
+    name="gold_summary",
+    transform=lambda spark, silvers: list(silvers.values())[0].groupBy("category").count(),
+    rules=PipelineBuilder.not_null_rules(["category"]),
+    table_name="gold_summary"
+)
+
+# Execute
+pipeline = builder.to_pipeline()
+result = pipeline.initial_load(bronze_sources={"events": source_df})
+```
+
+## New User Experience Features
+
+### Preset Configurations
+```python
+# Development (relaxed validation, verbose logging)
+builder = PipelineBuilder.for_development(spark=spark, schema="my_schema")
+
+# Production (strict validation, optimized settings)
+builder = PipelineBuilder.for_production(spark=spark, schema="my_schema")
+
+# Testing (minimal validation, sequential execution)
+builder = PipelineBuilder.for_testing(spark=spark, schema="my_schema")
+```
+
+### Validation Helper Methods
+```python
+# Common validation patterns
+rules = PipelineBuilder.not_null_rules(["user_id", "timestamp"])
+rules = PipelineBuilder.positive_number_rules(["amount", "quantity"])
+rules = PipelineBuilder.string_not_empty_rules(["name", "description"])
+rules = PipelineBuilder.timestamp_rules(["created_at", "updated_at"])
+```
+
+### Timestamp Column Detection
+```python
+# Auto-detect timestamp columns for watermarking
+schema = df.schema
+timestamp_cols = PipelineBuilder.detect_timestamp_columns(schema)
+# Returns: ["timestamp", "created_at", "event_time", ...]
 ```
 
 ## Enterprise Features

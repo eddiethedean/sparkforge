@@ -6,7 +6,7 @@ This module tests the new feature that allows add_silver_transform to
 automatically infer the source_bronze from the most recent with_bronze_rules call.
 """
 
-import unittest
+import pytest
 from unittest.mock import Mock, patch
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql import functions as F
@@ -15,18 +15,13 @@ from sparkforge import PipelineBuilder
 from sparkforge.errors import StepError
 
 
-class TestAutoInferSourceBronze(unittest.TestCase):
+class TestAutoInferSourceBronze:
     """Test auto-inference of source_bronze parameter."""
 
-    def setUp(self):
+    @pytest.fixture(autouse=True)
+    def setup_test(self, spark_session):
         """Set up test fixtures."""
-        self.spark = SparkSession.builder.appName("test").master("local[1]").getOrCreate()
-        self.builder = PipelineBuilder(spark=self.spark, schema="test_schema")
-
-    def tearDown(self):
-        """Clean up after tests."""
-        if self.spark:
-            self.spark.stop()
+        self.builder = PipelineBuilder(spark=spark_session, schema="test_schema")
 
     def test_auto_infer_single_bronze_step(self):
         """Test auto-inference with a single bronze step."""
@@ -48,12 +43,12 @@ class TestAutoInferSourceBronze(unittest.TestCase):
         )
 
         # Should return self for chaining
-        self.assertIs(result, self.builder)
+        assert result is self.builder
 
         # Check that silver step was added with correct source_bronze
-        self.assertIn("clean_events", self.builder.silver_steps)
+        assert "clean_events" in self.builder.silver_steps
         silver_step = self.builder.silver_steps["clean_events"]
-        self.assertEqual(silver_step.source_bronze, "events")
+        assert silver_step.source_bronze == "events"
 
     def test_auto_infer_multiple_bronze_steps(self):
         """Test auto-inference uses the most recent bronze step."""
@@ -80,7 +75,7 @@ class TestAutoInferSourceBronze(unittest.TestCase):
 
         # Should use the most recent bronze step
         silver_step = self.builder.silver_steps["clean_transactions"]
-        self.assertEqual(silver_step.source_bronze, "transactions")
+        assert silver_step.source_bronze == "transactions"
 
     def test_explicit_source_bronze_still_works(self):
         """Test that explicit source_bronze still works."""
@@ -108,14 +103,14 @@ class TestAutoInferSourceBronze(unittest.TestCase):
 
         # Should use the explicit source_bronze
         silver_step = self.builder.silver_steps["clean_events"]
-        self.assertEqual(silver_step.source_bronze, "events")
+        assert silver_step.source_bronze == "events"
 
     def test_no_bronze_steps_raises_error(self):
         """Test that error is raised when no bronze steps exist."""
         def silver_transform(spark, bronze_df, prior_silvers):
             return bronze_df
 
-        with self.assertRaises(StepError) as context:
+        with pytest.raises(StepError) as context:
             self.builder.add_silver_transform(
                 name="clean_events",
                 transform=silver_transform,
@@ -123,10 +118,10 @@ class TestAutoInferSourceBronze(unittest.TestCase):
                 table_name="clean_events"
             )
 
-        error = context.exception
-        self.assertIn("No bronze steps available for auto-inference", str(error))
-        self.assertEqual(error.step_name, "clean_events")
-        self.assertEqual(error.step_type, "silver")
+        error = context.value
+        assert "No bronze steps available for auto-inference" in str(error)
+        assert error.step_name == "clean_events"
+        assert error.step_type == "silver"
 
     def test_invalid_source_bronze_raises_error(self):
         """Test that error is raised when source_bronze doesn't exist."""
@@ -139,7 +134,7 @@ class TestAutoInferSourceBronze(unittest.TestCase):
         def silver_transform(spark, bronze_df, prior_silvers):
             return bronze_df
 
-        with self.assertRaises(StepError) as context:
+        with pytest.raises(StepError) as context:
             self.builder.add_silver_transform(
                 name="clean_events",
                 source_bronze="nonexistent",  # Invalid
@@ -148,10 +143,10 @@ class TestAutoInferSourceBronze(unittest.TestCase):
                 table_name="clean_events"
             )
 
-        error = context.exception
-        self.assertIn("Bronze step 'nonexistent' not found", str(error))
-        self.assertEqual(error.step_name, "clean_events")
-        self.assertEqual(error.step_type, "silver")
+        error = context.value
+        assert "Bronze step 'nonexistent' not found" in str(error)
+        assert error.step_name == "clean_events"
+        assert error.step_type == "silver"
 
     def test_logging_auto_inference(self):
         """Test that auto-inference is logged."""
@@ -203,15 +198,15 @@ class TestAutoInferSourceBronze(unittest.TestCase):
                  ))
 
         # Should return self for chaining
-        self.assertIs(result, self.builder)
+        assert result is self.builder
 
         # Both silver steps should exist
-        self.assertIn("clean_events", self.builder.silver_steps)
-        self.assertIn("enriched_events", self.builder.silver_steps)
+        assert "clean_events" in self.builder.silver_steps
+        assert "enriched_events" in self.builder.silver_steps
 
         # Both should use the same source_bronze
-        self.assertEqual(self.builder.silver_steps["clean_events"].source_bronze, "events")
-        self.assertEqual(self.builder.silver_steps["enriched_events"].source_bronze, "events")
+        assert self.builder.silver_steps["clean_events"].source_bronze == "events"
+        assert self.builder.silver_steps["enriched_events"].source_bronze == "events"
 
 
 if __name__ == "__main__":

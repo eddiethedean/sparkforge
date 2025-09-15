@@ -40,6 +40,124 @@ builder = PipelineBuilder(
 
 #### Methods
 
+##### `for_development(spark, schema, **kwargs)` (Class Method)
+
+Create a PipelineBuilder configured for development with relaxed validation and verbose logging.
+
+**Parameters:**
+- `spark` (SparkSession): Spark session
+- `schema` (str): Database schema name
+- `**kwargs`: Additional configuration options
+
+**Returns:** `PipelineBuilder` instance
+
+**Example:**
+```python
+builder = PipelineBuilder.for_development(spark=spark, schema="dev_schema")
+```
+
+##### `for_production(spark, schema, **kwargs)` (Class Method)
+
+Create a PipelineBuilder configured for production with strict validation and optimized settings.
+
+**Parameters:**
+- `spark` (SparkSession): Spark session
+- `schema` (str): Database schema name
+- `**kwargs`: Additional configuration options
+
+**Returns:** `PipelineBuilder` instance
+
+**Example:**
+```python
+builder = PipelineBuilder.for_production(spark=spark, schema="prod_schema")
+```
+
+##### `for_testing(spark, schema, **kwargs)` (Class Method)
+
+Create a PipelineBuilder configured for testing with minimal validation and sequential execution.
+
+**Parameters:**
+- `spark` (SparkSession): Spark session
+- `schema` (str): Database schema name
+- `**kwargs`: Additional configuration options
+
+**Returns:** `PipelineBuilder` instance
+
+**Example:**
+```python
+builder = PipelineBuilder.for_testing(spark=spark, schema="test_schema")
+```
+
+##### `not_null_rules(columns)` (Static Method)
+
+Create validation rules for non-null constraints.
+
+**Parameters:**
+- `columns` (List[str]): List of column names
+
+**Returns:** `dict` of validation rules
+
+**Example:**
+```python
+rules = PipelineBuilder.not_null_rules(["user_id", "timestamp"])
+```
+
+##### `positive_number_rules(columns)` (Static Method)
+
+Create validation rules for positive number constraints.
+
+**Parameters:**
+- `columns` (List[str]): List of column names
+
+**Returns:** `dict` of validation rules
+
+**Example:**
+```python
+rules = PipelineBuilder.positive_number_rules(["amount", "quantity"])
+```
+
+##### `string_not_empty_rules(columns)` (Static Method)
+
+Create validation rules for non-empty string constraints.
+
+**Parameters:**
+- `columns` (List[str]): List of column names
+
+**Returns:** `dict` of validation rules
+
+**Example:**
+```python
+rules = PipelineBuilder.string_not_empty_rules(["name", "description"])
+```
+
+##### `timestamp_rules(columns)` (Static Method)
+
+Create validation rules for timestamp constraints.
+
+**Parameters:**
+- `columns` (List[str]): List of column names
+
+**Returns:** `dict` of validation rules
+
+**Example:**
+```python
+rules = PipelineBuilder.timestamp_rules(["created_at", "updated_at"])
+```
+
+##### `detect_timestamp_columns(schema)` (Static Method)
+
+Detect timestamp columns based on common naming patterns.
+
+**Parameters:**
+- `schema`: DataFrame schema or list of column names
+
+**Returns:** `List[str]` of detected timestamp column names
+
+**Example:**
+```python
+timestamp_cols = PipelineBuilder.detect_timestamp_columns(df.schema)
+```
+
 ##### `with_bronze_rules(name, rules, incremental_col=None)`
 
 Define Bronze layer data ingestion rules.
@@ -63,16 +181,16 @@ builder.with_bronze_rules(
 )
 ```
 
-##### `add_silver_transform(name, source_bronze, transform, rules, table_name, watermark_col=None, source_silvers=None)`
+##### `add_silver_transform(name, transform, rules, table_name, source_bronze=None, watermark_col=None, source_silvers=None)`
 
-Add Silver layer transformation step.
+Add Silver layer transformation step with auto-inference of source_bronze.
 
 **Parameters:**
 - `name` (str): Silver step name
-- `source_bronze` (str): Source Bronze step name
 - `transform` (callable): Transformation function
 - `rules` (dict): Validation rules
 - `table_name` (str): Output table name
+- `source_bronze` (str, optional): Source Bronze step name (auto-inferred if not provided)
 - `watermark_col` (str, optional): Watermark column for streaming
 - `source_silvers` (list, optional): Dependent Silver steps
 
@@ -93,16 +211,16 @@ builder.add_silver_transform(
 )
 ```
 
-##### `add_gold_transform(name, transform, rules, table_name, source_silvers)`
+##### `add_gold_transform(name, transform, rules, table_name, source_silvers=None)`
 
-Add Gold layer aggregation step.
+Add Gold layer aggregation step with auto-inference of source_silvers.
 
 **Parameters:**
 - `name` (str): Gold step name
 - `transform` (callable): Aggregation function
 - `rules` (dict): Validation rules
 - `table_name` (str): Output table name
-- `source_silvers` (list): Source Silver steps
+- `source_silvers` (list, optional): Source Silver steps (auto-inferred if not provided)
 
 **Returns:** `PipelineBuilder` (for chaining)
 

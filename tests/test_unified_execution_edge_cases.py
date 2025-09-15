@@ -22,7 +22,7 @@ from sparkforge.execution import (
 )
 from sparkforge.models import BronzeStep, SilverStep, GoldStep
 from sparkforge.pipeline import PipelineBuilder
-from sparkforge.errors.pipeline import PipelineValidationError
+from sparkforge.errors.pipeline import PipelineValidationError, StepError
 
 
 class TestUnifiedExecutionEdgeCases:
@@ -301,20 +301,15 @@ class TestUnifiedExecutionEdgeCases:
         # Build pipeline with invalid configuration
         builder = PipelineBuilder(spark=spark_session, schema=get_test_schema())
         
-        # Add Silver step with invalid source (this should not raise an exception)
-        builder.add_silver_transform(
-            name="silver_events",
-            source_bronze="nonexistent_bronze",
-            transform=lambda spark, df, silvers: df,
-            rules={"id": [F.col("id").isNotNull()]},
-            table_name="silver_events"
-        )
-        
-        # Enable unified execution
-        
-        # Try to create pipeline with invalid configuration - this should raise an exception
-        with pytest.raises(ValueError, match="Pipeline validation failed"):
-            builder.to_pipeline()
+        # Add Silver step with invalid source - this should now raise an exception immediately
+        with pytest.raises(StepError, match="Bronze step 'nonexistent_bronze' not found"):
+            builder.add_silver_transform(
+                name="silver_events",
+                source_bronze="nonexistent_bronze",
+                transform=lambda spark, df, silvers: df,
+                rules={"id": [F.col("id").isNotNull()]},
+                table_name="silver_events"
+            )
     
     def test_empty_dataframe_handling(self, spark_session):
         """Test handling of empty DataFrames."""

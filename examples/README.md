@@ -315,6 +315,31 @@ Demonstrates the new auto-inference feature for source_bronze parameter.
 python examples/auto_infer_source_bronze_simple.py
 ```
 
+### 12. Improved User Experience (`improved_user_experience.py`)
+
+Demonstrates all the new user experience improvements in SparkForge.
+
+**Features:**
+- Auto-inference of source_bronze for silver transforms
+- Auto-inference of source_silvers for gold transforms
+- Preset configurations for development, production, and testing
+- Validation helper methods for common patterns
+- Timestamp column detection for watermarking
+- API comparison showing significant reduction in boilerplate
+
+**Key Concepts:**
+- Auto-inference
+- Preset configurations
+- Validation helpers
+- Timestamp detection
+- API simplification
+- User experience
+
+**Run:**
+```bash
+python examples/improved_user_experience.py
+```
+
 ## Troubleshooting
 
 ### Common Issues

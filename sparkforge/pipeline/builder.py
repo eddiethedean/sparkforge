@@ -449,7 +449,7 @@ class PipelineBuilder:
         transform: GoldTransformFunction,
         rules: ColumnRules,
         table_name: TableName,
-        source_silvers: List[StepName],
+        source_silvers: Optional[List[StepName]] = None,
         description: Optional[str] = None
     ) -> 'PipelineBuilder':
         """
@@ -465,7 +465,9 @@ class PipelineBuilder:
             rules: Dictionary mapping column names to validation rule lists.
                    Each rule should be a PySpark Column expression.
             table_name: Target Delta table name where results will be stored
-            source_silvers: List of Silver step names this Gold step depends on
+            source_silvers: List of Silver step names this Gold step depends on.
+                           If not provided, will automatically use all available Silver steps.
+                           If no Silver steps exist, will raise an error.
             description: Optional description of this Gold step
             
         Returns:
@@ -479,12 +481,21 @@ class PipelineBuilder:
             ...         .agg(F.count("*").alias("event_count"))
             ...     )
             >>> 
+            >>> # Explicit source_silvers
             >>> builder.add_gold_transform(
             ...     name="user_metrics",
             ...     transform=user_daily_metrics,
             ...     rules={"user_id": [F.col("user_id").isNotNull()]},
             ...     table_name="user_daily_metrics",
             ...     source_silvers=["clean_events"]
+            ... )
+            >>> 
+            >>> # Auto-infer source_silvers from all available Silver steps
+            >>> builder.add_gold_transform(
+            ...     name="daily_analytics",
+            ...     transform=daily_analytics,
+            ...     rules={"event_date": [F.col("event_date").isNotNull()]},
+            ...     table_name="daily_analytics"
             ... )
         """
         if not name:
@@ -503,9 +514,35 @@ class PipelineBuilder:
                 suggestions=["Use a different step name", "Remove the existing step first"]
             )
         
-        # Handle source_silvers=None (use all available silvers)
+        # Auto-infer source_silvers if not provided
         if source_silvers is None:
+            if not self.silver_steps:
+                raise StepError(
+                    "No silver steps available for auto-inference",
+                    step_name=name,
+                    step_type="gold",
+                    suggestions=[
+                        "Add a silver step first using add_silver_transform()",
+                        "Explicitly specify source_silvers parameter"
+                    ]
+                )
+            
+            # Use all available silver steps
             source_silvers = list(self.silver_steps.keys())
+            self.logger.info(f"🔍 Auto-inferred source_silvers: {source_silvers}")
+        
+        # Validate that all source_silvers exist
+        invalid_silvers = [s for s in source_silvers if s not in self.silver_steps]
+        if invalid_silvers:
+            raise StepError(
+                f"Silver steps not found: {invalid_silvers}",
+                step_name=name,
+                step_type="gold",
+                suggestions=[
+                    f"Available silver steps: {list(self.silver_steps.keys())}",
+                    "Add the missing silver steps first using add_silver_transform()"
+                ]
+            )
         
         # Note: Dependency validation is deferred to validate_pipeline()
         # This allows for more flexible pipeline construction
@@ -546,6 +583,246 @@ class PipelineBuilder:
             self.logger.info("✅ Pipeline validation passed")
         
         return validation_result.errors
+    
+    # ============================================================================
+    # PRESET CONFIGURATIONS AND HELPER METHODS
+    # ============================================================================
+    
+    @classmethod
+    def for_development(
+        cls,
+        spark: SparkSession,
+        schema: str,
+        **kwargs
+    ) -> 'PipelineBuilder':
+        """
+        Create a PipelineBuilder optimized for development with relaxed validation.
+        
+        Args:
+            spark: Active SparkSession instance
+            schema: Database schema name
+            **kwargs: Additional configuration parameters
+            
+        Returns:
+            PipelineBuilder instance with development-optimized settings
+            
+        Example:
+            >>> builder = PipelineBuilder.for_development(
+            ...     spark=spark,
+            ...     schema="dev_schema"
+            ... )
+        """
+        return cls(
+            spark=spark,
+            schema=schema,
+            min_bronze_rate=80.0,  # Relaxed validation
+            min_silver_rate=85.0,
+            min_gold_rate=90.0,
+            verbose=True,
+            enable_parallel_silver=True,
+            max_parallel_workers=2,
+            **kwargs
+        )
+    
+    @classmethod
+    def for_production(
+        cls,
+        spark: SparkSession,
+        schema: str,
+        **kwargs
+    ) -> 'PipelineBuilder':
+        """
+        Create a PipelineBuilder optimized for production with strict validation.
+        
+        Args:
+            spark: Active SparkSession instance
+            schema: Database schema name
+            **kwargs: Additional configuration parameters
+            
+        Returns:
+            PipelineBuilder instance with production-optimized settings
+            
+        Example:
+            >>> builder = PipelineBuilder.for_production(
+            ...     spark=spark,
+            ...     schema="prod_schema"
+            ... )
+        """
+        return cls(
+            spark=spark,
+            schema=schema,
+            min_bronze_rate=95.0,  # Strict validation
+            min_silver_rate=98.0,
+            min_gold_rate=99.0,
+            verbose=False,
+            enable_parallel_silver=True,
+            max_parallel_workers=8,
+            **kwargs
+        )
+    
+    @classmethod
+    def for_testing(
+        cls,
+        spark: SparkSession,
+        schema: str,
+        **kwargs
+    ) -> 'PipelineBuilder':
+        """
+        Create a PipelineBuilder optimized for testing with minimal validation.
+        
+        Args:
+            spark: Active SparkSession instance
+            schema: Database schema name
+            **kwargs: Additional configuration parameters
+            
+        Returns:
+            PipelineBuilder instance with testing-optimized settings
+            
+        Example:
+            >>> builder = PipelineBuilder.for_testing(
+            ...     spark=spark,
+            ...     schema="test_schema"
+            ... )
+        """
+        return cls(
+            spark=spark,
+            schema=schema,
+            min_bronze_rate=70.0,  # Very relaxed validation
+            min_silver_rate=75.0,
+            min_gold_rate=80.0,
+            verbose=True,
+            enable_parallel_silver=False,  # Sequential for predictable testing
+            max_parallel_workers=1,
+            **kwargs
+        )
+    
+    # ============================================================================
+    # VALIDATION HELPER METHODS
+    # ============================================================================
+    
+    @staticmethod
+    def not_null_rules(columns: List[str]) -> ColumnRules:
+        """
+        Create validation rules for non-null constraints on multiple columns.
+        
+        Args:
+            columns: List of column names to validate for non-null
+            
+        Returns:
+            Dictionary of validation rules
+            
+        Example:
+            >>> rules = PipelineBuilder.not_null_rules(["user_id", "timestamp", "value"])
+            >>> # Equivalent to:
+            >>> # {
+            >>> #     "user_id": [F.col("user_id").isNotNull()],
+            >>> #     "timestamp": [F.col("timestamp").isNotNull()],
+            >>> #     "value": [F.col("value").isNotNull()]
+            >>> # }
+        """
+        from pyspark.sql import functions as F
+        return {col: [F.col(col).isNotNull()] for col in columns}
+    
+    @staticmethod
+    def positive_number_rules(columns: List[str]) -> ColumnRules:
+        """
+        Create validation rules for positive number constraints on multiple columns.
+        
+        Args:
+            columns: List of column names to validate for positive numbers
+            
+        Returns:
+            Dictionary of validation rules
+            
+        Example:
+            >>> rules = PipelineBuilder.positive_number_rules(["value", "count"])
+            >>> # Equivalent to:
+            >>> # {
+            >>> #     "value": [F.col("value").isNotNull(), F.col("value") > 0],
+            >>> #     "count": [F.col("count").isNotNull(), F.col("count") > 0]
+            >>> # }
+        """
+        from pyspark.sql import functions as F
+        return {col: [F.col(col).isNotNull(), F.col(col) > 0] for col in columns}
+    
+    @staticmethod
+    def string_not_empty_rules(columns: List[str]) -> ColumnRules:
+        """
+        Create validation rules for non-empty string constraints on multiple columns.
+        
+        Args:
+            columns: List of column names to validate for non-empty strings
+            
+        Returns:
+            Dictionary of validation rules
+            
+        Example:
+            >>> rules = PipelineBuilder.string_not_empty_rules(["name", "category"])
+            >>> # Equivalent to:
+            >>> # {
+            >>> #     "name": [F.col("name").isNotNull(), F.length(F.col("name")) > 0],
+            >>> #     "category": [F.col("category").isNotNull(), F.length(F.col("category")) > 0]
+            >>> # }
+        """
+        from pyspark.sql import functions as F
+        return {col: [F.col(col).isNotNull(), F.length(F.col(col)) > 0] for col in columns}
+    
+    @staticmethod
+    def timestamp_rules(columns: List[str]) -> ColumnRules:
+        """
+        Create validation rules for timestamp constraints on multiple columns.
+        
+        Args:
+            columns: List of column names to validate as timestamps
+            
+        Returns:
+            Dictionary of validation rules
+            
+        Example:
+            >>> rules = PipelineBuilder.timestamp_rules(["created_at", "updated_at"])
+            >>> # Equivalent to:
+            >>> # {
+            >>> #     "created_at": [F.col("created_at").isNotNull(), F.col("created_at").isNotNull()],
+            >>> #     "updated_at": [F.col("updated_at").isNotNull(), F.col("updated_at").isNotNull()]
+            >>> # }
+        """
+        from pyspark.sql import functions as F
+        return {col: [F.col(col).isNotNull(), F.col(col).isNotNull()] for col in columns}
+    
+    @staticmethod
+    def detect_timestamp_columns(df_schema) -> List[str]:
+        """
+        Detect timestamp columns from a DataFrame schema.
+        
+        Args:
+            df_schema: DataFrame schema or list of column names with types
+            
+        Returns:
+            List of column names that appear to be timestamps
+            
+        Example:
+            >>> timestamp_cols = PipelineBuilder.detect_timestamp_columns(df.schema)
+            >>> # Returns columns like ["timestamp", "created_at", "updated_at"]
+        """
+        timestamp_keywords = [
+            'timestamp', 'created_at', 'updated_at', 'event_time', 'process_time',
+            'ingestion_time', 'load_time', 'modified_at', 'date_time', 'ts'
+        ]
+        
+        if hasattr(df_schema, 'fields'):
+            # DataFrame schema
+            columns = [field.name.lower() for field in df_schema.fields]
+        else:
+            # List of column names
+            columns = [col.lower() for col in df_schema]
+        
+        # Find columns that match timestamp patterns
+        timestamp_cols = []
+        for col in columns:
+            if any(keyword in col for keyword in timestamp_keywords):
+                timestamp_cols.append(col)
+        
+        return timestamp_cols
     
     def to_pipeline(self) -> PipelineRunner:
         """

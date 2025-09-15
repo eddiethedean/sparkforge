@@ -11,6 +11,7 @@ import sys
 import os
 import shutil
 import logging
+import time
 from typing import Dict, Any
 from pyspark.sql import SparkSession
 
@@ -29,24 +30,26 @@ def get_test_schema():
 @pytest.fixture(scope="session")
 def spark_session():
     """
-    Create a Spark session with Delta Lake support for testing.
+    Create a shared Spark session with Delta Lake support for testing.
     
     This fixture creates a shared Spark session for all tests in the session,
     with Delta Lake support and optimized configuration for testing.
+    This is more efficient for most tests that don't need isolation.
     """
     # Clean up any existing test data
-    warehouse_dir = "/tmp/spark-warehouse"
+    warehouse_dir = f"/tmp/spark-warehouse-{os.getpid()}"
     if os.path.exists(warehouse_dir):
         shutil.rmtree(warehouse_dir, ignore_errors=True)
     
     # Configure Spark with Delta Lake support
+    spark = None
     try:
         from delta import configure_spark_with_delta_pip
         print("🔧 Configuring Spark with Delta Lake support for all tests")
         
         builder = SparkSession.builder \
-            .appName("SparkForgeTests") \
-            .master("local[*]") \
+            .appName(f"SparkForgeTests-{os.getpid()}") \
+            .master("local[1]") \
             .config("spark.sql.warehouse.dir", warehouse_dir) \
             .config("spark.sql.adaptive.enabled", "true") \
             .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
@@ -55,7 +58,9 @@ def spark_session():
             .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
             .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
             .config("spark.sql.adaptive.skewJoin.enabled", "true") \
-            .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+            .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
+            .config("spark.driver.memory", "1g") \
+            .config("spark.executor.memory", "1g")
         
         # Configure Delta Lake with explicit version
         spark = configure_spark_with_delta_pip(builder).getOrCreate()
@@ -64,17 +69,23 @@ def spark_session():
         print(f"⚠️ Delta Lake configuration failed: {e}")
         # Fall back to basic Spark if Delta Lake is not available
         print("🔧 Falling back to basic Spark configuration")
-        builder = SparkSession.builder \
-            .appName("SparkForgeTests") \
-            .master("local[*]") \
-            .config("spark.sql.warehouse.dir", warehouse_dir) \
-            .config("spark.sql.adaptive.enabled", "true") \
-            .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
-            .config("spark.driver.host", "127.0.0.1") \
-            .config("spark.driver.bindAddress", "127.0.0.1") \
-            .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-        
-        spark = builder.getOrCreate()
+        try:
+            builder = SparkSession.builder \
+                .appName(f"SparkForgeTests-{os.getpid()}") \
+                .master("local[1]") \
+                .config("spark.sql.warehouse.dir", warehouse_dir) \
+                .config("spark.sql.adaptive.enabled", "true") \
+                .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
+                .config("spark.driver.host", "127.0.0.1") \
+                .config("spark.driver.bindAddress", "127.0.0.1") \
+                .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
+                .config("spark.driver.memory", "1g") \
+                .config("spark.executor.memory", "1g")
+            
+            spark = builder.getOrCreate()
+        except Exception as e2:
+            print(f"❌ Failed to create Spark session: {e2}")
+            raise
     
     # Set log level to WARN to reduce noise
     spark.sparkContext.setLogLevel("WARN")
@@ -90,19 +101,116 @@ def spark_session():
     
     # Cleanup
     try:
-        if hasattr(spark, 'sparkContext') and spark.sparkContext._jsc is not None:
+        if spark and hasattr(spark, 'sparkContext') and spark.sparkContext._jsc is not None:
             spark.sql("DROP DATABASE IF EXISTS test_schema CASCADE")
     except Exception as e:
         print(f"Warning: Could not drop test_schema database: {e}")
     
     try:
-        spark.stop()
+        if spark:
+            spark.stop()
     except Exception as e:
         print(f"Warning: Could not stop Spark session: {e}")
     
     # Clean up warehouse directory
+    try:
+        if os.path.exists(warehouse_dir):
+            shutil.rmtree(warehouse_dir, ignore_errors=True)
+    except Exception as e:
+        print(f"Warning: Could not clean up warehouse directory: {e}")
+
+@pytest.fixture(scope="function")
+def isolated_spark_session():
+    """
+    Create an isolated Spark session for tests that need complete isolation.
+    
+    This fixture creates a new Spark session for each test function,
+    with Delta Lake support and optimized configuration for testing.
+    Use this for tests that modify global state or need complete isolation.
+    """
+    # Clean up any existing test data
+    unique_id = int(time.time() * 1000000) % 1000000  # Microsecond timestamp
+    warehouse_dir = f"/tmp/spark-warehouse-isolated-{os.getpid()}-{unique_id}"
     if os.path.exists(warehouse_dir):
         shutil.rmtree(warehouse_dir, ignore_errors=True)
+    
+    # Configure Spark with Delta Lake support
+    spark = None
+    try:
+        from delta import configure_spark_with_delta_pip
+        print("🔧 Configuring isolated Spark with Delta Lake support")
+        
+        builder = SparkSession.builder \
+            .appName(f"SparkForgeIsolatedTests-{os.getpid()}-{unique_id}") \
+            .master("local[1]") \
+            .config("spark.sql.warehouse.dir", warehouse_dir) \
+            .config("spark.sql.adaptive.enabled", "true") \
+            .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
+            .config("spark.driver.host", "127.0.0.1") \
+            .config("spark.driver.bindAddress", "127.0.0.1") \
+            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+            .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+            .config("spark.sql.adaptive.skewJoin.enabled", "true") \
+            .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
+            .config("spark.driver.memory", "512m") \
+            .config("spark.executor.memory", "512m")
+        
+        # Configure Delta Lake with explicit version
+        spark = configure_spark_with_delta_pip(builder).getOrCreate()
+        
+    except Exception as e:
+        print(f"⚠️ Delta Lake configuration failed: {e}")
+        # Fall back to basic Spark if Delta Lake is not available
+        print("🔧 Falling back to basic Spark configuration")
+        try:
+            builder = SparkSession.builder \
+                .appName(f"SparkForgeIsolatedTests-{os.getpid()}-{unique_id}") \
+                .master("local[1]") \
+                .config("spark.sql.warehouse.dir", warehouse_dir) \
+                .config("spark.sql.adaptive.enabled", "true") \
+                .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
+                .config("spark.driver.host", "127.0.0.1") \
+                .config("spark.driver.bindAddress", "127.0.0.1") \
+                .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
+                .config("spark.driver.memory", "512m") \
+                .config("spark.executor.memory", "512m")
+            
+            spark = builder.getOrCreate()
+        except Exception as e2:
+            print(f"❌ Failed to create isolated Spark session: {e2}")
+            raise
+    
+    # Set log level to WARN to reduce noise
+    spark.sparkContext.setLogLevel("WARN")
+    
+    # Create test database
+    try:
+        spark.sql("CREATE DATABASE IF NOT EXISTS test_schema")
+        print("✅ Isolated test database created successfully")
+    except Exception as e:
+        print(f"❌ Could not create isolated test_schema database: {e}")
+    
+    yield spark
+    
+    # Cleanup
+    try:
+        if spark and hasattr(spark, 'sparkContext') and spark.sparkContext._jsc is not None:
+            spark.sql("DROP DATABASE IF EXISTS test_schema CASCADE")
+    except Exception as e:
+        print(f"Warning: Could not drop isolated test_schema database: {e}")
+    
+    try:
+        if spark:
+            spark.stop()
+    except Exception as e:
+        print(f"Warning: Could not stop isolated Spark session: {e}")
+    
+    # Clean up warehouse directory
+    try:
+        if os.path.exists(warehouse_dir):
+            shutil.rmtree(warehouse_dir, ignore_errors=True)
+    except Exception as e:
+        print(f"Warning: Could not clean up isolated warehouse directory: {e}")
 
 @pytest.fixture(autouse=True, scope="function")
 def cleanup_test_tables(spark_session):

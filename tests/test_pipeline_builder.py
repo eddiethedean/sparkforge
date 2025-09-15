@@ -18,6 +18,7 @@ from sparkforge.pipeline import (
 )
 from sparkforge.models import BronzeStep, SilverStep, GoldStep, ExecutionContext
 from sparkforge.logger import PipelineLogger
+from sparkforge.errors import StepError
 
 
 class TestPipelineMode(unittest.TestCase):
@@ -372,19 +373,18 @@ class TestPipelineBuilder(unittest.TestCase):
     
     def test_validate_pipeline_errors(self):
         """Test pipeline validation with errors."""
-        # Add invalid silver step (missing source bronze)
-        self.builder.add_silver_transform(
-            name="silver1",
-            source_bronze="nonexistent_bronze",
-            transform=lambda spark, df: df,
-            rules={"id": ["not_null"]},
-            table_name="silver_table",
-            watermark_col="updated_at"
-        )
+        # Add invalid silver step (missing source bronze) - this should now raise an error immediately
+        with self.assertRaises(StepError) as context:
+            self.builder.add_silver_transform(
+                name="silver1",
+                source_bronze="nonexistent_bronze",
+                transform=lambda spark, df: df,
+                rules={"id": ["not_null"]},
+                table_name="silver_table",
+                watermark_col="updated_at"
+            )
         
-        errors = self.builder.validate_pipeline()
-        self.assertGreater(len(errors), 0)
-        self.assertTrue(any("source bronze 'nonexistent_bronze' not found" in error for error in errors))
+        self.assertIn("Bronze step 'nonexistent_bronze' not found", str(context.exception))
     
     def test_to_pipeline_success(self):
         """Test successful pipeline creation."""
@@ -402,20 +402,18 @@ class TestPipelineBuilder(unittest.TestCase):
     
     def test_to_pipeline_validation_error(self):
         """Test pipeline creation with validation errors."""
-        # Add invalid step
-        self.builder.add_silver_transform(
-            name="silver1",
-            source_bronze="nonexistent_bronze",
-            transform=lambda spark, df: df,
-            rules={"id": ["not_null"]},
-            table_name="silver_table",
-            watermark_col="updated_at"
-        )
+        # Add invalid step - this should now raise an error immediately
+        with self.assertRaises(StepError) as context:
+            self.builder.add_silver_transform(
+                name="silver1",
+                source_bronze="nonexistent_bronze",
+                transform=lambda spark, df: df,
+                rules={"id": ["not_null"]},
+                table_name="silver_table",
+                watermark_col="updated_at"
+            )
         
-        with self.assertRaises(ValueError) as context:
-            self.builder.to_pipeline()
-        
-        self.assertIn("Pipeline validation failed", str(context.exception))
+        self.assertIn("Bronze step 'nonexistent_bronze' not found", str(context.exception))
 
 
 class TestPipelineRunner(unittest.TestCase):
