@@ -7,19 +7,20 @@ A comprehensive guide to building robust data pipelines with SparkForge's Bronze
 1. [Quick Start](#quick-start)
 2. [Core Concepts](#core-concepts)
 3. [Pipeline Building](#pipeline-building)
-4. [Execution Modes](#execution-modes)
-5. [Data Validation](#data-validation)
-6. [Delta Lake Integration](#delta-lake-integration)
-7. [Parallel Execution](#parallel-execution)
-8. [Step-by-Step Debugging](#step-by-step-debugging)
-9. [Monitoring & Logging](#monitoring--logging)
-10. [Enterprise Security](#enterprise-security)
-11. [Performance Optimization](#performance-optimization)
-12. [Advanced Parallel Execution](#advanced-parallel-execution)
-13. [Advanced Features](#advanced-features)
-14. [Best Practices](#best-practices)
-15. [Troubleshooting](#troubleshooting)
-16. [Examples](#examples)
+4. [Multi-Schema Support](#multi-schema-support)
+5. [Execution Modes](#execution-modes)
+6. [Data Validation](#data-validation)
+7. [Delta Lake Integration](#delta-lake-integration)
+8. [Parallel Execution](#parallel-execution)
+9. [Step-by-Step Debugging](#step-by-step-debugging)
+10. [Monitoring & Logging](#monitoring--logging)
+11. [Enterprise Security](#enterprise-security)
+12. [Performance Optimization](#performance-optimization)
+13. [Advanced Parallel Execution](#advanced-parallel-execution)
+14. [Advanced Features](#advanced-features)
+15. [Best Practices](#best-practices)
+16. [Troubleshooting](#troubleshooting)
+17. [Examples](#examples)
 
 ## Quick Start
 
@@ -174,6 +175,253 @@ builder.add_gold_transform(
     table_name="daily_analytics",
     source_silvers=["enriched_events"]
 )
+```
+
+## Multi-Schema Support
+
+SparkForge supports cross-schema data flows, enabling sophisticated data architectures for multi-tenant applications, environment separation, and data lake implementations.
+
+### Overview
+
+Multi-schema support allows you to:
+- **Read from different schemas** for bronze and silver data sources
+- **Write to different schemas** for silver and gold data outputs
+- **Create cross-schema data flows** for complex architectures
+- **Isolate data by tenant, environment, or purpose**
+
+### Basic Multi-Schema Usage
+
+All pipeline methods support an optional `schema` parameter:
+
+```python
+from sparkforge import PipelineBuilder
+
+builder = PipelineBuilder(spark=spark, schema="default")
+
+# Bronze: Read from raw_data schema
+builder.with_bronze_rules(
+    name="events",
+    rules={"user_id": [F.col("user_id").isNotNull()]},
+    schema="raw_data"  # Read from different schema
+)
+
+# Silver: Write to processing schema
+builder.add_silver_transform(
+    name="clean_events",
+    transform=clean_events,
+    rules={"user_id": [F.col("user_id").isNotNull()]},
+    table_name="clean_events",
+    schema="processing"  # Write to different schema
+)
+
+# Gold: Write to analytics schema
+builder.add_gold_transform(
+    name="daily_metrics",
+    transform=daily_metrics,
+    rules={"user_id": [F.col("user_id").isNotNull()]},
+    table_name="daily_metrics",
+    schema="analytics"  # Write to different schema
+)
+```
+
+### Schema Parameters
+
+#### `with_bronze_rules(schema=None)`
+- **Purpose**: Specify which schema to read bronze data from
+- **Default**: Uses builder's default schema if not specified
+- **Example**: `schema="raw_data"` reads from `raw_data` schema
+
+#### `with_silver_rules(schema=None)`
+- **Purpose**: Specify which schema to read existing silver data from
+- **Default**: Uses builder's default schema if not specified
+- **Example**: `schema="staging"` reads from `staging` schema
+
+#### `add_silver_transform(schema=None)`
+- **Purpose**: Specify which schema to write silver data to
+- **Default**: Uses builder's default schema if not specified
+- **Example**: `schema="processing"` writes to `processing` schema
+
+#### `add_gold_transform(schema=None)`
+- **Purpose**: Specify which schema to write gold data to
+- **Default**: Uses builder's default schema if not specified
+- **Example**: `schema="analytics"` writes to `analytics` schema
+
+### Schema Validation
+
+SparkForge automatically validates schemas when provided:
+
+```python
+# This will validate that 'raw_data' schema exists
+builder.with_bronze_rules(
+    name="events",
+    rules={"user_id": [F.col("user_id").isNotNull()]},
+    schema="raw_data"  # Validates schema exists
+)
+```
+
+**Error Handling:**
+- If schema doesn't exist: `StepError` with helpful suggestions
+- If schema access denied: `StepError` with permission guidance
+- If schema name invalid: `StepError` with naming suggestions
+
+### Use Cases
+
+#### Multi-Tenant SaaS Applications
+
+Each tenant gets their own isolated schema:
+
+```python
+def create_tenant_pipeline(tenant_id: str):
+    builder = PipelineBuilder(spark=spark, schema="default")
+    
+    # Tenant-specific schemas
+    raw_schema = f"{tenant_id}_raw"
+    processing_schema = f"{tenant_id}_processing"
+    analytics_schema = f"{tenant_id}_analytics"
+    
+    # Bronze: Read from tenant's raw data
+    builder.with_bronze_rules(
+        name="events",
+        rules={"user_id": [F.col("user_id").isNotNull()]},
+        schema=raw_schema
+    )
+    
+    # Silver: Process in tenant's processing schema
+    builder.add_silver_transform(
+        name="clean_events",
+        transform=clean_events,
+        rules={"user_id": [F.col("user_id").isNotNull()]},
+        table_name="clean_events",
+        schema=processing_schema
+    )
+    
+    # Gold: Analytics in tenant's analytics schema
+    builder.add_gold_transform(
+        name="daily_metrics",
+        transform=daily_metrics,
+        rules={"user_id": [F.col("user_id").isNotNull()]},
+        table_name="daily_metrics",
+        schema=analytics_schema
+    )
+    
+    return builder.to_pipeline()
+```
+
+#### Data Lake Architecture
+
+Organize data into logical layers:
+
+```python
+# Bronze (raw) → Silver (processing) → Gold (analytics)
+builder = PipelineBuilder(spark=spark, schema="default")
+
+# Raw data ingestion
+builder.with_bronze_rules(
+    name="raw_events",
+    rules={"user_id": [F.col("user_id").isNotNull()]},
+    schema="raw_data"  # Raw data layer
+)
+
+# Data processing and cleaning
+builder.add_silver_transform(
+    name="clean_events",
+    transform=clean_events,
+    rules={"user_id": [F.col("user_id").isNotNull()]},
+    table_name="clean_events",
+    schema="processing"  # Processing layer
+)
+
+# Business analytics
+builder.add_gold_transform(
+    name="daily_metrics",
+    transform=daily_metrics,
+    rules={"user_id": [F.col("user_id").isNotNull()]},
+    table_name="daily_metrics",
+    schema="analytics"  # Analytics layer
+)
+```
+
+#### Environment Separation
+
+Separate dev, staging, and production data:
+
+```python
+def create_environment_pipeline(environment: str):
+    builder = PipelineBuilder(spark=spark, schema="default")
+    
+    # Environment-specific schemas
+    raw_schema = f"{environment}_raw"
+    processing_schema = f"{environment}_processing"
+    analytics_schema = f"{environment}_analytics"
+    
+    # All steps use environment-specific schemas
+    builder.with_bronze_rules(
+        name="events",
+        rules={"user_id": [F.col("user_id").isNotNull()]},
+        schema=raw_schema
+    )
+    
+    builder.add_silver_transform(
+        name="clean_events",
+        transform=clean_events,
+        rules={"user_id": [F.col("user_id").isNotNull()]},
+        table_name="clean_events",
+        schema=processing_schema
+    )
+    
+    builder.add_gold_transform(
+        name="daily_metrics",
+        transform=daily_metrics,
+        rules={"user_id": [F.col("user_id").isNotNull()]},
+        table_name="daily_metrics",
+        schema=analytics_schema
+    )
+    
+    return builder.to_pipeline()
+```
+
+### Schema Management
+
+#### Creating Schemas
+
+```python
+# Create schemas before using them
+spark.sql("CREATE SCHEMA IF NOT EXISTS raw_data")
+spark.sql("CREATE SCHEMA IF NOT EXISTS processing")
+spark.sql("CREATE SCHEMA IF NOT EXISTS analytics")
+```
+
+#### Schema Validation
+
+```python
+# Check if schema exists
+try:
+    spark.sql("DESCRIBE SCHEMA my_schema")
+    print("Schema exists")
+except:
+    print("Schema does not exist")
+```
+
+### Best Practices
+
+1. **Consistent Naming**: Use consistent schema naming conventions
+2. **Environment Prefixes**: Use prefixes like `dev_`, `staging_`, `prod_`
+3. **Tenant Isolation**: Use tenant-specific schemas for multi-tenant apps
+4. **Data Lake Layers**: Use `raw_`, `processing_`, `analytics_` prefixes
+5. **Schema Validation**: Always validate schemas exist before pipeline execution
+6. **Error Handling**: Handle schema validation errors gracefully
+
+### Backward Compatibility
+
+All existing code continues to work without changes:
+
+```python
+# This still works exactly as before
+builder.with_bronze_rules(
+    name="events",
+    rules={"user_id": [F.col("user_id").isNotNull()]}
+)
+# Uses builder's default schema automatically
 ```
 
 ## Execution Modes

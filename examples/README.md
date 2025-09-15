@@ -340,6 +340,32 @@ Demonstrates all the new user experience improvements in SparkForge.
 python examples/improved_user_experience.py
 ```
 
+### 13. Multi-Schema Pipeline (`multi_schema_pipeline.py`) ⭐ **NEW!**
+
+Demonstrates cross-schema data flows for multi-tenant applications and environment separation.
+
+**Features:**
+- Cross-schema data flows (Bronze → Silver → Gold across different schemas)
+- Schema validation and error handling
+- Multi-tenant data isolation
+- Environment separation (raw_data, processing, analytics schemas)
+- Schema creation and validation
+- Complete cross-schema pipeline example
+
+**Key Concepts:**
+- Multi-schema support
+- Cross-schema data flows
+- Schema validation
+- Multi-tenant applications
+- Environment separation
+- Data isolation
+- Compliance requirements
+
+**Run:**
+```bash
+python examples/multi_schema_pipeline.py
+```
+
 ## Troubleshooting
 
 ### Common Issues

@@ -86,6 +86,53 @@ print(f"Rows written: {result.totals['total_rows_written']}")
 3. **Gold Layer**: We created a daily summary by action type
 4. **Execution**: We ran the pipeline and got results
 
+## Multi-Schema Pipelines (New!)
+
+SparkForge now supports cross-schema data flows for sophisticated architectures:
+
+```python
+from sparkforge import PipelineBuilder
+
+# Create schemas
+spark.sql("CREATE SCHEMA IF NOT EXISTS raw_data")
+spark.sql("CREATE SCHEMA IF NOT EXISTS processing")
+spark.sql("CREATE SCHEMA IF NOT EXISTS analytics")
+
+# Cross-schema pipeline
+builder = PipelineBuilder(spark=spark, schema="default")
+
+# Bronze: Read from raw_data schema
+builder.with_bronze_rules(
+    name="events",
+    rules={"user_id": [F.col("user_id").isNotNull()]},
+    schema="raw_data"  # Read from different schema
+)
+
+# Silver: Write to processing schema
+builder.add_silver_transform(
+    name="clean_events",
+    transform=clean_events,
+    rules={"user_id": [F.col("user_id").isNotNull()]},
+    table_name="clean_events",
+    schema="processing"  # Write to different schema
+)
+
+# Gold: Write to analytics schema
+builder.add_gold_transform(
+    name="daily_metrics",
+    transform=daily_metrics,
+    rules={"user_id": [F.col("user_id").isNotNull()]},
+    table_name="daily_metrics",
+    schema="analytics"  # Write to different schema
+)
+```
+
+### Use Cases
+- **Multi-Tenant SaaS**: Each tenant gets their own schema
+- **Environment Separation**: Dev/staging/prod schema isolation
+- **Data Lake Architecture**: Raw → Processing → Analytics schemas
+- **Compliance**: Meet data residency requirements
+
 ## Next Steps
 
 ### Debug Individual Steps

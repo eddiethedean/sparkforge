@@ -82,6 +82,51 @@ pipeline = builder.to_pipeline()
 result = pipeline.initial_load(bronze_sources={"events": source_df})
 ```
 
+## Multi-Schema Pipeline (New!)
+
+```python
+from sparkforge import PipelineBuilder
+
+# Cross-schema data flows for multi-tenant applications
+builder = PipelineBuilder(spark=spark, schema="default")
+
+# Bronze: Read from raw_data schema
+builder.with_bronze_rules(
+    name="events",
+    rules=PipelineBuilder.not_null_rules(["user_id"]),
+    schema="raw_data"  # Read from different schema
+)
+
+# Silver: Write to processing schema
+builder.add_silver_transform(
+    name="clean_events",
+    transform=clean_events,
+    rules=PipelineBuilder.not_null_rules(["user_id"]),
+    table_name="clean_events",
+    schema="processing"  # Write to different schema
+)
+
+# Gold: Write to analytics schema
+builder.add_gold_transform(
+    name="daily_metrics",
+    transform=daily_metrics,
+    rules=PipelineBuilder.not_null_rules(["user_id"]),
+    table_name="daily_metrics",
+    schema="analytics"  # Write to different schema
+)
+
+# Execute
+pipeline = builder.to_pipeline()
+result = pipeline.initial_load(bronze_sources={"events": source_df})
+```
+
+### Multi-Schema Use Cases
+- **Multi-Tenant SaaS**: Each tenant gets their own schema
+- **Environment Separation**: Dev/staging/prod schema isolation
+- **Data Lake Architecture**: Raw → Processing → Analytics schemas
+- **Compliance**: Meet data residency requirements
+- **Microservices**: Service-specific schema boundaries
+
 ## New User Experience Features
 
 ### Preset Configurations

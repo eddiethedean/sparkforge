@@ -352,6 +352,7 @@ class BronzeStep(BaseModel):
     name: str
     rules: ColumnRules
     incremental_col: Optional[str] = None
+    schema: Optional[str] = None
     
     def validate(self) -> None:
         """Validate bronze step configuration."""
@@ -417,6 +418,7 @@ class SilverStep(BaseModel):
     table_name: str
     watermark_col: Optional[str] = None
     existing: bool = False
+    schema: Optional[str] = None
     
     def validate(self) -> None:
         """Validate silver step configuration."""
@@ -484,6 +486,7 @@ class GoldStep(BaseModel):
     rules: ColumnRules
     table_name: str
     source_silvers: Optional[List[str]] = None
+    schema: Optional[str] = None
     
     def validate(self) -> None:
         """Validate gold step configuration."""

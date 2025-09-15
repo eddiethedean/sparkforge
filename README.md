@@ -122,6 +122,39 @@ builder.add_gold_transform(
 )
 ```
 
+### 🏢 **Multi-Schema Support (New!)**
+```python
+from sparkforge import PipelineBuilder
+
+# Cross-schema data flows for multi-tenant applications
+builder = PipelineBuilder(spark=spark, schema="default")
+
+# Bronze: Read from raw_data schema
+builder.with_bronze_rules(
+    name="events",
+    rules=PipelineBuilder.not_null_rules(["user_id"]),
+    schema="raw_data"  # Read from different schema
+)
+
+# Silver: Write to processing schema
+builder.add_silver_transform(
+    name="clean_events",
+    transform=clean_events,
+    rules=PipelineBuilder.not_null_rules(["user_id"]),
+    table_name="clean_events",
+    schema="processing"  # Write to different schema
+)
+
+# Gold: Write to analytics schema
+builder.add_gold_transform(
+    name="daily_metrics",
+    transform=daily_metrics,
+    rules=PipelineBuilder.not_null_rules(["user_id"]),
+    table_name="daily_metrics",
+    schema="analytics"  # Write to different schema
+)
+```
+
 ## 🎯 What Makes SparkForge Special?
 
 - **🏗️ Medallion Architecture**: Bronze → Silver → Gold data layering with automatic dependency management
@@ -130,10 +163,28 @@ builder.add_gold_transform(
 - **🛠️ Preset Configurations**: One-line setup for development, production, and testing environments
 - **🔧 Validation Helpers**: Built-in methods for common validation patterns (not_null, positive_numbers, etc.)
 - **📊 Smart Detection**: Automatic timestamp column detection for watermarking
+- **🏢 Multi-Schema Support**: Cross-schema data flows for multi-tenant, environment separation, and compliance
 - **🔍 Step-by-Step Debugging**: Execute individual pipeline steps independently for troubleshooting
 - **✅ Enhanced Data Validation**: Configurable validation thresholds with automatic security validation and performance caching
 - **🔄 Incremental Processing**: Watermarking and incremental updates with Delta Lake
 - **💧 Delta Lake Integration**: Full support for ACID transactions, time travel, and schema evolution
+
+## 🚀 New in v0.4.3 - Multi-Schema Support
+
+### 🏢 **Cross-Schema Data Flows**
+- **Multi-Tenant Support**: Each tenant can have separate schemas for data isolation
+- **Environment Separation**: Dev/staging/prod schema separation for clean deployments
+- **Data Lake Architecture**: Raw data, processing, and analytics schema separation
+- **Compliance Ready**: Meet data residency and isolation requirements
+- **Schema Validation**: Automatic validation with helpful error messages
+- **Backward Compatible**: All existing code works without changes
+
+### 🎯 **Use Cases**
+- **SaaS Applications**: Multi-tenant data isolation
+- **Data Lake Pipelines**: Bronze (raw) → Silver (processing) → Gold (analytics) across schemas
+- **Environment Management**: Separate dev, staging, and production data
+- **Compliance**: GDPR, HIPAA, and other regulatory requirements
+- **Microservices**: Service-specific schema boundaries
 
 ## 🚀 New in v0.4.0 - Enterprise Features
 
@@ -204,6 +255,84 @@ print(f"SparkForge version: {sparkforge.__version__}")
 from sparkforge import PipelineBuilder
 print("✅ SparkForge installed successfully!")
 ```
+
+## 🏢 Multi-Schema Pipeline Example
+
+Here's a complete example showing how to build cross-schema data pipelines:
+
+```python
+from sparkforge import PipelineBuilder
+from pyspark.sql import functions as F
+
+# Initialize Spark
+spark = SparkSession.builder.appName("MultiSchemaPipeline").getOrCreate()
+
+# Create schemas
+spark.sql("CREATE SCHEMA IF NOT EXISTS raw_data")
+spark.sql("CREATE SCHEMA IF NOT EXISTS processing") 
+spark.sql("CREATE SCHEMA IF NOT EXISTS analytics")
+
+# Build cross-schema pipeline
+builder = PipelineBuilder(spark=spark, schema="default")
+
+# Bronze: Read from raw_data schema
+builder.with_bronze_rules(
+    name="user_events",
+    rules=PipelineBuilder.not_null_rules(["user_id", "timestamp"]),
+    incremental_col="timestamp",
+    schema="raw_data"  # Read from different schema
+)
+
+# Silver: Write to processing schema
+def clean_events(spark, bronze_df, prior_silvers):
+    return (bronze_df
+        .filter(F.col("user_id").isNotNull())
+        .withColumn("event_date", F.date_trunc("day", "timestamp"))
+        .withColumn("is_weekend", F.dayofweek("timestamp").isin([1, 7]))
+    )
+
+builder.add_silver_transform(
+    name="clean_events",
+    transform=clean_events,
+    rules=PipelineBuilder.not_null_rules(["user_id", "event_date"]),
+    table_name="clean_events",
+    watermark_col="timestamp",
+    schema="processing"  # Write to different schema
+)
+
+# Gold: Write to analytics schema
+def daily_metrics(spark, silvers):
+    events_df = silvers["clean_events"]
+    return (events_df
+        .groupBy("user_id", "event_date")
+        .agg(
+            F.count("*").alias("total_events"),
+            F.sum("is_weekend").alias("weekend_events")
+        )
+    )
+
+builder.add_gold_transform(
+    name="daily_metrics",
+    transform=daily_metrics,
+    rules=PipelineBuilder.not_null_rules(["user_id", "event_date"]),
+    table_name="daily_metrics",
+    schema="analytics"  # Write to different schema
+)
+
+# Execute pipeline
+pipeline = builder.to_pipeline()
+result = pipeline.initial_load(bronze_sources={"user_events": source_df})
+
+print("✅ Cross-schema pipeline completed!")
+print(f"📊 Data flows: raw_data → processing → analytics")
+```
+
+### 🎯 **Key Benefits:**
+- **Multi-Tenant Isolation**: Each tenant gets their own schema
+- **Environment Separation**: Clean dev/staging/prod boundaries
+- **Data Lake Architecture**: Organized data layers
+- **Compliance Ready**: Meet regulatory requirements
+- **Automatic Validation**: Schema validation with helpful errors
 
 ## 📚 Documentation
 

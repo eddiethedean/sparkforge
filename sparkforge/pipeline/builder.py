@@ -173,7 +173,8 @@ class PipelineBuilder:
         name: StepName,
         rules: ColumnRules,
         incremental_col: Optional[str] = None,
-        description: Optional[str] = None
+        description: Optional[str] = None,
+        schema: Optional[str] = None
     ) -> 'PipelineBuilder':
         """
         Add Bronze layer validation rules for raw data.
@@ -188,6 +189,7 @@ class PipelineBuilder:
             incremental_col: Column name for incremental processing (e.g., "timestamp", "updated_at").
                             If provided, enables incremental processing with append mode.
             description: Optional description of this Bronze step
+            schema: Optional schema name for reading bronze data. If not provided, uses the builder's default schema.
             
         Returns:
             Self for method chaining
@@ -196,7 +198,8 @@ class PipelineBuilder:
             >>> builder.with_bronze_rules(
             ...     name="user_events",
             ...     rules={"user_id": [F.col("user_id").isNotNull()]},
-            ...     incremental_col="timestamp"
+            ...     incremental_col="timestamp",
+            ...     schema="raw_data"  # Read from different schema
             ... )
         """
         if not name:
@@ -215,11 +218,16 @@ class PipelineBuilder:
                 suggestions=["Use a different step name", "Remove the existing step first"]
             )
         
+        # Validate schema if provided
+        if schema is not None:
+            self._validate_schema(schema)
+        
         # Create bronze step
         bronze_step = BronzeStep(
             name=name,
             rules=rules,
-            incremental_col=incremental_col
+            incremental_col=incremental_col,
+            schema=schema
         )
         
         self.bronze_steps[name] = bronze_step
@@ -234,7 +242,8 @@ class PipelineBuilder:
         table_name: TableName,
         rules: ColumnRules,
         watermark_col: Optional[str] = None,
-        description: Optional[str] = None
+        description: Optional[str] = None,
+        schema: Optional[str] = None
     ) -> 'PipelineBuilder':
         """
         Add existing Silver layer table for validation and monitoring.
@@ -249,6 +258,7 @@ class PipelineBuilder:
             rules: Dictionary mapping column names to validation rule lists
             watermark_col: Column name for watermarking (optional)
             description: Optional description of this Silver step
+            schema: Optional schema name for reading silver data. If not provided, uses the builder's default schema.
             
         Returns:
             Self for method chaining
@@ -258,7 +268,8 @@ class PipelineBuilder:
             ...     name="existing_clean_events",
             ...     table_name="clean_events",
             ...     rules={"user_id": [F.col("user_id").isNotNull()]},
-            ...     watermark_col="updated_at"
+            ...     watermark_col="updated_at",
+            ...     schema="staging"  # Read from different schema
             ... )
         """
         if not name:
@@ -277,6 +288,10 @@ class PipelineBuilder:
                 suggestions=["Use a different step name", "Remove the existing step first"]
             )
         
+        # Validate schema if provided
+        if schema is not None:
+            self._validate_schema(schema)
+        
         # Create SilverStep for existing table
         silver_step = SilverStep(
             name=name,
@@ -285,7 +300,8 @@ class PipelineBuilder:
             rules=rules,
             table_name=table_name,
             watermark_col=watermark_col,
-            existing=True
+            existing=True,
+            schema=schema
         )
         
         self.silver_steps[name] = silver_step
@@ -328,7 +344,8 @@ class PipelineBuilder:
         table_name: TableName,
         watermark_col: Optional[str] = None,
         description: Optional[str] = None,
-        depends_on: Optional[List[StepName]] = None
+        depends_on: Optional[List[StepName]] = None,
+        schema: Optional[str] = None
     ) -> 'PipelineBuilder':
         """
         Add Silver layer transformation step for data cleaning and enrichment.
@@ -350,6 +367,7 @@ class PipelineBuilder:
                           If provided, enables incremental processing with append mode.
             description: Optional description of this Silver step
             depends_on: List of other Silver step names that must complete before this step.
+            schema: Optional schema name for writing silver data. If not provided, uses the builder's default schema.
             
         Returns:
             Self for method chaining
@@ -376,7 +394,8 @@ class PipelineBuilder:
             ...     name="enriched_events",
             ...     transform=enrich_user_events,
             ...     rules={"user_id": [F.col("user_id").isNotNull()]},
-            ...     table_name="enriched_user_events"
+            ...     table_name="enriched_user_events",
+            ...     schema="processing"  # Write to different schema
             ... )
         """
         if not name:
@@ -427,6 +446,10 @@ class PipelineBuilder:
         # Note: Dependency validation is deferred to validate_pipeline()
         # This allows for more flexible pipeline construction
         
+        # Validate schema if provided
+        if schema is not None:
+            self._validate_schema(schema)
+        
         # Create silver step
         silver_step = SilverStep(
             name=name,
@@ -434,7 +457,8 @@ class PipelineBuilder:
             transform=transform,
             rules=rules,
             table_name=table_name,
-            watermark_col=watermark_col
+            watermark_col=watermark_col,
+            schema=schema
         )
         
         self.silver_steps[name] = silver_step
@@ -450,7 +474,8 @@ class PipelineBuilder:
         rules: ColumnRules,
         table_name: TableName,
         source_silvers: Optional[List[StepName]] = None,
-        description: Optional[str] = None
+        description: Optional[str] = None,
+        schema: Optional[str] = None
     ) -> 'PipelineBuilder':
         """
         Add Gold layer transformation step for business analytics and aggregations.
@@ -469,6 +494,7 @@ class PipelineBuilder:
                            If not provided, will automatically use all available Silver steps.
                            If no Silver steps exist, will raise an error.
             description: Optional description of this Gold step
+            schema: Optional schema name for writing gold data. If not provided, uses the builder's default schema.
             
         Returns:
             Self for method chaining
@@ -495,7 +521,8 @@ class PipelineBuilder:
             ...     name="daily_analytics",
             ...     transform=daily_analytics,
             ...     rules={"event_date": [F.col("event_date").isNotNull()]},
-            ...     table_name="daily_analytics"
+            ...     table_name="daily_analytics",
+            ...     schema="analytics"  # Write to different schema
             ... )
         """
         if not name:
@@ -547,13 +574,18 @@ class PipelineBuilder:
         # Note: Dependency validation is deferred to validate_pipeline()
         # This allows for more flexible pipeline construction
         
+        # Validate schema if provided
+        if schema is not None:
+            self._validate_schema(schema)
+        
         # Create gold step
         gold_step = GoldStep(
             name=name,
             transform=transform,
             rules=rules,
             table_name=table_name,
-            source_silvers=source_silvers
+            source_silvers=source_silvers,
+            schema=schema
         )
         
         self.gold_steps[name] = gold_step
@@ -823,6 +855,66 @@ class PipelineBuilder:
                 timestamp_cols.append(col)
         
         return timestamp_cols
+    
+    def _validate_schema(self, schema: str) -> None:
+        """
+        Validate that a schema exists and is accessible.
+        
+        Args:
+            schema: Schema name to validate
+            
+        Raises:
+            StepError: If schema doesn't exist or is not accessible
+        """
+        try:
+            # Check if schema exists
+            self.spark.sql(f"DESCRIBE SCHEMA {schema}")
+            self.logger.debug(f"✅ Schema '{schema}' is accessible")
+        except Exception as e:
+            raise StepError(
+                f"Schema '{schema}' does not exist or is not accessible: {str(e)}",
+                step_name="schema_validation",
+                step_type="validation",
+                suggestions=[
+                    f"Create the schema first: CREATE SCHEMA IF NOT EXISTS {schema}",
+                    "Check schema permissions",
+                    "Verify schema name spelling"
+                ]
+            )
+    
+    def _create_schema_if_not_exists(self, schema: str) -> None:
+        """
+        Create a schema if it doesn't exist.
+        
+        Args:
+            schema: Schema name to create
+        """
+        try:
+            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+            self.logger.info(f"✅ Schema '{schema}' created or already exists")
+        except Exception as e:
+            raise StepError(
+                f"Failed to create schema '{schema}': {str(e)}",
+                step_name="schema_creation",
+                step_type="validation",
+                suggestions=[
+                    "Check schema permissions",
+                    "Verify schema name is valid",
+                    "Check for naming conflicts"
+                ]
+            )
+    
+    def _get_effective_schema(self, step_schema: Optional[str]) -> str:
+        """
+        Get the effective schema for a step, falling back to the builder's default schema.
+        
+        Args:
+            step_schema: Schema specified for the step
+            
+        Returns:
+            The effective schema name
+        """
+        return step_schema if step_schema is not None else self.schema
     
     def to_pipeline(self) -> PipelineRunner:
         """

@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2024-12-19
+
+### Added
+- **Multi-Schema Support**: Cross-schema data flows for multi-tenant applications
+  - `schema` parameter added to `with_bronze_rules()`, `with_silver_rules()`, `add_silver_transform()`, and `add_gold_transform()`
+  - Schema validation with helpful error messages
+  - Optional schema creation functionality
+  - Full backward compatibility (no schema = use default)
+- **Cross-Schema Pipeline Example**: Complete example demonstrating multi-schema data flows
+- **Comprehensive Multi-Schema Tests**: Full test coverage for all schema functionality
+- **Updated Documentation**: README, API Reference, and examples updated with multi-schema features
+
+### Changed
+- Enhanced PipelineBuilder methods to support schema parameters
+- Updated BronzeStep, SilverStep, and GoldStep models to include schema field
+- Improved error messages for schema validation failures
+
+### Fixed
+- Schema validation integration with step creation
+- Error handling for schema access issues
+
 ## [0.4.2] - 2024-12-19
 
 ### Added
