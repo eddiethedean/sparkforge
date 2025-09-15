@@ -322,7 +322,7 @@ class PipelineBuilder:
         self,
         *,
         name: StepName,
-        source_bronze: StepName,
+        source_bronze: Optional[StepName] = None,
         transform: SilverTransformFunction,
         rules: ColumnRules,
         table_name: TableName,
@@ -338,7 +338,9 @@ class PipelineBuilder:
         
         Args:
             name: Unique identifier for this Silver step
-            source_bronze: Name of the Bronze step this Silver step depends on
+            source_bronze: Name of the Bronze step this Silver step depends on.
+                          If not provided, will automatically infer from the most recent
+                          with_bronze_rules() call. If no bronze steps exist, will raise an error.
             transform: Transformation function with signature:
                      (spark: SparkSession, bronze_df: DataFrame, prior_silvers: Dict[str, DataFrame]) -> DataFrame
             rules: Dictionary mapping column names to validation rule lists.
@@ -359,6 +361,7 @@ class PipelineBuilder:
             ...         .withColumn("event_date", F.date_trunc("day", "timestamp"))
             ...     )
             >>> 
+            >>> # Explicit source_bronze
             >>> builder.add_silver_transform(
             ...     name="clean_events",
             ...     source_bronze="user_events",
@@ -366,6 +369,14 @@ class PipelineBuilder:
             ...     rules={"user_id": [F.col("user_id").isNotNull()]},
             ...     table_name="clean_user_events",
             ...     watermark_col="timestamp"
+            ... )
+            >>> 
+            >>> # Auto-infer source_bronze from most recent with_bronze_rules()
+            >>> builder.add_silver_transform(
+            ...     name="enriched_events",
+            ...     transform=enrich_user_events,
+            ...     rules={"user_id": [F.col("user_id").isNotNull()]},
+            ...     table_name="enriched_user_events"
             ... )
         """
         if not name:
@@ -382,6 +393,35 @@ class PipelineBuilder:
                 step_name=name,
                 step_type="silver",
                 suggestions=["Use a different step name", "Remove the existing step first"]
+            )
+        
+        # Auto-infer source_bronze if not provided
+        if source_bronze is None:
+            if not self.bronze_steps:
+                raise StepError(
+                    "No bronze steps available for auto-inference",
+                    step_name=name,
+                    step_type="silver",
+                    suggestions=[
+                        "Add a bronze step first using with_bronze_rules()",
+                        "Explicitly specify source_bronze parameter"
+                    ]
+                )
+            
+            # Use the most recently added bronze step
+            source_bronze = list(self.bronze_steps.keys())[-1]
+            self.logger.info(f"🔍 Auto-inferred source_bronze: {source_bronze}")
+        
+        # Validate that the source_bronze exists
+        if source_bronze not in self.bronze_steps:
+            raise StepError(
+                f"Bronze step '{source_bronze}' not found",
+                step_name=name,
+                step_type="silver",
+                suggestions=[
+                    f"Available bronze steps: {list(self.bronze_steps.keys())}",
+                    "Add the bronze step first using with_bronze_rules()"
+                ]
             )
         
         # Note: Dependency validation is deferred to validate_pipeline()

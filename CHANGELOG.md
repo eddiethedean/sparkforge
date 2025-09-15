@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2024-12-19
+
+### Added
+- **Auto-Inference of Source Bronze**: `add_silver_transform` now automatically infers `source_bronze` from the most recent `with_bronze_rules` call
+- **Simplified API**: Reduced boilerplate code when adding silver transforms
+- **Comprehensive Test Coverage**: Added 7 test cases for auto-inference feature
+- **Example Documentation**: Added working example demonstrating auto-inference
+
+### Changed
+- `add_silver_transform` method signature: `source_bronze` parameter is now optional
+- Enhanced developer experience with intuitive default behavior
+- Improved error messages with helpful suggestions
+
+### Fixed
+- Fixed `SilverTransformFunction` type signature to include `SparkSession` parameter
+- Enhanced backward compatibility - explicit `source_bronze` still works
+
 ## [0.4.0] - 2024-12-19
 
 ### Added

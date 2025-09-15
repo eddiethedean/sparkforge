@@ -106,7 +106,7 @@ class ErrorCategory(Enum):
 # Transform functions
 TransformFunction = Callable[[DataFrame], DataFrame]
 BronzeTransformFunction = Callable[[DataFrame], DataFrame]
-SilverTransformFunction = Callable[[DataFrame, Dict[str, DataFrame]], DataFrame]
+SilverTransformFunction = Callable[[SparkSession, DataFrame, Dict[str, DataFrame]], DataFrame]
 GoldTransformFunction = Callable[[Dict[str, DataFrame]], DataFrame]
 
 # Validation functions

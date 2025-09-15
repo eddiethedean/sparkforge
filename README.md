@@ -92,6 +92,26 @@ result = executor.execute_parallel(tasks)
 print(f"Executed {result['metrics']['successful_tasks']} tasks successfully!")
 ```
 
+### 🎯 **Auto-Inference of Source Bronze (New!)**
+```python
+from sparkforge import PipelineBuilder
+
+# Add bronze step
+builder.with_bronze_rules(
+    name="events",
+    rules={"user_id": [F.col("user_id").isNotNull()]}
+)
+
+# Add silver step WITHOUT source_bronze - automatically inferred!
+builder.add_silver_transform(
+    name="clean_events",
+    # source_bronze is omitted - will auto-infer from "events"
+    transform=clean_events,
+    rules={"user_id": [F.col("user_id").isNotNull()]},
+    table_name="clean_events"
+)
+```
+
 ## 🎯 What Makes SparkForge Special?
 
 - **🏗️ Medallion Architecture**: Bronze → Silver → Gold data layering with automatic dependency management

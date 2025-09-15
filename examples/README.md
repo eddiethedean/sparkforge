@@ -293,6 +293,28 @@ Advanced debugging techniques for complex pipeline issues.
 python examples/step_by_step_debugging.py
 ```
 
+### 11. Auto-Inference of Source Bronze (`auto_infer_source_bronze_simple.py`)
+
+Demonstrates the new auto-inference feature for source_bronze parameter.
+
+**Features:**
+- Automatic inference of source_bronze from most recent with_bronze_rules()
+- Simplified API for adding silver transforms
+- Backward compatibility with explicit source_bronze
+- Error handling for missing bronze steps
+
+**Key Concepts:**
+- Auto-inference
+- API simplification
+- Backward compatibility
+- Error handling
+- Method chaining
+
+**Run:**
+```bash
+python examples/auto_infer_source_bronze_simple.py
+```
+
 ## Troubleshooting
 
 ### Common Issues
