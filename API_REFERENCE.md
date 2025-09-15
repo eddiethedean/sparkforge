@@ -671,6 +671,48 @@ Combine validation rules with AND logic.
 
 **Returns:** `Column`
 
+#### `apply_column_rules(df, rules, stage, step, filter_columns_by_rules=True)`
+
+Apply validation rules to a DataFrame and return valid/invalid DataFrames with statistics.
+
+**Parameters:**
+- `df` (DataFrame): DataFrame to validate
+- `rules` (ColumnRules): Dictionary mapping column names to validation rules
+- `stage` (str): Pipeline stage name ("bronze", "silver", or "gold")
+- `step` (str): Step name within the stage
+- `filter_columns_by_rules` (bool): If True (default), output DataFrames will only contain
+  columns that have validation rules defined. If False, all columns from the input
+  DataFrame will be preserved.
+
+**Returns:**
+- `valid_df` (DataFrame): Records that passed validation
+- `invalid_df` (DataFrame): Records that failed validation
+- `stats` (StageStats): Validation statistics
+
+**Column Filtering Behavior:**
+By default, validation rules filter the output DataFrame to only include columns that have
+validation rules defined. This can be controlled with the `filter_columns_by_rules` parameter:
+
+```python
+# Default behavior: Only keep columns with rules
+valid_df, invalid_df, stats = apply_column_rules(
+    df=input_df,
+    rules={"user_id": [F.col("user_id").isNotNull()]},
+    stage="bronze",
+    step="test",
+    filter_columns_by_rules=True  # DEFAULT
+)
+
+# Preserve all columns
+valid_df, invalid_df, stats = apply_column_rules(
+    df=input_df,
+    rules={"user_id": [F.col("user_id").isNotNull()]},
+    stage="bronze",
+    step="test",
+    filter_columns_by_rules=False
+)
+```
+
 #### `validate_dataframe_schema(df, expected_schema)`
 
 Validate DataFrame schema.

@@ -6,17 +6,26 @@ used throughout SparkForge, improving type safety and readability.
 """
 
 from __future__ import annotations
-from typing import (
-    Any, Callable, Dict, List, Optional, Set, Tuple, Union, 
-    Protocol, TypeVar, Generic, Literal, TypedDict, NamedTuple
-)
+
 from datetime import datetime
 from enum import Enum
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    TypedDict,
+    TypeVar,
+    Union,
+)
 
 # Try to import PySpark types, fallback to Any if not available
 try:
-    from pyspark.sql import DataFrame, SparkSession, Column
-    from pyspark.sql.types import StructType, DataType
+    from pyspark.sql import Column, DataFrame, SparkSession
+    from pyspark.sql.types import DataType, StructType
 except ImportError:
     # Fallback types for when PySpark is not available
     DataFrame = Any
@@ -49,21 +58,27 @@ RetryCount = int
 # Enum Types
 # ============================================================================
 
+
 class StepType(Enum):
     """Types of pipeline steps."""
+
     BRONZE = "bronze"
     SILVER = "silver"
     GOLD = "gold"
 
+
 class PipelineMode(Enum):
     """Pipeline execution modes."""
+
     INITIAL = "initial"
     INCREMENTAL = "incremental"
     FULL_REFRESH = "full_refresh"
     VALIDATION_ONLY = "validation_only"
 
+
 class PipelineStatus(Enum):
     """Pipeline execution status."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -71,8 +86,10 @@ class PipelineStatus(Enum):
     CANCELLED = "cancelled"
     PAUSED = "paused"
 
+
 class StepStatus(Enum):
     """Step execution status."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -80,15 +97,19 @@ class StepStatus(Enum):
     SKIPPED = "skipped"
     CANCELLED = "cancelled"
 
+
 class ErrorSeverity(Enum):
     """Error severity levels."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
 
+
 class ErrorCategory(Enum):
     """Error categories."""
+
     CONFIGURATION = "configuration"
     VALIDATION = "validation"
     EXECUTION = "execution"
@@ -99,6 +120,7 @@ class ErrorCategory(Enum):
     STORAGE = "storage"
     PERFORMANCE = "performance"
 
+
 # ============================================================================
 # Function Types
 # ============================================================================
@@ -106,7 +128,9 @@ class ErrorCategory(Enum):
 # Transform functions
 TransformFunction = Callable[[DataFrame], DataFrame]
 BronzeTransformFunction = Callable[[DataFrame], DataFrame]
-SilverTransformFunction = Callable[[SparkSession, DataFrame, Dict[str, DataFrame]], DataFrame]
+SilverTransformFunction = Callable[
+    [SparkSession, DataFrame, Dict[str, DataFrame]], DataFrame
+]
 GoldTransformFunction = Callable[[Dict[str, DataFrame]], DataFrame]
 
 # Validation functions
@@ -141,8 +165,10 @@ ExecutionResult = Dict[str, Any]
 # Configuration Types
 # ============================================================================
 
+
 class PipelineConfig(TypedDict, total=False):
     """Pipeline configuration."""
+
     schema: SchemaName
     min_bronze_rate: QualityRate
     min_silver_rate: QualityRate
@@ -153,27 +179,34 @@ class PipelineConfig(TypedDict, total=False):
     enable_caching: bool
     enable_monitoring: bool
 
+
 class ExecutionConfig(TypedDict, total=False):
     """Execution configuration."""
+
     mode: PipelineMode
     max_workers: WorkerCount
     timeout_seconds: Duration
     retry_count: RetryCount
     enable_parallel: bool
 
+
 class ValidationConfig(TypedDict, total=False):
     """Validation configuration."""
+
     enable_validation: bool
     quality_thresholds: QualityThresholds
     strict_mode: bool
     fail_fast: bool
 
+
 class MonitoringConfig(TypedDict, total=False):
     """Monitoring configuration."""
+
     enable_monitoring: bool
     log_level: str
     metrics_interval: Duration
     performance_tracking: bool
+
 
 # ============================================================================
 # Error Types
@@ -182,8 +215,10 @@ class MonitoringConfig(TypedDict, total=False):
 ErrorContext = Dict[str, Any]
 ErrorSuggestions = List[str]
 
+
 class ErrorInfo(TypedDict, total=False):
     """Error information."""
+
     message: ErrorMessage
     code: ErrorCode
     category: ErrorCategory
@@ -191,7 +226,8 @@ class ErrorInfo(TypedDict, total=False):
     context: ErrorContext
     suggestions: ErrorSuggestions
     timestamp: datetime
-    cause: Optional[str]
+    cause: str | None
+
 
 # ============================================================================
 # Utility Types
@@ -232,35 +268,39 @@ AnySet = Set[Any]
 # Generic Types
 # ============================================================================
 
-T = TypeVar('T')
-K = TypeVar('K')
-V = TypeVar('V')
-R = TypeVar('R')
+T = TypeVar("T")
+K = TypeVar("K")
+V = TypeVar("V")
+R = TypeVar("R")
 
 # Bounded type variables
-Numeric = TypeVar('Numeric', bound=Union[int, float])
-String = TypeVar('String', bound=str)
-DictLike = TypeVar('DictLike', bound=Dict[str, Any])
-ListLike = TypeVar('ListLike', bound=List[Any])
-CallableLike = TypeVar('CallableLike', bound=Callable[..., Any])
+Numeric = TypeVar("Numeric", bound=Union[int, float])
+String = TypeVar("String", bound=str)
+DictLike = TypeVar("DictLike", bound=Dict[str, Any])
+ListLike = TypeVar("ListLike", bound=List[Any])
+CallableLike = TypeVar("CallableLike", bound=Callable[..., Any])
 
 # ============================================================================
 # Complex Types
 # ============================================================================
 
+
 # Step definitions
 class StepDefinition(TypedDict, total=False):
     """Step definition."""
+
     name: StepName
     step_type: StepType
     transform: TransformFunction
     rules: ColumnRules
-    dependencies: List[StepName]
-    metadata: Dict[str, Any]
+    dependencies: list[StepName]
+    metadata: dict[str, Any]
+
 
 # Execution results
 class StepExecutionResult(TypedDict, total=False):
     """Step execution result."""
+
     step_name: StepName
     step_type: StepType
     success: bool
@@ -268,10 +308,12 @@ class StepExecutionResult(TypedDict, total=False):
     rows_processed: RowCount
     rows_written: RowCount
     quality_rate: QualityRate
-    error_message: Optional[ErrorMessage]
+    error_message: ErrorMessage | None
+
 
 class PipelineExecutionResult(TypedDict, total=False):
     """Pipeline execution result."""
+
     pipeline_id: PipelineId
     execution_id: ExecutionId
     success: bool
@@ -279,12 +321,14 @@ class PipelineExecutionResult(TypedDict, total=False):
     total_steps: int
     successful_steps: int
     failed_steps: int
-    step_results: Dict[StepName, StepExecutionResult]
-    errors: List[ErrorInfo]
+    step_results: dict[StepName, StepExecutionResult]
+    errors: list[ErrorInfo]
+
 
 # Performance metrics
 class PerformanceMetrics(TypedDict, total=False):
     """Performance metrics."""
+
     total_duration: Duration
     average_step_duration: Duration
     parallel_efficiency: float
@@ -292,29 +336,36 @@ class PerformanceMetrics(TypedDict, total=False):
     memory_usage: int
     cpu_usage: float
 
+
 # ============================================================================
 # Type Guards
 # ============================================================================
+
 
 def is_step_name(value: Any) -> bool:
     """Check if value is a valid step name."""
     return isinstance(value, str) and len(value) > 0
 
+
 def is_pipeline_id(value: Any) -> bool:
     """Check if value is a valid pipeline ID."""
     return isinstance(value, str) and len(value) > 0
+
 
 def is_quality_rate(value: Any) -> bool:
     """Check if value is a valid quality rate."""
     return isinstance(value, (int, float)) and 0 <= value <= 100
 
+
 def is_duration(value: Any) -> bool:
     """Check if value is a valid duration."""
     return isinstance(value, (int, float)) and value >= 0
 
+
 def is_row_count(value: Any) -> bool:
     """Check if value is a valid row count."""
     return isinstance(value, int) and value >= 0
+
 
 def is_worker_count(value: Any) -> bool:
     """Check if value is a valid worker count."""

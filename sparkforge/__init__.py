@@ -12,125 +12,153 @@ Bronze → Silver → Gold architecture, featuring:
 - Delta Lake integration
 - Performance monitoring and logging
 - Error handling and recovery
- 
+
 Example:
     from sparkforge import PipelineBuilder, PipelineRunner
     from sparkforge.models import ExecutionMode, ValidationThresholds
-    
+
     # Create a pipeline
     builder = PipelineBuilder(spark=spark, schema="my_schema")
     builder.with_bronze_rules(
-        name="events", 
+        name="events",
         rules={"user_id": [F.col("user_id").isNotNull()]}
     )
     builder.add_silver_transform(
-        name="enriched_events", 
-        source_bronze="events", 
+        name="enriched_events",
+        source_bronze="events",
         transform=lambda spark, df, prior_silvers: df.withColumn("processed_at", F.current_timestamp()),
         rules={"user_id": [F.col("user_id").isNotNull()]},
         table_name="enriched_events"
     )
     builder.add_gold_transform(
-        name="daily_analytics", 
+        name="daily_analytics",
         transform=lambda spark, silvers: silvers["enriched_events"].groupBy("date").agg(F.count("*").alias("events")),
         rules={"date": [F.col("date").isNotNull()]},
         table_name="daily_analytics",
         source_silvers=["enriched_events"]
     )
-    
+
     # Run the pipeline
     pipeline = builder.to_pipeline()
     result = pipeline.initial_load(bronze_sources={"events": source_df})
 """
 
-__version__ = "0.4.3"
+__version__ = "0.4.5"
 __author__ = "Odos Matthews"
 __email__ = "odosmattthewsm@gmail.com"
 __description__ = "A powerful data pipeline builder for Apache Spark and Databricks"
 
-# Import main classes for easy access
-from .pipeline import PipelineBuilder, PipelineRunner
-from .step_executor import StepExecutor, StepExecutionResult, StepValidationResult, StepType, StepStatus
-
-# Import security and performance modules
-from .security import SecurityManager, SecurityConfig, get_security_manager
-from .performance_cache import PerformanceCache, CacheConfig, get_performance_cache
-
-# Import parallel execution modules
-from .parallel_execution import (
-    DynamicWorkerPool, DynamicParallelExecutor, ExecutionTask, TaskPriority,
-    get_dynamic_executor, create_execution_task
-)
-from .execution.dynamic_strategy import DynamicExecutionStrategy
-
-# Import unified execution system
-from .execution import (
-    ExecutionEngine as UnifiedExecutionEngine,
-    ExecutionConfig,
-    ExecutionMode,
-    RetryStrategy,
-    ExecutionResult,
-    ExecutionStats,
-    StepExecutionResult as UnifiedStepExecutionResult
-)
-
 # Import unified dependency analysis
-from .dependencies import (
-    DependencyAnalyzer as UnifiedDependencyAnalyzer,
-    DependencyAnalysisResult,
-    DependencyGraph,
-    StepNode
-)
-
-from .models import (
-    PipelinePhase,
-    ValidationResult,
-    WriteMode,
-    ValidationThresholds,
-    ParallelConfig,
-    PipelineConfig,
-    BronzeStep,
-    SilverStep,
-    GoldStep,
-    ExecutionContext,
-    StageStats,
-    StepResult,
-    PipelineMetrics,
-    SilverDependencyInfo
-)
-from .log_writer import LogWriter, PIPELINE_LOG_SCHEMA
-from .reporting import create_validation_dict, create_write_dict
-from .errors.data import ValidationError
+from .dependencies import DependencyAnalysisResult, DependencyGraph, StepNode
+from .dependencies import DependencyAnalyzer as UnifiedDependencyAnalyzer
 
 # Import standardized error handling
 from .errors import (
-    SparkForgeError,
+    CircularDependencyError,
     ConfigurationError,
-    ValidationError as DataValidationError,
-    ExecutionError,
     DataQualityError,
-    ResourceError,
-    PipelineError,
+    DependencyError,
+    ExecutionError,
+    InvalidDependencyError,
     PipelineConfigurationError,
+    PipelineError,
     PipelineExecutionError,
     PipelineValidationError,
+    ResourceError,
+    SparkForgeError,
     StepError,
     StepExecutionError,
     StepValidationError,
-    DependencyError,
-    CircularDependencyError,
-    InvalidDependencyError
+)
+from .errors import ValidationError as DataValidationError
+from .errors.data import ValidationError
+
+# Import unified execution system
+from .execution import (
+    ExecutionConfig,
+    ExecutionMode,
+    ExecutionResult,
+    ExecutionStats,
+    RetryStrategy,
+)
+from .execution import ExecutionEngine as UnifiedExecutionEngine
+from .execution import StepExecutionResult as UnifiedStepExecutionResult
+from .execution.dynamic_strategy import DynamicExecutionStrategy
+from .log_writer import PIPELINE_LOG_SCHEMA, LogWriter
+from .models import (
+    BronzeStep,
+    ExecutionContext,
+    GoldStep,
+    ParallelConfig,
+    PipelineConfig,
+    PipelineMetrics,
+    PipelinePhase,
+    SilverDependencyInfo,
+    SilverStep,
+    StageStats,
+    StepResult,
+    ValidationResult,
+    ValidationThresholds,
+    WriteMode,
+)
+
+# Import parallel execution modules
+from .parallel_execution import (
+    DynamicParallelExecutor,
+    DynamicWorkerPool,
+    ExecutionTask,
+    TaskPriority,
+    create_execution_task,
+    get_dynamic_executor,
+)
+from .performance_cache import CacheConfig, PerformanceCache, get_performance_cache
+
+# Import main classes for easy access
+from .pipeline import PipelineBuilder, PipelineRunner
+from .reporting import create_validation_dict, create_write_dict
+
+# Import security and performance modules
+from .security import SecurityConfig, SecurityManager, get_security_manager
+from .step_executor import (
+    StepExecutionResult,
+    StepExecutor,
+    StepStatus,
+    StepType,
+    StepValidationResult,
 )
 
 # Import type system
 from .types import (
-    StepName, StepType, PipelineId, ExecutionId, TableName, SchemaName,
-    TransformFunction, BronzeTransformFunction, SilverTransformFunction, GoldTransformFunction,
-    ColumnRules, ValidationRules, QualityThresholds, ExecutionContext,
-    StepResult, PipelineResult, ValidationResult, ExecutionResult,
-    PipelineConfig, ExecutionConfig, ValidationConfig, MonitoringConfig,
-    ErrorCode, ErrorContext, ErrorSuggestions,
-    OptionalDict, OptionalList, StringDict, AnyDict, NumericDict
+    AnyDict,
+    BronzeTransformFunction,
+    ColumnRules,
+    ErrorCode,
+    ErrorContext,
+    ErrorSuggestions,
+    ExecutionConfig,
+    ExecutionContext,
+    ExecutionId,
+    ExecutionResult,
+    GoldTransformFunction,
+    MonitoringConfig,
+    NumericDict,
+    OptionalDict,
+    OptionalList,
+    PipelineConfig,
+    PipelineId,
+    PipelineResult,
+    QualityThresholds,
+    SchemaName,
+    SilverTransformFunction,
+    StepName,
+    StepResult,
+    StepType,
+    StringDict,
+    TableName,
+    TransformFunction,
+    ValidationConfig,
+    ValidationResult,
+    ValidationRules,
 )
 
 # Make key classes available at package level
@@ -139,14 +167,12 @@ __all__ = [
     "PipelineBuilder",
     "PipelineRunner",
     "LogWriter",
-    
     # Step execution classes
     "StepExecutor",
     "StepExecutionResult",
     "StepValidationResult",
     "StepType",
     "StepStatus",
-    
     # Unified execution system
     "UnifiedExecutionEngine",
     "ExecutionConfig",
@@ -155,35 +181,31 @@ __all__ = [
     "ExecutionResult",
     "ExecutionStats",
     "UnifiedStepExecutionResult",
-    
     # Unified dependency analysis
     "UnifiedDependencyAnalyzer",
     "DependencyAnalysisResult",
     "DependencyGraph",
     "StepNode",
-    
     # Models
-    "PipelinePhase", 
+    "PipelinePhase",
     "ValidationResult",
     "WriteMode",
     "ValidationThresholds",
     "ParallelConfig",
     "PipelineConfig",
     "BronzeStep",
-    "SilverStep", 
+    "SilverStep",
     "GoldStep",
     "ExecutionContext",
     "StageStats",
     "StepResult",
     "PipelineMetrics",
     "SilverDependencyInfo",
-    
     # Utilities
     "create_validation_dict",
-    "create_write_dict", 
+    "create_write_dict",
     "ValidationError",
     "PIPELINE_LOG_SCHEMA",
-    
     # Error handling
     "SparkForgeError",
     "ConfigurationError",
@@ -201,7 +223,6 @@ __all__ = [
     "DependencyError",
     "CircularDependencyError",
     "InvalidDependencyError",
-    
     # Type system
     "StepName",
     "StepType",
@@ -233,10 +254,9 @@ __all__ = [
     "StringDict",
     "AnyDict",
     "NumericDict",
-    
     # Package info
     "__version__",
     "__author__",
     "__email__",
-    "__description__"
+    "__description__",
 ]

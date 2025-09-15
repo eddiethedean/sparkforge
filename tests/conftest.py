@@ -6,13 +6,12 @@ and utilities to support the entire test suite with better organization
 and reduced duplication.
 """
 
-import pytest
-import sys
 import os
 import shutil
-import logging
+import sys
 import time
-from typing import Dict, Any
+
+import pytest
 from pyspark.sql import SparkSession
 
 # Add the project root to the Python path
@@ -20,18 +19,23 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import test helpers
 from test_helpers import (
-    TestDataGenerator, TestPipelineBuilder, TestAssertions, TestPerformance
+    TestAssertions,
+    TestDataGenerator,
+    TestPerformance,
+    TestPipelineBuilder,
 )
+
 
 def get_test_schema():
     """Get the test schema name."""
     return "test_schema"
 
+
 @pytest.fixture(scope="session")
 def spark_session():
     """
     Create a shared Spark session with Delta Lake support for testing.
-    
+
     This fixture creates a shared Spark session for all tests in the session,
     with Delta Lake support and optimized configuration for testing.
     This is more efficient for most tests that don't need isolation.
@@ -40,78 +44,90 @@ def spark_session():
     warehouse_dir = f"/tmp/spark-warehouse-{os.getpid()}"
     if os.path.exists(warehouse_dir):
         shutil.rmtree(warehouse_dir, ignore_errors=True)
-    
+
     # Configure Spark with Delta Lake support
     spark = None
     try:
         from delta import configure_spark_with_delta_pip
+
         print("🔧 Configuring Spark with Delta Lake support for all tests")
-        
-        builder = SparkSession.builder \
-            .appName(f"SparkForgeTests-{os.getpid()}") \
-            .master("local[1]") \
-            .config("spark.sql.warehouse.dir", warehouse_dir) \
-            .config("spark.sql.adaptive.enabled", "true") \
-            .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
-            .config("spark.driver.host", "127.0.0.1") \
-            .config("spark.driver.bindAddress", "127.0.0.1") \
-            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
-            .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
-            .config("spark.sql.adaptive.skewJoin.enabled", "true") \
-            .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
-            .config("spark.driver.memory", "1g") \
+
+        builder = (
+            SparkSession.builder.appName(f"SparkForgeTests-{os.getpid()}")
+            .master("local[1]")
+            .config("spark.sql.warehouse.dir", warehouse_dir)
+            .config("spark.sql.adaptive.enabled", "true")
+            .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
+            .config("spark.driver.host", "127.0.0.1")
+            .config("spark.driver.bindAddress", "127.0.0.1")
+            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+            .config(
+                "spark.sql.catalog.spark_catalog",
+                "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+            )
+            .config("spark.sql.adaptive.skewJoin.enabled", "true")
+            .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+            .config("spark.driver.memory", "1g")
             .config("spark.executor.memory", "1g")
-        
+        )
+
         # Configure Delta Lake with explicit version
         spark = configure_spark_with_delta_pip(builder).getOrCreate()
-        
+
     except Exception as e:
         print(f"⚠️ Delta Lake configuration failed: {e}")
         # Fall back to basic Spark if Delta Lake is not available
         print("🔧 Falling back to basic Spark configuration")
         try:
-            builder = SparkSession.builder \
-                .appName(f"SparkForgeTests-{os.getpid()}") \
-                .master("local[1]") \
-                .config("spark.sql.warehouse.dir", warehouse_dir) \
-                .config("spark.sql.adaptive.enabled", "true") \
-                .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
-                .config("spark.driver.host", "127.0.0.1") \
-                .config("spark.driver.bindAddress", "127.0.0.1") \
-                .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
-                .config("spark.driver.memory", "1g") \
+            builder = (
+                SparkSession.builder.appName(f"SparkForgeTests-{os.getpid()}")
+                .master("local[1]")
+                .config("spark.sql.warehouse.dir", warehouse_dir)
+                .config("spark.sql.adaptive.enabled", "true")
+                .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
+                .config("spark.driver.host", "127.0.0.1")
+                .config("spark.driver.bindAddress", "127.0.0.1")
+                .config(
+                    "spark.serializer", "org.apache.spark.serializer.KryoSerializer"
+                )
+                .config("spark.driver.memory", "1g")
                 .config("spark.executor.memory", "1g")
-            
+            )
+
             spark = builder.getOrCreate()
         except Exception as e2:
             print(f"❌ Failed to create Spark session: {e2}")
             raise
-    
+
     # Set log level to WARN to reduce noise
     spark.sparkContext.setLogLevel("WARN")
-    
+
     # Create test database
     try:
         spark.sql("CREATE DATABASE IF NOT EXISTS test_schema")
         print("✅ Test database created successfully")
     except Exception as e:
         print(f"❌ Could not create test_schema database: {e}")
-    
+
     yield spark
-    
+
     # Cleanup
     try:
-        if spark and hasattr(spark, 'sparkContext') and spark.sparkContext._jsc is not None:
+        if (
+            spark
+            and hasattr(spark, "sparkContext")
+            and spark.sparkContext._jsc is not None
+        ):
             spark.sql("DROP DATABASE IF EXISTS test_schema CASCADE")
     except Exception as e:
         print(f"Warning: Could not drop test_schema database: {e}")
-    
+
     try:
         if spark:
             spark.stop()
     except Exception as e:
         print(f"Warning: Could not stop Spark session: {e}")
-    
+
     # Clean up warehouse directory
     try:
         if os.path.exists(warehouse_dir):
@@ -119,11 +135,12 @@ def spark_session():
     except Exception as e:
         print(f"Warning: Could not clean up warehouse directory: {e}")
 
+
 @pytest.fixture(scope="function")
 def isolated_spark_session():
     """
     Create an isolated Spark session for tests that need complete isolation.
-    
+
     This fixture creates a new Spark session for each test function,
     with Delta Lake support and optimized configuration for testing.
     Use this for tests that modify global state or need complete isolation.
@@ -133,84 +150,101 @@ def isolated_spark_session():
     warehouse_dir = f"/tmp/spark-warehouse-isolated-{os.getpid()}-{unique_id}"
     if os.path.exists(warehouse_dir):
         shutil.rmtree(warehouse_dir, ignore_errors=True)
-    
+
     # Configure Spark with Delta Lake support
     spark = None
     try:
         from delta import configure_spark_with_delta_pip
+
         print("🔧 Configuring isolated Spark with Delta Lake support")
-        
-        builder = SparkSession.builder \
-            .appName(f"SparkForgeIsolatedTests-{os.getpid()}-{unique_id}") \
-            .master("local[1]") \
-            .config("spark.sql.warehouse.dir", warehouse_dir) \
-            .config("spark.sql.adaptive.enabled", "true") \
-            .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
-            .config("spark.driver.host", "127.0.0.1") \
-            .config("spark.driver.bindAddress", "127.0.0.1") \
-            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
-            .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
-            .config("spark.sql.adaptive.skewJoin.enabled", "true") \
-            .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
-            .config("spark.driver.memory", "512m") \
+
+        builder = (
+            SparkSession.builder.appName(
+                f"SparkForgeIsolatedTests-{os.getpid()}-{unique_id}"
+            )
+            .master("local[1]")
+            .config("spark.sql.warehouse.dir", warehouse_dir)
+            .config("spark.sql.adaptive.enabled", "true")
+            .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
+            .config("spark.driver.host", "127.0.0.1")
+            .config("spark.driver.bindAddress", "127.0.0.1")
+            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+            .config(
+                "spark.sql.catalog.spark_catalog",
+                "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+            )
+            .config("spark.sql.adaptive.skewJoin.enabled", "true")
+            .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+            .config("spark.driver.memory", "512m")
             .config("spark.executor.memory", "512m")
-        
+        )
+
         # Configure Delta Lake with explicit version
         spark = configure_spark_with_delta_pip(builder).getOrCreate()
-        
+
     except Exception as e:
         print(f"⚠️ Delta Lake configuration failed: {e}")
         # Fall back to basic Spark if Delta Lake is not available
         print("🔧 Falling back to basic Spark configuration")
         try:
-            builder = SparkSession.builder \
-                .appName(f"SparkForgeIsolatedTests-{os.getpid()}-{unique_id}") \
-                .master("local[1]") \
-                .config("spark.sql.warehouse.dir", warehouse_dir) \
-                .config("spark.sql.adaptive.enabled", "true") \
-                .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
-                .config("spark.driver.host", "127.0.0.1") \
-                .config("spark.driver.bindAddress", "127.0.0.1") \
-                .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
-                .config("spark.driver.memory", "512m") \
+            builder = (
+                SparkSession.builder.appName(
+                    f"SparkForgeIsolatedTests-{os.getpid()}-{unique_id}"
+                )
+                .master("local[1]")
+                .config("spark.sql.warehouse.dir", warehouse_dir)
+                .config("spark.sql.adaptive.enabled", "true")
+                .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
+                .config("spark.driver.host", "127.0.0.1")
+                .config("spark.driver.bindAddress", "127.0.0.1")
+                .config(
+                    "spark.serializer", "org.apache.spark.serializer.KryoSerializer"
+                )
+                .config("spark.driver.memory", "512m")
                 .config("spark.executor.memory", "512m")
-            
+            )
+
             spark = builder.getOrCreate()
         except Exception as e2:
             print(f"❌ Failed to create isolated Spark session: {e2}")
             raise
-    
+
     # Set log level to WARN to reduce noise
     spark.sparkContext.setLogLevel("WARN")
-    
+
     # Create test database
     try:
         spark.sql("CREATE DATABASE IF NOT EXISTS test_schema")
         print("✅ Isolated test database created successfully")
     except Exception as e:
         print(f"❌ Could not create isolated test_schema database: {e}")
-    
+
     yield spark
-    
+
     # Cleanup
     try:
-        if spark and hasattr(spark, 'sparkContext') and spark.sparkContext._jsc is not None:
+        if (
+            spark
+            and hasattr(spark, "sparkContext")
+            and spark.sparkContext._jsc is not None
+        ):
             spark.sql("DROP DATABASE IF EXISTS test_schema CASCADE")
     except Exception as e:
         print(f"Warning: Could not drop isolated test_schema database: {e}")
-    
+
     try:
         if spark:
             spark.stop()
     except Exception as e:
         print(f"Warning: Could not stop isolated Spark session: {e}")
-    
+
     # Clean up warehouse directory
     try:
         if os.path.exists(warehouse_dir):
             shutil.rmtree(warehouse_dir, ignore_errors=True)
     except Exception as e:
         print(f"Warning: Could not clean up isolated warehouse directory: {e}")
+
 
 @pytest.fixture(autouse=True, scope="function")
 def cleanup_test_tables(spark_session):
@@ -219,15 +253,19 @@ def cleanup_test_tables(spark_session):
     # Cleanup after each test
     try:
         # Check if SparkContext is still valid
-        if hasattr(spark_session, 'sparkContext') and spark_session.sparkContext._jsc is not None:
+        if (
+            hasattr(spark_session, "sparkContext")
+            and spark_session.sparkContext._jsc is not None
+        ):
             # Drop any tables that might have been created
             tables = spark_session.sql("SHOW TABLES IN test_schema").collect()
             for table in tables:
                 table_name = table.tableName
                 spark_session.sql(f"DROP TABLE IF EXISTS test_schema.{table_name}")
-    except Exception as e:
+    except Exception:
         # Ignore cleanup errors
         pass
+
 
 @pytest.fixture
 def sample_bronze_data(spark_session):
@@ -237,64 +275,71 @@ def sample_bronze_data(spark_session):
         ("user2", "view", "2024-01-01 11:00:00"),
         ("user3", "purchase", "2024-01-01 12:00:00"),
     ]
-    return spark_session.createDataFrame(
-        data, 
-        ["user_id", "action", "timestamp"]
-    )
+    return spark_session.createDataFrame(data, ["user_id", "action", "timestamp"])
 
 
 @pytest.fixture
 def sample_bronze_rules():
     """Create sample bronze validation rules."""
     from pyspark.sql import functions as F
+
     return {
         "user_id": [F.col("user_id").isNotNull()],
         "action": [F.col("action").isNotNull()],
-        "timestamp": [F.col("timestamp").isNotNull()]
+        "timestamp": [F.col("timestamp").isNotNull()],
     }
+
 
 @pytest.fixture
 def sample_silver_rules():
     """Create sample silver validation rules."""
     from pyspark.sql import functions as F
+
     return {
         "user_id": [F.col("user_id").isNotNull()],
         "action": [F.col("action").isNotNull()],
-        "event_date": [F.col("event_date").isNotNull()]
+        "event_date": [F.col("event_date").isNotNull()],
     }
+
 
 @pytest.fixture
 def sample_gold_rules():
     """Create sample gold validation rules."""
     from pyspark.sql import functions as F
+
     return {
         "action": [F.col("action").isNotNull()],
-        "event_date": [F.col("event_date").isNotNull()]
+        "event_date": [F.col("event_date").isNotNull()],
     }
+
 
 @pytest.fixture
 def pipeline_builder(spark_session):
     """Create a PipelineBuilder instance for testing."""
     from sparkforge import PipelineBuilder
+
     return PipelineBuilder(
         spark=spark_session,
         schema="test_schema",
         verbose=False,
         enable_parallel_silver=True,
-        max_parallel_workers=4
+        max_parallel_workers=4,
     )
+
 
 @pytest.fixture
 def pipeline_builder_sequential(spark_session):
     """Create a PipelineBuilder instance with sequential execution for testing."""
     from sparkforge import PipelineBuilder
+
     return PipelineBuilder(
         spark=spark_session,
         schema="test_schema",
         verbose=False,
         enable_parallel_silver=False,
-        max_parallel_workers=1
+        max_parallel_workers=1,
     )
+
 
 # Enhanced fixtures using test helpers
 @pytest.fixture
@@ -302,20 +347,24 @@ def test_data_generator():
     """Provide TestDataGenerator instance."""
     return TestDataGenerator()
 
+
 @pytest.fixture
 def test_pipeline_builder():
     """Provide TestPipelineBuilder instance."""
     return TestPipelineBuilder()
+
 
 @pytest.fixture
 def test_assertions():
     """Provide TestAssertions instance."""
     return TestAssertions()
 
+
 @pytest.fixture
 def test_performance():
     """Provide TestPerformance instance."""
     return TestPerformance()
+
 
 # Enhanced data fixtures
 @pytest.fixture
@@ -323,25 +372,30 @@ def small_events_data(spark_session):
     """Create small events dataset for fast tests."""
     return TestDataGenerator.create_events_data(spark_session, num_records=10)
 
+
 @pytest.fixture
 def medium_events_data(spark_session):
     """Create medium events dataset for integration tests."""
     return TestDataGenerator.create_events_data(spark_session, num_records=100)
+
 
 @pytest.fixture
 def large_events_data(spark_session):
     """Create large events dataset for performance tests."""
     return TestDataGenerator.create_events_data(spark_session, num_records=1000)
 
+
 @pytest.fixture
 def user_data(spark_session):
     """Create user profile data."""
     return TestDataGenerator.create_user_data(spark_session)
 
+
 @pytest.fixture
 def validation_rules():
     """Create standard validation rules."""
     return TestDataGenerator.create_validation_rules()
+
 
 # Enhanced pipeline fixtures
 @pytest.fixture
@@ -349,13 +403,14 @@ def simple_pipeline(spark_session):
     """Create a simple test pipeline."""
     return TestPipelineBuilder.create_simple_pipeline(spark_session)
 
+
 @pytest.fixture
 def complete_pipeline(spark_session, medium_events_data):
     """Create a complete Bronze → Silver → Gold pipeline."""
     return TestPipelineBuilder.create_bronze_silver_gold_pipeline(
-        spark_session, 
-        bronze_data=medium_events_data
+        spark_session, bronze_data=medium_events_data
     )
+
 
 # Performance testing fixtures
 @pytest.fixture
@@ -363,9 +418,10 @@ def performance_thresholds():
     """Define performance thresholds for tests."""
     return {
         "max_execution_time": 30.0,  # seconds
-        "max_memory_usage": 1024,    # MB
-        "min_throughput": 100        # records/second
+        "max_memory_usage": 1024,  # MB
+        "min_throughput": 100,  # records/second
     }
+
 
 # Test configuration fixtures
 @pytest.fixture
@@ -378,5 +434,5 @@ def test_config():
         "max_parallel_workers": 2,
         "min_bronze_rate": 95.0,
         "min_silver_rate": 98.0,
-        "min_gold_rate": 99.0
+        "min_gold_rate": 99.0,
     }

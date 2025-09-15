@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Column Filtering Control**: Explicit control over which columns are preserved after validation
+  - `filter_columns_by_rules` parameter added to `apply_column_rules()` function
+  - `filter_columns_by_rules=True` (default): Only keep columns with validation rules
+  - `filter_columns_by_rules=False`: Preserve all original columns for downstream steps
+  - Comprehensive test coverage with 9 new tests
+  - Updated documentation across all guides and examples
+
+### Changed
+- Enhanced `apply_column_rules()` function with explicit column filtering behavior
+- Updated all internal calls to include the new parameter
+- Improved user experience by making column filtering behavior explicit and controllable
+
+### Fixed
+- Fixed critical bug in column filtering logic where `invalid_proj` was not being returned
+- Updated mock functions in tests to include the new parameter
+
 ## [0.4.3] - 2024-12-19
 
 ### Added

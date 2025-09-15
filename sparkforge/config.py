@@ -24,45 +24,47 @@ Key Features:
 """
 
 from __future__ import annotations
-from typing import Any, Dict, Optional, Union, List, Tuple, Set
-from dataclasses import asdict, field, dataclass
-from enum import Enum
-import json
-import os
-import yaml
-from pathlib import Path
+
 import hashlib
-from datetime import datetime
+import json
 import logging
+import os
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
+from enum import Enum
+from pathlib import Path
+from typing import Any
 
-from .models import (
-    PipelineConfig, 
-    ValidationThresholds, 
-    ParallelConfig
-)
+import yaml
 
+from .models import ParallelConfig, PipelineConfig, ValidationThresholds
 
 # ============================================================================
 # Custom Exceptions
 # ============================================================================
 
+
 class ConfigurationError(Exception):
     """Base exception for configuration-related errors."""
+
     pass
 
 
 class ConfigurationValidationError(ConfigurationError):
     """Raised when configuration validation fails."""
+
     pass
 
 
 class ConfigurationTemplateError(ConfigurationError):
     """Raised when configuration template operations fail."""
+
     pass
 
 
 class ConfigurationSerializationError(ConfigurationError):
     """Raised when configuration serialization/deserialization fails."""
+
     pass
 
 
@@ -70,8 +72,10 @@ class ConfigurationSerializationError(ConfigurationError):
 # Configuration Templates
 # ============================================================================
 
+
 class ConfigTemplate(Enum):
     """Predefined configuration templates for different environments and use cases."""
+
     DEVELOPMENT = "development"
     TESTING = "testing"
     STAGING = "staging"
@@ -85,6 +89,7 @@ class ConfigTemplate(Enum):
 
 class ConfigEnvironment(Enum):
     """Environment types for configuration management."""
+
     LOCAL = "local"
     DEVELOPMENT = "development"
     TESTING = "testing"
@@ -96,9 +101,11 @@ class ConfigEnvironment(Enum):
 # Configuration Metadata
 # ============================================================================
 
+
 @dataclass
 class ConfigMetadata:
     """Metadata for configuration objects."""
+
     version: str = "1.0.0"
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
@@ -106,9 +113,9 @@ class ConfigMetadata:
     environment: str = "development"
     template: str = "default"
     description: str = ""
-    tags: Set[str] = field(default_factory=set)
-    
-    def to_dict(self) -> Dict[str, Any]:
+    tags: set[str] = field(default_factory=set)
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert metadata to dictionary."""
         return {
             "version": self.version,
@@ -118,21 +125,25 @@ class ConfigMetadata:
             "environment": self.environment,
             "template": self.template,
             "description": self.description,
-            "tags": list(self.tags)
+            "tags": list(self.tags),
         }
-    
+
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> ConfigMetadata:
+    def from_dict(cls, data: dict[str, Any]) -> ConfigMetadata:
         """Create metadata from dictionary."""
         return cls(
             version=data.get("version", "1.0.0"),
-            created_at=datetime.fromisoformat(data.get("created_at", datetime.utcnow().isoformat())),
-            updated_at=datetime.fromisoformat(data.get("updated_at", datetime.utcnow().isoformat())),
+            created_at=datetime.fromisoformat(
+                data.get("created_at", datetime.utcnow().isoformat())
+            ),
+            updated_at=datetime.fromisoformat(
+                data.get("updated_at", datetime.utcnow().isoformat())
+            ),
             created_by=data.get("created_by", "system"),
             environment=data.get("environment", "development"),
             template=data.get("template", "default"),
             description=data.get("description", ""),
-            tags=set(data.get("tags", []))
+            tags=set(data.get("tags", [])),
         )
 
 
@@ -140,10 +151,11 @@ class ConfigMetadata:
 # Enhanced Configuration Manager
 # ============================================================================
 
+
 class ConfigManager:
     """
     Enhanced configuration manager with comprehensive features.
-    
+
     Features:
     - Type-safe configuration creation
     - Predefined templates for different environments
@@ -155,59 +167,59 @@ class ConfigManager:
     - Hot-reloading capabilities
     - Configuration diffing and comparison
     """
-    
+
     # Predefined configuration templates
     TEMPLATES = {
         ConfigTemplate.DEVELOPMENT: {
             "thresholds": {"bronze": 80.0, "silver": 85.0, "gold": 90.0},
             "parallel": {"enabled": True, "max_workers": 2, "timeout_secs": 60},
             "verbose": True,
-            "environment": "development"
+            "environment": "development",
         },
         ConfigTemplate.TESTING: {
             "thresholds": {"bronze": 70.0, "silver": 75.0, "gold": 80.0},
             "parallel": {"enabled": False, "max_workers": 1, "timeout_secs": 30},
             "verbose": True,
-            "environment": "testing"
+            "environment": "testing",
         },
         ConfigTemplate.STAGING: {
             "thresholds": {"bronze": 90.0, "silver": 95.0, "gold": 98.0},
             "parallel": {"enabled": True, "max_workers": 4, "timeout_secs": 300},
             "verbose": False,
-            "environment": "staging"
+            "environment": "staging",
         },
         ConfigTemplate.PRODUCTION: {
             "thresholds": {"bronze": 99.0, "silver": 99.5, "gold": 99.9},
             "parallel": {"enabled": True, "max_workers": 8, "timeout_secs": 600},
             "verbose": False,
-            "environment": "production"
+            "environment": "production",
         },
         ConfigTemplate.HIGH_PERFORMANCE: {
             "thresholds": {"bronze": 95.0, "silver": 98.0, "gold": 99.0},
             "parallel": {"enabled": True, "max_workers": 16, "timeout_secs": 1200},
             "verbose": False,
-            "environment": "production"
+            "environment": "production",
         },
         ConfigTemplate.CONSERVATIVE: {
             "thresholds": {"bronze": 99.5, "silver": 99.8, "gold": 99.9},
             "parallel": {"enabled": False, "max_workers": 1, "timeout_secs": 1800},
             "verbose": True,
-            "environment": "production"
+            "environment": "production",
         },
         ConfigTemplate.DEBUG: {
             "thresholds": {"bronze": 50.0, "silver": 60.0, "gold": 70.0},
             "parallel": {"enabled": False, "max_workers": 1, "timeout_secs": 3600},
             "verbose": True,
-            "environment": "development"
+            "environment": "development",
         },
         ConfigTemplate.MINIMAL: {
             "thresholds": {"bronze": 60.0, "silver": 70.0, "gold": 80.0},
             "parallel": {"enabled": False, "max_workers": 1, "timeout_secs": 60},
             "verbose": False,
-            "environment": "testing"
-        }
+            "environment": "testing",
+        },
     }
-    
+
     # Environment variable mappings
     ENV_MAPPINGS = {
         "PIPELINE_SCHEMA": "schema",
@@ -217,19 +229,19 @@ class ConfigManager:
         "PIPELINE_PARALLEL_ENABLED": ("parallel", "enabled"),
         "PIPELINE_MAX_WORKERS": ("parallel", "max_workers"),
         "PIPELINE_TIMEOUT_SECS": ("parallel", "timeout_secs"),
-        "PIPELINE_VERBOSE": "verbose"
+        "PIPELINE_VERBOSE": "verbose",
     }
-    
-    def __init__(self, logger: Optional[logging.Logger] = None):
+
+    def __init__(self, logger: logging.Logger | None = None):
         """Initialize configuration manager."""
         self.logger = logger or logging.getLogger(__name__)
-        self._config_cache: Dict[str, PipelineConfig] = {}
-        self._metadata_cache: Dict[str, ConfigMetadata] = {}
-    
+        self._config_cache: dict[str, PipelineConfig] = {}
+        self._metadata_cache: dict[str, ConfigMetadata] = {}
+
     # ========================================================================
     # Configuration Creation Methods
     # ========================================================================
-    
+
     @classmethod
     def create_config(
         cls,
@@ -241,11 +253,11 @@ class ConfigManager:
         max_parallel_workers: int = 4,
         timeout_secs: int = 300,
         verbose: bool = True,
-        metadata: Optional[ConfigMetadata] = None
+        metadata: ConfigMetadata | None = None,
     ) -> PipelineConfig:
         """
         Create a validated pipeline configuration with custom parameters.
-        
+
         Args:
             schema: Database schema name
             min_bronze_rate: Bronze layer validation threshold (0-100)
@@ -256,117 +268,111 @@ class ConfigManager:
             timeout_secs: Timeout for parallel operations in seconds
             verbose: Whether to enable verbose logging
             metadata: Optional configuration metadata
-            
+
         Returns:
             Validated PipelineConfig object
-            
+
         Raises:
             ConfigurationValidationError: If any parameter is invalid
         """
         try:
             thresholds = ValidationThresholds(
-                bronze=min_bronze_rate,
-                silver=min_silver_rate,
-                gold=min_gold_rate
+                bronze=min_bronze_rate, silver=min_silver_rate, gold=min_gold_rate
             )
-            
+
             parallel = ParallelConfig(
                 enabled=enable_parallel_silver,
                 max_workers=max_parallel_workers,
-                timeout_secs=timeout_secs
+                timeout_secs=timeout_secs,
             )
-            
+
             config = PipelineConfig(
-                schema=schema,
-                thresholds=thresholds,
-                parallel=parallel,
-                verbose=verbose
+                schema=schema, thresholds=thresholds, parallel=parallel, verbose=verbose
             )
-            
+
             # Validate configuration
             cls.validate_config(config)
-            
+
             return config
-            
+
         except Exception as e:
             raise ConfigurationValidationError(f"Failed to create configuration: {e}")
-    
+
     @classmethod
     def from_template(
-        cls,
-        schema: str,
-        template: ConfigTemplate,
-        **overrides
+        cls, schema: str, template: ConfigTemplate, **overrides
     ) -> PipelineConfig:
         """
         Create configuration from a predefined template.
-        
+
         Args:
             schema: Database schema name
             template: Predefined configuration template
             **overrides: Optional parameter overrides
-            
+
         Returns:
             PipelineConfig object based on template
-            
+
         Raises:
             ConfigurationTemplateError: If template is invalid
         """
         if template not in cls.TEMPLATES:
             raise ConfigurationTemplateError(f"Unknown template: {template}")
-        
+
         try:
             template_config = cls.TEMPLATES[template].copy()
-            
+
             # Apply overrides
             template_config.update(overrides)
-            
+
             # Extract template values
             thresholds_config = template_config.get("thresholds", {})
             parallel_config = template_config.get("parallel", {})
-            
+
             thresholds = ValidationThresholds(
                 bronze=thresholds_config.get("bronze", 95.0),
                 silver=thresholds_config.get("silver", 98.0),
-                gold=thresholds_config.get("gold", 99.0)
+                gold=thresholds_config.get("gold", 99.0),
             )
-            
+
             parallel = ParallelConfig(
                 enabled=parallel_config.get("enabled", True),
                 max_workers=parallel_config.get("max_workers", 4),
-                timeout_secs=parallel_config.get("timeout_secs", 300)
+                timeout_secs=parallel_config.get("timeout_secs", 300),
             )
-            
+
             config = PipelineConfig(
                 schema=schema,
                 thresholds=thresholds,
                 parallel=parallel,
-                verbose=template_config.get("verbose", True)
+                verbose=template_config.get("verbose", True),
             )
-            
+
             # Validate configuration
             cls.validate_config(config)
-            
+
             return config
-            
+
         except Exception as e:
-            raise ConfigurationTemplateError(f"Failed to create configuration from template {template}: {e}")
-    
+            raise ConfigurationTemplateError(
+                f"Failed to create configuration from template {template}: {e}"
+            )
+
     @classmethod
     def from_environment(
         cls,
-        schema: Optional[str] = None,
-        template: Optional[ConfigTemplate] = None,
-        **overrides
+        schema: str | None = None,
+        template: ConfigTemplate | None = None,
+        **overrides,
     ) -> PipelineConfig:
         """
         Create configuration from environment variables.
-        
+
         Args:
             schema: Database schema name (defaults to PIPELINE_SCHEMA env var)
             template: Base template to use (optional)
             **overrides: Additional parameter overrides
-            
+
         Returns:
             PipelineConfig object based on environment variables
         """
@@ -374,42 +380,42 @@ class ConfigManager:
         if schema is None:
             schema = os.getenv("PIPELINE_SCHEMA")
             if not schema:
-                raise ConfigurationError("Schema must be provided or set in PIPELINE_SCHEMA environment variable")
-        
+                raise ConfigurationError(
+                    "Schema must be provided or set in PIPELINE_SCHEMA environment variable"
+                )
+
         # Start with template if provided
         if template:
             config = cls.from_template(schema, template, **overrides)
         else:
             config = cls.create_config(schema, **overrides)
-        
+
         # Apply environment variable overrides
         env_overrides = cls._extract_env_overrides()
         if env_overrides:
             config = cls.merge_configs(config, env_overrides)
-        
+
         return config
-    
+
     @classmethod
     def from_file(
-        cls,
-        file_path: Union[str, Path],
-        format: str = "auto"
-    ) -> Tuple[PipelineConfig, ConfigMetadata]:
+        cls, file_path: str | Path, format: str = "auto"
+    ) -> tuple[PipelineConfig, ConfigMetadata]:
         """
         Load configuration from file.
-        
+
         Args:
             file_path: Path to configuration file
             format: File format ("json", "yaml", or "auto")
-            
+
         Returns:
             Tuple of (PipelineConfig, ConfigMetadata)
         """
         file_path = Path(file_path)
-        
+
         if not file_path.exists():
             raise ConfigurationError(f"Configuration file not found: {file_path}")
-        
+
         # Auto-detect format if not specified
         if format == "auto":
             if file_path.suffix.lower() in [".json"]:
@@ -417,161 +423,183 @@ class ConfigManager:
             elif file_path.suffix.lower() in [".yaml", ".yml"]:
                 format = "yaml"
             else:
-                raise ConfigurationError(f"Unable to determine file format for: {file_path}")
-        
+                raise ConfigurationError(
+                    f"Unable to determine file format for: {file_path}"
+                )
+
         try:
-            with open(file_path, 'r') as f:
+            with open(file_path) as f:
                 if format == "json":
                     data = json.load(f)
                 elif format == "yaml":
                     data = yaml.safe_load(f)
                 else:
                     raise ConfigurationError(f"Unsupported format: {format}")
-            
+
             # Extract metadata if present
             metadata_data = data.pop("metadata", {})
             metadata = ConfigMetadata.from_dict(metadata_data)
-            
+
             # Create configuration
             config = cls.from_dict(data)
-            
+
             return config, metadata
-            
+
         except Exception as e:
-            raise ConfigurationSerializationError(f"Failed to load configuration from {file_path}: {e}")
-    
+            raise ConfigurationSerializationError(
+                f"Failed to load configuration from {file_path}: {e}"
+            )
+
     # ========================================================================
     # Configuration Serialization Methods
     # ========================================================================
-    
+
     @staticmethod
-    def from_dict(config_dict: Dict[str, Any]) -> PipelineConfig:
+    def from_dict(config_dict: dict[str, Any]) -> PipelineConfig:
         """Create configuration from dictionary."""
         schema = config_dict.get("schema")
         if not schema:
             raise ConfigurationValidationError("schema is required")
-        
+
         thresholds_config = config_dict.get("thresholds", {})
         thresholds = ValidationThresholds(
             bronze=thresholds_config.get("bronze", 95.0),
             silver=thresholds_config.get("silver", 98.0),
-            gold=thresholds_config.get("gold", 99.0)
+            gold=thresholds_config.get("gold", 99.0),
         )
-        
+
         parallel_config = config_dict.get("parallel", {})
         parallel = ParallelConfig(
             enabled=parallel_config.get("enabled", True),
             max_workers=parallel_config.get("max_workers", 4),
-            timeout_secs=parallel_config.get("timeout_secs", 300)
+            timeout_secs=parallel_config.get("timeout_secs", 300),
         )
-        
+
         return PipelineConfig(
             schema=schema,
             thresholds=thresholds,
             parallel=parallel,
-            verbose=config_dict.get("verbose", True)
+            verbose=config_dict.get("verbose", True),
         )
-    
+
     @staticmethod
-    def to_dict(config: PipelineConfig) -> Dict[str, Any]:
+    def to_dict(config: PipelineConfig) -> dict[str, Any]:
         """Convert configuration to dictionary."""
         return {
             "schema": config.schema,
             "thresholds": asdict(config.thresholds),
             "parallel": asdict(config.parallel),
-            "verbose": config.verbose
+            "verbose": config.verbose,
         }
-    
+
     @staticmethod
-    def to_json(config: PipelineConfig, metadata: Optional[ConfigMetadata] = None, indent: int = 2) -> str:
+    def to_json(
+        config: PipelineConfig,
+        metadata: ConfigMetadata | None = None,
+        indent: int = 2,
+    ) -> str:
         """Convert configuration to JSON string."""
         config_dict = ConfigManager.to_dict(config)
         if metadata:
             config_dict["metadata"] = metadata.to_dict()
         return json.dumps(config_dict, indent=indent, default=str)
-    
+
     @staticmethod
-    def from_json(json_str: str) -> Tuple[PipelineConfig, Optional[ConfigMetadata]]:
+    def from_json(json_str: str) -> tuple[PipelineConfig, ConfigMetadata | None]:
         """Create configuration from JSON string."""
         try:
             data = json.loads(json_str)
-            
+
             # Extract metadata if present
             metadata_data = data.pop("metadata", None)
-            metadata = ConfigMetadata.from_dict(metadata_data) if metadata_data else None
-            
+            metadata = (
+                ConfigMetadata.from_dict(metadata_data) if metadata_data else None
+            )
+
             config = ConfigManager.from_dict(data)
             return config, metadata
-            
+
         except Exception as e:
-            raise ConfigurationSerializationError(f"Failed to parse JSON configuration: {e}")
-    
+            raise ConfigurationSerializationError(
+                f"Failed to parse JSON configuration: {e}"
+            )
+
     @staticmethod
-    def to_yaml(config: PipelineConfig, metadata: Optional[ConfigMetadata] = None) -> str:
+    def to_yaml(config: PipelineConfig, metadata: ConfigMetadata | None = None) -> str:
         """Convert configuration to YAML string."""
         config_dict = ConfigManager.to_dict(config)
         if metadata:
             config_dict["metadata"] = metadata.to_dict()
         return yaml.dump(config_dict, default_flow_style=False, sort_keys=False)
-    
+
     @staticmethod
-    def from_yaml(yaml_str: str) -> Tuple[PipelineConfig, Optional[ConfigMetadata]]:
+    def from_yaml(yaml_str: str) -> tuple[PipelineConfig, ConfigMetadata | None]:
         """Create configuration from YAML string."""
         try:
             data = yaml.safe_load(yaml_str)
-            
+
             # Extract metadata if present
             metadata_data = data.pop("metadata", None)
-            metadata = ConfigMetadata.from_dict(metadata_data) if metadata_data else None
-            
+            metadata = (
+                ConfigMetadata.from_dict(metadata_data) if metadata_data else None
+            )
+
             config = ConfigManager.from_dict(data)
             return config, metadata
-            
+
         except Exception as e:
-            raise ConfigurationSerializationError(f"Failed to parse YAML configuration: {e}")
-    
+            raise ConfigurationSerializationError(
+                f"Failed to parse YAML configuration: {e}"
+            )
+
     # ========================================================================
     # Configuration Validation Methods
     # ========================================================================
-    
+
     @staticmethod
     def validate_config(config: PipelineConfig) -> None:
         """Validate a configuration object."""
         if not config.schema or not isinstance(config.schema, str):
             raise ConfigurationValidationError("schema must be a non-empty string")
-        
+
         if not 0 <= config.thresholds.bronze <= 100:
-            raise ConfigurationValidationError("bronze threshold must be between 0 and 100")
-        
+            raise ConfigurationValidationError(
+                "bronze threshold must be between 0 and 100"
+            )
+
         if not 0 <= config.thresholds.silver <= 100:
-            raise ConfigurationValidationError("silver threshold must be between 0 and 100")
-        
+            raise ConfigurationValidationError(
+                "silver threshold must be between 0 and 100"
+            )
+
         if not 0 <= config.thresholds.gold <= 100:
-            raise ConfigurationValidationError("gold threshold must be between 0 and 100")
-        
+            raise ConfigurationValidationError(
+                "gold threshold must be between 0 and 100"
+            )
+
         if config.parallel.max_workers < 1:
             raise ConfigurationValidationError("max_workers must be at least 1")
-        
+
         if config.parallel.max_workers > 32:
             raise ConfigurationValidationError("max_workers should not exceed 32")
-        
+
         if config.parallel.timeout_secs < 1:
             raise ConfigurationValidationError("timeout_secs must be at least 1")
-    
+
     @staticmethod
     def validate_template(template: ConfigTemplate) -> bool:
         """Validate a configuration template."""
         if template not in ConfigManager.TEMPLATES:
             return False
-        
+
         template_config = ConfigManager.TEMPLATES[template]
-        
+
         # Check required fields
         required_fields = ["thresholds", "parallel", "verbose"]
         for field in required_fields:
             if field not in template_config:
                 return False
-        
+
         # Validate thresholds
         thresholds = template_config["thresholds"]
         for phase in ["bronze", "silver", "gold"]:
@@ -579,81 +607,89 @@ class ConfigManager:
                 return False
             if not 0 <= thresholds[phase] <= 100:
                 return False
-        
+
         # Validate parallel config
         parallel = template_config["parallel"]
         if "enabled" not in parallel or "max_workers" not in parallel:
             return False
         if not 1 <= parallel["max_workers"] <= 32:
             return False
-        
+
         return True
-    
+
     # ========================================================================
     # Configuration Comparison and Diffing
     # ========================================================================
-    
+
     @staticmethod
-    def compare_configs(config1: PipelineConfig, config2: PipelineConfig) -> Dict[str, Any]:
+    def compare_configs(
+        config1: PipelineConfig, config2: PipelineConfig
+    ) -> dict[str, Any]:
         """Compare two configurations and return differences."""
         dict1 = ConfigManager.to_dict(config1)
         dict2 = ConfigManager.to_dict(config2)
-        
+
         differences = {}
-        
+
         # Compare each field
         for key in dict1:
             if key not in dict2:
                 differences[key] = {"old": dict1[key], "new": None}
             elif dict1[key] != dict2[key]:
                 differences[key] = {"old": dict1[key], "new": dict2[key]}
-        
+
         # Check for new fields in config2
         for key in dict2:
             if key not in dict1:
                 differences[key] = {"old": None, "new": dict2[key]}
-        
+
         return differences
-    
+
     @staticmethod
     def config_hash(config: PipelineConfig) -> str:
         """Generate a hash for configuration comparison."""
         config_dict = ConfigManager.to_dict(config)
         config_str = json.dumps(config_dict, sort_keys=True)
         return hashlib.md5(config_str.encode()).hexdigest()
-    
+
     # ========================================================================
     # Configuration Merging and Inheritance
     # ========================================================================
-    
+
     @staticmethod
-    def merge_configs(base_config: PipelineConfig, overrides: Dict[str, Any]) -> PipelineConfig:
+    def merge_configs(
+        base_config: PipelineConfig, overrides: dict[str, Any]
+    ) -> PipelineConfig:
         """Merge configuration overrides into base configuration."""
         base_dict = ConfigManager.to_dict(base_config)
-        
+
         # Deep merge overrides
         merged_dict = ConfigManager._deep_merge(base_dict, overrides)
-        
+
         return ConfigManager.from_dict(merged_dict)
-    
+
     @staticmethod
-    def _deep_merge(base: Dict[str, Any], overrides: Dict[str, Any]) -> Dict[str, Any]:
+    def _deep_merge(base: dict[str, Any], overrides: dict[str, Any]) -> dict[str, Any]:
         """Deep merge two dictionaries."""
         result = base.copy()
-        
+
         for key, value in overrides.items():
-            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            if (
+                key in result
+                and isinstance(result[key], dict)
+                and isinstance(value, dict)
+            ):
                 result[key] = ConfigManager._deep_merge(result[key], value)
             else:
                 result[key] = value
-        
+
         return result
-    
+
     @classmethod
-    def _extract_env_overrides(cls) -> Dict[str, Any]:
+    def _extract_env_overrides(cls) -> dict[str, Any]:
         """Extract configuration overrides from environment variables."""
         overrides = {}
-        
+
         for env_var, config_path in cls.ENV_MAPPINGS.items():
             value = os.getenv(env_var)
             if value is not None:
@@ -662,20 +698,22 @@ class ConfigManager:
                     # Nested path
                     if config_path[0] not in overrides:
                         overrides[config_path[0]] = {}
-                    overrides[config_path[0]][config_path[1]] = cls._convert_env_value(value)
+                    overrides[config_path[0]][config_path[1]] = cls._convert_env_value(
+                        value
+                    )
                 else:
                     # Direct path
                     overrides[config_path] = cls._convert_env_value(value)
-        
+
         return overrides
-    
+
     @staticmethod
     def _convert_env_value(value: str) -> Any:
         """Convert environment variable string to appropriate type."""
         # Boolean values
         if value.lower() in ["true", "false"]:
             return value.lower() == "true"
-        
+
         # Numeric values
         try:
             if "." in value:
@@ -684,30 +722,35 @@ class ConfigManager:
                 return int(value)
         except ValueError:
             pass
-        
+
         # String value
         return value
-    
+
     # ========================================================================
     # Configuration Caching and Management
     # ========================================================================
-    
-    def cache_config(self, key: str, config: PipelineConfig, metadata: Optional[ConfigMetadata] = None):
+
+    def cache_config(
+        self,
+        key: str,
+        config: PipelineConfig,
+        metadata: ConfigMetadata | None = None,
+    ):
         """Cache a configuration."""
         self._config_cache[key] = config
         if metadata:
             self._metadata_cache[key] = metadata
-    
-    def get_cached_config(self, key: str) -> Optional[PipelineConfig]:
+
+    def get_cached_config(self, key: str) -> PipelineConfig | None:
         """Get cached configuration."""
         return self._config_cache.get(key)
-    
+
     def clear_cache(self):
         """Clear configuration cache."""
         self._config_cache.clear()
         self._metadata_cache.clear()
-    
-    def list_cached_configs(self) -> List[str]:
+
+    def list_cached_configs(self) -> list[str]:
         """List all cached configuration keys."""
         return list(self._config_cache.keys())
 
@@ -715,6 +758,7 @@ class ConfigManager:
 # ============================================================================
 # Factory Functions
 # ============================================================================
+
 
 def get_default_config(schema: str) -> PipelineConfig:
     """Get default configuration for a schema."""
@@ -727,7 +771,7 @@ def get_high_performance_config(schema: str) -> PipelineConfig:
         schema=schema,
         enable_parallel_silver=True,
         max_parallel_workers=8,
-        verbose=False
+        verbose=False,
     )
 
 
@@ -739,34 +783,40 @@ def get_conservative_config(schema: str) -> PipelineConfig:
         min_silver_rate=99.5,
         min_gold_rate=99.9,
         enable_parallel_silver=False,
-        verbose=True
+        verbose=True,
     )
 
 
-def get_template_config(schema: str, template: ConfigTemplate, **overrides) -> PipelineConfig:
+def get_template_config(
+    schema: str, template: ConfigTemplate, **overrides
+) -> PipelineConfig:
     """Get configuration from template."""
     return ConfigManager.from_template(schema, template, **overrides)
 
 
-def get_environment_config(schema: Optional[str] = None, template: Optional[ConfigTemplate] = None) -> PipelineConfig:
+def get_environment_config(
+    schema: str | None = None, template: ConfigTemplate | None = None
+) -> PipelineConfig:
     """Get configuration from environment variables."""
     return ConfigManager.from_environment(schema, template)
 
 
-def load_config_from_file(file_path: Union[str, Path], format: str = "auto") -> Tuple[PipelineConfig, ConfigMetadata]:
+def load_config_from_file(
+    file_path: str | Path, format: str = "auto"
+) -> tuple[PipelineConfig, ConfigMetadata]:
     """Load configuration from file."""
     return ConfigManager.from_file(file_path, format)
 
 
 def save_config_to_file(
-    config: PipelineConfig, 
-    file_path: Union[str, Path], 
-    metadata: Optional[ConfigMetadata] = None,
-    format: str = "auto"
+    config: PipelineConfig,
+    file_path: str | Path,
+    metadata: ConfigMetadata | None = None,
+    format: str = "auto",
 ) -> None:
     """Save configuration to file."""
     file_path = Path(file_path)
-    
+
     # Auto-detect format if not specified
     if format == "auto":
         if file_path.suffix.lower() in [".json"]:
@@ -774,8 +824,10 @@ def save_config_to_file(
         elif file_path.suffix.lower() in [".yaml", ".yml"]:
             format = "yaml"
         else:
-            raise ConfigurationError(f"Unable to determine file format for: {file_path}")
-    
+            raise ConfigurationError(
+                f"Unable to determine file format for: {file_path}"
+            )
+
     try:
         if format == "json":
             content = ConfigManager.to_json(config, metadata)
@@ -783,19 +835,22 @@ def save_config_to_file(
             content = ConfigManager.to_yaml(config, metadata)
         else:
             raise ConfigurationError(f"Unsupported format: {format}")
-        
-        with open(file_path, 'w') as f:
+
+        with open(file_path, "w") as f:
             f.write(content)
-            
+
     except Exception as e:
-        raise ConfigurationSerializationError(f"Failed to save configuration to {file_path}: {e}")
+        raise ConfigurationSerializationError(
+            f"Failed to save configuration to {file_path}: {e}"
+        )
 
 
 # ============================================================================
 # Configuration Utilities
 # ============================================================================
 
-def validate_config_file(file_path: Union[str, Path]) -> bool:
+
+def validate_config_file(file_path: str | Path) -> bool:
     """Validate a configuration file."""
     try:
         ConfigManager.from_file(file_path)
@@ -804,14 +859,16 @@ def validate_config_file(file_path: Union[str, Path]) -> bool:
         return False
 
 
-def diff_config_files(file1: Union[str, Path], file2: Union[str, Path]) -> Dict[str, Any]:
+def diff_config_files(file1: str | Path, file2: str | Path) -> dict[str, Any]:
     """Compare two configuration files."""
     config1, _ = ConfigManager.from_file(file1)
     config2, _ = ConfigManager.from_file(file2)
     return ConfigManager.compare_configs(config1, config2)
 
 
-def migrate_config(config: PipelineConfig, from_version: str, to_version: str) -> PipelineConfig:
+def migrate_config(
+    config: PipelineConfig, from_version: str, to_version: str
+) -> PipelineConfig:
     """Migrate configuration between versions."""
     # This is a placeholder for future configuration migration logic
     # For now, just return the config as-is

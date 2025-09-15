@@ -6,9 +6,9 @@ This module tests the new feature that allows add_silver_transform to
 automatically infer the source_bronze from the most recent with_bronze_rules call.
 """
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import Mock, patch
-from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql import functions as F
 
 from sparkforge import PipelineBuilder
@@ -27,8 +27,7 @@ class TestAutoInferSourceBronze:
         """Test auto-inference with a single bronze step."""
         # Add bronze step
         self.builder.with_bronze_rules(
-            name="events",
-            rules={"user_id": [F.col("user_id").isNotNull()]}
+            name="events", rules={"user_id": [F.col("user_id").isNotNull()]}
         )
 
         # Add silver step without source_bronze - should auto-infer
@@ -39,7 +38,7 @@ class TestAutoInferSourceBronze:
             name="clean_events",
             transform=silver_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="clean_events"
+            table_name="clean_events",
         )
 
         # Should return self for chaining
@@ -54,12 +53,11 @@ class TestAutoInferSourceBronze:
         """Test auto-inference uses the most recent bronze step."""
         # Add multiple bronze steps
         self.builder.with_bronze_rules(
-            name="events",
-            rules={"user_id": [F.col("user_id").isNotNull()]}
+            name="events", rules={"user_id": [F.col("user_id").isNotNull()]}
         )
         self.builder.with_bronze_rules(
             name="transactions",
-            rules={"transaction_id": [F.col("transaction_id").isNotNull()]}
+            rules={"transaction_id": [F.col("transaction_id").isNotNull()]},
         )
 
         # Add silver step without source_bronze - should use most recent
@@ -70,7 +68,7 @@ class TestAutoInferSourceBronze:
             name="clean_transactions",
             transform=silver_transform,
             rules={"transaction_id": [F.col("transaction_id").isNotNull()]},
-            table_name="clean_transactions"
+            table_name="clean_transactions",
         )
 
         # Should use the most recent bronze step
@@ -81,12 +79,11 @@ class TestAutoInferSourceBronze:
         """Test that explicit source_bronze still works."""
         # Add multiple bronze steps
         self.builder.with_bronze_rules(
-            name="events",
-            rules={"user_id": [F.col("user_id").isNotNull()]}
+            name="events", rules={"user_id": [F.col("user_id").isNotNull()]}
         )
         self.builder.with_bronze_rules(
             name="transactions",
-            rules={"transaction_id": [F.col("transaction_id").isNotNull()]}
+            rules={"transaction_id": [F.col("transaction_id").isNotNull()]},
         )
 
         # Add silver step with explicit source_bronze
@@ -98,7 +95,7 @@ class TestAutoInferSourceBronze:
             source_bronze="events",  # Explicit
             transform=silver_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="clean_events"
+            table_name="clean_events",
         )
 
         # Should use the explicit source_bronze
@@ -107,6 +104,7 @@ class TestAutoInferSourceBronze:
 
     def test_no_bronze_steps_raises_error(self):
         """Test that error is raised when no bronze steps exist."""
+
         def silver_transform(spark, bronze_df, prior_silvers):
             return bronze_df
 
@@ -115,7 +113,7 @@ class TestAutoInferSourceBronze:
                 name="clean_events",
                 transform=silver_transform,
                 rules={"user_id": [F.col("user_id").isNotNull()]},
-                table_name="clean_events"
+                table_name="clean_events",
             )
 
         error = context.value
@@ -127,8 +125,7 @@ class TestAutoInferSourceBronze:
         """Test that error is raised when source_bronze doesn't exist."""
         # Add bronze step
         self.builder.with_bronze_rules(
-            name="events",
-            rules={"user_id": [F.col("user_id").isNotNull()]}
+            name="events", rules={"user_id": [F.col("user_id").isNotNull()]}
         )
 
         def silver_transform(spark, bronze_df, prior_silvers):
@@ -140,7 +137,7 @@ class TestAutoInferSourceBronze:
                 source_bronze="nonexistent",  # Invalid
                 transform=silver_transform,
                 rules={"user_id": [F.col("user_id").isNotNull()]},
-                table_name="clean_events"
+                table_name="clean_events",
             )
 
         error = context.value
@@ -152,20 +149,19 @@ class TestAutoInferSourceBronze:
         """Test that auto-inference is logged."""
         # Add bronze step
         self.builder.with_bronze_rules(
-            name="events",
-            rules={"user_id": [F.col("user_id").isNotNull()]}
+            name="events", rules={"user_id": [F.col("user_id").isNotNull()]}
         )
 
         def silver_transform(spark, bronze_df, prior_silvers):
             return bronze_df
 
         # Mock the logger to capture log messages
-        with patch.object(self.builder.logger, 'info') as mock_info:
+        with patch.object(self.builder.logger, "info") as mock_info:
             self.builder.add_silver_transform(
                 name="clean_events",
                 transform=silver_transform,
                 rules={"user_id": [F.col("user_id").isNotNull()]},
-                table_name="clean_events"
+                table_name="clean_events",
             )
 
             # Check that auto-inference was logged
@@ -175,27 +171,24 @@ class TestAutoInferSourceBronze:
         """Test that method chaining works with auto-inference."""
         # Add bronze step
         self.builder.with_bronze_rules(
-            name="events",
-            rules={"user_id": [F.col("user_id").isNotNull()]}
+            name="events", rules={"user_id": [F.col("user_id").isNotNull()]}
         )
 
         def silver_transform(spark, bronze_df, prior_silvers):
             return bronze_df
 
         # Test chaining
-        result = (self.builder
-                 .add_silver_transform(
-                     name="clean_events",
-                     transform=silver_transform,
-                     rules={"user_id": [F.col("user_id").isNotNull()]},
-                     table_name="clean_events"
-                 )
-                 .add_silver_transform(
-                     name="enriched_events",
-                     transform=silver_transform,
-                     rules={"user_id": [F.col("user_id").isNotNull()]},
-                     table_name="enriched_events"
-                 ))
+        result = self.builder.add_silver_transform(
+            name="clean_events",
+            transform=silver_transform,
+            rules={"user_id": [F.col("user_id").isNotNull()]},
+            table_name="clean_events",
+        ).add_silver_transform(
+            name="enriched_events",
+            transform=silver_transform,
+            rules={"user_id": [F.col("user_id").isNotNull()]},
+            table_name="enriched_events",
+        )
 
         # Should return self for chaining
         assert result is self.builder

@@ -1,0 +1,24 @@
+[MASTER]
+max-line-length=88
+ignore=tests,build,dist,.venv,venv
+disable=C0330,C0326,R0903,R0913,W0613,C0103
+
+[MESSAGES CONTROL]
+enable=C0114,C0116,C0115
+
+[FORMAT]
+max-line-length=88
+indent-string='    '
+
+[DESIGN]
+max-args=10
+max-locals=20
+max-returns=6
+max-branches=15
+max-statements=60
+
+[VARIABLES]
+dummy-variables-rgx=_+$|(_[a-zA-Z0-9_]*[a-zA-Z0-9]+?$)|dummy|^ignored_|^unused_
+
+[IMPORTS]
+known-first-party=sparkforge

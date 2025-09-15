@@ -17,30 +17,33 @@ Key Features:
 """
 
 from __future__ import annotations
+
+import json
+import uuid
+from abc import ABC
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Set, Union, Protocol, TypeVar
 from datetime import datetime
 from enum import Enum
-import uuid
-import json
-from abc import ABC
+from typing import Any, Callable, Dict, List, Protocol, TypeVar
 
 from pyspark.sql import DataFrame
 
 from .errors.pipeline import PipelineValidationError
 
-
 # ============================================================================
 # Custom Exceptions
 # ============================================================================
 
+
 class PipelineConfigurationError(ValueError):
     """Raised when pipeline configuration is invalid."""
+
     pass
 
 
 class PipelineExecutionError(RuntimeError):
     """Raised when pipeline execution fails."""
+
     pass
 
 
@@ -48,8 +51,10 @@ class PipelineExecutionError(RuntimeError):
 # Enums
 # ============================================================================
 
+
 class PipelinePhase(Enum):
     """Enumeration of pipeline phases."""
+
     BRONZE = "bronze"
     SILVER = "silver"
     GOLD = "gold"
@@ -57,18 +62,21 @@ class PipelinePhase(Enum):
 
 class ExecutionMode(Enum):
     """Enumeration of execution modes."""
+
     INITIAL = "initial"
     INCREMENTAL = "incremental"
 
 
 class WriteMode(Enum):
     """Enumeration of write modes."""
+
     OVERWRITE = "overwrite"
     APPEND = "append"
 
 
 class ValidationResult(Enum):
     """Enumeration of validation results."""
+
     PASSED = "passed"
     FAILED = "failed"
     WARNING = "warning"
@@ -85,12 +93,12 @@ SilverTransformFunction = Callable[[DataFrame], DataFrame]
 GoldTransformFunction = Callable[[Dict[str, DataFrame]], DataFrame]
 
 # Generic type for pipeline results
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class Validatable(Protocol):
     """Protocol for objects that can be validated."""
-    
+
     def validate(self) -> None:
         """Validate the object and raise ValidationError if invalid."""
         ...
@@ -98,11 +106,11 @@ class Validatable(Protocol):
 
 class Serializable(Protocol):
     """Protocol for objects that can be serialized."""
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert object to dictionary."""
         ...
-    
+
     def to_json(self) -> str:
         """Convert object to JSON string."""
         ...
@@ -112,58 +120,59 @@ class Serializable(Protocol):
 # Base Classes
 # ============================================================================
 
+
 @dataclass
 class BaseModel(ABC):
     """
     Base class for all pipeline models with common functionality.
-    
+
     Provides standard validation, serialization, and representation methods
     for all pipeline data models. All models in the pipeline system inherit
     from this base class to ensure consistent behavior.
-    
+
     Features:
     - Automatic validation support
     - JSON serialization and deserialization
     - Dictionary conversion for easy data exchange
     - String representation for debugging
     - Type-safe field access
-    
+
     Example:
         >>> @dataclass
         >>> class MyStep(BaseModel):
         ...     name: str
         ...     rules: Dict[str, List[Any]]
-        ...     
+        ...
         ...     def validate(self) -> None:
         ...         if not self.name:
         ...             raise ValueError("Name cannot be empty")
         ...         if not self.rules:
         ...             raise ValueError("Rules cannot be empty")
-        >>> 
+        >>>
         >>> step = MyStep(name="test", rules={"id": [F.col("id").isNotNull()]})
         >>> step.validate()
         >>> print(step.to_json())
     """
-    
+
     def validate(self) -> None:
         """Validate the model. Override in subclasses."""
         pass
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert model to dictionary."""
         result = {}
         for field in self.__dataclass_fields__.values():
             value = getattr(self, field.name)
-            if hasattr(value, 'to_dict'):
+            if hasattr(value, "to_dict"):
                 result[field.name] = value.to_dict()
             else:
                 result[field.name] = value
         return result
-    
+
     def to_json(self) -> str:
         """Convert model to JSON string."""
         return json.dumps(self.to_dict(), default=str, indent=2)
-    
+
     def __str__(self) -> str:
         """String representation of the model."""
         return f"{self.__class__.__name__}({', '.join(f'{k}={v}' for k, v in self.to_dict().items())})"
@@ -173,45 +182,53 @@ class BaseModel(ABC):
 # Configuration Models
 # ============================================================================
 
+
 @dataclass
 class ValidationThresholds(BaseModel):
     """
     Validation thresholds for different pipeline phases.
-    
+
     Attributes:
         bronze: Bronze layer validation threshold (0-100)
         silver: Silver layer validation threshold (0-100)
         gold: Gold layer validation threshold (0-100)
     """
+
     bronze: float
     silver: float
     gold: float
-    
+
     def validate(self) -> None:
         """Validate threshold values."""
-        for phase, threshold in [("bronze", self.bronze), ("silver", self.silver), ("gold", self.gold)]:
+        for phase, threshold in [
+            ("bronze", self.bronze),
+            ("silver", self.silver),
+            ("gold", self.gold),
+        ]:
             if not 0 <= threshold <= 100:
-                raise PipelineValidationError(f"{phase} threshold must be between 0 and 100, got {threshold}")
-    
+                raise PipelineValidationError(
+                    f"{phase} threshold must be between 0 and 100, got {threshold}"
+                )
+
     def get_threshold(self, phase: PipelinePhase) -> float:
         """Get threshold for a specific phase."""
         phase_map = {
             PipelinePhase.BRONZE: self.bronze,
             PipelinePhase.SILVER: self.silver,
-            PipelinePhase.GOLD: self.gold
+            PipelinePhase.GOLD: self.gold,
         }
         return phase_map[phase]
-    
+
     @classmethod
     def create_default(cls) -> ValidationThresholds:
         """Create default validation thresholds."""
         return cls(bronze=95.0, silver=98.0, gold=99.0)
-    
+
     @classmethod
     def create_strict(cls) -> ValidationThresholds:
         """Create strict validation thresholds."""
         return cls(bronze=99.0, silver=99.5, gold=99.9)
-    
+
     @classmethod
     def create_loose(cls) -> ValidationThresholds:
         """Create loose validation thresholds."""
@@ -222,35 +239,42 @@ class ValidationThresholds(BaseModel):
 class ParallelConfig(BaseModel):
     """
     Configuration for parallel execution.
-    
+
     Attributes:
         enabled: Whether parallel execution is enabled
         max_workers: Maximum number of parallel workers
         timeout_secs: Timeout for parallel operations in seconds
     """
+
     enabled: bool
     max_workers: int
     timeout_secs: int = 300
-    
+
     def validate(self) -> None:
         """Validate parallel configuration."""
         if self.max_workers < 1:
-            raise PipelineValidationError(f"max_workers must be at least 1, got {self.max_workers}")
+            raise PipelineValidationError(
+                f"max_workers must be at least 1, got {self.max_workers}"
+            )
         if self.max_workers > 32:
-            raise PipelineValidationError(f"max_workers should not exceed 32, got {self.max_workers}")
+            raise PipelineValidationError(
+                f"max_workers should not exceed 32, got {self.max_workers}"
+            )
         if self.timeout_secs < 1:
-            raise PipelineValidationError(f"timeout_secs must be at least 1, got {self.timeout_secs}")
-    
+            raise PipelineValidationError(
+                f"timeout_secs must be at least 1, got {self.timeout_secs}"
+            )
+
     @classmethod
     def create_default(cls) -> ParallelConfig:
         """Create default parallel configuration."""
         return cls(enabled=True, max_workers=4, timeout_secs=300)
-    
+
     @classmethod
     def create_sequential(cls) -> ParallelConfig:
         """Create sequential execution configuration."""
         return cls(enabled=False, max_workers=1, timeout_secs=600)
-    
+
     @classmethod
     def create_high_performance(cls) -> ParallelConfig:
         """Create high-performance parallel configuration."""
@@ -261,25 +285,26 @@ class ParallelConfig(BaseModel):
 class PipelineConfig(BaseModel):
     """
     Main pipeline configuration.
-    
+
     Attributes:
         schema: Database schema name
         thresholds: Validation thresholds for each phase
         parallel: Parallel execution configuration
         verbose: Whether to enable verbose logging
     """
+
     schema: str
     thresholds: ValidationThresholds
     parallel: ParallelConfig
     verbose: bool = True
-    
+
     def validate(self) -> None:
         """Validate pipeline configuration."""
         if not self.schema or not isinstance(self.schema, str):
             raise PipelineValidationError("Schema name must be a non-empty string")
         self.thresholds.validate()
         self.parallel.validate()
-    
+
     @classmethod
     def create_default(cls, schema: str) -> PipelineConfig:
         """Create default pipeline configuration."""
@@ -287,9 +312,9 @@ class PipelineConfig(BaseModel):
             schema=schema,
             thresholds=ValidationThresholds.create_default(),
             parallel=ParallelConfig.create_default(),
-            verbose=True
+            verbose=True,
         )
-    
+
     @classmethod
     def create_high_performance(cls, schema: str) -> PipelineConfig:
         """Create high-performance pipeline configuration."""
@@ -297,9 +322,9 @@ class PipelineConfig(BaseModel):
             schema=schema,
             thresholds=ValidationThresholds.create_strict(),
             parallel=ParallelConfig.create_high_performance(),
-            verbose=False
+            verbose=False,
         )
-    
+
     @classmethod
     def create_conservative(cls, schema: str) -> PipelineConfig:
         """Create conservative pipeline configuration."""
@@ -307,7 +332,7 @@ class PipelineConfig(BaseModel):
             schema=schema,
             thresholds=ValidationThresholds.create_strict(),
             parallel=ParallelConfig.create_sequential(),
-            verbose=True
+            verbose=True,
         )
 
 
@@ -315,15 +340,16 @@ class PipelineConfig(BaseModel):
 # Step Models
 # ============================================================================
 
+
 @dataclass
 class BronzeStep(BaseModel):
     """
     Bronze layer step configuration for raw data validation and ingestion.
-    
+
     Bronze steps represent the first layer of the Medallion Architecture,
     handling raw data validation and establishing the foundation for downstream
     processing. They define validation rules and incremental processing capabilities.
-    
+
     Attributes:
         name: Unique identifier for this Bronze step
         rules: Dictionary mapping column names to validation rule lists.
@@ -331,10 +357,10 @@ class BronzeStep(BaseModel):
         incremental_col: Column name for incremental processing (e.g., "timestamp").
                         If provided, enables watermarking for efficient updates.
                         If None, forces full refresh mode for downstream steps.
-    
+
     Example:
         >>> from pyspark.sql import functions as F
-        >>> 
+        >>>
         >>> bronze_step = BronzeStep(
         ...     name="user_events",
         ...     rules={
@@ -344,25 +370,28 @@ class BronzeStep(BaseModel):
         ...     },
         ...     incremental_col="timestamp"
         ... )
-        >>> 
+        >>>
         >>> # Validate configuration
         >>> bronze_step.validate()
         >>> print(f"Supports incremental: {bronze_step.has_incremental_capability}")
     """
+
     name: str
     rules: ColumnRules
-    incremental_col: Optional[str] = None
-    schema: Optional[str] = None
-    
+    incremental_col: str | None = None
+    schema: str | None = None
+
     def validate(self) -> None:
         """Validate bronze step configuration."""
         if not self.name or not isinstance(self.name, str):
             raise PipelineValidationError("Step name must be a non-empty string")
         if not isinstance(self.rules, dict):
             raise PipelineValidationError("Rules must be a dictionary")
-        if self.incremental_col is not None and not isinstance(self.incremental_col, str):
+        if self.incremental_col is not None and not isinstance(
+            self.incremental_col, str
+        ):
             raise PipelineValidationError("Incremental column must be a string")
-    
+
     @property
     def has_incremental_capability(self) -> bool:
         """Check if this Bronze step supports incremental processing."""
@@ -373,11 +402,11 @@ class BronzeStep(BaseModel):
 class SilverStep(BaseModel):
     """
     Silver layer step configuration for data cleaning and enrichment.
-    
+
     Silver steps represent the second layer of the Medallion Architecture,
     transforming raw Bronze data into clean, business-ready datasets.
     They apply data quality rules, business logic, and data transformations.
-    
+
     Attributes:
         name: Unique identifier for this Silver step
         source_bronze: Name of the Bronze step providing input data
@@ -390,7 +419,7 @@ class SilverStep(BaseModel):
                       If provided, enables incremental processing with append mode.
                       If None, uses overwrite mode for full refresh.
         existing: Whether this represents an existing table (for validation-only steps)
-    
+
     Example:
         >>> def clean_user_events(spark, bronze_df, prior_silvers):
         ...     return (bronze_df
@@ -398,7 +427,7 @@ class SilverStep(BaseModel):
         ...         .withColumn("event_date", F.date_trunc("day", "timestamp"))
         ...         .withColumn("is_weekend", F.dayofweek("timestamp").isin([1, 7]))
         ...     )
-        >>> 
+        >>>
         >>> silver_step = SilverStep(
         ...     name="clean_events",
         ...     source_bronze="user_events",
@@ -411,21 +440,24 @@ class SilverStep(BaseModel):
         ...     watermark_col="timestamp"
         ... )
     """
+
     name: str
     source_bronze: str
     transform: SilverTransformFunction
     rules: ColumnRules
     table_name: str
-    watermark_col: Optional[str] = None
+    watermark_col: str | None = None
     existing: bool = False
-    schema: Optional[str] = None
-    
+    schema: str | None = None
+
     def validate(self) -> None:
         """Validate silver step configuration."""
         if not self.name or not isinstance(self.name, str):
             raise PipelineValidationError("Step name must be a non-empty string")
         if not self.source_bronze or not isinstance(self.source_bronze, str):
-            raise PipelineValidationError("Source bronze step name must be a non-empty string")
+            raise PipelineValidationError(
+                "Source bronze step name must be a non-empty string"
+            )
         if not callable(self.transform):
             raise PipelineValidationError("Transform must be a callable function")
         if not isinstance(self.rules, dict):
@@ -438,11 +470,11 @@ class SilverStep(BaseModel):
 class GoldStep(BaseModel):
     """
     Gold layer step configuration for business analytics and reporting.
-    
+
     Gold steps represent the third layer of the Medallion Architecture,
     creating business-ready datasets for analytics, reporting, and dashboards.
     They aggregate and transform Silver layer data into meaningful business insights.
-    
+
     Attributes:
         name: Unique identifier for this Gold step
         transform: Transformation function with signature:
@@ -455,7 +487,7 @@ class GoldStep(BaseModel):
         source_silvers: List of Silver step names to use as input sources.
                        If None, uses all available Silver steps.
                        Allows selective consumption of Silver data.
-    
+
     Example:
         >>> def user_daily_metrics(spark, silvers):
         ...     events_df = silvers["clean_events"]
@@ -469,7 +501,7 @@ class GoldStep(BaseModel):
         ...         )
         ...         .withColumn("is_active_user", F.col("total_events") > 5)
         ...     )
-        >>> 
+        >>>
         >>> gold_step = GoldStep(
         ...     name="user_metrics",
         ...     transform=user_daily_metrics,
@@ -481,13 +513,14 @@ class GoldStep(BaseModel):
         ...     source_silvers=["clean_events"]
         ... )
     """
+
     name: str
     transform: GoldTransformFunction
     rules: ColumnRules
     table_name: str
-    source_silvers: Optional[List[str]] = None
-    schema: Optional[str] = None
-    
+    source_silvers: list[str] | None = None
+    schema: str | None = None
+
     def validate(self) -> None:
         """Validate gold step configuration."""
         if not self.name or not isinstance(self.name, str):
@@ -498,7 +531,9 @@ class GoldStep(BaseModel):
             raise PipelineValidationError("Rules must be a dictionary")
         if not self.table_name or not isinstance(self.table_name, str):
             raise PipelineValidationError("Table name must be a non-empty string")
-        if self.source_silvers is not None and not isinstance(self.source_silvers, list):
+        if self.source_silvers is not None and not isinstance(
+            self.source_silvers, list
+        ):
             raise PipelineValidationError("Source silvers must be a list or None")
 
 
@@ -506,11 +541,12 @@ class GoldStep(BaseModel):
 # Execution Models
 # ============================================================================
 
+
 @dataclass
 class ExecutionContext(BaseModel):
     """
     Context for pipeline execution.
-    
+
     Attributes:
         mode: Execution mode (initial/incremental)
         start_time: When execution started
@@ -518,23 +554,24 @@ class ExecutionContext(BaseModel):
         duration_secs: Total execution duration
         run_id: Unique run identifier
     """
+
     mode: ExecutionMode
     start_time: datetime
-    end_time: Optional[datetime] = None
-    duration_secs: Optional[float] = None
+    end_time: datetime | None = None
+    duration_secs: float | None = None
     run_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    
+
     def finish(self) -> None:
         """Mark execution as finished and calculate duration."""
         self.end_time = datetime.utcnow()
         if self.start_time:
             self.duration_secs = (self.end_time - self.start_time).total_seconds()
-    
+
     @property
     def is_finished(self) -> bool:
         """Check if execution is finished."""
         return self.end_time is not None
-    
+
     @property
     def is_running(self) -> bool:
         """Check if execution is currently running."""
@@ -545,7 +582,7 @@ class ExecutionContext(BaseModel):
 class StageStats(BaseModel):
     """
     Statistics for a pipeline stage.
-    
+
     Attributes:
         stage: Stage name (bronze/silver/gold)
         step: Step name
@@ -557,6 +594,7 @@ class StageStats(BaseModel):
         start_time: When processing started
         end_time: When processing ended
     """
+
     stage: str
     step: str
     total_rows: int
@@ -564,9 +602,9 @@ class StageStats(BaseModel):
     invalid_rows: int
     validation_rate: float
     duration_secs: float
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+
     def validate(self) -> None:
         """Validate stage statistics."""
         if self.total_rows != self.valid_rows + self.invalid_rows:
@@ -574,29 +612,33 @@ class StageStats(BaseModel):
                 f"Total rows ({self.total_rows}) must equal valid ({self.valid_rows}) + invalid ({self.invalid_rows})"
             )
         if not 0 <= self.validation_rate <= 100:
-            raise PipelineValidationError(f"Validation rate must be between 0 and 100, got {self.validation_rate}")
+            raise PipelineValidationError(
+                f"Validation rate must be between 0 and 100, got {self.validation_rate}"
+            )
         if self.duration_secs < 0:
-            raise PipelineValidationError(f"Duration must be non-negative, got {self.duration_secs}")
-    
+            raise PipelineValidationError(
+                f"Duration must be non-negative, got {self.duration_secs}"
+            )
+
     @property
     def is_valid(self) -> bool:
         """Check if the stage passed validation."""
         return self.validation_rate >= 95.0  # Default threshold
-    
+
     @property
     def error_rate(self) -> float:
         """Calculate error rate."""
         return 100.0 - self.validation_rate
-    
+
     @classmethod
     def create_bronze_stats(
-        cls, 
-        step: str, 
-        total_rows: int, 
-        valid_rows: int, 
+        cls,
+        step: str,
+        total_rows: int,
+        valid_rows: int,
         duration_secs: float,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
     ) -> StageStats:
         """Create bronze stage statistics."""
         invalid_rows = total_rows - valid_rows
@@ -610,9 +652,9 @@ class StageStats(BaseModel):
             validation_rate=validation_rate,
             duration_secs=duration_secs,
             start_time=start_time,
-            end_time=end_time
+            end_time=end_time,
         )
-    
+
     @classmethod
     def create_silver_stats(
         cls,
@@ -620,8 +662,8 @@ class StageStats(BaseModel):
         total_rows: int,
         valid_rows: int,
         duration_secs: float,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
     ) -> StageStats:
         """Create silver stage statistics."""
         invalid_rows = total_rows - valid_rows
@@ -635,9 +677,9 @@ class StageStats(BaseModel):
             validation_rate=validation_rate,
             duration_secs=duration_secs,
             start_time=start_time,
-            end_time=end_time
+            end_time=end_time,
         )
-    
+
     @classmethod
     def create_gold_stats(
         cls,
@@ -645,8 +687,8 @@ class StageStats(BaseModel):
         total_rows: int,
         valid_rows: int,
         duration_secs: float,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
     ) -> StageStats:
         """Create gold stage statistics."""
         invalid_rows = total_rows - valid_rows
@@ -660,7 +702,7 @@ class StageStats(BaseModel):
             validation_rate=validation_rate,
             duration_secs=duration_secs,
             start_time=start_time,
-            end_time=end_time
+            end_time=end_time,
         )
 
 
@@ -668,7 +710,7 @@ class StageStats(BaseModel):
 class StepResult(BaseModel):
     """
     Result of a pipeline step execution.
-    
+
     Attributes:
         step_name: Name of the step
         phase: Pipeline phase
@@ -681,6 +723,7 @@ class StepResult(BaseModel):
         validation_rate: Validation success rate
         error_message: Error message if failed
     """
+
     step_name: str
     phase: PipelinePhase
     success: bool
@@ -690,13 +733,13 @@ class StepResult(BaseModel):
     rows_processed: int
     rows_written: int
     validation_rate: float
-    error_message: Optional[str] = None
-    
+    error_message: str | None = None
+
     @property
     def is_valid(self) -> bool:
         """Check if the step result is valid."""
         return self.success and self.validation_rate >= 95.0
-    
+
     @classmethod
     def create_success(
         cls,
@@ -706,7 +749,7 @@ class StepResult(BaseModel):
         end_time: datetime,
         rows_processed: int,
         rows_written: int,
-        validation_rate: float
+        validation_rate: float,
     ) -> StepResult:
         """Create a successful step result."""
         duration_secs = (end_time - start_time).total_seconds()
@@ -719,9 +762,9 @@ class StepResult(BaseModel):
             duration_secs=duration_secs,
             rows_processed=rows_processed,
             rows_written=rows_written,
-            validation_rate=validation_rate
+            validation_rate=validation_rate,
         )
-    
+
     @classmethod
     def create_failure(
         cls,
@@ -729,7 +772,7 @@ class StepResult(BaseModel):
         phase: PipelinePhase,
         start_time: datetime,
         end_time: datetime,
-        error_message: str
+        error_message: str,
     ) -> StepResult:
         """Create a failed step result."""
         duration_secs = (end_time - start_time).total_seconds()
@@ -743,7 +786,7 @@ class StepResult(BaseModel):
             rows_processed=0,
             rows_written=0,
             validation_rate=0.0,
-            error_message=error_message
+            error_message=error_message,
         )
 
 
@@ -751,7 +794,7 @@ class StepResult(BaseModel):
 class PipelineMetrics(BaseModel):
     """
     Overall pipeline execution metrics.
-    
+
     Attributes:
         total_steps: Total number of steps
         successful_steps: Number of successful steps
@@ -769,6 +812,7 @@ class PipelineMetrics(BaseModel):
         error_count: Number of errors
         retry_count: Number of retries
     """
+
     total_steps: int = 0
     successful_steps: int = 0
     failed_steps: int = 0
@@ -784,19 +828,23 @@ class PipelineMetrics(BaseModel):
     cache_hit_rate: float = 0.0
     error_count: int = 0
     retry_count: int = 0
-    
+
     @property
     def success_rate(self) -> float:
         """Calculate success rate."""
-        return (self.successful_steps / self.total_steps * 100) if self.total_steps > 0 else 0.0
-    
+        return (
+            (self.successful_steps / self.total_steps * 100)
+            if self.total_steps > 0
+            else 0.0
+        )
+
     @property
     def failure_rate(self) -> float:
         """Calculate failure rate."""
         return 100.0 - self.success_rate
 
     @classmethod
-    def from_step_results(cls, step_results: List[StepResult]) -> PipelineMetrics:
+    def from_step_results(cls, step_results: list[StepResult]) -> PipelineMetrics:
         """Create metrics from step results."""
         total_steps = len(step_results)
         successful_steps = sum(1 for result in step_results if result.success)
@@ -806,9 +854,10 @@ class PipelineMetrics(BaseModel):
         total_rows_written = sum(result.rows_written for result in step_results)
         avg_validation_rate = (
             sum(result.validation_rate for result in step_results) / total_steps
-            if total_steps > 0 else 0.0
+            if total_steps > 0
+            else 0.0
         )
-        
+
         return cls(
             total_steps=total_steps,
             successful_steps=successful_steps,
@@ -816,7 +865,7 @@ class PipelineMetrics(BaseModel):
             total_duration_secs=total_duration_secs,
             total_rows_processed=total_rows_processed,
             total_rows_written=total_rows_written,
-            avg_validation_rate=avg_validation_rate
+            avg_validation_rate=avg_validation_rate,
         )
 
 
@@ -824,32 +873,28 @@ class PipelineMetrics(BaseModel):
 class ExecutionResult(BaseModel):
     """
     Result of pipeline execution.
-    
+
     Attributes:
         context: Execution context
         step_results: Results for each step
         metrics: Overall execution metrics
         success: Whether the entire pipeline succeeded
     """
+
     context: ExecutionContext
-    step_results: List[StepResult]
+    step_results: list[StepResult]
     metrics: PipelineMetrics
     success: bool
-    
+
     @classmethod
     def from_context_and_results(
-        cls,
-        context: ExecutionContext,
-        step_results: List[StepResult]
+        cls, context: ExecutionContext, step_results: list[StepResult]
     ) -> ExecutionResult:
         """Create execution result from context and step results."""
         metrics = PipelineMetrics.from_step_results(step_results)
         success = all(result.success for result in step_results)
         return cls(
-            context=context,
-            step_results=step_results,
-            metrics=metrics,
-            success=success
+            context=context, step_results=step_results, metrics=metrics, success=success
         )
 
 
@@ -857,11 +902,12 @@ class ExecutionResult(BaseModel):
 # Dependency Models
 # ============================================================================
 
+
 @dataclass
 class SilverDependencyInfo(BaseModel):
     """
     Dependency information for Silver steps.
-    
+
     Attributes:
         step_name: Name of the silver step
         source_bronze: Source bronze step name
@@ -869,18 +915,21 @@ class SilverDependencyInfo(BaseModel):
         can_run_parallel: Whether this step can run in parallel
         execution_group: Execution group for parallel processing
     """
+
     step_name: str
     source_bronze: str
-    depends_on_silvers: Set[str]
+    depends_on_silvers: set[str]
     can_run_parallel: bool
     execution_group: int
-    
+
     def validate(self) -> None:
         """Validate dependency information."""
         if not self.step_name or not isinstance(self.step_name, str):
             raise PipelineValidationError("Step name must be a non-empty string")
         if not self.source_bronze or not isinstance(self.source_bronze, str):
-            raise PipelineValidationError("Source bronze step name must be a non-empty string")
+            raise PipelineValidationError(
+                "Source bronze step name must be a non-empty string"
+            )
         if not isinstance(self.depends_on_silvers, set):
             raise PipelineValidationError("Depends on silvers must be a set")
         if self.execution_group < 0:
@@ -891,22 +940,24 @@ class SilverDependencyInfo(BaseModel):
 # Cross-Layer Dependency Models
 # ============================================================================
 
+
 @dataclass
 class CrossLayerDependency(BaseModel):
     """
     Represents a dependency between steps across different layers.
-    
+
     Attributes:
         source_step: Name of the source step
         target_step: Name of the target step
         dependency_type: Type of dependency (data, validation, etc.)
         is_required: Whether this dependency is required for execution
     """
+
     source_step: str
     target_step: str
     dependency_type: str = "data"
     is_required: bool = True
-    
+
     def validate(self) -> None:
         """Validate dependency information."""
         if not self.source_step or not isinstance(self.source_step, str):
@@ -921,7 +972,7 @@ class CrossLayerDependency(BaseModel):
 class UnifiedStepConfig(BaseModel):
     """
     Unified configuration for any pipeline step type.
-    
+
     Attributes:
         name: Step name
         step_type: Type of step (bronze, silver, gold)
@@ -931,20 +982,23 @@ class UnifiedStepConfig(BaseModel):
         can_run_parallel: Whether this step can run in parallel
         resource_requirements: Resource requirements for execution
     """
+
     name: str
     step_type: str
-    dependencies: List[str] = field(default_factory=list)
+    dependencies: list[str] = field(default_factory=list)
     estimated_duration: float = 1.0
     priority: int = 0
     can_run_parallel: bool = True
-    resource_requirements: Dict[str, Any] = field(default_factory=dict)
-    
+    resource_requirements: dict[str, Any] = field(default_factory=dict)
+
     def validate(self) -> None:
         """Validate step configuration."""
         if not self.name or not isinstance(self.name, str):
             raise PipelineValidationError("Step name must be a non-empty string")
         if self.step_type not in ["bronze", "silver", "gold"]:
-            raise PipelineValidationError("Step type must be 'bronze', 'silver', or 'gold'")
+            raise PipelineValidationError(
+                "Step type must be 'bronze', 'silver', or 'gold'"
+            )
         if self.estimated_duration < 0:
             raise PipelineValidationError("Estimated duration must be non-negative")
         if not isinstance(self.dependencies, list):
@@ -955,7 +1009,7 @@ class UnifiedStepConfig(BaseModel):
 class UnifiedExecutionPlan(BaseModel):
     """
     Unified execution plan for cross-layer parallel execution.
-    
+
     Attributes:
         execution_groups: Groups of steps that can run in parallel
         total_estimated_duration: Total estimated execution time
@@ -963,23 +1017,29 @@ class UnifiedExecutionPlan(BaseModel):
         critical_path: Steps that are on the critical path
         recommendations: Optimization recommendations
     """
-    execution_groups: List[List[str]] = field(default_factory=list)
+
+    execution_groups: list[list[str]] = field(default_factory=list)
     total_estimated_duration: float = 0.0
     parallel_efficiency: float = 0.0
-    critical_path: List[str] = field(default_factory=list)
-    recommendations: List[str] = field(default_factory=list)
-    
+    critical_path: list[str] = field(default_factory=list)
+    recommendations: list[str] = field(default_factory=list)
+
     def validate(self) -> None:
         """Validate execution plan."""
         if self.total_estimated_duration < 0:
-            raise PipelineValidationError("Total estimated duration must be non-negative")
+            raise PipelineValidationError(
+                "Total estimated duration must be non-negative"
+            )
         if not 0 <= self.parallel_efficiency <= 100:
-            raise PipelineValidationError("Parallel efficiency must be between 0 and 100")
+            raise PipelineValidationError(
+                "Parallel efficiency must be between 0 and 100"
+            )
 
 
 # ============================================================================
 # Factory Functions
 # ============================================================================
+
 
 def create_pipeline_config(
     schema: str,
@@ -988,37 +1048,27 @@ def create_pipeline_config(
     gold_threshold: float = 99.0,
     enable_parallel: bool = True,
     max_workers: int = 4,
-    verbose: bool = True
+    verbose: bool = True,
 ) -> PipelineConfig:
     """Factory function to create pipeline configuration."""
     thresholds = ValidationThresholds(
-        bronze=bronze_threshold,
-        silver=silver_threshold,
-        gold=gold_threshold
+        bronze=bronze_threshold, silver=silver_threshold, gold=gold_threshold
     )
-    parallel = ParallelConfig(
-        enabled=enable_parallel,
-        max_workers=max_workers
-    )
+    parallel = ParallelConfig(enabled=enable_parallel, max_workers=max_workers)
     return PipelineConfig(
-        schema=schema,
-        thresholds=thresholds,
-        parallel=parallel,
-        verbose=verbose
+        schema=schema, thresholds=thresholds, parallel=parallel, verbose=verbose
     )
 
 
 def create_execution_context(mode: ExecutionMode) -> ExecutionContext:
     """Factory function to create execution context."""
-    return ExecutionContext(
-        mode=mode,
-        start_time=datetime.utcnow()
-    )
+    return ExecutionContext(mode=mode, start_time=datetime.utcnow())
 
 
 # ============================================================================
 # Validation Utilities
 # ============================================================================
+
 
 def validate_pipeline_config(config: PipelineConfig) -> None:
     """Validate a pipeline configuration."""
@@ -1028,7 +1078,7 @@ def validate_pipeline_config(config: PipelineConfig) -> None:
         raise PipelineConfigurationError(f"Invalid pipeline configuration: {e}")
 
 
-def validate_step_config(step: Union[BronzeStep, SilverStep, GoldStep]) -> None:
+def validate_step_config(step: BronzeStep | SilverStep | GoldStep) -> None:
     """Validate a step configuration."""
     try:
         step.validate()
@@ -1039,6 +1089,7 @@ def validate_step_config(step: Union[BronzeStep, SilverStep, GoldStep]) -> None:
 # ============================================================================
 # Serialization Utilities
 # ============================================================================
+
 
 def serialize_pipeline_config(config: PipelineConfig) -> str:
     """Serialize pipeline configuration to JSON."""
@@ -1053,12 +1104,12 @@ def deserialize_pipeline_config(json_str: str) -> PipelineConfig:
         thresholds=ValidationThresholds(
             bronze=data["thresholds"]["bronze"],
             silver=data["thresholds"]["silver"],
-            gold=data["thresholds"]["gold"]
+            gold=data["thresholds"]["gold"],
         ),
         parallel=ParallelConfig(
             enabled=data["parallel"]["enabled"],
             max_workers=data["parallel"]["max_workers"],
-            timeout_secs=data["parallel"].get("timeout_secs", 300)
+            timeout_secs=data["parallel"].get("timeout_secs", 300),
         ),
-        verbose=data.get("verbose", True)
+        verbose=data.get("verbose", True),
     )

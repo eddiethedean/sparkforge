@@ -6,48 +6,35 @@ providing detailed error context for execution-related issues.
 """
 
 from __future__ import annotations
-from typing import Optional
 
-from .base import SparkForgeError, ErrorCategory, ErrorSeverity
+from .base import ErrorCategory, ErrorSeverity, SparkForgeError
 
 
 class ExecutionError(SparkForgeError):
     """Raised when execution operations fail."""
-    
-    def __init__(
-        self,
-        message: str,
-        *,
-        execution_step: Optional[str] = None,
-        **kwargs
-    ):
+
+    def __init__(self, message: str, *, execution_step: str | None = None, **kwargs):
         super().__init__(
             message,
             category=ErrorCategory.EXECUTION,
             severity=ErrorSeverity.HIGH,
-            **kwargs
+            **kwargs,
         )
         self.execution_step = execution_step
 
 
 class ExecutionEngineError(SparkForgeError):
     """Raised when execution engine fails."""
-    
-    def __init__(
-        self,
-        message: str,
-        *,
-        execution_mode: Optional[str] = None,
-        **kwargs
-    ):
+
+    def __init__(self, message: str, *, execution_mode: str | None = None, **kwargs):
         super().__init__(
             message,
             category=ErrorCategory.EXECUTION,
             severity=ErrorSeverity.HIGH,
-            **kwargs
+            **kwargs,
         )
         self.execution_mode = execution_mode
-    
+
     def __str__(self) -> str:
         base_msg = super().__str__()
         if self.execution_mode:
@@ -57,26 +44,26 @@ class ExecutionEngineError(SparkForgeError):
 
 class StepExecutionError(SparkForgeError):
     """Raised when a step fails during execution."""
-    
+
     def __init__(
         self,
         message: str,
         *,
         step_name: str,
-        step_type: Optional[str] = None,
+        step_type: str | None = None,
         retry_count: int = 0,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             message,
             category=ErrorCategory.EXECUTION,
             severity=ErrorSeverity.HIGH,
-            **kwargs
+            **kwargs,
         )
         self.step_name = step_name
         self.step_type = step_type
         self.retry_count = retry_count
-    
+
     def __str__(self) -> str:
         base_msg = super().__str__()
         if self.step_name:
@@ -86,22 +73,16 @@ class StepExecutionError(SparkForgeError):
 
 class StrategyError(SparkForgeError):
     """Raised when execution strategy fails."""
-    
-    def __init__(
-        self,
-        message: str,
-        *,
-        strategy_name: Optional[str] = None,
-        **kwargs
-    ):
+
+    def __init__(self, message: str, *, strategy_name: str | None = None, **kwargs):
         super().__init__(
             message,
             category=ErrorCategory.EXECUTION,
             severity=ErrorSeverity.HIGH,
-            **kwargs
+            **kwargs,
         )
         self.strategy_name = strategy_name
-    
+
     def __str__(self) -> str:
         base_msg = super().__str__()
         if self.strategy_name:
@@ -111,26 +92,26 @@ class StrategyError(SparkForgeError):
 
 class RetryError(SparkForgeError):
     """Raised when retry operations fail."""
-    
+
     def __init__(
         self,
         message: str,
         *,
-        step_name: Optional[str] = None,
+        step_name: str | None = None,
         max_retries: int = 0,
         retry_count: int = 0,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             message,
             category=ErrorCategory.EXECUTION,
             severity=ErrorSeverity.HIGH,
-            **kwargs
+            **kwargs,
         )
         self.step_name = step_name
         self.max_retries = max_retries
         self.retry_count = retry_count
-    
+
     def __str__(self) -> str:
         base_msg = super().__str__()
         if self.step_name:
@@ -140,24 +121,24 @@ class RetryError(SparkForgeError):
 
 class TimeoutError(SparkForgeError):
     """Raised when operations timeout."""
-    
+
     def __init__(
         self,
         message: str,
         *,
         timeout_seconds: float = 0.0,
-        step_name: Optional[str] = None,
-        **kwargs
+        step_name: str | None = None,
+        **kwargs,
     ):
         super().__init__(
             message,
             category=ErrorCategory.EXECUTION,
             severity=ErrorSeverity.HIGH,
-            **kwargs
+            **kwargs,
         )
         self.timeout_seconds = timeout_seconds
         self.step_name = step_name
-    
+
     def __str__(self) -> str:
         base_msg = super().__str__()
         if self.timeout_seconds > 0:
@@ -167,8 +148,8 @@ class TimeoutError(SparkForgeError):
 
 __all__ = [
     "ExecutionError",
-    "ExecutionEngineError", 
+    "ExecutionEngineError",
     "ExecutionTimeoutError",
     "RetryExhaustedError",
-    "TimeoutError"
+    "TimeoutError",
 ]

@@ -286,6 +286,30 @@ def custom_validation(spark, df, rules):
     return df
 ```
 
+## Column Filtering Control
+
+```python
+from sparkforge.validation import apply_column_rules
+
+# Default: Only keep columns with validation rules
+valid_df, invalid_df, stats = apply_column_rules(
+    df=input_df,
+    rules={"user_id": [F.col("user_id").isNotNull()]},
+    stage="bronze",
+    step="test",
+    filter_columns_by_rules=True  # DEFAULT
+)
+
+# Preserve all columns for downstream steps
+valid_df, invalid_df, stats = apply_column_rules(
+    df=input_df,
+    rules={"user_id": [F.col("user_id").isNotNull()]},
+    stage="bronze",
+    step="test",
+    filter_columns_by_rules=False  # Keep all columns
+)
+```
+
 ## Configuration
 
 ```python

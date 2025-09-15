@@ -7,12 +7,13 @@ and managing execution metrics.
 """
 
 from __future__ import annotations
-from typing import Callable, Optional, Tuple
-from datetime import datetime
-import time
+
 import logging
-from functools import wraps
+import time
 from contextlib import contextmanager
+from datetime import datetime
+from functools import wraps
+from typing import Callable
 
 from pyspark.sql import DataFrame
 
@@ -27,10 +28,10 @@ def now_dt() -> datetime:
 def format_duration(seconds: float) -> str:
     """
     Format duration in seconds to human-readable string.
-    
+
     Args:
         seconds: Duration in seconds
-        
+
     Returns:
         Formatted duration string
     """
@@ -46,12 +47,13 @@ def format_duration(seconds: float) -> str:
 
 def time_operation(operation_name: str = "operation"):
     """Decorator to time operations and log performance."""
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
             start_time = time.time()
             logger.info(f"Starting {operation_name}...")
-            
+
             try:
                 result = func(*args, **kwargs)
                 duration = time.time() - start_time
@@ -61,25 +63,28 @@ def time_operation(operation_name: str = "operation"):
                 duration = time.time() - start_time
                 logger.error(f"Failed {operation_name} after {duration:.3f}s: {e}")
                 raise
-        
+
         return wrapper
+
     return decorator
 
 
 @contextmanager
-def performance_monitor(operation_name: str, max_duration: Optional[float] = None):
+def performance_monitor(operation_name: str, max_duration: float | None = None):
     """Context manager to monitor operation performance."""
     start_time = time.time()
     logger.info(f"Starting {operation_name}...")
-    
+
     try:
         yield
         duration = time.time() - start_time
         logger.info(f"Completed {operation_name} in {duration:.3f}s")
-        
+
         if max_duration and duration > max_duration:
-            logger.warning(f"{operation_name} took {duration:.3f}s, exceeding threshold of {max_duration}s")
-            
+            logger.warning(
+                f"{operation_name} took {duration:.3f}s, exceeding threshold of {max_duration}s"
+            )
+
     except Exception as e:
         duration = time.time() - start_time
         logger.error(f"Failed {operation_name} after {duration:.3f}s: {e}")
@@ -87,44 +92,47 @@ def performance_monitor(operation_name: str, max_duration: Optional[float] = Non
 
 
 @time_operation("write operation")
-def time_write_operation(mode: str, df: DataFrame, fqn: str, **options) -> Tuple[int, float, datetime, datetime]:
+def time_write_operation(
+    mode: str, df: DataFrame, fqn: str, **options
+) -> tuple[int, float, datetime, datetime]:
     """
     Time a write operation and return results with timing info.
-    
+
     Args:
         mode: Write mode (overwrite/append)
         df: DataFrame to write
         fqn: Fully qualified table name
         **options: Additional write options
-        
+
     Returns:
         Tuple of (rows_written, duration_secs, start_time, end_time)
-        
+
     Raises:
         ValueError: If mode is invalid
         TableOperationError: If write operation fails
     """
-    from .table_operations import write_overwrite_table, write_append_table
-    from .errors.data import TableOperationError
-    
+    from .table_operations import write_append_table, write_overwrite_table
+
     start = now_dt()
     t0 = time.time()
-    
+
     try:
         if mode == "overwrite":
             rows = write_overwrite_table(df, fqn, **options)
         elif mode == "append":
             rows = write_append_table(df, fqn, **options)
         else:
-            raise ValueError(f"Unknown write mode '{mode}'. Supported modes: overwrite, append")
-        
+            raise ValueError(
+                f"Unknown write mode '{mode}'. Supported modes: overwrite, append"
+            )
+
         t1 = time.time()
         end = now_dt()
         duration = round(t1 - t0, 3)
-        
+
         logger.info(f"Write operation completed: {rows} rows in {duration}s to {fqn}")
         return rows, duration, start, end
-        
+
     except Exception as e:
         t1 = time.time()
         end = now_dt()
@@ -133,21 +141,26 @@ def time_write_operation(mode: str, df: DataFrame, fqn: str, **options) -> Tuple
         raise
 
 
-def monitor_performance(operation_name: str, max_duration: Optional[float] = None) -> Callable:
+def monitor_performance(
+    operation_name: str, max_duration: float | None = None
+) -> Callable:
     """
     Decorator factory for performance monitoring.
-    
+
     Args:
         operation_name: Name of the operation
         max_duration: Maximum allowed duration in seconds
-        
+
     Returns:
         Decorator function
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
             with performance_monitor(operation_name, max_duration):
                 return func(*args, **kwargs)
+
         return wrapper
+
     return decorator

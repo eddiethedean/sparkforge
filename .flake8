@@ -1,0 +1,26 @@
+[flake8]
+max-line-length = 88
+extend-ignore = 
+    E203,  # whitespace before ':'
+    E501,  # line too long (handled by black)
+    W503,  # line break before binary operator
+    E402,  # module level import not at top of file
+    F401,  # imported but unused (handled by ruff)
+    F841,  # local variable assigned but never used (handled by ruff)
+exclude = 
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    build,
+    dist,
+    .eggs,
+    .mypy_cache,
+    .pytest_cache,
+    .ruff_cache,
+    tests,
+per-file-ignores =
+    __init__.py:F401
+    tests/*:S101,S106,S108
+max-complexity = 10
+select = E,W,F,C

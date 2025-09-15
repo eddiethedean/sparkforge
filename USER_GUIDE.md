@@ -495,6 +495,38 @@ builder = PipelineBuilder(
 )
 ```
 
+### Column Filtering Behavior
+
+By default, validation rules filter the output DataFrame to only include columns that have
+validation rules defined. This behavior can be controlled with the `filter_columns_by_rules`
+parameter:
+
+```python
+from sparkforge.validation import apply_column_rules
+
+# Default behavior: Only keep columns with rules
+valid_df, invalid_df, stats = apply_column_rules(
+    df=input_df,
+    rules={"user_id": [F.col("user_id").isNotNull()]},
+    stage="bronze",
+    step="test",
+    filter_columns_by_rules=True  # DEFAULT
+)
+
+# Preserve all columns
+valid_df, invalid_df, stats = apply_column_rules(
+    df=input_df,
+    rules={"user_id": [F.col("user_id").isNotNull()]},
+    stage="bronze",
+    step="test",
+    filter_columns_by_rules=False
+)
+```
+
+**When to use each approach:**
+- `filter_columns_by_rules=True` (default): Use when downstream steps only need validated columns
+- `filter_columns_by_rules=False`: Use when downstream steps need access to all original columns
+
 ### Custom Validation
 
 ```python

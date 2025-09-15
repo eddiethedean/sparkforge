@@ -6,13 +6,15 @@ SparkForge exceptions inherit from, providing consistent error handling patterns
 """
 
 from __future__ import annotations
-from typing import Optional, Dict, Any, List
+
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
 
 class ErrorSeverity(Enum):
     """Severity levels for errors."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -21,6 +23,7 @@ class ErrorSeverity(Enum):
 
 class ErrorCategory(Enum):
     """Categories of errors."""
+
     CONFIGURATION = "configuration"
     VALIDATION = "validation"
     EXECUTION = "execution"
@@ -35,26 +38,26 @@ class ErrorCategory(Enum):
 class SparkForgeError(Exception):
     """
     Base exception for all SparkForge errors.
-    
+
     This is the root exception class that all other SparkForge exceptions
     inherit from, providing consistent error handling patterns and rich context.
     """
-    
+
     def __init__(
         self,
         message: str,
         *,
-        error_code: Optional[str] = None,
-        category: Optional[ErrorCategory] = None,
+        error_code: str | None = None,
+        category: ErrorCategory | None = None,
         severity: ErrorSeverity = ErrorSeverity.MEDIUM,
-        context: Optional[Dict[str, Any]] = None,
-        suggestions: Optional[List[str]] = None,
-        timestamp: Optional[datetime] = None,
-        cause: Optional[Exception] = None
+        context: dict[str, Any] | None = None,
+        suggestions: list[str] | None = None,
+        timestamp: datetime | None = None,
+        cause: Exception | None = None,
     ):
         """
         Initialize a SparkForge error.
-        
+
         Args:
             message: Human-readable error message
             error_code: Unique error code for programmatic handling
@@ -66,7 +69,7 @@ class SparkForgeError(Exception):
             cause: The underlying exception that caused this error
         """
         super().__init__(message)
-        
+
         self.message = message
         self.error_code = error_code or self.__class__.__name__.upper()
         self.category = category
@@ -75,21 +78,21 @@ class SparkForgeError(Exception):
         self.suggestions = suggestions or []
         self.timestamp = timestamp or datetime.now()
         self.cause = cause
-    
+
     def __str__(self) -> str:
         """Return formatted error message."""
         parts = [self.message]
-        
+
         if self.error_code:
             parts.append(f"(Code: {self.error_code})")
-        
+
         if self.context:
             context_str = ", ".join(f"{k}={v}" for k, v in self.context.items())
             parts.append(f"Context: {context_str}")
-        
+
         return " | ".join(parts)
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert error to dictionary for serialization."""
         return {
             "error_type": self.__class__.__name__,
@@ -100,13 +103,13 @@ class SparkForgeError(Exception):
             "context": self.context,
             "suggestions": self.suggestions,
             "timestamp": self.timestamp.isoformat(),
-            "cause": str(self.cause) if self.cause else None
+            "cause": str(self.cause) if self.cause else None,
         }
-    
+
     def add_context(self, key: str, value: Any) -> None:
         """Add context information to the error."""
         self.context[key] = value
-    
+
     def add_suggestion(self, suggestion: str) -> None:
         """Add a suggestion for fixing the error."""
         self.suggestions.append(suggestion)
@@ -114,59 +117,59 @@ class SparkForgeError(Exception):
 
 class ConfigurationError(SparkForgeError):
     """Raised when configuration is invalid or missing."""
-    
+
     def __init__(self, message: str, **kwargs):
         super().__init__(
             message,
             category=ErrorCategory.CONFIGURATION,
             severity=ErrorSeverity.HIGH,
-            **kwargs
+            **kwargs,
         )
 
 
 class ValidationError(SparkForgeError):
     """Raised when data validation fails."""
-    
+
     def __init__(self, message: str, **kwargs):
         super().__init__(
             message,
             category=ErrorCategory.VALIDATION,
             severity=ErrorSeverity.MEDIUM,
-            **kwargs
+            **kwargs,
         )
 
 
 class ExecutionError(SparkForgeError):
     """Raised when execution fails."""
-    
+
     def __init__(self, message: str, **kwargs):
         super().__init__(
             message,
             category=ErrorCategory.EXECUTION,
             severity=ErrorSeverity.HIGH,
-            **kwargs
+            **kwargs,
         )
 
 
 class DataQualityError(SparkForgeError):
     """Raised when data quality issues are detected."""
-    
+
     def __init__(self, message: str, **kwargs):
         super().__init__(
             message,
             category=ErrorCategory.DATA_QUALITY,
             severity=ErrorSeverity.MEDIUM,
-            **kwargs
+            **kwargs,
         )
 
 
 class ResourceError(SparkForgeError):
     """Raised when resource-related errors occur."""
-    
+
     def __init__(self, message: str, **kwargs):
         super().__init__(
             message,
             category=ErrorCategory.RESOURCE,
             severity=ErrorSeverity.HIGH,
-            **kwargs
+            **kwargs,
         )
