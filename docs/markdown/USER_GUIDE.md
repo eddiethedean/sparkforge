@@ -1,3 +1,23 @@
+# # Copyright (c) 2024 Odos Matthews
+# #
+# # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # of this software and associated documentation files (the "Software"), to deal
+# # in the Software without restriction, including without limitation the rights
+# # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # copies of the Software, and to permit persons to whom the Software is
+# # furnished to do so, subject to the following conditions:
+# #
+# # The above copyright notice and this permission notice shall be included in all
+# # copies or substantial portions of the Software.
+# #
+# # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # SOFTWARE.
+
 # SparkForge User Guide
 
 A comprehensive guide to building robust data pipelines with SparkForge's Bronze → Silver → Gold architecture.
@@ -273,19 +293,19 @@ Each tenant gets their own isolated schema:
 ```python
 def create_tenant_pipeline(tenant_id: str):
     builder = PipelineBuilder(spark=spark, schema="default")
-    
+
     # Tenant-specific schemas
     raw_schema = f"{tenant_id}_raw"
     processing_schema = f"{tenant_id}_processing"
     analytics_schema = f"{tenant_id}_analytics"
-    
+
     # Bronze: Read from tenant's raw data
     builder.with_bronze_rules(
         name="events",
         rules={"user_id": [F.col("user_id").isNotNull()]},
         schema=raw_schema
     )
-    
+
     # Silver: Process in tenant's processing schema
     builder.add_silver_transform(
         name="clean_events",
@@ -294,7 +314,7 @@ def create_tenant_pipeline(tenant_id: str):
         table_name="clean_events",
         schema=processing_schema
     )
-    
+
     # Gold: Analytics in tenant's analytics schema
     builder.add_gold_transform(
         name="daily_metrics",
@@ -303,7 +323,7 @@ def create_tenant_pipeline(tenant_id: str):
         table_name="daily_metrics",
         schema=analytics_schema
     )
-    
+
     return builder.to_pipeline()
 ```
 
@@ -348,19 +368,19 @@ Separate dev, staging, and production data:
 ```python
 def create_environment_pipeline(environment: str):
     builder = PipelineBuilder(spark=spark, schema="default")
-    
+
     # Environment-specific schemas
     raw_schema = f"{environment}_raw"
     processing_schema = f"{environment}_processing"
     analytics_schema = f"{environment}_analytics"
-    
+
     # All steps use environment-specific schemas
     builder.with_bronze_rules(
         name="events",
         rules={"user_id": [F.col("user_id").isNotNull()]},
         schema=raw_schema
     )
-    
+
     builder.add_silver_transform(
         name="clean_events",
         transform=clean_events,
@@ -368,7 +388,7 @@ def create_environment_pipeline(environment: str):
         table_name="clean_events",
         schema=processing_schema
     )
-    
+
     builder.add_gold_transform(
         name="daily_metrics",
         transform=daily_metrics,
@@ -376,7 +396,7 @@ def create_environment_pipeline(environment: str):
         table_name="daily_metrics",
         schema=analytics_schema
     )
-    
+
     return builder.to_pipeline()
 ```
 
@@ -886,7 +906,7 @@ tasks = [
         estimated_duration=30.0
     ),
     ExecutionTask(
-        task_id="normal_task", 
+        task_id="normal_task",
         function=normal_function,
         priority=TaskPriority.NORMAL,
         estimated_duration=10.0

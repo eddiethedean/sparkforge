@@ -1,3 +1,23 @@
+# # Copyright (c) 2024 Odos Matthews
+# #
+# # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # of this software and associated documentation files (the "Software"), to deal
+# # in the Software without restriction, including without limitation the rights
+# # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # copies of the Software, and to permit persons to whom the Software is
+# # furnished to do so, subject to the following conditions:
+# #
+# # The above copyright notice and this permission notice shall be included in all
+# # copies or substantial portions of the Software.
+# #
+# # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # SOFTWARE.
+
 # SparkForge
 
 A production-ready PySpark + Delta Lake pipeline engine with the Medallion Architecture (Bronze → Silver → Gold). Build scalable data pipelines with built-in parallel execution, comprehensive validation, and enterprise-grade monitoring.
@@ -25,10 +45,10 @@ builder = PipelineBuilder(spark=spark, schema="my_schema")
 # Bronze → Silver → Gold pipeline
 pipeline = (builder
     .with_bronze_rules(name="events", rules={"user_id": [F.col("user_id").isNotNull()]})
-    .add_silver_transform(name="clean_events", source_bronze="events", 
+    .add_silver_transform(name="clean_events", source_bronze="events",
                          transform=lambda spark, df, silvers: df.filter(F.col("status") == "active"),
                          rules={"status": [F.col("status").isNotNull()]}, table_name="clean_events")
-    .add_gold_transform(name="daily_metrics", transform=lambda spark, silvers: 
+    .add_gold_transform(name="daily_metrics", transform=lambda spark, silvers:
                        list(silvers.values())[0].groupBy("date").count(),
                        rules={"date": [F.col("date").isNotNull()]}, table_name="daily_metrics")
     .to_pipeline()
@@ -148,7 +168,7 @@ from sparkforge import PipelineBuilder
 
 # Spark session is automatically available
 builder = PipelineBuilder(
-    spark=spark, 
+    spark=spark,
     schema="production_schema",
     min_bronze_rate=99.0,
     min_silver_rate=95.0,

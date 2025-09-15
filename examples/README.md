@@ -230,25 +230,25 @@ from pyspark.sql import SparkSession, functions as F
 
 def main():
     """Main function to run the example."""
-    
+
     print("Your Example")
     print("=" * 50)
-    
+
     # Initialize Spark
     spark = SparkSession.builder \
         .appName("Your Example") \
         .master("local[*]") \
         .getOrCreate()
-    
+
     try:
         # Your example code here
         pass
-    
+
     except Exception as e:
         print(f"Error: {e}")
         import traceback
         traceback.print_exc()
-    
+
     finally:
         # Cleanup
         spark.stop()

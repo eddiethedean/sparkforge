@@ -6,21 +6,25 @@ This example shows how the new feature allows you to omit the source_bronze
 parameter when adding silver transforms, making the API more convenient.
 """
 
-import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+import sys
 
-from pyspark.sql import SparkSession, functions as F
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+from pyspark.sql import SparkSession
+from pyspark.sql import functions as F
+
 from sparkforge.pipeline.builder import PipelineBuilder
 
 
 def main():
     """Demonstrate auto-inference of source_bronze."""
     # Initialize Spark
-    spark = SparkSession.builder \
-        .appName("AutoInferSourceBronzeExample") \
-        .master("local[*]") \
+    spark = (
+        SparkSession.builder.appName("AutoInferSourceBronzeExample")
+        .master("local[*]")
         .getOrCreate()
+    )
 
     try:
         # Create sample data
@@ -31,8 +35,7 @@ def main():
             ("user4", "click", "product3", "2024-01-01 13:00:00"),
         ]
         events_df = spark.createDataFrame(
-            events_data, 
-            ["user_id", "action", "product_id", "timestamp"]
+            events_data, ["user_id", "action", "product_id", "timestamp"]
         )
 
         # Create pipeline builder
@@ -45,18 +48,18 @@ def main():
             rules={
                 "user_id": [F.col("user_id").isNotNull()],
                 "action": [F.col("action").isNotNull()],
-                "timestamp": [F.col("timestamp").isNotNull()]
+                "timestamp": [F.col("timestamp").isNotNull()],
             },
-            incremental_col="timestamp"
+            incremental_col="timestamp",
         )
 
         # Add silver step WITHOUT source_bronze - it will be auto-inferred!
         print("🟡 Adding Silver step with auto-inferred source_bronze...")
-        
+
         def clean_events(spark, bronze_df, prior_silvers):
             """Clean and filter events data."""
-            return (bronze_df
-                .filter(F.col("action").isin(["click", "view", "purchase"]))
+            return (
+                bronze_df.filter(F.col("action").isin(["click", "view", "purchase"]))
                 .withColumn("event_date", F.date_trunc("day", F.col("timestamp")))
                 .withColumn("is_purchase", F.col("action") == "purchase")
             )
@@ -68,25 +71,26 @@ def main():
             rules={
                 "user_id": [F.col("user_id").isNotNull()],
                 "action": [F.col("action").isNotNull()],
-                "is_purchase": [F.col("is_purchase").isNotNull()]
+                "is_purchase": [F.col("is_purchase").isNotNull()],
             },
             table_name="clean_events",
-            watermark_col="timestamp"
+            watermark_col="timestamp",
         )
 
         # Add another silver step - also auto-inferred!
         print("🟡 Adding another Silver step with auto-inferred source_bronze...")
-        
+
         def enriched_events(spark, bronze_df, prior_silvers):
             """Enrich events with additional features."""
             clean_df = prior_silvers["clean_events"]
-            return (clean_df
-                .withColumn("hour_of_day", F.hour("timestamp"))
+            return (
+                clean_df.withColumn("hour_of_day", F.hour("timestamp"))
                 .withColumn("is_weekend", F.dayofweek("timestamp").isin([1, 7]))
-                .withColumn("user_activity_level", 
+                .withColumn(
+                    "user_activity_level",
                     F.when(F.col("action") == "purchase", "high")
                     .when(F.col("action") == "click", "medium")
-                    .otherwise("low")
+                    .otherwise("low"),
                 )
             )
 
@@ -97,27 +101,29 @@ def main():
             rules={
                 "user_id": [F.col("user_id").isNotNull()],
                 "hour_of_day": [F.col("hour_of_day").isNotNull()],
-                "user_activity_level": [F.col("user_activity_level").isNotNull()]
+                "user_activity_level": [F.col("user_activity_level").isNotNull()],
             },
             table_name="enriched_events",
-            watermark_col="timestamp"
+            watermark_col="timestamp",
         )
 
         # Add gold step
         print("🟨 Adding Gold step...")
-        
+
         def daily_analytics(spark, silvers):
             """Create daily analytics from silver data."""
             enriched_df = silvers["enriched_events"]
-            return (enriched_df
-                .groupBy("event_date", "user_activity_level")
+            return (
+                enriched_df.groupBy("event_date", "user_activity_level")
                 .agg(
                     F.count("*").alias("event_count"),
                     F.countDistinct("user_id").alias("unique_users"),
-                    F.sum(F.when(F.col("is_purchase"), 1).otherwise(0)).alias("purchases")
+                    F.sum(F.when(F.col("is_purchase"), 1).otherwise(0)).alias(
+                        "purchases"
+                    ),
                 )
-                .withColumn("conversion_rate", 
-                    F.col("purchases") / F.col("event_count")
+                .withColumn(
+                    "conversion_rate", F.col("purchases") / F.col("event_count")
                 )
             )
 
@@ -126,10 +132,10 @@ def main():
             transform=daily_analytics,
             rules={
                 "event_date": [F.col("event_date").isNotNull()],
-                "event_count": [F.col("event_count") > 0]
+                "event_count": [F.col("event_count") > 0],
             },
             table_name="daily_analytics",
-            source_silvers=["enriched_events"]
+            source_silvers=["enriched_events"],
         )
 
         # Build and run pipeline

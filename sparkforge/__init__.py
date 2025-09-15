@@ -1,3 +1,23 @@
+# # Copyright (c) 2024 Odos Matthews
+# #
+# # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # of this software and associated documentation files (the "Software"), to deal
+# # in the Software without restriction, including without limitation the rights
+# # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # copies of the Software, and to permit persons to whom the Software is
+# # furnished to do so, subject to the following conditions:
+# #
+# # The above copyright notice and this permission notice shall be included in all
+# # copies or substantial portions of the Software.
+# #
+# # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # SOFTWARE.
+
 """
 SparkForge - A powerful data pipeline builder for Apache Spark and Databricks.
 
@@ -83,7 +103,6 @@ from .execution import (
 )
 from .execution import ExecutionEngine as UnifiedExecutionEngine
 from .execution import StepExecutionResult as UnifiedStepExecutionResult
-from .execution.dynamic_strategy import DynamicExecutionStrategy
 from .log_writer import PIPELINE_LOG_SCHEMA, LogWriter
 from .models import (
     BronzeStep,
@@ -103,22 +122,11 @@ from .models import (
 )
 
 # Import parallel execution modules
-from .parallel_execution import (
-    DynamicParallelExecutor,
-    DynamicWorkerPool,
-    ExecutionTask,
-    TaskPriority,
-    create_execution_task,
-    get_dynamic_executor,
-)
-from .performance_cache import CacheConfig, PerformanceCache, get_performance_cache
-
 # Import main classes for easy access
 from .pipeline import PipelineBuilder, PipelineRunner
 from .reporting import create_validation_dict, create_write_dict
 
 # Import security and performance modules
-from .security import SecurityConfig, SecurityManager, get_security_manager
 from .step_executor import (
     StepExecutionResult,
     StepExecutor,
