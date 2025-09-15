@@ -81,9 +81,9 @@ This directory contains Jupyter notebooks for interactive learning with SparkFor
 - **Performance**: Use smaller datasets for learning
 
 ### Getting Help
-- **Check the documentation**: [User Guide](../USER_GUIDE.md)
+- **Check the documentation**: [User Guide](../docs/markdown/USER_GUIDE.md)
 - **Look at examples**: [Examples](../examples/) directory
-- **Review API reference**: [API Reference](../API_REFERENCE.md)
+- **Review API reference**: [API Reference](../docs/markdown/API_REFERENCE.md)
 - **Ask questions**: Create an issue on GitHub
 
 ## Customization

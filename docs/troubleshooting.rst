@@ -59,4 +59,4 @@ If you encounter issues not covered here:
 3. Look at `Examples <examples/index.html>`_ for working code samples
 4. Consult the `API Reference <api_reference.html>`_ for method documentation
 
-For additional troubleshooting information, see the complete guide: `TROUBLESHOOTING.md <../TROUBLESHOOTING.md>`_
+For additional troubleshooting information, see the complete guide: `TROUBLESHOOTING.md <markdown/TROUBLESHOOTING.md>`_

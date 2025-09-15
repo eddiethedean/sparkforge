@@ -19,7 +19,12 @@ from datetime import datetime
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
-from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+from pyspark.sql.types import (
+    IntegerType,
+    StringType,
+    StructField,
+    StructType,
+)
 
 from sparkforge import (
     DynamicExecutionStrategy,

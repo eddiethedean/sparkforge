@@ -23,4 +23,4 @@ Pipeline Components
 **Silver Layer**: Data cleaning and standardization
 **Gold Layer**: Business metrics and KPIs
 
-For the complete BI guide with detailed examples, see: `USECASE_BI.md <../USECASE_BI.md>`_
+For the complete BI guide with detailed examples, see: `USECASE_BI.md <markdown/USECASE_BI.md>`_

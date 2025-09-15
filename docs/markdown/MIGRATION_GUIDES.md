@@ -297,23 +297,23 @@ def validate_data(df):
     """Custom validation function"""
     total_rows = df.count()
     valid_rows = df.filter(
-        F.col("user_id").isNotNull() & 
+        F.col("user_id").isNotNull() &
         F.col("amount") > 0
     ).count()
-    
+
     validation_rate = (valid_rows / total_rows) * 100
     logger.info(f"Validation rate: {validation_rate:.2f}%")
-    
+
     if validation_rate < 95:
         raise Exception(f"Validation failed: {validation_rate:.2f}% < 95%")
-    
+
     return df.filter(F.col("user_id").isNotNull() & F.col("amount") > 0)
 
 def transform_data(df):
     """Custom transformation function"""
     return (df
         .withColumn("processed_at", F.current_timestamp())
-        .withColumn("amount_category", 
+        .withColumn("amount_category",
             F.when(F.col("amount") > 100, "high")
             .otherwise("low")
         )
@@ -331,28 +331,28 @@ def create_analytics(df):
 
 def main():
     spark = SparkSession.builder.appName("Custom Pipeline").getOrCreate()
-    
+
     try:
         # Read data
         df = spark.read.csv("data/transactions.csv", header=True, inferSchema=True)
         logger.info(f"Read {df.count()} rows")
-        
+
         # Validate data
         validated_df = validate_data(df)
         logger.info(f"Validated {validated_df.count()} rows")
-        
+
         # Transform data
         transformed_df = transform_data(validated_df)
         logger.info(f"Transformed {transformed_df.count()} rows")
-        
+
         # Create analytics
         analytics_df = create_analytics(transformed_df)
         logger.info(f"Created analytics for {analytics_df.count()} categories")
-        
+
         # Write results
         analytics_df.write.mode("overwrite").parquet("output/analytics")
         logger.info("Pipeline completed successfully")
-        
+
     except Exception as e:
         logger.error(f"Pipeline failed: {e}")
         raise
@@ -394,7 +394,7 @@ builder.with_bronze_rules(
 def transform_transactions(spark, bronze_df, prior_silvers):
     return (bronze_df
         .withColumn("processed_at", F.current_timestamp())
-        .withColumn("amount_category", 
+        .withColumn("amount_category",
             F.when(F.col("amount") > 100, "high")
             .otherwise("low")
         )
@@ -495,7 +495,7 @@ def create_analytics(elements):
 
 def run_pipeline():
     options = PipelineOptions()
-    
+
     with beam.Pipeline(options=options) as pipeline:
         (pipeline
          | 'ReadEvents' >> beam.io.ReadFromText('data/events.json')
@@ -620,7 +620,7 @@ import json
 class ExtractTask(luigi.Task):
     def output(self):
         return luigi.LocalTarget('data/raw_data.json')
-    
+
     def run(self):
         # Extract data logic
         data = [{"id": 1, "value": 100}, {"id": 2, "value": 200}]
@@ -630,35 +630,35 @@ class ExtractTask(luigi.Task):
 class TransformTask(luigi.Task):
     def requires(self):
         return ExtractTask()
-    
+
     def output(self):
         return luigi.LocalTarget('data/transformed_data.json')
-    
+
     def run(self):
         # Transform data logic
         with self.input().open('r') as f:
             data = json.load(f)
-        
-        transformed_data = [{"id": item["id"], "processed_value": item["value"] * 2} 
+
+        transformed_data = [{"id": item["id"], "processed_value": item["value"] * 2}
                            for item in data]
-        
+
         with self.output().open('w') as f:
             json.dump(transformed_data, f)
 
 class LoadTask(luigi.Task):
     def requires(self):
         return TransformTask()
-    
+
     def output(self):
         return luigi.LocalTarget('data/final_analytics.json')
-    
+
     def run(self):
         # Load and analytics logic
         with self.input().open('r') as f:
             data = json.load(f)
-        
+
         analytics = {"total_records": len(data), "avg_value": sum(item["processed_value"] for item in data) / len(data)}
-        
+
         with self.output().open('w') as f:
             json.dump(analytics, f)
 

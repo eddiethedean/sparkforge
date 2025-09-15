@@ -111,7 +111,7 @@ class Monitorable(Protocol):
 class PipelineStep(Protocol):
     name: StepName
     step_type: StepType
-
+    
     def execute(self, context: Dict[str, Any]) -> StepResult: ...
     def validate(self) -> ValidationResult: ...
 
@@ -196,7 +196,7 @@ def infer_parameter_types(func: callable) -> Dict[str, Type]:
 
 ```python
 from sparkforge import (
-    PipelineBuilder, StepName, StepType, ColumnRules,
+    PipelineBuilder, StepName, StepType, ColumnRules, 
     TransformFunction, SilverTransformFunction, GoldTransformFunction
 )
 
@@ -229,11 +229,11 @@ class MyStep(Validatable, Serializable, Executable):
     def validate(self) -> None:
         # Validation logic
         pass
-
+    
     def to_dict(self) -> Dict[str, Any]:
         # Serialization logic
         return {}
-
+    
     def execute(self) -> Any:
         # Execution logic
         return None
@@ -299,7 +299,7 @@ def validate_step(self, step_name: StepName, rules: ColumnRules) -> bool:
 
 ```python
 from sparkforge.types import (
-    is_valid_type, validate_type, cast_safe,
+    is_valid_type, validate_type, cast_safe, 
     infer_type, get_type_hints
 )
 

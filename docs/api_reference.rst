@@ -94,4 +94,4 @@ For more detailed examples and use cases, see:
 - `Examples <examples/index.html>`_
 - `Troubleshooting <troubleshooting.html>`_
 
-Full API Reference: `API_REFERENCE.md <../API_REFERENCE.md>`_
+Full API Reference: `API_REFERENCE.md <markdown/API_REFERENCE.md>`_

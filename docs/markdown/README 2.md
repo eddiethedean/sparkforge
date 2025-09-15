@@ -45,6 +45,6 @@ The main documentation is available at:
 
 For working code examples, see the `examples/` directory in the root of the repository, organized by:
 - `core/` - Essential features
-- `advanced/` - Advanced features
+- `advanced/` - Advanced features  
 - `usecases/` - Real-world scenarios
 - `specialized/` - Edge cases and specialized features

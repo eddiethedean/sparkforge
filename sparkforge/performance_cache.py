@@ -1,4 +1,44 @@
 #!/usr/bin/env python3
+# # # Copyright (c) 2024 Odos Matthews
+# # #
+# # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # of this software and associated documentation files (the "Software"), to deal
+# # # in the Software without restriction, including without limitation the rights
+# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # copies of the Software, and to permit persons to whom the Software is
+# # # furnished to do so, subject to the following conditions:
+# # #
+# # # The above copyright notice and this permission notice shall be included in all
+# # # copies or substantial portions of the Software.
+# # #
+# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # SOFTWARE.
+#
+# # Copyright (c) 2024 Odos Matthews
+# #
+# # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # of this software and associated documentation files (the "Software"), to deal
+# # in the Software without restriction, including without limitation the rights
+# # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # copies of the Software, and to permit persons to whom the Software is
+# # furnished to do so, subject to the following conditions:
+# #
+# # The above copyright notice and this permission notice shall be included in all
+# # copies or substantial portions of the Software.
+# #
+# # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # SOFTWARE.
+
 # # Copyright (c) 2024 Odos Matthews
 # #
 # # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -48,6 +88,8 @@ from typing import Any, Callable
 
 from pyspark.sql import DataFrame
 
+from .constants import DEFAULT_MAX_MEMORY_MB, BYTES_PER_MB
+
 
 class CacheStrategy(Enum):
     """Cache strategies for different data types."""
@@ -63,7 +105,7 @@ class CacheConfig:
     """Configuration for caching system."""
 
     max_cache_size: int = 100  # Maximum number of cached items
-    max_memory_mb: int = 1024  # Maximum memory usage in MB
+    max_memory_mb: int = DEFAULT_MAX_MEMORY_MB  # Maximum memory usage in MB
     default_ttl_seconds: int = 3600  # Default TTL for cached items
     enable_validation_cache: bool = True
     enable_dataframe_cache: bool = True
@@ -202,7 +244,7 @@ class PerformanceCache:
                 "hit_rate": hit_rate,
                 "evictions": self.stats["evictions"],
                 "total_size_bytes": self.stats["total_size_bytes"],
-                "total_size_mb": self.stats["total_size_bytes"] / (1024 * 1024),
+                "total_size_mb": self.stats["total_size_bytes"] / BYTES_PER_MB,
                 "entry_count": len(self.cache),
                 "max_size": self.config.max_cache_size,
                 "max_memory_mb": self.config.max_memory_mb,
@@ -225,7 +267,7 @@ class PerformanceCache:
                 # Rough estimate: 100 bytes per row per column
                 return row_count * column_count * 100
             except:
-                return 1024  # Default estimate
+                return DEFAULT_MAX_MEMORY_MB  # Default estimate
         elif isinstance(value, (str, int, float, bool)):
             return len(str(value))
         elif isinstance(value, (list, tuple)):
@@ -236,7 +278,7 @@ class PerformanceCache:
                 for k, v in value.items()
             )
         else:
-            return 1024  # Default estimate
+            return DEFAULT_MAX_MEMORY_MB  # Default estimate
 
     def _evict_if_needed(self) -> None:
         """Evict entries if cache limits are exceeded."""
@@ -246,7 +288,7 @@ class PerformanceCache:
 
         # Check memory limit
         while (
-            self.stats["total_size_bytes"] > self.config.max_memory_mb * 1024 * 1024
+            self.stats["total_size_bytes"] > self.config.max_memory_mb * BYTES_PER_MB
             and len(self.cache) > 0
         ):
             self._evict_lru()

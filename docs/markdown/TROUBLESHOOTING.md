@@ -139,11 +139,11 @@ spark = SparkSession.builder \
 result = pipeline.run_incremental(bronze_sources={"events": source_df})
 if not result.success:
     print(f"Validation failed: {result.validation_errors}")
-    
+
     # Check specific stage validation
     bronze_stats = result.stage_stats.get('bronze', {})
     print(f"Bronze validation rate: {bronze_stats.get('validation_rate', 0):.1f}%")
-    
+
     # Debug Bronze step
     bronze_result = pipeline.execute_bronze_step("events", input_data=source_df)
     print(f"Bronze validation details: {bronze_result.validation_result}")
@@ -370,7 +370,7 @@ def clean_numeric_data(df, column):
     return df.withColumn(
         f"{column}_clean",
         F.when(
-            F.col(column).rlike("^[0-9]+$"), 
+            F.col(column).rlike("^[0-9]+$"),
             F.col(column).cast("int")
         ).otherwise(None)
     )
@@ -558,12 +558,12 @@ spark.conf.set("spark.sql.adaptive.coalescePartitions.enabled", "true")
 def handle_schema_evolution(df, target_table):
     target_schema = spark.table(target_table).schema
     current_schema = df.schema
-    
+
     # Add missing columns
     for field in target_schema.fields:
         if field.name not in df.columns:
             df = df.withColumn(field.name, F.lit(None).cast(field.dataType))
-    
+
     return df.select(*[field.name for field in target_schema.fields])
 ```
 
@@ -694,17 +694,17 @@ def validate_source_data(df):
     """Validate source data before processing"""
     total_rows = df.count()
     null_counts = df.select([F.count(F.when(F.col(c).isNull(), c)).alias(c) for c in df.columns]).collect()[0]
-    
+
     quality_issues = []
     for col, null_count in null_counts.asDict().items():
         if null_count > total_rows * 0.1:  # More than 10% nulls
             quality_issues.append(f"Column {col} has {null_count} null values")
-    
+
     if quality_issues:
         print("Data quality issues detected:")
         for issue in quality_issues:
             print(f"  - {issue}")
-    
+
     return len(quality_issues) == 0
 
 # Use in pipeline
@@ -722,20 +722,20 @@ def monitor_performance(pipeline, source_data):
     start_time = time.time()
     result = pipeline.run_incremental(bronze_sources={"events": source_data})
     end_time = time.time()
-    
+
     execution_time = end_time - start_time
     rows_per_second = result.totals['total_rows_written'] / execution_time
-    
+
     print(f"Execution time: {execution_time:.2f}s")
     print(f"Throughput: {rows_per_second:.0f} rows/second")
-    
+
     # Alert on performance issues
     if execution_time > 300:  # More than 5 minutes
         print("⚠️  Pipeline execution took longer than expected")
-    
+
     if rows_per_second < 1000:  # Less than 1000 rows/second
         print("⚠️  Pipeline throughput is lower than expected")
-    
+
     return result
 ```
 
@@ -749,20 +749,20 @@ def safe_pipeline_execution(pipeline, source_data):
         # Validate inputs
         if source_data is None or source_data.count() == 0:
             raise ValueError("Source data is empty or None")
-        
+
         # Execute pipeline
         result = pipeline.run_incremental(bronze_sources={"events": source_data})
-        
+
         # Validate results
         if not result.success:
             raise RuntimeError(f"Pipeline execution failed: {result.error_message}")
-        
+
         # Log success
         print(f"✅ Pipeline completed successfully")
         print(f"📊 Rows processed: {result.totals['total_rows_written']}")
-        
+
         return result
-        
+
     except Exception as e:
         print(f"❌ Pipeline execution failed: {e}")
         # Log error details

@@ -299,7 +299,7 @@ class StepExecutor:
                     # Write to Delta table if table_name is specified
                     rows_written = 0
                     if hasattr(step, "table_name") and step.table_name:
-                        table_path = f"{self.schema}.{step.table_name}" if self.schema else step.table_name
+                        table_path = f"test_schema.{step.table_name}"
                         try:
                             # Write DataFrame to Delta table
                             transformed_df.write.format("delta").mode(
@@ -372,7 +372,7 @@ class StepExecutor:
                     # Write to Delta table if table_name is specified
                     rows_written = 0
                     if hasattr(step, "table_name") and step.table_name:
-                        table_path = f"{self.schema}.{step.table_name}" if self.schema else step.table_name
+                        table_path = f"test_schema.{step.table_name}"
                         try:
                             # Write DataFrame to Delta table
                             transformed_df.write.format("delta").mode(

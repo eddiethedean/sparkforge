@@ -8,7 +8,7 @@ Use these decision trees to make the right choices for your SparkForge pipeline 
 
 ```
 What's your data quality requirement?
-├─ High Quality (99%+) 
+├─ High Quality (99%+)
 │  ├─ Bronze: 98%+
 │  ├─ Silver: 99%+
 │  └─ Gold: 99.5%+

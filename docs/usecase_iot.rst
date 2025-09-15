@@ -23,4 +23,4 @@ Pipeline Components
 **Silver Layer**: Data cleaning and feature engineering
 **Gold Layer**: Analytics and alerts
 
-For the complete IoT guide with detailed examples, see: `USECASE_IOT.md <../USECASE_IOT.md>`_
+For the complete IoT guide with detailed examples, see: `USECASE_IOT.md <markdown/USECASE_IOT.md>`_

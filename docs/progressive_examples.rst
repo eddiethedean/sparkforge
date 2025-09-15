@@ -36,4 +36,4 @@ Each example includes:
 - **Explanation**: How it works
 - **Next Steps**: How to extend it
 
-For complete progressive examples with detailed code, see: `PROGRESSIVE_EXAMPLES.md <../PROGRESSIVE_EXAMPLES.md>`_
+For complete progressive examples with detailed code, see: `PROGRESSIVE_EXAMPLES.md <markdown/PROGRESSIVE_EXAMPLES.md>`_

@@ -110,7 +110,7 @@ def clean_events(spark, bronze_df, prior_silvers):
         .filter(F.col("value") > 0)  # Remove negative values
         .filter(F.col("action").isin(["click", "view", "purchase"]))  # Valid actions only
         .withColumn("processed_date", F.to_date("date"))
-        .withColumn("value_category", 
+        .withColumn("value_category",
             F.when(F.col("value") > 150, "high_value")
             .when(F.col("value") > 100, "medium_value")
             .otherwise("low_value")
@@ -199,7 +199,7 @@ def clean_and_enrich_events(spark, bronze_df, prior_silvers):
         .filter(F.col("value") > 0)
         .filter(F.col("action").isin(["click", "view", "purchase"]))
         .withColumn("processed_date", F.to_date("date"))
-        .withColumn("value_category", 
+        .withColumn("value_category",
             F.when(F.col("value") > 150, "high_value")
             .when(F.col("value") > 100, "medium_value")
             .otherwise("low_value")
@@ -224,7 +224,7 @@ builder.add_silver_transform(
 def create_analytics(spark, silvers):
     """Create business analytics."""
     events_df = silvers["clean_events"]
-    
+
     # Daily analytics
     daily_analytics = (events_df
         .groupBy("processed_date")
@@ -236,7 +236,7 @@ def create_analytics(spark, silvers):
             F.avg("value").alias("avg_value")
         )
     )
-    
+
     # User analytics
     user_analytics = (events_df
         .groupBy("user_id")
@@ -252,7 +252,7 @@ def create_analytics(spark, silvers):
             .otherwise("low_value")
         )
     )
-    
+
     return daily_analytics
 
 builder.add_gold_transform(
@@ -350,7 +350,7 @@ def clean_events_with_validation(spark, bronze_df, prior_silvers):
         .filter(F.col("action").isin(["click", "view", "purchase"]))
         .filter(F.col("user_id").isNotNull())
         .withColumn("processed_date", F.to_date("date"))
-        .withColumn("value_category", 
+        .withColumn("value_category",
             F.when(F.col("value") > 150, "high_value")
             .when(F.col("value") > 100, "medium_value")
             .otherwise("low_value")
@@ -377,7 +377,7 @@ builder.add_silver_transform(
 def create_validated_analytics(spark, silvers):
     """Create analytics with validation."""
     events_df = silvers["clean_events"]
-    
+
     return (events_df
         .groupBy("processed_date")
         .agg(
@@ -499,7 +499,7 @@ def clean_events(spark, bronze_df, prior_silvers):
         .filter(F.col("value") > 0)
         .filter(F.col("action").isin(["click", "view", "purchase"]))
         .withColumn("processed_date", F.to_date("date"))
-        .withColumn("value_category", 
+        .withColumn("value_category",
             F.when(F.col("value") > 200, "high_value")
             .when(F.col("value") > 100, "medium_value")
             .otherwise("low_value")
@@ -588,7 +588,7 @@ def create_combined_analytics(spark, silvers):
     clean_events_df = silvers["clean_events"]
     user_analytics_df = silvers["user_analytics"]
     category_analytics_df = silvers["category_analytics"]
-    
+
     # Daily analytics
     daily_analytics = (clean_events_df
         .groupBy("processed_date")
@@ -599,7 +599,7 @@ def create_combined_analytics(spark, silvers):
             F.avg("value").alias("avg_value")
         )
     )
-    
+
     return daily_analytics
 
 builder.add_gold_transform(

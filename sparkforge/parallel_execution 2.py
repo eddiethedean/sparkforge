@@ -88,7 +88,6 @@ from typing import Any, Callable
 
 import psutil
 
-from .constants import BYTES_PER_MB
 from .logger import PipelineLogger
 from .models import ParallelConfig
 
@@ -379,7 +378,7 @@ class DynamicWorkerPool:
 
         try:
             # Monitor resource usage
-            start_memory = psutil.Process().memory_info().rss / BYTES_PER_MB  # MB
+            start_memory = psutil.Process().memory_info().rss / 1024 / 1024  # MB
             start_cpu = psutil.cpu_percent()
 
             # Execute the task - fix the function call
@@ -400,7 +399,7 @@ class DynamicWorkerPool:
             task_metrics.success = True
 
             # Update resource usage
-            end_memory = psutil.Process().memory_info().rss / BYTES_PER_MB
+            end_memory = psutil.Process().memory_info().rss / 1024 / 1024
             end_cpu = psutil.cpu_percent()
             task_metrics.memory_usage_mb = end_memory - start_memory
             task_metrics.cpu_usage_percent = (start_cpu + end_cpu) / 2

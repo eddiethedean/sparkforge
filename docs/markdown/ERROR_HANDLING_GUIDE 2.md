@@ -131,11 +131,11 @@ try:
     result = pipeline.execute_step("bronze_events")
 except StepExecutionError as e:
     print(f"Step execution failed: {e}")
-
+    
     # Check if error is recoverable
     if is_recoverable_error(e):
         print("Error is recoverable, considering retry")
-
+        
         # Check if should retry
         if should_retry_error(e, retry_count=0, max_retries=3):
             print("Retrying step execution")
@@ -144,7 +144,7 @@ except StepExecutionError as e:
             print("Max retries exceeded")
     else:
         print("Error is not recoverable, manual intervention required")
-
+    
     # Get suggestions
     suggestions = get_error_suggestions(e)
     print(f"Suggestions: {suggestions}")

@@ -34,11 +34,11 @@ spark = SparkSession.builder \
 # Create comprehensive business data
 def create_business_data(spark, num_records=10000):
     """Create realistic business data for BI analytics."""
-    
+
     # Sales data
     sales_data = []
     base_date = datetime(2024, 1, 1)
-    
+
     for i in range(num_records):
         # Sales transactions
         sales_data.append({
@@ -57,9 +57,9 @@ def create_business_data(spark, num_records=10000):
             "payment_method": random.choice(["Credit Card", "Debit Card", "Cash", "Digital Wallet"]),
             "customer_segment": random.choice(["Premium", "Standard", "Value", "Enterprise"])
         })
-    
+
     sales_df = spark.createDataFrame(sales_data)
-    
+
     # Customer data
     customer_data = []
     for i in range(2000):
@@ -75,9 +75,9 @@ def create_business_data(spark, num_records=10000):
             "annual_revenue": round(random.uniform(1000000, 100000000), 2),
             "credit_score": random.randint(300, 850)
         })
-    
+
     customer_df = spark.createDataFrame(customer_data)
-    
+
     # Employee data
     employee_data = []
     for i in range(200):
@@ -91,9 +91,9 @@ def create_business_data(spark, num_records=10000):
             "performance_rating": round(random.uniform(1, 5), 1),
             "region": random.choice(["North", "South", "East", "West", "Central"])
         })
-    
+
     employee_df = spark.createDataFrame(employee_data)
-    
+
     return sales_df, customer_df, employee_df
 
 # Create the data
@@ -175,7 +175,7 @@ def enhance_sales_data(spark, bronze_df, prior_silvers):
         .withColumn("transaction_year", F.year("transaction_date"))
         .withColumn("day_of_week", F.dayofweek("transaction_date"))
         .withColumn("is_weekend", F.dayofweek("transaction_date").isin([1, 7]))
-        .withColumn("is_holiday_season", 
+        .withColumn("is_holiday_season",
             F.month("transaction_date").isin([11, 12]))  # Nov-Dec
         .withColumn("sales_tier",
             F.when(F.col("net_sales_amount") > 1000, "High Value")
@@ -205,7 +205,7 @@ print("🥈 Building Silver Layer - Customer Intelligence...")
 def create_customer_intelligence(spark, bronze_df, prior_silvers):
     """Create customer intelligence and segmentation."""
     return (bronze_df
-        .withColumn("customer_age_days", 
+        .withColumn("customer_age_days",
             F.datediff(F.current_date(), "registration_date"))
         .withColumn("customer_age_months", F.col("customer_age_days") / 30)
         .withColumn("customer_age_years", F.col("customer_age_days") / 365)
@@ -278,7 +278,7 @@ def create_executive_dashboard(spark, silvers):
     sales_df = silvers["enhanced_sales"]
     customers_df = silvers["customer_intelligence"]
     employees_df = silvers["employee_performance"]
-    
+
     # Sales metrics
     sales_metrics = (sales_df
         .agg(
@@ -290,7 +290,7 @@ def create_executive_dashboard(spark, silvers):
             F.countDistinct("product_id").alias("products_sold")
         )
     )
-    
+
     # Customer metrics
     customer_metrics = (customers_df
         .agg(
@@ -299,7 +299,7 @@ def create_executive_dashboard(spark, silvers):
             F.avg("customer_age_days").alias("avg_customer_age_days")
         )
     )
-    
+
     # Employee metrics
     employee_metrics = (employees_df
         .agg(
@@ -309,7 +309,7 @@ def create_executive_dashboard(spark, silvers):
             F.sum(F.when(F.col("is_management"), 1).otherwise(0)).alias("management_count")
         )
     )
-    
+
     # Combine all metrics
     return (sales_metrics
         .crossJoin(customer_metrics)
@@ -339,7 +339,7 @@ print("🥇 Building Gold Layer - Sales Performance Analytics...")
 def create_sales_performance(spark, silvers):
     """Create detailed sales performance analytics."""
     sales_df = silvers["enhanced_sales"]
-    
+
     return (sales_df
         .groupBy("sales_region", "product_category", "transaction_month")
         .agg(
@@ -350,11 +350,11 @@ def create_sales_performance(spark, silvers):
             F.countDistinct("customer_id").alias("unique_customers"),
             F.sum(F.when(F.col("is_weekend"), 1).otherwise(0)).alias("weekend_transactions")
         )
-        .withColumn("weekend_percentage", 
+        .withColumn("weekend_percentage",
             (F.col("weekend_transactions") / F.col("transaction_count")) * 100)
-        .withColumn("discount_rate", 
+        .withColumn("discount_rate",
             (F.col("total_discounts") / (F.col("monthly_revenue") + F.col("total_discounts"))) * 100)
-        .withColumn("revenue_per_customer", 
+        .withColumn("revenue_per_customer",
             F.col("monthly_revenue") / F.col("unique_customers"))
     )
 
@@ -377,7 +377,7 @@ print("🥇 Building Gold Layer - Customer Analytics...")
 def create_customer_analytics(spark, silvers):
     """Create customer analytics and segmentation."""
     customers_df = silvers["customer_intelligence"]
-    
+
     return (customers_df
         .groupBy("customer_lifecycle_stage", "customer_tier", "region", "industry")
         .agg(
@@ -386,7 +386,7 @@ def create_customer_analytics(spark, silvers):
             F.avg("credit_score").alias("avg_credit_score"),
             F.sum(F.when(F.col("is_premium_customer"), 1).otherwise(0)).alias("premium_count")
         )
-        .withColumn("premium_rate", 
+        .withColumn("premium_rate",
             (F.col("premium_count") / F.col("customer_count")) * 100)
         .withColumn("customer_segment_score",
             F.when(F.col("customer_tier") == "Platinum", 100)
@@ -416,7 +416,7 @@ print("🥇 Building Gold Layer - Operational Metrics...")
 def create_operational_metrics(spark, silvers):
     """Create operational efficiency metrics."""
     employees_df = silvers["employee_performance"]
-    
+
     return (employees_df
         .groupBy("department", "region", "position")
         .agg(
@@ -426,14 +426,14 @@ def create_operational_metrics(spark, silvers):
             F.avg("tenure_years").alias("avg_tenure"),
             F.sum(F.when(F.col("is_management"), 1).otherwise(0)).alias("managers")
         )
-        .withColumn("management_ratio", 
+        .withColumn("management_ratio",
             (F.col("managers") / F.col("employee_count")) * 100)
         .withColumn("salary_efficiency_score",
             F.col("avg_performance") / (F.col("avg_salary") / 1000)
         )
         .withColumn("department_health_score",
-            (F.col("avg_performance") * 0.4) + 
-            (F.col("salary_efficiency_score") * 0.3) + 
+            (F.col("avg_performance") * 0.4) +
+            (F.col("salary_efficiency_score") * 0.3) +
             ((F.col("avg_tenure") / 10) * 0.3)
         )
         .orderBy(F.desc("department_health_score"))

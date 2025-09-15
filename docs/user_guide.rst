@@ -109,4 +109,4 @@ Additional Resources
 - `Examples <examples/index.html>`_ - Working code samples
 - `Troubleshooting <troubleshooting.html>`_ - Common issues and solutions
 
-For the complete user guide with detailed examples, see: `USER_GUIDE.md <../USER_GUIDE.md>`_
+For the complete user guide with detailed examples, see: `USER_GUIDE.md <markdown/USER_GUIDE.md>`_

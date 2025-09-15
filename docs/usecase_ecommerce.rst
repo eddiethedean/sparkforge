@@ -184,4 +184,4 @@ The pipeline produces these business metrics:
 - **Customer Segmentation**: Tier-based customer classification
 - **Product Performance**: Best-selling items and categories
 
-For the complete e-commerce guide with more examples, see: `USECASE_ECOMMERCE.md <../USECASE_ECOMMERCE.md>`_
+For the complete e-commerce guide with more examples, see: `USECASE_ECOMMERCE.md <markdown/USECASE_ECOMMERCE.md>`_

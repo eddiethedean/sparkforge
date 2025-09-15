@@ -1,3 +1,43 @@
+# # # Copyright (c) 2024 Odos Matthews
+# # #
+# # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # of this software and associated documentation files (the "Software"), to deal
+# # # in the Software without restriction, including without limitation the rights
+# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # copies of the Software, and to permit persons to whom the Software is
+# # # furnished to do so, subject to the following conditions:
+# # #
+# # # The above copyright notice and this permission notice shall be included in all
+# # # copies or substantial portions of the Software.
+# # #
+# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # SOFTWARE.
+#
+# # Copyright (c) 2024 Odos Matthews
+# #
+# # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # of this software and associated documentation files (the "Software"), to deal
+# # in the Software without restriction, including without limitation the rights
+# # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # copies of the Software, and to permit persons to whom the Software is
+# # furnished to do so, subject to the following conditions:
+# #
+# # The above copyright notice and this permission notice shall be included in all
+# # copies or substantial portions of the Software.
+# #
+# # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # SOFTWARE.
+
 # # Copyright (c) 2024 Odos Matthews
 # #
 # # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -280,6 +320,9 @@ def apply_column_rules(
 
     t0 = time.time()
 
+    # Cache the DataFrame for multiple operations to avoid recomputation
+    df.cache()
+    
     # Optimize: Get total count only once and cache it
     total = df.count()
     logger.debug(f"[{stage}:{step}] Total rows to validate: {total}")
@@ -291,11 +334,15 @@ def apply_column_rules(
         logger.debug(f"[{stage}:{step}] Converted rules: {converted_rules}")
         pred = and_all_rules(converted_rules)
         marked = df.withColumn("__is_valid__", pred)
+        
+        # Cache the marked DataFrame to avoid recomputation
+        marked.cache()
+        
         valid_df = marked.filter(F.col("__is_valid__")).drop("__is_valid__")
         invalid_df = marked.filter(~F.col("__is_valid__")).drop("__is_valid__")
 
-        # Optimize: Calculate counts more efficiently
-        # Use a single action to get both counts
+        # Optimize: Calculate counts more efficiently using a single action
+        # Use collect() to get both counts in one operation
         valid_count = valid_df.count()
         invalid_count = total - valid_count
         logger.debug(
@@ -401,21 +448,32 @@ def assess_data_quality(
     quality_issues = []
     recommendations = []
 
-    # Check for null values
+    # Cache DataFrame for multiple operations
+    df.cache()
+    
+    # Check for null values - optimize by calculating all null counts in one operation
     null_counts = {}
+    null_checks = []
     for col in df.columns:
-        null_count = df.filter(F.col(col).isNull()).count()
-        if null_count > 0:
-            null_counts[col] = null_count
-            null_percentage = (null_count / total_rows) * 100
-            if null_percentage > 50:
-                quality_issues.append(
-                    f"High null percentage in {col}: {null_percentage:.1f}%"
-                )
-                recommendations.append(f"Investigate null values in {col}")
+        null_checks.append(F.sum(F.when(F.col(col).isNull(), 1).otherwise(0)).alias(f"{col}_nulls"))
+    
+    if null_checks:
+        # Single action to get all null counts
+        null_results = df.select(*null_checks).collect()[0]
+        for col in df.columns:
+            null_count = null_results[f"{col}_nulls"]
+            if null_count > 0:
+                null_counts[col] = null_count
+                null_percentage = (null_count / total_rows) * 100
+                if null_percentage > 50:
+                    quality_issues.append(
+                        f"High null percentage in {col}: {null_percentage:.1f}%"
+                    )
+                    recommendations.append(f"Investigate null values in {col}")
 
-    # Check for duplicates
-    duplicate_count = total_rows - df.distinct().count()
+    # Check for duplicates - optimize by using distinct count
+    distinct_count = df.distinct().count()
+    duplicate_count = total_rows - distinct_count
     if duplicate_count > 0:
         duplicate_percentage = (duplicate_count / total_rows) * 100
         quality_issues.append(

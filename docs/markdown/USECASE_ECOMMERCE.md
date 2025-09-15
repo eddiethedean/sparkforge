@@ -34,7 +34,7 @@ def create_sample_orders(spark, num_orders=1000):
     """Create realistic e-commerce order data."""
     orders = []
     base_date = datetime(2024, 1, 1)
-    
+
     for i in range(num_orders):
         orders.append({
             "order_id": f"ORD_{i:06d}",
@@ -49,7 +49,7 @@ def create_sample_orders(spark, num_orders=1000):
             "region": random.choice(["North", "South", "East", "West"]),
             "customer_tier": random.choice(["Bronze", "Silver", "Gold", "Platinum"])
         })
-    
+
     df = spark.createDataFrame(orders)
     return df.withColumn("total_amount", F.col("quantity") * F.col("unit_price"))
 
@@ -99,7 +99,7 @@ def enrich_orders(spark, bronze_df, prior_silvers):
         .withColumn("order_month", F.date_trunc("month", "order_date"))
         .withColumn("order_week", F.date_trunc("week", "order_date"))
         .withColumn("is_weekend", F.dayofweek("order_date").isin([1, 7]))
-        .withColumn("order_size_category", 
+        .withColumn("order_size_category",
             F.when(F.col("total_amount") > 1000, "large")
             .when(F.col("total_amount") > 500, "medium")
             .otherwise("small")
@@ -136,7 +136,7 @@ def create_customer_profiles(spark, bronze_df, prior_silvers):
             F.max("order_date").alias("last_order_date"),
             F.countDistinct("product_category").alias("categories_purchased")
         )
-        .withColumn("customer_lifetime_days", 
+        .withColumn("customer_lifetime_days",
             F.datediff("last_order_date", "first_order_date"))
         .withColumn("orders_per_month",
             F.when(F.col("customer_lifetime_days") > 0,
@@ -163,7 +163,7 @@ print("🥇 Building Gold Layer - Daily Sales Analytics...")
 def daily_sales_analytics(spark, silvers):
     """Daily sales analytics and KPIs."""
     orders_df = silvers["enriched_orders"]
-    
+
     return (orders_df
         .groupBy("order_date", "region")
         .agg(
@@ -195,7 +195,7 @@ print("🥇 Building Gold Layer - Product Performance...")
 def product_performance(spark, silvers):
     """Product performance analytics."""
     orders_df = silvers["enriched_orders"]
-    
+
     return (orders_df
         .groupBy("product_name", "category", "region")
         .agg(
@@ -228,7 +228,7 @@ print("🥇 Building Gold Layer - Customer Segmentation...")
 def customer_segmentation(spark, silvers):
     """Customer segmentation based on behavior and value."""
     customers_df = silvers["customer_profiles"]
-    
+
     return (customers_df
         .withColumn("customer_segment",
             F.when(F.col("total_spent") > 2000, "High Value")

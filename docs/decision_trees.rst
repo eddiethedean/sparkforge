@@ -24,4 +24,4 @@ Pipeline Configuration
 - Set Gold threshold to 99% for analytics
 - Review validation failures regularly
 
-For complete decision trees with detailed guidance, see: `DECISION_TREES.md <../DECISION_TREES.md>`_
+For complete decision trees with detailed guidance, see: `DECISION_TREES.md <markdown/DECISION_TREES.md>`_

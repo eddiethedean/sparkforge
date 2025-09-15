@@ -30,4 +30,4 @@ Visual Examples
 - **Workflow Diagrams**: Step-by-step execution process
 - **Data Flow Maps**: How data moves through layers
 
-For complete visual guide with diagrams, see: `VISUAL_GUIDE.md <../VISUAL_GUIDE.md>`_
+For complete visual guide with diagrams, see: `VISUAL_GUIDE.md <markdown/VISUAL_GUIDE.md>`_

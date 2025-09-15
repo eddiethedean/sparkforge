@@ -30,4 +30,4 @@ Migration Steps
 4. **Configure Validation**
 5. **Test and Deploy**
 
-For complete migration guides with examples, see: `MIGRATION_GUIDES.md <../MIGRATION_GUIDES.md>`_
+For complete migration guides with examples, see: `MIGRATION_GUIDES.md <markdown/MIGRATION_GUIDES.md>`_

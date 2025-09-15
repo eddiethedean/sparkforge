@@ -784,7 +784,7 @@ class PipelineBuilder:
         Example:
             >>> builder = PipelineBuilder.for_testing(
             ...     spark=spark,
-            ...     schema="my_schema"
+            ...     schema="test_schema"
             ... )
         """
         return cls(

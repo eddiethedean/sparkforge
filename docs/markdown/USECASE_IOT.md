@@ -36,17 +36,17 @@ def create_sensor_data(spark, num_readings=5000):
     """Create realistic IoT sensor data with some anomalies."""
     readings = []
     base_time = datetime(2024, 1, 1, 0, 0, 0)
-    
+
     # Define sensor zones and types
     zones = ["Building_A", "Building_B", "Building_C", "Building_D"]
     sensor_types = ["temperature", "humidity", "pressure", "vibration", "air_quality"]
-    
+
     for i in range(num_readings):
         zone = random.choice(zones)
         sensor_type = random.choice(sensor_types)
         sensor_id = f"{zone}_{sensor_type}_{random.randint(1, 10):02d}"
         timestamp = base_time + timedelta(minutes=i * 5)  # Every 5 minutes
-        
+
         # Generate realistic sensor values with some anomalies
         if sensor_type == "temperature":
             base_value = 20 + 10 * math.sin(i / 100)  # Daily cycle
@@ -78,7 +78,7 @@ def create_sensor_data(spark, num_readings=5000):
                 value = random.uniform(150, 300)  # Poor air quality
             else:
                 value = base_value
-        
+
         readings.append({
             "sensor_id": sensor_id,
             "sensor_type": sensor_type,
@@ -89,7 +89,7 @@ def create_sensor_data(spark, num_readings=5000):
             "battery_level": random.randint(20, 100),
             "signal_strength": random.randint(-100, -30)
         })
-    
+
     return spark.createDataFrame(readings)
 
 # Create the data
@@ -197,7 +197,7 @@ def monitor_device_health(spark, bronze_df, prior_silvers):
             F.min("timestamp").alias("first_seen"),
             F.max("timestamp").alias("last_seen")
         )
-        .withColumn("uptime_percentage", 
+        .withColumn("uptime_percentage",
             (F.col("online_readings") / F.col("total_readings")) * 100)
         .withColumn("device_health",
             F.when(F.col("uptime_percentage") < 80, "poor")
@@ -231,7 +231,7 @@ print("🥇 Building Gold Layer - Zone Analytics...")
 def zone_analytics(spark, silvers):
     """Zone-based sensor analytics and monitoring."""
     sensors_df = silvers["processed_sensors"]
-    
+
     return (sensors_df
         .groupBy("zone", "sensor_type", F.date_trunc("hour", "timestamp").alias("hour"))
         .agg(
@@ -243,7 +243,7 @@ def zone_analytics(spark, silvers):
             F.sum(F.when(F.col("is_anomaly"), 1).otherwise(0)).alias("anomaly_count"),
             F.countDistinct("sensor_id").alias("active_sensors")
         )
-        .withColumn("anomaly_rate", 
+        .withColumn("anomaly_rate",
             (F.col("anomaly_count") / F.col("reading_count")) * 100)
         .withColumn("zone_status",
             F.when(F.col("anomaly_rate") > 10, "alert")
@@ -271,7 +271,7 @@ print("🥇 Building Gold Layer - Anomaly Summary...")
 def anomaly_summary(spark, silvers):
     """Summary of anomalies and alerts."""
     sensors_df = silvers["processed_sensors"]
-    
+
     return (sensors_df
         .filter(F.col("is_anomaly") == True)
         .groupBy("zone", "sensor_type", "anomaly_severity")
@@ -310,7 +310,7 @@ def maintenance_dashboard(spark, silvers):
     """Maintenance dashboard for device management."""
     health_df = silvers["device_health"]
     anomaly_df = silvers["processed_sensors"]
-    
+
     # Get recent anomalies by device
     recent_anomalies = (anomaly_df
         .filter(F.col("is_anomaly") == True)
@@ -320,7 +320,7 @@ def maintenance_dashboard(spark, silvers):
             F.max("timestamp").alias("last_anomaly")
         )
     )
-    
+
     return (health_df
         .join(recent_anomalies, "sensor_id", "left")
         .fillna({"recent_anomalies": 0})

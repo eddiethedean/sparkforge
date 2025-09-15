@@ -114,4 +114,4 @@ Common Patterns
        table_name="daily_metrics"
    )
 
-For the complete quick reference with more examples, see: `QUICK_REFERENCE.md <../QUICK_REFERENCE.md>`_
+For the complete quick reference with more examples, see: `QUICK_REFERENCE.md <markdown/QUICK_REFERENCE.md>`_
