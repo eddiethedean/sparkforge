@@ -461,7 +461,7 @@ def assess_data_quality(
         # Single action to get all null counts
         null_results = df.select(*null_checks).collect()[0]
         for col in df.columns:
-            null_count = null_results[f"{col}_nulls"]
+            null_count = getattr(null_results, f"{col}_nulls", 0)
             if null_count > 0:
                 null_counts[col] = null_count
                 null_percentage = (null_count / total_rows) * 100
