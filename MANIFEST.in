@@ -1,8 +1,8 @@
 include README.md
 include LICENSE
 include requirements.txt
-include CHANGELOG.md
-include CONTRIBUTING.md
+include docs/markdown/CHANGELOG.md
+include docs/markdown/CONTRIBUTING.md
 recursive-include sparkforge *.py
 recursive-include tests *.py
 recursive-include docs *.rst *.md
