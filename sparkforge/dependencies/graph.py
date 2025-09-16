@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict, deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
@@ -54,20 +54,13 @@ class StepNode:
 
     name: str
     step_type: StepType
-    dependencies: set[str] = None
-    dependents: set[str] = None
+    dependencies: set[str] = field(default_factory=set)
+    dependents: set[str] = field(default_factory=set)
     execution_group: int = 0
     can_run_parallel: bool = True
     estimated_duration: float = 0.0
-    metadata: dict[str, Any] = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
-        if self.dependencies is None:
-            self.dependencies = set()
-        if self.dependents is None:
-            self.dependents = set()
-        if self.metadata is None:
-            self.metadata = {}
 
 
 class DependencyGraph:
@@ -78,7 +71,7 @@ class DependencyGraph:
     cycle detection, and execution planning.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.nodes: dict[str, StepNode] = {}
         self._adjacency_list: dict[str, set[str]] = defaultdict(set)
         self._reverse_adjacency_list: dict[str, set[str]] = defaultdict(set)
@@ -232,7 +225,7 @@ class DependencyGraph:
         total_edges = sum(len(deps) for deps in self._adjacency_list.values())
 
         # Count by step type
-        type_counts = defaultdict(int)
+        type_counts: dict[str, int] = defaultdict(int)
         for node in self.nodes.values():
             type_counts[node.step_type.value] += 1
 
