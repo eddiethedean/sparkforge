@@ -20,7 +20,7 @@ from .validation import safe_divide
 
 
 def create_validation_dict(
-    stats: StageStats, *, start_at: datetime, end_at: datetime
+    stats: StageStats | None, *, start_at: datetime, end_at: datetime
 ) -> dict[str, Any]:
     """
     Create validation dictionary for reporting.

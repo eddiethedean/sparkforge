@@ -42,7 +42,7 @@ from pyspark.sql import SparkSession
 
 from ..logger import PipelineLogger
 from ..models import ExecutionContext
-from ..types import ExecutionConfig, ExecutionContext, ExecutionResult, StepType
+from ..types import ExecutionConfig
 from .exceptions import ExecutionError, StepExecutionError
 from .results import (
     ExecutionResult,
@@ -86,21 +86,6 @@ class RetryStrategy(Enum):
     IMMEDIATE = "immediate"
     EXPONENTIAL_BACKOFF = "exponential_backoff"
     LINEAR_BACKOFF = "linear_backoff"
-
-
-@dataclass
-class ExecutionConfig:
-    """Configuration for the unified execution engine."""
-
-    mode: ExecutionMode = ExecutionMode.ADAPTIVE
-    max_workers: int = 4
-    retry_strategy: RetryStrategy = RetryStrategy.EXPONENTIAL_BACKOFF
-    max_retries: int = 3
-    retry_delay: float = 1.0
-    timeout_seconds: int | None = None
-    enable_caching: bool = True
-    enable_monitoring: bool = True
-    verbose: bool = True
 
 
 class StepExecutor:

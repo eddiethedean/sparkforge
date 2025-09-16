@@ -1,3 +1,83 @@
+# # # # Copyright (c) 2024 Odos Matthews
+# # # #
+# # # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # # of this software and associated documentation files (the "Software"), to deal
+# # # # in the Software without restriction, including without limitation the rights
+# # # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # # copies of the Software, and to permit persons to whom the Software is
+# # # # furnished to do so, subject to the following conditions:
+# # # #
+# # # # The above copyright notice and this permission notice shall be included in all
+# # # # copies or substantial portions of the Software.
+# # # #
+# # # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # # SOFTWARE.
+# #
+# # # Copyright (c) 2024 Odos Matthews
+# # #
+# # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # of this software and associated documentation files (the "Software"), to deal
+# # # in the Software without restriction, including without limitation the rights
+# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # copies of the Software, and to permit persons to whom the Software is
+# # # furnished to do so, subject to the following conditions:
+# # #
+# # # The above copyright notice and this permission notice shall be included in all
+# # # copies or substantial portions of the Software.
+# # #
+# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # SOFTWARE.
+#
+# # # Copyright (c) 2024 Odos Matthews
+# # #
+# # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # of this software and associated documentation files (the "Software"), to deal
+# # # in the Software without restriction, including without limitation the rights
+# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # copies of the Software, and to permit persons to whom the Software is
+# # # furnished to do so, subject to the following conditions:
+# # #
+# # # The above copyright notice and this permission notice shall be included in all
+# # # copies or substantial portions of the Software.
+# # #
+# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # SOFTWARE.
+#
+# # Copyright (c) 2024 Odos Matthews
+# #
+# # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # of this software and associated documentation files (the "Software"), to deal
+# # in the Software without restriction, including without limitation the rights
+# # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # copies of the Software, and to permit persons to whom the Software is
+# # furnished to do so, subject to the following conditions:
+# #
+# # The above copyright notice and this permission notice shall be included in all
+# # copies or substantial portions of the Software.
+# #
+# # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # SOFTWARE.
+
 #
 
 
@@ -106,16 +186,18 @@ def and_all_rules(rules: ColumnRules) -> Any:
     converted_rules = _convert_rules_to_expressions(rules)
 
     # Start with the first expression, then combine with others
-    pred = None
+    expressions = []
     for _, exprs in converted_rules.items():
-        for e in exprs:
-            if pred is None:
-                pred = e
-            else:
-                pred = pred & e
+        expressions.extend(exprs)
     
-    # If no valid expressions were found, return True
-    return pred if pred is not None else True
+    if not expressions:
+        return True
+    
+    pred = expressions[0]
+    for e in expressions[1:]:
+        pred = pred & e
+    
+    return pred
 
 
 def validate_dataframe_schema(df: DataFrame, expected_columns: list[str]) -> bool:
@@ -272,7 +354,7 @@ def apply_column_rules(
 
     # Cache the DataFrame for multiple operations to avoid recomputation
     df.cache()
-    
+
     # Optimize: Get total count only once and cache it
     total = df.count()
     logger.debug(f"[{stage}:{step}] Total rows to validate: {total}")
@@ -284,10 +366,10 @@ def apply_column_rules(
         logger.debug(f"[{stage}:{step}] Converted rules: {converted_rules}")
         pred = and_all_rules(converted_rules)
         marked = df.withColumn("__is_valid__", pred)
-        
+
         # Cache the marked DataFrame to avoid recomputation
         marked.cache()
-        
+
         valid_df = marked.filter(F.col("__is_valid__")).drop("__is_valid__")
         invalid_df = marked.filter(~F.col("__is_valid__")).drop("__is_valid__")
 
@@ -302,10 +384,10 @@ def apply_column_rules(
         # Add detailed failure information
         failed_arrays = []
         for col_name, exprs in converted_rules.items():
-            for idx, e in enumerate(exprs):
+            for idx, expr in enumerate(exprs):
                 tag = F.lit(f"{col_name}#{idx + 1}")
                 failed_arrays.append(
-                    F.when(~e, F.array(tag)).otherwise(
+                    F.when(~expr, F.array(tag)).otherwise(
                         F.array().cast(ArrayType(StringType()))
                     )
                 )
@@ -400,13 +482,15 @@ def assess_data_quality(
 
     # Cache DataFrame for multiple operations
     df.cache()
-    
+
     # Check for null values - optimize by calculating all null counts in one operation
     null_counts = {}
     null_checks = []
     for col in df.columns:
-        null_checks.append(F.sum(F.when(F.col(col).isNull(), 1).otherwise(0)).alias(f"{col}_nulls"))
-    
+        null_checks.append(
+            F.sum(F.when(F.col(col).isNull(), 1).otherwise(0)).alias(f"{col}_nulls")
+        )
+
     if null_checks:
         # Single action to get all null counts
         null_results = df.select(*null_checks).collect()[0]
