@@ -53,7 +53,7 @@ def time_operation(operation_name: str = "operation"):
 
     def decorator(func: Callable) -> Callable:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             start_time = time.time()
             logger.info(f"Starting {operation_name}...")
 
@@ -96,7 +96,7 @@ def performance_monitor(operation_name: str, max_duration: float | None = None):
 
 @time_operation("write operation")
 def time_write_operation(
-    mode: str, df: DataFrame, fqn: str, **options
+    mode: str, df: DataFrame, fqn: str, **options: Any
 ) -> tuple[int, float, datetime, datetime]:
     """
     Time a write operation and return results with timing info.
@@ -160,7 +160,7 @@ def monitor_performance(
 
     def decorator(func: Callable) -> Callable:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             with performance_monitor(operation_name, max_duration):
                 return func(*args, **kwargs)
 
