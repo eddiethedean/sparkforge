@@ -143,7 +143,7 @@ Example:
     result = pipeline.initial_load(bronze_sources={"events": source_df})
 """
 
-__version__ = "0.4.5"
+__version__ = "0.5.0"
 __author__ = "Odos Matthews"
 __email__ = "odosmattthewsm@gmail.com"
 __description__ = "A powerful data pipeline builder for Apache Spark and Databricks"
@@ -217,13 +217,13 @@ from .step_executor import (
 
 # Import type system
 from .types import (
-    GenericDict,
     BronzeTransformFunction,
     ColumnRules,
     ErrorCode,
     ErrorContext,
     ErrorSuggestions,
     ExecutionId,
+    GenericDict,
     GoldTransformFunction,
     MonitoringConfig,
     NumericDict,
