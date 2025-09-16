@@ -318,6 +318,41 @@ class PipelineConfig(BaseModel):
     parallel: ParallelConfig
     verbose: bool = True
 
+    @property
+    def min_bronze_rate(self) -> float:
+        """Get bronze validation threshold."""
+        return self.thresholds.bronze
+
+    @property
+    def min_silver_rate(self) -> float:
+        """Get silver validation threshold."""
+        return self.thresholds.silver
+
+    @property
+    def min_gold_rate(self) -> float:
+        """Get gold validation threshold."""
+        return self.thresholds.gold
+
+    @property
+    def enable_parallel_silver(self) -> bool:
+        """Get parallel silver execution setting."""
+        return self.parallel.enable_parallel_silver
+
+    @property
+    def max_parallel_workers(self) -> int:
+        """Get max parallel workers setting."""
+        return self.parallel.max_workers
+
+    @property
+    def enable_caching(self) -> bool:
+        """Get caching setting."""
+        return getattr(self.parallel, 'enable_caching', True)
+
+    @property
+    def enable_monitoring(self) -> bool:
+        """Get monitoring setting."""
+        return getattr(self.parallel, 'enable_monitoring', True)
+
     def validate(self) -> None:
         """Validate pipeline configuration."""
         if not self.schema or not isinstance(self.schema, str):

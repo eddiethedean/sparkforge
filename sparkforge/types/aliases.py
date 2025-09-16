@@ -8,6 +8,8 @@ This module defines comprehensive type aliases for common patterns
 used throughout SparkForge, improving type safety and readability.
 """
 
+from dataclasses import dataclass
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -183,14 +185,15 @@ class PipelineConfig(TypedDict, total=False):
     enable_monitoring: bool
 
 
-class ExecutionConfig(TypedDict, total=False):
+@dataclass
+class ExecutionConfig:
     """Execution configuration."""
 
     mode: PipelineMode
-    max_workers: WorkerCount
-    timeout_seconds: Duration
-    retry_count: RetryCount
-    enable_parallel: bool
+    max_workers: WorkerCount = 4
+    timeout_seconds: Duration | None = None
+    retry_count: RetryCount = 3
+    enable_parallel: bool = True
 
 
 class ValidationConfig(TypedDict, total=False):

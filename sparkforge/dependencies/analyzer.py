@@ -166,6 +166,7 @@ class DependencyAnalyzer:
         # Add silver steps
         if silver_steps:
             for name, step in silver_steps.items():
+                step: SilverStep = step  # Type annotation for mypy
                 node = StepNode(
                     name=name, step_type=StepType.SILVER, metadata={"step": step}
                 )
@@ -194,6 +195,7 @@ class DependencyAnalyzer:
         # Add gold steps
         if gold_steps:
             for name, step in gold_steps.items():
+                step: GoldStep = step  # Type annotation for mypy
                 node = StepNode(
                     name=name, step_type=StepType.GOLD, metadata={"step": step}
                 )

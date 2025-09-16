@@ -550,7 +550,7 @@ class PipelineRunner:
                 "dependencies": [],
             }
         elif step_name in self.silver_steps:
-            step = self.silver_steps[step_name]
+            step: SilverStep = self.silver_steps[step_name]
             return {
                 "name": step.name,
                 "type": "silver",
@@ -560,7 +560,7 @@ class PipelineRunner:
                 "dependencies": [step.source_bronze] if step.source_bronze else [],
             }
         elif step_name in self.gold_steps:
-            step = self.gold_steps[step_name]
+            step: GoldStep = self.gold_steps[step_name]
             return {
                 "name": step.name,
                 "type": "gold",

@@ -156,7 +156,7 @@ class StepExecutor:
         """Get detailed information about a step."""
         # Check Bronze steps
         if step_name in self.bronze_steps:
-            step = self.bronze_steps[step_name]
+            step: BronzeStep = self.bronze_steps[step_name]
             return {
                 "name": step_name,
                 "type": "bronze",
@@ -169,7 +169,7 @@ class StepExecutor:
 
         # Check Silver steps
         if step_name in self.silver_steps:
-            step = self.silver_steps[step_name]
+            step: SilverStep = self.silver_steps[step_name]
             return {
                 "name": step_name,
                 "type": "silver",
@@ -184,7 +184,7 @@ class StepExecutor:
 
         # Check Gold steps
         if step_name in self.gold_steps:
-            step = self.gold_steps[step_name]
+            step: GoldStep = self.gold_steps[step_name]
             return {
                 "name": step_name,
                 "type": "gold",
