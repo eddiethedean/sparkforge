@@ -44,7 +44,7 @@ class PipelineLogLevel:
     PERFORMANCE = 20
 
     @classmethod
-    def add_custom_levels(cls):
+    def add_custom_levels(cls) -> None:
         """Add custom log levels to logging module."""
         logging.addLevelName(cls.PIPELINE_START, "PIPELINE_START")
         logging.addLevelName(cls.PIPELINE_END, "PIPELINE_END")
@@ -78,7 +78,7 @@ class ColoredFormatter(logging.Formatter):
         "RESET": "\033[0m",  # Reset
     }
 
-    def format(self, record):
+    def format(self, record: Any) -> str:
         """Format log record with colors."""
         if hasattr(record, "levelname") and record.levelname in self.COLORS:
             color = self.COLORS[record.levelname]
@@ -96,7 +96,7 @@ class ColoredFormatter(logging.Formatter):
 class StructuredFormatter(logging.Formatter):
     """Structured JSON formatter for log files."""
 
-    def format(self, record):
+    def format(self, record: Any) -> str:
         """Format log record as JSON."""
         log_entry = {
             "timestamp": datetime.utcnow().isoformat(),
@@ -172,7 +172,7 @@ class PipelineLogger:
         self._performance_data: Dict[str, List[float]] = {}
         self._context_stack: List[Dict[str, Any]] = []
 
-    def _setup_handlers(self):
+    def _setup_handlers(self) -> None:
         """Setup logging handlers."""
         # Console handler with colors
         if self.verbose:
@@ -194,7 +194,7 @@ class PipelineLogger:
             )
 
             if self.structured_log:
-                file_formatter = StructuredFormatter()
+                file_formatter: logging.Formatter = StructuredFormatter()
             else:
                 file_formatter = logging.Formatter(
                     "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -205,7 +205,7 @@ class PipelineLogger:
             file_handler.setLevel(self.log_level)
             self.logger.addHandler(file_handler)
 
-    def _log_with_context(self, level: int, message: str, **kwargs):
+    def _log_with_context(self, level: int, message: str, **kwargs: Any) -> None:
         """Log message with context information."""
         extra_fields = {}
         if self._context_stack:
@@ -215,7 +215,7 @@ class PipelineLogger:
 
         self.logger.log(level, message, extra={"extra_fields": extra_fields})
 
-    def _add_performance_data(self, operation: str, duration: float):
+    def _add_performance_data(self, operation: str, duration: float) -> None:
         """Add performance data for analysis."""
         if operation not in self._performance_data:
             self._performance_data[operation] = []
@@ -225,23 +225,23 @@ class PipelineLogger:
     # Basic Logging Methods
     # ========================================================================
 
-    def debug(self, message: str, **kwargs) -> None:
+    def debug(self, message: str, **kwargs: Any) -> None:
         """Log debug message."""
         self._log_with_context(logging.DEBUG, message, **kwargs)
 
-    def info(self, message: str, **kwargs) -> None:
+    def info(self, message: str, **kwargs: Any) -> None:
         """Log info message."""
         self._log_with_context(logging.INFO, message, **kwargs)
 
-    def warning(self, message: str, **kwargs) -> None:
+    def warning(self, message: str, **kwargs: Any) -> None:
         """Log warning message."""
         self._log_with_context(logging.WARNING, message, **kwargs)
 
-    def error(self, message: str, **kwargs) -> None:
+    def error(self, message: str, **kwargs: Any) -> None:
         """Log error message."""
         self._log_with_context(logging.ERROR, message, **kwargs)
 
-    def critical(self, message: str, **kwargs) -> None:
+    def critical(self, message: str, **kwargs: Any) -> None:
         """Log critical message."""
         self._log_with_context(logging.CRITICAL, message, **kwargs)
 
@@ -249,7 +249,7 @@ class PipelineLogger:
     # Pipeline-Specific Logging Methods
     # ========================================================================
 
-    def pipeline_start(self, pipeline_name: str, mode: str, **kwargs) -> None:
+    def pipeline_start(self, pipeline_name: str, mode: str, **kwargs: Any) -> None:
         """Log pipeline start."""
         self._log_with_context(
             PipelineLogLevel.PIPELINE_START,
@@ -260,7 +260,7 @@ class PipelineLogger:
         )
 
     def pipeline_end(
-        self, pipeline_name: str, duration: float, success: bool, **kwargs
+        self, pipeline_name: str, duration: float, success: bool, **kwargs: Any
     ) -> None:
         """Log pipeline end."""
         status = "✅ Success" if success else "❌ Failed"
@@ -273,7 +273,7 @@ class PipelineLogger:
             **kwargs,
         )
 
-    def step_start(self, stage: str, step: str, **kwargs) -> None:
+    def step_start(self, stage: str, step: str, **kwargs: Any) -> None:
         """Log start of a pipeline step."""
         self._log_with_context(
             PipelineLogLevel.STEP_START,
@@ -284,7 +284,7 @@ class PipelineLogger:
         )
 
     def step_complete(
-        self, stage: str, step: str, duration: float, rows_processed: int = 0, **kwargs
+        self, stage: str, step: str, duration: float, rows_processed: int = 0, **kwargs: Any
     ) -> None:
         """Log completion of a pipeline step."""
         self._add_performance_data(f"{stage}_{step}", duration)
@@ -299,7 +299,7 @@ class PipelineLogger:
         )
 
     def step_skipped(
-        self, stage: str, step: str, reason: str = "No data", **kwargs
+        self, stage: str, step: str, reason: str = "No data", **kwargs: Any
     ) -> None:
         """Log skipped pipeline step."""
         self._log_with_context(
@@ -312,7 +312,7 @@ class PipelineLogger:
         )
 
     def step_failed(
-        self, stage: str, step: str, error: str, duration: float = 0, **kwargs
+        self, stage: str, step: str, error: str, duration: float = 0, **kwargs: Any
     ) -> None:
         """Log failed pipeline step."""
         self._log_with_context(
@@ -325,7 +325,7 @@ class PipelineLogger:
             **kwargs,
         )
 
-    def parallel_start(self, steps: List[str], group: int, **kwargs) -> None:
+    def parallel_start(self, steps: List[str], group: int, **kwargs: Any) -> None:
         """Log start of parallel execution."""
         self._log_with_context(
             logging.INFO,
@@ -336,7 +336,7 @@ class PipelineLogger:
             **kwargs,
         )
 
-    def parallel_complete(self, completed_step: str, **kwargs) -> None:
+    def parallel_complete(self, completed_step: str, **kwargs: Any) -> None:
         """Log completion of parallel step."""
         self._log_with_context(
             logging.INFO,
@@ -347,7 +347,7 @@ class PipelineLogger:
         )
 
     def validation_passed(
-        self, stage: str, step: str, rate: float, threshold: float, **kwargs
+        self, stage: str, step: str, rate: float, threshold: float, **kwargs: Any
     ) -> None:
         """Log validation success."""
         self._log_with_context(
@@ -362,7 +362,7 @@ class PipelineLogger:
         )
 
     def validation_failed(
-        self, stage: str, step: str, rate: float, threshold: float, **kwargs
+        self, stage: str, step: str, rate: float, threshold: float, **kwargs: Any
     ) -> None:
         """Log validation failure."""
         self._log_with_context(
@@ -377,7 +377,7 @@ class PipelineLogger:
         )
 
     def performance_metric(
-        self, metric_name: str, value: float, unit: str = "s", **kwargs
+        self, metric_name: str, value: float, unit: str = "s", **kwargs: Any
     ) -> None:
         """Log performance metric."""
         self._log_with_context(
@@ -395,7 +395,7 @@ class PipelineLogger:
         duration: float,
         total_rows: int,
         success_rate: float = 100.0,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Log execution summary."""
         self._log_with_context(
@@ -408,7 +408,7 @@ class PipelineLogger:
             **kwargs,
         )
 
-    def dependency_analysis(self, groups: Dict[int, List[str]], **kwargs) -> None:
+    def dependency_analysis(self, groups: Dict[int, List[str]], **kwargs: Any) -> None:
         """Log dependency analysis results."""
         self.info("🔍 Silver execution plan:")
         for group_num in sorted(groups.keys()):
@@ -426,7 +426,7 @@ class PipelineLogger:
         )
 
     def data_quality_report(
-        self, stage: str, step: str, quality_score: float, issues: List[str], **kwargs
+        self, stage: str, step: str, quality_score: float, issues: List[str], **kwargs: Any
     ) -> None:
         """Log data quality report."""
         status = (
@@ -451,7 +451,7 @@ class PipelineLogger:
     # ========================================================================
 
     @contextmanager
-    def context(self, **context_data):
+    def context(self, **context_data: Any) -> Any:
         """Add context to all log messages within this block."""
         self._context_stack.append(context_data)
         try:
@@ -459,14 +459,14 @@ class PipelineLogger:
         finally:
             self._context_stack.pop()
 
-    def set_context(self, **context_data):
+    def set_context(self, **context_data: Any) -> None:
         """Set persistent context for all subsequent log messages."""
         if self._context_stack:
             self._context_stack[-1].update(context_data)
         else:
             self._context_stack.append(context_data)
 
-    def clear_context(self):
+    def clear_context(self) -> None:
         """Clear all context data."""
         self._context_stack.clear()
 
@@ -488,7 +488,7 @@ class PipelineLogger:
                 }
         return summary
 
-    def log_performance_summary(self):
+    def log_performance_summary(self) -> None:
         """Log performance summary."""
         summary = self.get_performance_summary()
         if summary:
@@ -505,21 +505,21 @@ class PipelineLogger:
     # Utility Methods
     # ========================================================================
 
-    def set_level(self, level: int):
+    def set_level(self, level: int) -> None:
         """Set logging level."""
         self.log_level = level
         self.logger.setLevel(level)
         for handler in self.logger.handlers:
             handler.setLevel(level)
 
-    def add_file_handler(self, filename: str, level: int = logging.INFO):
+    def add_file_handler(self, filename: str, level: int = logging.INFO) -> None:
         """Add additional file handler."""
         file_handler = logging.handlers.RotatingFileHandler(
             filename, maxBytes=self.max_file_size, backupCount=self.backup_count
         )
 
         if self.structured_log:
-            file_formatter = StructuredFormatter()
+            file_formatter: logging.Formatter = StructuredFormatter()
         else:
             file_formatter = logging.Formatter(
                 "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -530,7 +530,7 @@ class PipelineLogger:
         file_handler.setLevel(level)
         self.logger.addHandler(file_handler)
 
-    def close(self):
+    def close(self) -> None:
         """Close all handlers."""
         for handler in self.logger.handlers:
             handler.close()
@@ -545,7 +545,7 @@ class PipelineLogger:
 class ExecutionTimer:
     """Enhanced context manager for timing operations with detailed logging."""
 
-    def __init__(self, logger: PipelineLogger, operation: str, **context_data):
+    def __init__(self, logger: PipelineLogger, operation: str, **context_data: Any) -> None:
         self.logger = logger
         self.operation = operation
         self.context_data = context_data
@@ -558,9 +558,12 @@ class ExecutionTimer:
         self.logger.info(f"⏱️ Starting {self.operation}", **self.context_data)
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.end_time = datetime.utcnow()
-        self.duration = (self.end_time - self.start_time).total_seconds()
+        if self.start_time is not None:
+            self.duration = (self.end_time - self.start_time).total_seconds()
+        else:
+            self.duration = 0.0
 
         if exc_type is None:
             self.logger.info(
@@ -583,12 +586,12 @@ class ExecutionTimer:
 # ============================================================================
 
 
-def log_performance(operation_name: str = None, log_args: bool = False):
+def log_performance(operation_name: Optional[str] = None, log_args: bool = False) -> Any:
     """Decorator to automatically log function performance."""
 
-    def decorator(func):
+    def decorator(func: Any) -> Any:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             name = operation_name or f"{func.__module__}.{func.__name__}"
 
             # Get logger from args if available
@@ -673,13 +676,13 @@ def get_global_logger() -> PipelineLogger:
     return _global_logger
 
 
-def set_global_logger(logger: PipelineLogger):
+def set_global_logger(logger: PipelineLogger) -> None:
     """Set the global logger instance."""
     global _global_logger
     _global_logger = logger
 
 
-def reset_global_logger():
+def reset_global_logger() -> None:
     """Reset the global logger instance."""
     global _global_logger
     if _global_logger:
