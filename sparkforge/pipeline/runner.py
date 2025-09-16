@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pyspark.sql import DataFrame, SparkSession
 
@@ -21,6 +21,7 @@ from ..execution import ExecutionEngine
 from ..logger import PipelineLogger
 from ..models import BronzeStep, GoldStep, PipelineConfig, SilverStep
 from ..types import StepName
+
 from .models import PipelineMode, PipelineReport, PipelineStatus
 from .monitor import PipelineMonitor
 from .validator import PipelineValidator
@@ -371,7 +372,7 @@ class PipelineRunner:
                 # Write to Delta table if table_name is specified
                 rows_written = row_count
                 if hasattr(step, "table_name") and step.table_name:
-                    table_path = f"{self.schema}.{step.table_name}" if self.schema else step.table_name
+                    table_path = f"{self.config.schema}.{step.table_name}" if self.config.schema else step.table_name
                     try:
                         # Write DataFrame to Delta table
                         source_df.write.format("delta").mode("overwrite").option(
@@ -507,14 +508,13 @@ class PipelineRunner:
         return self.monitor.get_performance_summary()
 
     # Legacy compatibility methods for tests
-    def create_step_executor(self):
+    def create_step_executor(self) -> Any:
         """Create a step executor for legacy compatibility."""
+        from ..step_executor import StepExecutor
+        
         # Return existing executor if available
         if hasattr(self, "_step_executor") and self._step_executor is not None:
             return self._step_executor
-
-        from ..dependencies import DependencyAnalyzer
-        from ..step_executor import StepExecutor
 
         executor = StepExecutor(
             spark=self.spark,
@@ -523,7 +523,7 @@ class PipelineRunner:
             silver_steps=self.silver_steps,
             gold_steps=self.gold_steps,
             logger=self.logger,
-            dependency_analyzer=DependencyAnalyzer(self.logger),
+            dependency_analyzer=DependencyAnalyzer(logger=self.logger),
         )
 
         # Store reference to executor for state tracking
@@ -577,7 +577,7 @@ class PipelineRunner:
         input_data: DataFrame = None,
         data: DataFrame = None,
         output_to_table: bool = True,
-    ):
+    ) -> Any:
         """Execute a single bronze step for legacy compatibility."""
         if step_name not in self.bronze_steps:
             raise ValueError(f"Bronze step '{step_name}' not found")
@@ -611,17 +611,17 @@ class PipelineRunner:
                     valid_rows = row_count - null_count
                     invalid_rows = null_count
 
-            class StepResult:
+            class BronzeStepResult:
                 def __init__(
                     self,
-                    step_name,
-                    success,
-                    rows_processed,
-                    rows_written,
-                    step_type,
-                    status,
-                    error=None,
-                ):
+                    step_name: str,
+                    success: bool,
+                    rows_processed: int,
+                    rows_written: int,
+                    step_type: str,
+                    status: str,
+                    error: str | None = None,
+                ) -> None:
                     self.step_name = step_name
                     self.success = success
                     self.rows_processed = rows_processed
@@ -647,13 +647,15 @@ class PipelineRunner:
                     )
 
             if validation_passed:
-                result = StepResult(
+                from ..step_executor import StepType, StepStatus
+                
+                result = BronzeStepResult(
                     step_name,
                     True,
                     row_count,
                     row_count if output_to_table else 0,
-                    StepType.BRONZE,
-                    StepStatus.COMPLETED,
+                    "bronze",
+                    "completed",
                 )
                 # Update StepExecutor state if available
                 if hasattr(self, "_step_executor") and self._step_executor:
@@ -678,13 +680,13 @@ class PipelineRunner:
                     self._step_executor._step_outputs[step_name] = df
                 return result
             else:
-                result = StepResult(
+                result = BronzeStepResult(
                     step_name,
                     False,
                     row_count,
                     0,
-                    StepType.BRONZE,
-                    StepStatus.FAILED,
+                    "bronze",
+                    "failed",
                     "Validation failed",
                 )
                 # Update StepExecutor state if available
@@ -711,17 +713,17 @@ class PipelineRunner:
             from .. import StepStatus, StepType
             from ..step_executor import StepValidationResult
 
-            class StepResult:
+            class BronzeStepResult:
                 def __init__(
                     self,
-                    step_name,
-                    success,
-                    rows_processed,
-                    rows_written,
-                    step_type,
-                    status,
-                    error=None,
-                ):
+                    step_name: str,
+                    success: bool,
+                    rows_processed: int,
+                    rows_written: int,
+                    step_type: str,
+                    status: str,
+                    error: str | None = None,
+                ) -> None:
                     self.step_name = step_name
                     self.success = success
                     self.rows_processed = rows_processed
@@ -739,11 +741,11 @@ class PipelineRunner:
                         invalid_rows=0,
                     )
 
-            return StepResult(
-                step_name, False, 0, 0, StepType.BRONZE, StepStatus.FAILED, str(e)
+            return BronzeStepResult(
+                step_name, False, 0, 0, "bronze", "failed", str(e)
             )
 
-    def execute_silver_step(self, step_name: str, output_to_table: bool = True):
+    def execute_silver_step(self, step_name: str, output_to_table: bool = True) -> Any:
         """Execute a single silver step for legacy compatibility."""
         if step_name not in self.silver_steps:
             raise ValueError(f"Silver step '{step_name}' not found")
@@ -753,17 +755,17 @@ class PipelineRunner:
             from .. import StepStatus, StepType
             from ..step_executor import StepValidationResult
 
-            class StepResult:
+            class SilverStepResult:
                 def __init__(
                     self,
-                    step_name,
-                    success,
-                    rows_processed,
-                    rows_written,
-                    step_type,
-                    status,
-                    error=None,
-                ):
+                    step_name: str,
+                    success: bool,
+                    rows_processed: int,
+                    rows_written: int,
+                    step_type: str,
+                    status: str,
+                    error: str | None = None,
+                ) -> None:
                     self.step_name = step_name
                     self.success = success
                     self.rows_processed = rows_processed
@@ -784,24 +786,24 @@ class PipelineRunner:
                         invalid_rows=0,
                     )
 
-            return StepResult(
-                step_name, True, 3, 0, StepType.SILVER, StepStatus.COMPLETED
+            return SilverStepResult(
+                step_name, True, 3, 0, "silver", "completed"
             )
         except Exception as e:
             from .. import StepStatus, StepType
             from ..step_executor import StepValidationResult
 
-            class StepResult:
+            class SilverStepResult:
                 def __init__(
                     self,
-                    step_name,
-                    success,
-                    rows_processed,
-                    rows_written,
-                    step_type,
-                    status,
-                    error=None,
-                ):
+                    step_name: str,
+                    success: bool,
+                    rows_processed: int,
+                    rows_written: int,
+                    step_type: str,
+                    status: str,
+                    error: str | None = None,
+                ) -> None:
                     self.step_name = step_name
                     self.success = success
                     self.rows_processed = rows_processed
@@ -819,11 +821,11 @@ class PipelineRunner:
                         invalid_rows=0,
                     )
 
-            return StepResult(
-                step_name, False, 0, 0, StepType.SILVER, StepStatus.FAILED, str(e)
+            return SilverStepResult(
+                step_name, False, 0, 0, "silver", "failed", str(e)
             )
 
-    def execute_gold_step(self, step_name: str, output_to_table: bool = True):
+    def execute_gold_step(self, step_name: str, output_to_table: bool = True) -> Any:
         """Execute a single gold step for legacy compatibility."""
         if step_name not in self.gold_steps:
             raise ValueError(f"Gold step '{step_name}' not found")
@@ -833,17 +835,17 @@ class PipelineRunner:
             from .. import StepStatus, StepType
             from ..step_executor import StepValidationResult
 
-            class StepResult:
+            class GoldStepResult:
                 def __init__(
                     self,
-                    step_name,
-                    success,
-                    rows_processed,
-                    rows_written,
-                    step_type,
-                    status,
-                    error=None,
-                ):
+                    step_name: str,
+                    success: bool,
+                    rows_processed: int,
+                    rows_written: int,
+                    step_type: str,
+                    status: str,
+                    error: str | None = None,
+                ) -> None:
                     self.step_name = step_name
                     self.success = success
                     self.rows_processed = rows_processed
@@ -864,24 +866,24 @@ class PipelineRunner:
                         invalid_rows=0,
                     )
 
-            return StepResult(
-                step_name, True, 3, 0, StepType.GOLD, StepStatus.COMPLETED
+            return GoldStepResult(
+                step_name, True, 3, 0, "gold", "completed"
             )
         except Exception as e:
             from .. import StepStatus, StepType
             from ..step_executor import StepValidationResult
 
-            class StepResult:
+            class GoldStepResult:
                 def __init__(
                     self,
-                    step_name,
-                    success,
-                    rows_processed,
-                    rows_written,
-                    step_type,
-                    status,
-                    error=None,
-                ):
+                    step_name: str,
+                    success: bool,
+                    rows_processed: int,
+                    rows_written: int,
+                    step_type: str,
+                    status: str,
+                    error: str | None = None,
+                ) -> None:
                     self.step_name = step_name
                     self.success = success
                     self.rows_processed = rows_processed
@@ -899,6 +901,6 @@ class PipelineRunner:
                         invalid_rows=0,
                     )
 
-            return StepResult(
-                step_name, False, 0, 0, StepType.GOLD, StepStatus.FAILED, str(e)
+            return GoldStepResult(
+                step_name, False, 0, 0, "gold", "failed", str(e)
             )
