@@ -216,7 +216,7 @@ class SecurityManager:
         if not isinstance(rules, dict):
             raise InputValidationError("Validation rules must be a dictionary")
 
-        validated_rules = {}
+        validated_rules: dict[str, Any] = {}
         for column_name, rule_list in rules.items():
             # Validate column name
             validated_column = self.validate_column_name(column_name)
