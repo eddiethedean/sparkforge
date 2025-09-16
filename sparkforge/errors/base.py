@@ -121,7 +121,7 @@ class SparkForgeError(Exception):
 class ConfigurationError(SparkForgeError):
     """Raised when configuration is invalid or missing."""
 
-    def __init__(self, message: str, **kwargs):
+    def __init__(self, message: str, **kwargs: Any):
         super().__init__(
             message,
             category=ErrorCategory.CONFIGURATION,
@@ -133,7 +133,7 @@ class ConfigurationError(SparkForgeError):
 class ValidationError(SparkForgeError):
     """Raised when data validation fails."""
 
-    def __init__(self, message: str, **kwargs):
+    def __init__(self, message: str, **kwargs: Any):
         super().__init__(
             message,
             category=ErrorCategory.VALIDATION,
@@ -145,7 +145,7 @@ class ValidationError(SparkForgeError):
 class ExecutionError(SparkForgeError):
     """Raised when execution fails."""
 
-    def __init__(self, message: str, **kwargs):
+    def __init__(self, message: str, **kwargs: Any):
         super().__init__(
             message,
             category=ErrorCategory.EXECUTION,
@@ -157,7 +157,7 @@ class ExecutionError(SparkForgeError):
 class DataQualityError(SparkForgeError):
     """Raised when data quality issues are detected."""
 
-    def __init__(self, message: str, **kwargs):
+    def __init__(self, message: str, **kwargs: Any):
         super().__init__(
             message,
             category=ErrorCategory.DATA_QUALITY,
@@ -169,7 +169,7 @@ class DataQualityError(SparkForgeError):
 class ResourceError(SparkForgeError):
     """Raised when resource-related errors occur."""
 
-    def __init__(self, message: str, **kwargs):
+    def __init__(self, message: str, **kwargs: Any):
         super().__init__(
             message,
             category=ErrorCategory.RESOURCE,
