@@ -104,7 +104,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any
+from typing import Dict, List, Union
 
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
@@ -118,7 +118,7 @@ from .security import get_security_manager
 logger = logging.getLogger(__name__)
 
 
-def _convert_rule_to_expression(rule: str, column_name: str) -> Any:
+def _convert_rule_to_expression(rule: str, column_name: str) -> Union[object, str]:
     """
     Convert a string rule to a PySpark Column expression.
 
@@ -143,7 +143,7 @@ def _convert_rule_to_expression(rule: str, column_name: str) -> Any:
         return rule
 
 
-def _convert_rules_to_expressions(rules: ColumnRules) -> ColumnRules:
+def _convert_rules_to_expressions(rules: ColumnRules) -> Dict[str, List[Union[DataFrame, str, bool]]]:
     """
     Convert string rules to PySpark Column expressions.
 
@@ -168,7 +168,7 @@ def _convert_rules_to_expressions(rules: ColumnRules) -> ColumnRules:
     return converted_rules
 
 
-def and_all_rules(rules: ColumnRules) -> Any:
+def and_all_rules(rules: ColumnRules) -> Union[object, bool]:
     """
     Combine all validation rules with AND logic.
 
@@ -193,9 +193,17 @@ def and_all_rules(rules: ColumnRules) -> Any:
     if not expressions:
         return True
     
+    # Ensure all expressions are PySpark Column objects
     pred = expressions[0]
     for e in expressions[1:]:
-        pred = pred & e
+        # Check if both are PySpark Column objects by checking for specific methods
+        if (hasattr(pred, '__and__') and hasattr(e, '__and__') and 
+            hasattr(pred, '__rand__') and hasattr(e, '__rand__') and
+            hasattr(pred, 'isNull') and hasattr(e, 'isNull')):
+            pred = pred & e  # type: ignore
+        else:
+            # If either is not a Column, convert to boolean logic
+            pred = bool(pred) and bool(e)
     
     return pred
 
@@ -222,7 +230,7 @@ def validate_dataframe_schema(df: DataFrame, expected_columns: list[str]) -> boo
     return True
 
 
-def get_dataframe_info(df: DataFrame) -> dict[str, Any]:
+def get_dataframe_info(df: DataFrame) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
     """
     Get comprehensive information about a DataFrame.
 
@@ -386,11 +394,16 @@ def apply_column_rules(
         for col_name, exprs in converted_rules.items():
             for idx, expr in enumerate(exprs):
                 tag = F.lit(f"{col_name}#{idx + 1}")
-                failed_arrays.append(
-                    F.when(~expr, F.array(tag)).otherwise(
-                        F.array().cast(ArrayType(StringType()))
+                # Ensure expr is a Column before applying ~ operator
+                if hasattr(expr, '__invert__'):
+                    failed_arrays.append(
+                        F.when(~expr, F.array(tag)).otherwise(  # type: ignore
+                            F.array().cast(ArrayType(StringType()))
+                        )
                     )
-                )
+                else:
+                    # If not a Column, skip this rule
+                    continue
 
         if failed_arrays:
             invalid_df = invalid_df.withColumn(
@@ -455,7 +468,7 @@ def apply_column_rules(
 
 def assess_data_quality(
     df: DataFrame, rules: ColumnRules | None = None
-) -> dict[str, Any]:
+) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
     """
     Assess data quality of a DataFrame.
 

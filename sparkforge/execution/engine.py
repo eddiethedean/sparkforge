@@ -18,6 +18,86 @@
 # # # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # # # # SOFTWARE.
 # #
+# # # Copyright (c) 2024 Odos Matthews
+# # #
+# # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # of this software and associated documentation files (the "Software"), to deal
+# # # in the Software without restriction, including without limitation the rights
+# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # copies of the Software, and to permit persons to whom the Software is
+# # # furnished to do so, subject to the following conditions:
+# # #
+# # # The above copyright notice and this permission notice shall be included in all
+# # # copies or substantial portions of the Software.
+# # #
+# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # SOFTWARE.
+#
+# # # Copyright (c) 2024 Odos Matthews
+# # #
+# # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # of this software and associated documentation files (the "Software"), to deal
+# # # in the Software without restriction, including without limitation the rights
+# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # copies of the Software, and to permit persons to whom the Software is
+# # # furnished to do so, subject to the following conditions:
+# # #
+# # # The above copyright notice and this permission notice shall be included in all
+# # # copies or substantial portions of the Software.
+# # #
+# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # SOFTWARE.
+#
+# # Copyright (c) 2024 Odos Matthews
+# #
+# # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # of this software and associated documentation files (the "Software"), to deal
+# # in the Software without restriction, including without limitation the rights
+# # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # copies of the Software, and to permit persons to whom the Software is
+# # furnished to do so, subject to the following conditions:
+# #
+# # The above copyright notice and this permission notice shall be included in all
+# # copies or substantial portions of the Software.
+# #
+# # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # SOFTWARE.
+
+# # # # Copyright (c) 2024 Odos Matthews
+# # # #
+# # # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # # of this software and associated documentation files (the "Software"), to deal
+# # # # in the Software without restriction, including without limitation the rights
+# # # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # # copies of the Software, and to permit persons to whom the Software is
+# # # # furnished to do so, subject to the following conditions:
+# # # #
+# # # # The above copyright notice and this permission notice shall be included in all
+# # # # copies or substantial portions of the Software.
+# # # #
+# # # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # # SOFTWARE.
+# #
 #
 #
 
@@ -36,7 +116,7 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Generator
+from typing import Dict, Generator, List, Union
 
 from pyspark.sql import SparkSession
 
@@ -118,7 +198,7 @@ class StepExecutor:
         self.schema = schema
 
     def execute_step(
-        self, step_name: str, step_config: dict[str, Any]
+        self, step_name: str, step_config: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]
     ) -> StepExecutionResult:
         """Execute a single pipeline step."""
         start_time = time.time()
@@ -175,8 +255,8 @@ class StepExecutor:
             )
 
     def _execute_bronze_step(
-        self, step_name: str, step_config: dict[str, Any]
-    ) -> dict[str, Any]:
+        self, step_name: str, step_config: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]
+    ) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """Execute a bronze step."""
         # Simplified bronze step execution
         # In a real implementation, this would handle validation, data loading, etc.
@@ -187,8 +267,8 @@ class StepExecutor:
         }
 
     def _execute_silver_step(
-        self, step_name: str, step_config: dict[str, Any]
-    ) -> dict[str, Any]:
+        self, step_name: str, step_config: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]
+    ) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """Execute a silver step."""
         # Get the step object to determine write mode
         step = step_config.get("step")
@@ -222,7 +302,11 @@ class StepExecutor:
                     # Write to Delta table if table_name is specified
                     rows_written = 0
                     if step and hasattr(step, "table_name") and step.table_name:
-                        table_path = f"{self.schema}.{step.table_name}" if self.schema else step.table_name
+                        table_path = (
+                            f"{self.schema}.{step.table_name}"
+                            if self.schema
+                            else step.table_name
+                        )
                         try:
                             # Write DataFrame to Delta table
                             transformed_df.write.format("delta").mode(
@@ -271,8 +355,8 @@ class StepExecutor:
         }
 
     def _execute_gold_step(
-        self, step_name: str, step_config: dict[str, Any]
-    ) -> dict[str, Any]:
+        self, step_name: str, step_config: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]
+    ) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """Execute a gold step."""
         step = step_config.get("step")
         silver_results = step_config.get("silver_results", {})
@@ -295,7 +379,11 @@ class StepExecutor:
                     # Write to Delta table if table_name is specified
                     rows_written = 0
                     if step and hasattr(step, "table_name") and step.table_name:
-                        table_path = f"{self.schema}.{step.table_name}" if self.schema else step.table_name
+                        table_path = (
+                            f"{self.schema}.{step.table_name}"
+                            if self.schema
+                            else step.table_name
+                        )
                         try:
                             # Write DataFrame to Delta table
                             transformed_df.write.format("delta").mode(
@@ -385,7 +473,7 @@ class ExecutionEngine:
             raise ExecutionError(f"Unknown execution mode: {self.config.mode}")
 
     def execute_steps(
-        self, steps: dict[str, Any], execution_groups: list[list[str]] | None = None
+        self, steps: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]], execution_groups: list[list[str]] | None = None
     ) -> ExecutionResult:
         """
         Execute a set of pipeline steps.
@@ -413,7 +501,7 @@ class ExecutionEngine:
                 )
 
     def _execute_with_groups(
-        self, steps: dict[str, Any], execution_groups: list[list[str]]
+        self, steps: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]], execution_groups: list[list[str]]
     ) -> ExecutionResult:
         """Execute steps with dependency-aware grouping."""
         all_results: dict[str, StepExecutionResult] = {}
@@ -476,7 +564,9 @@ class ExecutionEngine:
         self._stats = ExecutionStats()
 
     @contextmanager
-    def execution_context(self, context: ExecutionContext) -> Generator[Any, None, None]:
+    def execution_context(
+        self, context: ExecutionContext
+    ) -> Generator[object, None, None]:
         """Context manager for execution with proper cleanup."""
         try:
             yield self

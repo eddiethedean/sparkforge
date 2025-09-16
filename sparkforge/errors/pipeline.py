@@ -1,5 +1,22 @@
+# Copyright (c) 2024 Odos Matthews
 #
-
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 
 """
 Pipeline-specific exceptions for SparkForge.
@@ -10,9 +27,10 @@ providing detailed error context for pipeline-related issues.
 
 from __future__ import annotations
 
-from typing import Any
+from datetime import datetime
+from typing import Dict, List, Optional, Union
 
-from .base import ErrorCategory, ErrorSeverity, SparkForgeError
+from .base import ErrorCategory, ErrorSeverity, SparkForgeError, ErrorContext, ErrorSuggestions
 
 
 class PipelineError(SparkForgeError):
@@ -22,11 +40,22 @@ class PipelineError(SparkForgeError):
         self,
         message: str,
         *,
-        pipeline_id: str | None = None,
-        execution_id: str | None = None,
-        **kwargs: Any,
+        pipeline_id: Optional[str] = None,
+        execution_id: Optional[str] = None,
+        error_code: Optional[str] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
     ):
-        super().__init__(message, **kwargs)
+        super().__init__(
+            message,
+            error_code=error_code,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
+        )
         self.pipeline_id = pipeline_id
         self.execution_id = execution_id
 
@@ -40,13 +69,31 @@ class PipelineError(SparkForgeError):
 class PipelineConfigurationError(PipelineError):
     """Raised when pipeline configuration is invalid."""
 
-    def __init__(self, message: str, **kwargs: Any):
+    def __init__(
+        self,
+        message: str,
+        *,
+        pipeline_id: Optional[str] = None,
+        execution_id: Optional[str] = None,
+        error_code: Optional[str] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
+    ):
         super().__init__(
             message,
-            category=ErrorCategory.CONFIGURATION,
-            severity=ErrorSeverity.HIGH,
-            **kwargs,
+            pipeline_id=pipeline_id,
+            execution_id=execution_id,
+            error_code=error_code,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
         )
+        # Set category and severity after calling super().__init__
+        self.category = ErrorCategory.CONFIGURATION
+        self.severity = ErrorSeverity.HIGH
 
 
 class PipelineExecutionError(PipelineError):
@@ -56,16 +103,29 @@ class PipelineExecutionError(PipelineError):
         self,
         message: str,
         *,
-        step_name: str | None = None,
-        step_type: str | None = None,
-        **kwargs: Any,
+        step_name: Optional[str] = None,
+        step_type: Optional[str] = None,
+        pipeline_id: Optional[str] = None,
+        execution_id: Optional[str] = None,
+        error_code: Optional[str] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
     ):
         super().__init__(
             message,
-            category=ErrorCategory.EXECUTION,
-            severity=ErrorSeverity.HIGH,
-            **kwargs,
+            pipeline_id=pipeline_id,
+            execution_id=execution_id,
+            error_code=error_code,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
         )
+        # Set category and severity after calling super().__init__
+        self.category = ErrorCategory.EXECUTION
+        self.severity = ErrorSeverity.HIGH
         self.step_name = step_name
         self.step_type = step_type
 
@@ -80,14 +140,31 @@ class PipelineValidationError(PipelineError):
     """Raised when pipeline validation fails."""
 
     def __init__(
-        self, message: str, *, validation_errors: list[str] | None = None, **kwargs: Any
+        self,
+        message: str,
+        *,
+        validation_errors: Optional[List[str]] = None,
+        pipeline_id: Optional[str] = None,
+        execution_id: Optional[str] = None,
+        error_code: Optional[str] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
     ):
         super().__init__(
             message,
-            category=ErrorCategory.VALIDATION,
-            severity=ErrorSeverity.MEDIUM,
-            **kwargs,
+            pipeline_id=pipeline_id,
+            execution_id=execution_id,
+            error_code=error_code,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
         )
+        # Set category and severity after calling super().__init__
+        self.category = ErrorCategory.VALIDATION
+        self.severity = ErrorSeverity.MEDIUM
         self.validation_errors = validation_errors or []
 
     def __str__(self) -> str:
@@ -102,9 +179,25 @@ class StepError(SparkForgeError):
     """Base exception for step-related errors."""
 
     def __init__(
-        self, message: str, *, step_name: str, step_type: str | None = None, **kwargs: Any
+        self,
+        message: str,
+        *,
+        step_name: str,
+        step_type: Optional[str] = None,
+        error_code: Optional[str] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
     ):
-        super().__init__(message, **kwargs)
+        super().__init__(
+            message,
+            error_code=error_code,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
+        )
         self.step_name = step_name
         self.step_type = step_type
 
@@ -121,18 +214,27 @@ class StepExecutionError(StepError):
         message: str,
         *,
         step_name: str,
-        step_type: str | None = None,
+        step_type: Optional[str] = None,
         retry_count: int = 0,
-        **kwargs: Any,
+        error_code: Optional[str] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
     ):
         super().__init__(
             message,
             step_name=step_name,
             step_type=step_type,
-            category=ErrorCategory.EXECUTION,
-            severity=ErrorSeverity.HIGH,
-            **kwargs,
+            error_code=error_code,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
         )
+        # Set category and severity after calling super().__init__
+        self.category = ErrorCategory.EXECUTION
+        self.severity = ErrorSeverity.HIGH
         self.retry_count = retry_count
 
     def __str__(self) -> str:
@@ -150,18 +252,27 @@ class StepValidationError(StepError):
         message: str,
         *,
         step_name: str,
-        step_type: str | None = None,
-        validation_errors: list[str] | None = None,
-        **kwargs: Any,
+        step_type: Optional[str] = None,
+        validation_errors: Optional[List[str]] = None,
+        error_code: Optional[str] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
     ):
         super().__init__(
             message,
             step_name=step_name,
             step_type=step_type,
-            category=ErrorCategory.VALIDATION,
-            severity=ErrorSeverity.MEDIUM,
-            **kwargs,
+            error_code=error_code,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
         )
+        # Set category and severity after calling super().__init__
+        self.category = ErrorCategory.VALIDATION
+        self.severity = ErrorSeverity.MEDIUM
         self.validation_errors = validation_errors or []
 
     def __str__(self) -> str:
@@ -179,16 +290,25 @@ class DependencyError(SparkForgeError):
         self,
         message: str,
         *,
-        step_name: str | None = None,
-        dependency_name: str | None = None,
-        **kwargs: Any,
+        step_name: Optional[str] = None,
+        dependency_name: Optional[str] = None,
+        error_code: Optional[str] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
     ):
         super().__init__(
             message,
-            category=ErrorCategory.EXECUTION,
-            severity=ErrorSeverity.HIGH,
-            **kwargs,
+            error_code=error_code,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
         )
+        # Set category and severity after calling super().__init__
+        self.category = ErrorCategory.EXECUTION
+        self.severity = ErrorSeverity.HIGH
         self.step_name = step_name
         self.dependency_name = dependency_name
 
@@ -204,8 +324,29 @@ class DependencyError(SparkForgeError):
 class CircularDependencyError(DependencyError):
     """Raised when circular dependencies are detected."""
 
-    def __init__(self, message: str, *, cycle: list[str], **kwargs: Any):
-        super().__init__(message, **kwargs)
+    def __init__(
+        self,
+        message: str,
+        *,
+        cycle: List[str],
+        step_name: Optional[str] = None,
+        dependency_name: Optional[str] = None,
+        error_code: Optional[str] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
+    ):
+        super().__init__(
+            message,
+            step_name=step_name,
+            dependency_name=dependency_name,
+            error_code=error_code,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
+        )
         self.cycle = cycle
 
     def __str__(self) -> str:
@@ -217,8 +358,29 @@ class CircularDependencyError(DependencyError):
 class InvalidDependencyError(DependencyError):
     """Raised when invalid dependencies are detected."""
 
-    def __init__(self, message: str, *, invalid_dependencies: list[str], **kwargs: Any):
-        super().__init__(message, **kwargs)
+    def __init__(
+        self,
+        message: str,
+        *,
+        invalid_dependencies: List[str],
+        step_name: Optional[str] = None,
+        dependency_name: Optional[str] = None,
+        error_code: Optional[str] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
+    ):
+        super().__init__(
+            message,
+            step_name=step_name,
+            dependency_name=dependency_name,
+            error_code=error_code,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
+        )
         self.invalid_dependencies = invalid_dependencies
 
     def __str__(self) -> str:

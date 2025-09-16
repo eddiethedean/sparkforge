@@ -1,3 +1,22 @@
+# Copyright (c) 2024 Odos Matthews
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 
 """
 Execution-specific exceptions for SparkForge.
@@ -8,20 +27,35 @@ providing detailed error context for execution-related issues.
 
 from __future__ import annotations
 
-from typing import Any
+from datetime import datetime
+from typing import Dict, List, Optional, Union
 
-from .base import ErrorCategory, ErrorSeverity, SparkForgeError
+from .base import ErrorCategory, ErrorSeverity, SparkForgeError, ErrorContext, ErrorSuggestions
 
 
 class ExecutionError(SparkForgeError):
     """Raised when execution operations fail."""
 
-    def __init__(self, message: str, *, execution_step: str | None = None, **kwargs: Any):
+    def __init__(
+        self,
+        message: str,
+        *,
+        execution_step: Optional[str] = None,
+        error_code: Optional[str] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
+    ):
         super().__init__(
             message,
+            error_code=error_code,
             category=ErrorCategory.EXECUTION,
             severity=ErrorSeverity.HIGH,
-            **kwargs,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
         )
         self.execution_step = execution_step
 
@@ -29,12 +63,26 @@ class ExecutionError(SparkForgeError):
 class ExecutionEngineError(SparkForgeError):
     """Raised when execution engine fails."""
 
-    def __init__(self, message: str, *, execution_mode: str | None = None, **kwargs: Any):
+    def __init__(
+        self,
+        message: str,
+        *,
+        execution_mode: Optional[str] = None,
+        error_code: Optional[str] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
+    ):
         super().__init__(
             message,
+            error_code=error_code,
             category=ErrorCategory.EXECUTION,
             severity=ErrorSeverity.HIGH,
-            **kwargs,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
         )
         self.execution_mode = execution_mode
 
@@ -53,15 +101,23 @@ class StepExecutionError(SparkForgeError):
         message: str,
         *,
         step_name: str,
-        step_type: str | None = None,
+        step_type: Optional[str] = None,
         retry_count: int = 0,
-        **kwargs: Any,
+        error_code: Optional[str] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
     ):
         super().__init__(
             message,
+            error_code=error_code,
             category=ErrorCategory.EXECUTION,
             severity=ErrorSeverity.HIGH,
-            **kwargs,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
         )
         self.step_name = step_name
         self.step_type = step_type
@@ -77,12 +133,26 @@ class StepExecutionError(SparkForgeError):
 class StrategyError(SparkForgeError):
     """Raised when execution strategy fails."""
 
-    def __init__(self, message: str, *, strategy_name: str | None = None, **kwargs: Any):
+    def __init__(
+        self,
+        message: str,
+        *,
+        strategy_name: Optional[str] = None,
+        error_code: Optional[str] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
+    ):
         super().__init__(
             message,
+            error_code=error_code,
             category=ErrorCategory.EXECUTION,
             severity=ErrorSeverity.HIGH,
-            **kwargs,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
         )
         self.strategy_name = strategy_name
 
@@ -100,16 +170,24 @@ class RetryError(SparkForgeError):
         self,
         message: str,
         *,
-        step_name: str | None = None,
+        step_name: Optional[str] = None,
         max_retries: int = 0,
         retry_count: int = 0,
-        **kwargs: Any,
+        error_code: Optional[str] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
     ):
         super().__init__(
             message,
+            error_code=error_code,
             category=ErrorCategory.EXECUTION,
             severity=ErrorSeverity.HIGH,
-            **kwargs,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
         )
         self.step_name = step_name
         self.max_retries = max_retries
@@ -130,14 +208,22 @@ class TimeoutError(SparkForgeError):
         message: str,
         *,
         timeout_seconds: float = 0.0,
-        step_name: str | None = None,
-        **kwargs: Any,
+        step_name: Optional[str] = None,
+        error_code: Optional[str] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
     ):
         super().__init__(
             message,
+            error_code=error_code,
             category=ErrorCategory.EXECUTION,
             severity=ErrorSeverity.HIGH,
-            **kwargs,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
         )
         self.timeout_seconds = timeout_seconds
         self.step_name = step_name
@@ -152,7 +238,8 @@ class TimeoutError(SparkForgeError):
 __all__ = [
     "ExecutionError",
     "ExecutionEngineError",
-    "ExecutionTimeoutError",
-    "RetryExhaustedError",
+    "StepExecutionError",
+    "StrategyError",
+    "RetryError",
     "TimeoutError",
 ]

@@ -1,3 +1,82 @@
+# # # # Copyright (c) 2024 Odos Matthews
+# # # #
+# # # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # # of this software and associated documentation files (the "Software"), to deal
+# # # # in the Software without restriction, including without limitation the rights
+# # # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # # copies of the Software, and to permit persons to whom the Software is
+# # # # furnished to do so, subject to the following conditions:
+# # # #
+# # # # The above copyright notice and this permission notice shall be included in all
+# # # # copies or substantial portions of the Software.
+# # # #
+# # # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # # SOFTWARE.
+# #
+# # # Copyright (c) 2024 Odos Matthews
+# # #
+# # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # of this software and associated documentation files (the "Software"), to deal
+# # # in the Software without restriction, including without limitation the rights
+# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # copies of the Software, and to permit persons to whom the Software is
+# # # furnished to do so, subject to the following conditions:
+# # #
+# # # The above copyright notice and this permission notice shall be included in all
+# # # copies or substantial portions of the Software.
+# # #
+# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # SOFTWARE.
+#
+# # # Copyright (c) 2024 Odos Matthews
+# # #
+# # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # of this software and associated documentation files (the "Software"), to deal
+# # # in the Software without restriction, including without limitation the rights
+# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # copies of the Software, and to permit persons to whom the Software is
+# # # furnished to do so, subject to the following conditions:
+# # #
+# # # The above copyright notice and this permission notice shall be included in all
+# # # copies or substantial portions of the Software.
+# # #
+# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # SOFTWARE.
+#
+# # Copyright (c) 2024 Odos Matthews
+# #
+# # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # of this software and associated documentation files (the "Software"), to deal
+# # in the Software without restriction, including without limitation the rights
+# # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # copies of the Software, and to permit persons to whom the Software is
+# # furnished to do so, subject to the following conditions:
+# #
+# # The above copyright notice and this permission notice shall be included in all
+# # copies or substantial portions of the Software.
+# #
+# # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # SOFTWARE.
 
 """
 Generic type definitions for SparkForge.
@@ -8,7 +87,17 @@ type safety and reusability across all SparkForge modules.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Generic, List, Protocol, TypeVar, Union
+from typing import Callable, Dict, Generic, List, Protocol, TypeVar, Union, Optional
+
+# ============================================================================
+# Type Definitions
+# ============================================================================
+
+# Specific types for generic values instead of Any
+GenericValue = Union[str, int, float, bool, List[str], Dict[str, str], None]
+GenericDictValue = Union[str, int, float, bool, List[str], Dict[str, str]]
+GenericListValue = Union[str, int, float, bool, Dict[str, str]]
+GenericCallableValue = Union[str, int, float, bool, List[str], Dict[str, str]]
 
 # ============================================================================
 # Type Variables
@@ -24,9 +113,9 @@ L = TypeVar("L")
 # Bounded type variables
 Numeric = TypeVar("Numeric", bound=Union[int, float])
 String = TypeVar("String", bound=str)
-DictLike = TypeVar("DictLike", bound=Dict[str, Any])
-ListLike = TypeVar("ListLike", bound=List[Any])
-CallableLike = TypeVar("CallableLike", bound=Callable[..., Any])
+DictLike = TypeVar("DictLike", bound=Dict[str, GenericDictValue])
+ListLike = TypeVar("ListLike", bound=List[GenericListValue])
+CallableLike = TypeVar("CallableLike", bound=Callable[..., GenericCallableValue])
 
 # Specific type variables
 DataFrame = TypeVar("DataFrame")
@@ -164,34 +253,34 @@ class Try(Generic[T]):
 # ============================================================================
 
 
-class Functor(Protocol):
+class Functor(Protocol[T]):
     """Protocol for functor types."""
 
-    def map(self, func: Callable[[Any], Any]) -> "Functor":
+    def map(self, func: Callable[[T], T]) -> "Functor[T]":
         """Map function over the value."""
         ...
 
 
-class Monad(Protocol):
+class Monad(Protocol[T]):
     """Protocol for monad types."""
 
-    def flat_map(self, func: Callable[[Any], "Monad"]) -> "Monad":
+    def flat_map(self, func: Callable[[T], "Monad[T]"]) -> "Monad[T]":
         """Flat map function over the value."""
         ...
 
-    def unit(self, value: Any) -> "Monad":
+    def unit(self, value: T) -> "Monad[T]":
         """Wrap value in monad."""
         ...
 
 
-class Foldable(Protocol):
+class Foldable(Protocol[T]):
     """Protocol for foldable types."""
 
-    def fold_left(self, initial: Any, func: Callable[[Any, Any], Any]) -> Any:
+    def fold_left(self, initial: T, func: Callable[[T, T], T]) -> T:
         """Fold left over the values."""
         ...
 
-    def fold_right(self, initial: Any, func: Callable[[Any, Any], Any]) -> Any:
+    def fold_right(self, initial: T, func: Callable[[T, T], T]) -> T:
         """Fold right over the values."""
         ...
 
@@ -206,12 +295,12 @@ def identity(value: T) -> T:
     return value
 
 
-def constant(value: T) -> Callable[[Any], T]:
+def constant(value: T) -> Callable[[GenericValue], T]:
     """Return function that always returns the given value."""
     return lambda _: value
 
 
-def compose(f: Callable[[Any], Any], g: Callable[[Any], Any]) -> Callable[[Any], Any]:
+def compose(f: Callable[[T], T], g: Callable[[T], T]) -> Callable[[T], T]:
     """Compose two functions."""
     return lambda x: f(g(x))
 
@@ -236,10 +325,10 @@ def pipe(*funcs: Callable[[T], T]) -> Callable[[T], T]:
 class TypedDict(Generic[K, V], Dict[K, V]):
     """Type-safe dictionary."""
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args: GenericValue, **kwargs: GenericValue) -> None:
         super().__init__(*args, **kwargs)
 
-    def get_typed(self, key: K, default: V | None = None) -> V | None:
+    def get_typed(self, key: K, default: Optional[V] = None) -> Optional[V]:
         """Get value with type safety."""
         return super().get(key, default)
 
@@ -251,7 +340,7 @@ class TypedDict(Generic[K, V], Dict[K, V]):
 class TypedList(Generic[T], List[T]):
     """Type-safe list."""
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args: GenericValue, **kwargs: GenericValue) -> None:
         super().__init__(*args, **kwargs)
 
     def append_typed(self, item: T) -> None:
@@ -268,13 +357,13 @@ class TypedList(Generic[T], List[T]):
 # ============================================================================
 
 
-def typed_function(func: Callable[..., Any]) -> Callable[..., Any]:
+def typed_function(func: Callable[..., GenericCallableValue]) -> Callable[..., GenericCallableValue]:
     """Decorator to mark function as typed."""
     setattr(func, '__typed__', True)
     return func
 
 
-def generic_method(func: Callable[..., Any]) -> Callable[..., Any]:
+def generic_method(func: Callable[..., GenericCallableValue]) -> Callable[..., GenericCallableValue]:
     """Decorator to mark method as generic."""
     setattr(func, '__generic__', True)
     return func
@@ -285,23 +374,23 @@ def generic_method(func: Callable[..., Any]) -> Callable[..., Any]:
 # ============================================================================
 
 
-def safe_cast(value: Any, target_type: type[Any]) -> Any | None:
+def safe_cast(value: GenericValue, target_type: type[T]) -> Optional[T]:
     """Safely cast value to target type."""
     try:
-        return target_type(value)
+        return target_type(value)  # type: ignore
     except (ValueError, TypeError):
         return None
 
 
-def force_cast(value: Any, target_type: type[Any]) -> Any:
+def force_cast(value: GenericValue, target_type: type[T]) -> T:
     """Force cast value to target type, raising error if fails."""
     try:
-        return target_type(value)
+        return target_type(value)  # type: ignore
     except (ValueError, TypeError) as e:
         raise TypeError(f"Cannot cast {type(value)} to {target_type}: {e}")
 
 
-def is_instance_of(value: Any, target_type: type[Any]) -> bool:
+def is_instance_of(value: GenericValue, target_type: type[T]) -> bool:
     """Check if value is instance of target type."""
     return isinstance(value, target_type)
 
@@ -311,7 +400,7 @@ def is_instance_of(value: Any, target_type: type[Any]) -> bool:
 # ============================================================================
 
 
-def get_type_name(value: Any) -> str:
+def get_type_name(value: GenericValue) -> str:
     """Get type name of value."""
     return type(value).__name__
 

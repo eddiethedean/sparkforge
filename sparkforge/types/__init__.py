@@ -16,7 +16,7 @@ Key Features:
 """
 
 from .aliases import (  # Core types; Pipeline types; Function types; Data types; Result types; Configuration types; Error types; Utility types
-    AnyDict,
+    GenericDict,
     BronzeTransformFunction,
     Column,
     ColumnRules,
@@ -128,7 +128,7 @@ __all__ = [
     "OptionalDict",
     "OptionalList",
     "StringDict",
-    "AnyDict",
+    "GenericDict",
     "NumericDict",
     # Protocols
     "Validatable",

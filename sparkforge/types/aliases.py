@@ -1,3 +1,83 @@
+# # # # Copyright (c) 2024 Odos Matthews
+# # # #
+# # # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # # of this software and associated documentation files (the "Software"), to deal
+# # # # in the Software without restriction, including without limitation the rights
+# # # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # # copies of the Software, and to permit persons to whom the Software is
+# # # # furnished to do so, subject to the following conditions:
+# # # #
+# # # # The above copyright notice and this permission notice shall be included in all
+# # # # copies or substantial portions of the Software.
+# # # #
+# # # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # # SOFTWARE.
+# #
+# # # Copyright (c) 2024 Odos Matthews
+# # #
+# # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # of this software and associated documentation files (the "Software"), to deal
+# # # in the Software without restriction, including without limitation the rights
+# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # copies of the Software, and to permit persons to whom the Software is
+# # # furnished to do so, subject to the following conditions:
+# # #
+# # # The above copyright notice and this permission notice shall be included in all
+# # # copies or substantial portions of the Software.
+# # #
+# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # SOFTWARE.
+#
+# # # Copyright (c) 2024 Odos Matthews
+# # #
+# # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # of this software and associated documentation files (the "Software"), to deal
+# # # in the Software without restriction, including without limitation the rights
+# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # copies of the Software, and to permit persons to whom the Software is
+# # # furnished to do so, subject to the following conditions:
+# # #
+# # # The above copyright notice and this permission notice shall be included in all
+# # # copies or substantial portions of the Software.
+# # #
+# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # SOFTWARE.
+#
+# # Copyright (c) 2024 Odos Matthews
+# #
+# # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # of this software and associated documentation files (the "Software"), to deal
+# # in the Software without restriction, including without limitation the rights
+# # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # copies of the Software, and to permit persons to whom the Software is
+# # furnished to do so, subject to the following conditions:
+# #
+# # The above copyright notice and this permission notice shall be included in all
+# # copies or substantial portions of the Software.
+# #
+# # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # SOFTWARE.
+
 from __future__ import annotations
 
 #
@@ -11,12 +91,9 @@ This module defines comprehensive type aliases for common patterns
 used throughout SparkForge, improving type safety and readability.
 """
 
-from dataclasses import dataclass
-
 from datetime import datetime
 from enum import Enum
 from typing import (
-    Any,
     Callable,
     Dict,
     List,
@@ -28,17 +105,18 @@ from typing import (
     Union,
 )
 
-# Try to import PySpark types, fallback to Any if not available
+# Try to import PySpark types, fallback to object if not available
 try:
     from pyspark.sql import Column, DataFrame, SparkSession
     from pyspark.sql.types import DataType, StructType
 except ImportError:
     # Fallback types for when PySpark is not available
-    DataFrame = Any
-    SparkSession = Any
-    Column = Any
-    StructType = Any
-    DataType = Any
+    # Use object as fallback type
+    DataFrame = object  # type: ignore
+    SparkSession = object  # type: ignore
+    Column = object  # type: ignore
+    StructType = object  # type: ignore
+    DataType = object  # type: ignore
 
 # ============================================================================
 # Core Types
@@ -144,28 +222,28 @@ ValidationFunction = Callable[[DataFrame], bool]
 FilterFunction = Callable[[DataFrame], DataFrame]
 
 # Step execution functions
-StepExecutionFunction = Callable[[str, Dict[str, Any]], Dict[str, Any]]
-PipelineExecutionFunction = Callable[[Dict[str, DataFrame]], Dict[str, Any]]
+StepExecutionFunction = Callable[[str, Dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]], Dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]]
+PipelineExecutionFunction = Callable[[Dict[str, DataFrame]], Dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]]
 
 # ============================================================================
 # Data Types
 # ============================================================================
 
 # Column and validation rules
-ColumnRules = Dict[str, List[Any]]
-ValidationRules = Dict[str, List[Any]]
+ColumnRules = Dict[str, List[Union[str, object]]]  # PySpark expressions or string rules
+ValidationRules = Dict[str, List[Union[str, object]]]  # PySpark expressions or string rules
 QualityThresholds = Dict[str, float]
 
 # Context types
-ExecutionContext = Dict[str, Any]
-StepContext = Dict[str, Any]
-PipelineContext = Dict[str, Any]
+ExecutionContext = Dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]
+StepContext = Dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]
+PipelineContext = Dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]
 
 # Result types
-StepResult = Dict[str, Any]
-PipelineResult = Dict[str, Any]
-ValidationResult = Dict[str, Any]
-ExecutionResult = Dict[str, Any]
+StepResult = Dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]
+PipelineResult = Dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]
+ValidationResult = Dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]
+ExecutionResult = Dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]
 
 # ============================================================================
 # Configuration Types
@@ -208,7 +286,7 @@ class MonitoringConfig(TypedDict, total=False):
 # Error Types
 # ============================================================================
 
-ErrorContext = Dict[str, Any]
+ErrorContext = Dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]
 ErrorSuggestions = List[str]
 
 
@@ -230,8 +308,8 @@ class ErrorInfo(TypedDict, total=False):
 # ============================================================================
 
 # Optional types
-OptionalDict = Optional[Dict[str, Any]]
-OptionalList = Optional[List[Any]]
+OptionalDict = Optional[Dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]]
+OptionalList = Optional[List[Union[str, int, float, bool, List[str], Dict[str, str]]]]
 OptionalString = Optional[str]
 OptionalInt = Optional[int]
 OptionalFloat = Optional[float]
@@ -239,7 +317,7 @@ OptionalBool = Optional[bool]
 
 # Specific dictionary types
 StringDict = Dict[str, str]
-AnyDict = Dict[str, Any]
+GenericDict = Dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]
 NumericDict = Dict[str, Union[int, float]]
 StringListDict = Dict[str, List[str]]
 StringSetDict = Dict[str, Set[str]]
@@ -248,17 +326,17 @@ StringSetDict = Dict[str, Set[str]]
 StringList = List[str]
 IntList = List[int]
 FloatList = List[float]
-AnyList = List[Any]
+GenericList = List[Union[str, int, float, bool, List[str], Dict[str, str]]]
 
 # Tuple types
 StringTuple = Tuple[str, ...]
 IntTuple = Tuple[int, ...]
-AnyTuple = Tuple[Any, ...]
+GenericTuple = Tuple[Union[str, int, float, bool, List[str], Dict[str, str]], ...]
 
 # Set types
 StringSet = Set[str]
 IntSet = Set[int]
-AnySet = Set[Any]
+GenericSet = Set[Union[str, int, float, bool, List[str], Dict[str, str]]]
 
 # ============================================================================
 # Generic Types
@@ -272,9 +350,9 @@ R = TypeVar("R")
 # Bounded type variables
 Numeric = TypeVar("Numeric", bound=Union[int, float])
 String = TypeVar("String", bound=str)
-DictLike = TypeVar("DictLike", bound=Dict[str, Any])
-ListLike = TypeVar("ListLike", bound=List[Any])
-CallableLike = TypeVar("CallableLike", bound=Callable[..., Any])
+DictLike = TypeVar("DictLike", bound=Dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]])
+ListLike = TypeVar("ListLike", bound=List[Union[str, int, float, bool, List[str], Dict[str, str]]])
+CallableLike = TypeVar("CallableLike", bound=Callable[..., Union[str, int, float, bool, List[str], Dict[str, str]]])
 
 # ============================================================================
 # Complex Types
@@ -290,7 +368,7 @@ class StepDefinition(TypedDict, total=False):
     transform: TransformFunction
     rules: ColumnRules
     dependencies: list[StepName]
-    metadata: dict[str, Any]
+    metadata: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]
 
 
 # Execution results
@@ -338,31 +416,31 @@ class PerformanceMetrics(TypedDict, total=False):
 # ============================================================================
 
 
-def is_step_name(value: Any) -> bool:
+def is_step_name(value: object) -> bool:
     """Check if value is a valid step name."""
     return isinstance(value, str) and len(value) > 0
 
 
-def is_pipeline_id(value: Any) -> bool:
+def is_pipeline_id(value: object) -> bool:
     """Check if value is a valid pipeline ID."""
     return isinstance(value, str) and len(value) > 0
 
 
-def is_quality_rate(value: Any) -> bool:
+def is_quality_rate(value: object) -> bool:
     """Check if value is a valid quality rate."""
     return isinstance(value, (int, float)) and 0 <= value <= 100
 
 
-def is_duration(value: Any) -> bool:
+def is_duration(value: object) -> bool:
     """Check if value is a valid duration."""
     return isinstance(value, (int, float)) and value >= 0
 
 
-def is_row_count(value: Any) -> bool:
+def is_row_count(value: object) -> bool:
     """Check if value is a valid row count."""
     return isinstance(value, int) and value >= 0
 
 
-def is_worker_count(value: Any) -> bool:
+def is_worker_count(value: object) -> bool:
     """Check if value is a valid worker count."""
     return isinstance(value, int) and value > 0

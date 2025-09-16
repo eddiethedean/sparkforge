@@ -1,3 +1,83 @@
+# # # # Copyright (c) 2024 Odos Matthews
+# # # #
+# # # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # # of this software and associated documentation files (the "Software"), to deal
+# # # # in the Software without restriction, including without limitation the rights
+# # # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # # copies of the Software, and to permit persons to whom the Software is
+# # # # furnished to do so, subject to the following conditions:
+# # # #
+# # # # The above copyright notice and this permission notice shall be included in all
+# # # # copies or substantial portions of the Software.
+# # # #
+# # # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # # SOFTWARE.
+# #
+# # # Copyright (c) 2024 Odos Matthews
+# # #
+# # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # of this software and associated documentation files (the "Software"), to deal
+# # # in the Software without restriction, including without limitation the rights
+# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # copies of the Software, and to permit persons to whom the Software is
+# # # furnished to do so, subject to the following conditions:
+# # #
+# # # The above copyright notice and this permission notice shall be included in all
+# # # copies or substantial portions of the Software.
+# # #
+# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # SOFTWARE.
+#
+# # # Copyright (c) 2024 Odos Matthews
+# # #
+# # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # of this software and associated documentation files (the "Software"), to deal
+# # # in the Software without restriction, including without limitation the rights
+# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # copies of the Software, and to permit persons to whom the Software is
+# # # furnished to do so, subject to the following conditions:
+# # #
+# # # The above copyright notice and this permission notice shall be included in all
+# # # copies or substantial portions of the Software.
+# # #
+# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # SOFTWARE.
+#
+# # Copyright (c) 2024 Odos Matthews
+# #
+# # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # of this software and associated documentation files (the "Software"), to deal
+# # in the Software without restriction, including without limitation the rights
+# # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # copies of the Software, and to permit persons to whom the Software is
+# # furnished to do so, subject to the following conditions:
+# #
+# # The above copyright notice and this permission notice shall be included in all
+# # copies or substantial portions of the Software.
+# #
+# # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # SOFTWARE.
+
 # Copyright (c) 2024 Odos Matthews
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -44,7 +124,7 @@ from abc import ABC
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Protocol, TypeVar
+from typing import Callable, Dict, List, Protocol, TypeVar, Union
 
 from pyspark.sql import DataFrame
 
@@ -103,11 +183,20 @@ class ValidationResult(Enum):
 
 
 # ============================================================================
+# Type Definitions
+# ============================================================================
+
+# Specific types for model values instead of Any
+ModelValue = Union[str, int, float, bool, List[str], Dict[str, str], None]
+ColumnRule = Union[DataFrame, str, bool]  # PySpark Column, string, or boolean
+ResourceValue = Union[str, int, float, bool, List[str], Dict[str, str]]
+
+# ============================================================================
 # Type Aliases and Protocols
 # ============================================================================
 
 # Type aliases for better readability
-ColumnRules = Dict[str, List[Any]]
+ColumnRules = Dict[str, List[ColumnRule]]
 TransformFunction = Callable[[DataFrame], DataFrame]
 SilverTransformFunction = Callable[[DataFrame], DataFrame]
 GoldTransformFunction = Callable[[Dict[str, DataFrame]], DataFrame]
@@ -127,7 +216,7 @@ class Validatable(Protocol):
 class Serializable(Protocol):
     """Protocol for objects that can be serialized."""
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, ModelValue]:
         """Convert object to dictionary."""
         ...
 
@@ -161,7 +250,7 @@ class BaseModel(ABC):
         >>> @dataclass
         >>> class MyStep(BaseModel):
         ...     name: str
-        ...     rules: Dict[str, List[Any]]
+        ...     rules: Dict[str, List[ColumnRule]]
         ...
         ...     def validate(self) -> None:
         ...         if not self.name:
@@ -178,9 +267,9 @@ class BaseModel(ABC):
         """Validate the model. Override in subclasses."""
         pass
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, ModelValue]:
         """Convert model to dictionary."""
-        result = {}
+        result: dict[str, ModelValue] = {}
         for field in self.__dataclass_fields__.values():
             value = getattr(self, field.name)
             if hasattr(value, "to_dict"):
@@ -346,12 +435,12 @@ class PipelineConfig(BaseModel):
     @property
     def enable_caching(self) -> bool:
         """Get caching setting."""
-        return getattr(self.parallel, 'enable_caching', True)
+        return getattr(self.parallel, "enable_caching", True)
 
     @property
     def enable_monitoring(self) -> bool:
         """Get monitoring setting."""
-        return getattr(self.parallel, 'enable_monitoring', True)
+        return getattr(self.parallel, "enable_monitoring", True)
 
     def validate(self) -> None:
         """Validate pipeline configuration."""
@@ -1044,7 +1133,7 @@ class UnifiedStepConfig(BaseModel):
     estimated_duration: float = 1.0
     priority: int = 0
     can_run_parallel: bool = True
-    resource_requirements: dict[str, Any] = field(default_factory=dict)
+    resource_requirements: dict[str, ResourceValue] = field(default_factory=dict)
 
     def validate(self) -> None:
         """Validate step configuration."""

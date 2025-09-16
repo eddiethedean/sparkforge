@@ -139,7 +139,9 @@ class TestPipelineLogger(unittest.TestCase):
             structured_log=True,
         )
 
-        logger.info("Test message", extra_field="test_value")
+        from sparkforge.logger import LogContext
+        context = LogContext(metadata={"extra_field": "test_value"})
+        logger.info("Test message", context)
         logger.close()
 
         # Check that file was created and contains log entry
@@ -199,7 +201,9 @@ class TestPipelineLogger(unittest.TestCase):
             logger.info("Message with context")
 
         # Test set_context
-        logger.set_context(operation="persistent_op")
+        from sparkforge.logger import LogContext
+        context = LogContext(metadata={"operation": "persistent_op"})
+        logger.set_context(context)
         logger.info("Message with persistent context")
 
         # Test clear_context
@@ -479,7 +483,9 @@ class TestLoggerIntegration(unittest.TestCase):
             with ExecutionTimer(logger, "error_operation"):
                 raise ValueError("Test error")
         except ValueError:
-            logger.error("Operation failed", error_type="ValueError")
+            from sparkforge.logger import LogContext
+            context = LogContext(metadata={"error_type": "ValueError"})
+            logger.error("Operation failed", context)
 
         logger.close()
 

@@ -11,7 +11,9 @@ step execution with proper validation, error handling, and monitoring.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Dict, List, Union
+
+from sparkforge.models import ColumnRules
 
 from pyspark.sql import DataFrame, SparkSession
 
@@ -57,7 +59,7 @@ class StepExecutor:
 
     def execute_bronze_step(
         self, step: BronzeStep, source_df: DataFrame, context: ExecutionContext
-    ) -> dict[str, Any]:
+    ) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """
         Execute a Bronze step.
 
@@ -151,7 +153,7 @@ class StepExecutor:
         bronze_df: DataFrame,
         prior_silvers: dict[str, DataFrame],
         context: ExecutionContext,
-    ) -> dict[str, Any]:
+    ) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """
         Execute a Silver step.
 
@@ -251,7 +253,7 @@ class StepExecutor:
         step: GoldStep,
         silver_dfs: dict[str, DataFrame],
         context: ExecutionContext,
-    ) -> dict[str, Any]:
+    ) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """
         Execute a Gold step.
 
@@ -346,11 +348,12 @@ class StepExecutor:
             }
 
     def _apply_validation_rules(
-        self, df: DataFrame, rules: dict[str, list[Any]], step_name: str, step_type: str
+        self, df: DataFrame, rules: ColumnRules, step_name: str, step_type: str
     ) -> DataFrame:
         """Apply validation rules to a DataFrame."""
         try:
-            return apply_column_rules(df, rules, filter_columns_by_rules=True)
+            valid_df, _, _ = apply_column_rules(df, rules, "bronze", step_name, filter_columns_by_rules=True)
+            return valid_df  # type: ignore
         except Exception as e:
             self.logger.error(
                 f"Validation rules failed for {step_type} step {step_name}: {str(e)}"

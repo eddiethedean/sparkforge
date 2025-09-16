@@ -1,5 +1,22 @@
+# Copyright (c) 2024 Odos Matthews
 #
-
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 
 """
 Data-specific exceptions for SparkForge.
@@ -10,9 +27,10 @@ providing detailed error context for data-related issues.
 
 from __future__ import annotations
 
-from typing import Any
+from datetime import datetime
+from typing import Dict, List, Optional, Union
 
-from .base import ErrorCategory, ErrorSeverity, SparkForgeError
+from .base import ErrorCategory, ErrorSeverity, SparkForgeError, ErrorContext, ErrorSuggestions
 
 
 class DataError(SparkForgeError):
@@ -22,11 +40,26 @@ class DataError(SparkForgeError):
         self,
         message: str,
         *,
-        table_name: str | None = None,
-        column_name: str | None = None,
-        **kwargs: Any,
+        table_name: Optional[str] = None,
+        column_name: Optional[str] = None,
+        error_code: Optional[str] = None,
+        category: Optional[ErrorCategory] = None,
+        severity: Optional[ErrorSeverity] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
     ):
-        super().__init__(message, **kwargs)
+        super().__init__(
+            message,
+            error_code=error_code,
+            category=category,
+            severity=severity or ErrorSeverity.MEDIUM,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
+        )
         self.table_name = table_name
         self.column_name = column_name
 
@@ -46,15 +79,29 @@ class DataQualityError(DataError):
         self,
         message: str,
         *,
-        quality_rate: float | None = None,
-        threshold: float | None = None,
-        **kwargs: Any,
+        quality_rate: Optional[float] = None,
+        threshold: Optional[float] = None,
+        table_name: Optional[str] = None,
+        column_name: Optional[str] = None,
+        error_code: Optional[str] = None,
+        category: Optional[ErrorCategory] = None,
+        severity: Optional[ErrorSeverity] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
     ):
         super().__init__(
             message,
-            category=ErrorCategory.DATA_QUALITY,
-            severity=ErrorSeverity.MEDIUM,
-            **kwargs,
+            table_name=table_name,
+            column_name=column_name,
+            error_code=error_code,
+            category=category or ErrorCategory.DATA_QUALITY,
+            severity=severity or ErrorSeverity.MEDIUM,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
         )
         self.quality_rate = quality_rate
         self.threshold = threshold
@@ -73,15 +120,29 @@ class SchemaError(DataError):
         self,
         message: str,
         *,
-        expected_schema: dict[str, Any] | None = None,
-        actual_schema: dict[str, Any] | None = None,
-        **kwargs: Any,
+        expected_schema: Optional[Dict[str, str]] = None,
+        actual_schema: Optional[Dict[str, str]] = None,
+        table_name: Optional[str] = None,
+        column_name: Optional[str] = None,
+        error_code: Optional[str] = None,
+        category: Optional[ErrorCategory] = None,
+        severity: Optional[ErrorSeverity] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
     ):
         super().__init__(
             message,
-            category=ErrorCategory.VALIDATION,
-            severity=ErrorSeverity.HIGH,
-            **kwargs,
+            table_name=table_name,
+            column_name=column_name,
+            error_code=error_code,
+            category=category or ErrorCategory.VALIDATION,
+            severity=severity or ErrorSeverity.HIGH,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
         )
         self.expected_schema = expected_schema
         self.actual_schema = actual_schema
@@ -97,13 +158,31 @@ class ValidationError(DataError):
     """Raised when data validation fails."""
 
     def __init__(
-        self, message: str, *, validation_errors: list[str] | None = None, **kwargs: Any
+        self,
+        message: str,
+        *,
+        validation_errors: Optional[List[str]] = None,
+        table_name: Optional[str] = None,
+        column_name: Optional[str] = None,
+        error_code: Optional[str] = None,
+        category: Optional[ErrorCategory] = None,
+        severity: Optional[ErrorSeverity] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
     ):
         super().__init__(
             message,
-            category=ErrorCategory.VALIDATION,
-            severity=ErrorSeverity.MEDIUM,
-            **kwargs,
+            table_name=table_name,
+            column_name=column_name,
+            error_code=error_code,
+            category=category or ErrorCategory.VALIDATION,
+            severity=severity or ErrorSeverity.MEDIUM,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
         )
         self.validation_errors = validation_errors or []
 
@@ -118,12 +197,32 @@ class ValidationError(DataError):
 class TableOperationError(DataError):
     """Raised when table operations fail."""
 
-    def __init__(self, message: str, *, operation: str | None = None, **kwargs: Any):
+    def __init__(
+        self,
+        message: str,
+        *,
+        operation: Optional[str] = None,
+        table_name: Optional[str] = None,
+        column_name: Optional[str] = None,
+        error_code: Optional[str] = None,
+        category: Optional[ErrorCategory] = None,
+        severity: Optional[ErrorSeverity] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
+    ):
         super().__init__(
             message,
-            category=ErrorCategory.SYSTEM,
-            severity=ErrorSeverity.HIGH,
-            **kwargs,
+            table_name=table_name,
+            column_name=column_name,
+            error_code=error_code,
+            category=category or ErrorCategory.SYSTEM,
+            severity=severity or ErrorSeverity.HIGH,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
         )
         self.operation = operation
 

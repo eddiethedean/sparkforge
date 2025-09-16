@@ -1,3 +1,22 @@
+# Copyright (c) 2024 Odos Matthews
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 
 """
 System-specific exceptions for SparkForge.
@@ -8,16 +27,38 @@ providing detailed error context for system-related issues.
 
 from __future__ import annotations
 
-from typing import Any
+from datetime import datetime
+from typing import Dict, List, Optional, Union
 
-from .base import ErrorCategory, ErrorSeverity, SparkForgeError
+from .base import ErrorCategory, ErrorSeverity, SparkForgeError, ErrorContext, ErrorSuggestions
 
 
 class SystemError(SparkForgeError):
     """Base exception for all system-related errors."""
 
-    def __init__(self, message: str, *, component: str | None = None, **kwargs: Any):
-        super().__init__(message, **kwargs)
+    def __init__(
+        self,
+        message: str,
+        *,
+        component: Optional[str] = None,
+        error_code: Optional[str] = None,
+        category: Optional[ErrorCategory] = None,
+        severity: Optional[ErrorSeverity] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
+    ):
+        super().__init__(
+            message,
+            error_code=error_code,
+            category=category,
+            severity=severity or ErrorSeverity.MEDIUM,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
+        )
         self.component = component
 
     def __str__(self) -> str:
@@ -34,15 +75,27 @@ class ResourceError(SystemError):
         self,
         message: str,
         *,
-        resource_type: str | None = None,
-        resource_name: str | None = None,
-        **kwargs: Any,
+        resource_type: Optional[str] = None,
+        resource_name: Optional[str] = None,
+        component: Optional[str] = None,
+        error_code: Optional[str] = None,
+        category: Optional[ErrorCategory] = None,
+        severity: Optional[ErrorSeverity] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
     ):
         super().__init__(
             message,
-            category=ErrorCategory.RESOURCE,
-            severity=ErrorSeverity.HIGH,
-            **kwargs,
+            component=component,
+            error_code=error_code,
+            category=category or ErrorCategory.RESOURCE,
+            severity=severity or ErrorSeverity.HIGH,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
         )
         self.resource_type = resource_type
         self.resource_name = resource_name
@@ -59,12 +112,30 @@ class ResourceError(SystemError):
 class ConfigurationError(SystemError):
     """Raised when system configuration is invalid."""
 
-    def __init__(self, message: str, *, config_key: str | None = None, **kwargs: Any):
+    def __init__(
+        self,
+        message: str,
+        *,
+        config_key: Optional[str] = None,
+        component: Optional[str] = None,
+        error_code: Optional[str] = None,
+        category: Optional[ErrorCategory] = None,
+        severity: Optional[ErrorSeverity] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
+    ):
         super().__init__(
             message,
-            category=ErrorCategory.CONFIGURATION,
-            severity=ErrorSeverity.HIGH,
-            **kwargs,
+            component=component,
+            error_code=error_code,
+            category=category or ErrorCategory.CONFIGURATION,
+            severity=severity or ErrorSeverity.HIGH,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
         )
         self.config_key = config_key
 
@@ -78,12 +149,30 @@ class ConfigurationError(SystemError):
 class NetworkError(SystemError):
     """Raised when network-related errors occur."""
 
-    def __init__(self, message: str, *, endpoint: str | None = None, **kwargs: Any):
+    def __init__(
+        self,
+        message: str,
+        *,
+        endpoint: Optional[str] = None,
+        component: Optional[str] = None,
+        error_code: Optional[str] = None,
+        category: Optional[ErrorCategory] = None,
+        severity: Optional[ErrorSeverity] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
+    ):
         super().__init__(
             message,
-            category=ErrorCategory.NETWORK,
-            severity=ErrorSeverity.HIGH,
-            **kwargs,
+            component=component,
+            error_code=error_code,
+            category=category or ErrorCategory.NETWORK,
+            severity=severity or ErrorSeverity.HIGH,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
         )
         self.endpoint = endpoint
 
@@ -97,12 +186,30 @@ class NetworkError(SystemError):
 class StorageError(SystemError):
     """Raised when storage-related errors occur."""
 
-    def __init__(self, message: str, *, storage_path: str | None = None, **kwargs: Any):
+    def __init__(
+        self,
+        message: str,
+        *,
+        storage_path: Optional[str] = None,
+        component: Optional[str] = None,
+        error_code: Optional[str] = None,
+        category: Optional[ErrorCategory] = None,
+        severity: Optional[ErrorSeverity] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
+    ):
         super().__init__(
             message,
-            category=ErrorCategory.STORAGE,
-            severity=ErrorSeverity.HIGH,
-            **kwargs,
+            component=component,
+            error_code=error_code,
+            category=category or ErrorCategory.STORAGE,
+            severity=severity or ErrorSeverity.HIGH,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
         )
         self.storage_path = storage_path
 

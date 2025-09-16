@@ -8,10 +8,11 @@ and provide the expected performance benefits.
 """
 
 import time
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
-from pyspark.sql import DataFrame, functions as F
+from pyspark.sql import DataFrame
+from pyspark.sql import functions as F
 
 from sparkforge.constants import BYTES_PER_MB, DEFAULT_MAX_MEMORY_MB
 from sparkforge.validation import apply_column_rules, assess_data_quality
@@ -49,7 +50,7 @@ class TestValidationPerformanceOptimizations:
             valid_df, invalid_df, stats = apply_column_rules(
                 self.test_df, rules, "bronze", "test"
             )
-            
+
             # Verify cache was called on the input DataFrame
             mock_cache.assert_called()
 
@@ -84,14 +85,18 @@ class TestValidationPerformanceOptimizations:
         for i in range(1000):
             large_data.append((i, f"user{i}", f"user{i}@example.com", 20 + i % 50))
 
-        large_df = self.spark.createDataFrame(large_data, ["id", "name", "email", "age"])
+        large_df = self.spark.createDataFrame(
+            large_data, ["id", "name", "email", "age"]
+        )
 
         # Mock the collect method to verify single action
         with patch.object(DataFrame, "collect") as mock_collect:
-            mock_collect.return_value = [{"name_nulls": 0, "email_nulls": 0, "age_nulls": 0}]
-            
-            result = assess_data_quality(large_df)
-            
+            mock_collect.return_value = [
+                {"name_nulls": 0, "email_nulls": 0, "age_nulls": 0}
+            ]
+
+            assess_data_quality(large_df)
+
             # Verify collect was called only once (for all null checks)
             assert mock_collect.call_count == 1
 
@@ -128,12 +133,12 @@ class TestConstantsModule:
     def test_constants_import(self):
         """Test that constants can be imported correctly."""
         from sparkforge.constants import (
-            BYTES_PER_KB,
             BYTES_PER_GB,
-            DEFAULT_CACHE_PARTITIONS,
+            BYTES_PER_KB,
             DEFAULT_BRONZE_THRESHOLD,
-            DEFAULT_SILVER_THRESHOLD,
+            DEFAULT_CACHE_PARTITIONS,
             DEFAULT_GOLD_THRESHOLD,
+            DEFAULT_SILVER_THRESHOLD,
         )
 
         assert BYTES_PER_KB == 1024
@@ -160,38 +165,34 @@ class TestSchemaConfiguration:
         # Test with custom schema
         custom_schema = "my_custom_schema"
         engine = ExecutionEngine(
-            spark=self.spark,
-            logger=PipelineLogger(),
-            schema=custom_schema
+            spark=self.spark, logger=PipelineLogger(), schema=custom_schema
         )
 
         assert engine.schema == custom_schema
 
         # Test with empty schema
         engine_empty = ExecutionEngine(
-            spark=self.spark,
-            logger=PipelineLogger(),
-            schema=""
+            spark=self.spark, logger=PipelineLogger(), schema=""
         )
 
         assert engine_empty.schema == ""
 
     def test_pipeline_runner_schema_configuration(self):
         """Test that PipelineRunner uses configurable schema."""
-        from sparkforge.pipeline.runner import PipelineRunner
-        from sparkforge.models import PipelineConfig
-        from sparkforge.logger import PipelineLogger
-        from sparkforge.execution.engine import ExecutionEngine
         from sparkforge.dependencies.analyzer import DependencyAnalyzer
+        from sparkforge.execution.engine import ExecutionEngine
+        from sparkforge.logger import PipelineLogger
+        from sparkforge.models import PipelineConfig
+        from sparkforge.pipeline.runner import PipelineRunner
 
         # Test with custom schema in config
         custom_schema = "my_pipeline_schema"
         config = PipelineConfig(
             schema=custom_schema,
             thresholds={"bronze": 95.0, "silver": 98.0, "gold": 99.0},
-            parallel={"enabled": False, "max_workers": 1, "timeout_secs": 300}
+            parallel={"enabled": False, "max_workers": 1, "timeout_secs": 300},
         )
-        
+
         runner = PipelineRunner(
             spark=self.spark,
             config=config,
@@ -200,7 +201,7 @@ class TestSchemaConfiguration:
             gold_steps={},
             logger=PipelineLogger(),
             execution_engine=ExecutionEngine(spark=self.spark, schema=custom_schema),
-            dependency_analyzer=DependencyAnalyzer()
+            dependency_analyzer=DependencyAnalyzer(),
         )
 
         assert runner.config.schema == custom_schema
@@ -239,7 +240,9 @@ class TestCachingBehavior:
         for i in range(10000):
             large_data.append((i, f"user{i}", f"user{i}@example.com", 20 + i % 50))
 
-        large_df = self.spark.createDataFrame(large_data, ["id", "name", "email", "age"])
+        large_df = self.spark.createDataFrame(
+            large_data, ["id", "name", "email", "age"]
+        )
 
         rules = {
             "name": [F.col("name").isNotNull()],
@@ -291,7 +294,9 @@ class TestPerformanceRegression:
             valid_df, invalid_df, stats = apply_column_rules(
                 test_df, rules, "bronze", "test"
             )
-            results.append((stats.valid_rows, stats.invalid_rows, stats.validation_rate))
+            results.append(
+                (stats.valid_rows, stats.invalid_rows, stats.validation_rate)
+            )
 
         # All results should be identical
         for i in range(1, len(results)):
@@ -313,15 +318,21 @@ class TestPerformanceRegression:
         # Run validation multiple times
         for iteration in range(2):
             # Create a fresh DataFrame for each iteration
-            fresh_df = self.spark.createDataFrame(test_data, ["id", "name", "email", "age"])
-            
+            fresh_df = self.spark.createDataFrame(
+                test_data, ["id", "name", "email", "age"]
+            )
+
             valid_df, invalid_df, stats = apply_column_rules(
                 fresh_df, rules, "bronze", "test"
             )
-            
+
             # Verify results are consistent - all rows should be valid with these rules
-            assert stats.valid_rows == 2, f"Iteration {iteration}: Expected 2 valid rows, got {stats.valid_rows}"
-            assert stats.invalid_rows == 0, f"Iteration {iteration}: Expected 0 invalid rows, got {stats.invalid_rows}"
+            assert (
+                stats.valid_rows == 2
+            ), f"Iteration {iteration}: Expected 2 valid rows, got {stats.valid_rows}"
+            assert (
+                stats.invalid_rows == 0
+            ), f"Iteration {iteration}: Expected 0 invalid rows, got {stats.invalid_rows}"
 
 
 def run_performance_tests():

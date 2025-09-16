@@ -1,3 +1,82 @@
+# # # # Copyright (c) 2024 Odos Matthews
+# # # #
+# # # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # # of this software and associated documentation files (the "Software"), to deal
+# # # # in the Software without restriction, including without limitation the rights
+# # # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # # copies of the Software, and to permit persons to whom the Software is
+# # # # furnished to do so, subject to the following conditions:
+# # # #
+# # # # The above copyright notice and this permission notice shall be included in all
+# # # # copies or substantial portions of the Software.
+# # # #
+# # # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # # SOFTWARE.
+# #
+# # # Copyright (c) 2024 Odos Matthews
+# # #
+# # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # of this software and associated documentation files (the "Software"), to deal
+# # # in the Software without restriction, including without limitation the rights
+# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # copies of the Software, and to permit persons to whom the Software is
+# # # furnished to do so, subject to the following conditions:
+# # #
+# # # The above copyright notice and this permission notice shall be included in all
+# # # copies or substantial portions of the Software.
+# # #
+# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # SOFTWARE.
+#
+# # # Copyright (c) 2024 Odos Matthews
+# # #
+# # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # of this software and associated documentation files (the "Software"), to deal
+# # # in the Software without restriction, including without limitation the rights
+# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # copies of the Software, and to permit persons to whom the Software is
+# # # furnished to do so, subject to the following conditions:
+# # #
+# # # The above copyright notice and this permission notice shall be included in all
+# # # copies or substantial portions of the Software.
+# # #
+# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # SOFTWARE.
+#
+# # Copyright (c) 2024 Odos Matthews
+# #
+# # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # of this software and associated documentation files (the "Software"), to deal
+# # in the Software without restriction, including without limitation the rights
+# # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # copies of the Software, and to permit persons to whom the Software is
+# # furnished to do so, subject to the following conditions:
+# #
+# # The above copyright notice and this permission notice shall be included in all
+# # copies or substantial portions of the Software.
+# #
+# # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # SOFTWARE.
 
 """
 Type utilities for SparkForge.
@@ -32,9 +111,12 @@ T = TypeVar("T")
 def is_valid_type(value: Any, expected_type: type[T]) -> bool:
     """Check if value is valid for expected type."""
     try:
-        if expected_type.__name__ == 'Any':
+        if expected_type.__name__ == "Any":
             return True
-        if expected_type.__name__ == 'Union' and get_args(expected_type) == (type(None), Any):
+        if expected_type.__name__ == "Union" and get_args(expected_type) == (
+            type(None),
+            Any,
+        ):
             return True
         if get_origin(expected_type) == Union:
             return any(isinstance(value, arg) for arg in get_args(expected_type))
@@ -74,9 +156,12 @@ def validate_types(**kwargs: Any) -> None:
 def cast_safe(value: Any, target_type: type[T]) -> T | None:
     """Safely cast value to target type."""
     try:
-        if target_type.__name__ == 'Any':
+        if target_type.__name__ == "Any":
             return value  # type: ignore
-        if target_type.__name__ == 'Union' and get_args(target_type) == (type(None), Any):
+        if target_type.__name__ == "Union" and get_args(target_type) == (
+            type(None),
+            Any,
+        ):
             return value  # type: ignore
         if get_origin(target_type) == Union:
             for arg in get_args(target_type):
@@ -95,9 +180,12 @@ def cast_safe(value: Any, target_type: type[T]) -> T | None:
 def convert_type(value: Any, target_type: type[T]) -> T:
     """Convert value to target type, raising error if fails."""
     try:
-        if target_type.__name__ == 'Any':
+        if target_type.__name__ == "Any":
             return value  # type: ignore
-        if target_type.__name__ == 'Union' and get_args(target_type) == (type(None), Any):
+        if target_type.__name__ == "Union" and get_args(target_type) == (
+            type(None),
+            Any,
+        ):
             return value  # type: ignore
         if get_origin(target_type) == Union:
             for arg in get_args(target_type):

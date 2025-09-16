@@ -1,5 +1,85 @@
 #!/usr/bin/env python3
 
+# # # # Copyright (c) 2024 Odos Matthews
+# # # #
+# # # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # # of this software and associated documentation files (the "Software"), to deal
+# # # # in the Software without restriction, including without limitation the rights
+# # # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # # copies of the Software, and to permit persons to whom the Software is
+# # # # furnished to do so, subject to the following conditions:
+# # # #
+# # # # The above copyright notice and this permission notice shall be included in all
+# # # # copies or substantial portions of the Software.
+# # # #
+# # # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # # SOFTWARE.
+# #
+# # # Copyright (c) 2024 Odos Matthews
+# # #
+# # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # of this software and associated documentation files (the "Software"), to deal
+# # # in the Software without restriction, including without limitation the rights
+# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # copies of the Software, and to permit persons to whom the Software is
+# # # furnished to do so, subject to the following conditions:
+# # #
+# # # The above copyright notice and this permission notice shall be included in all
+# # # copies or substantial portions of the Software.
+# # #
+# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # SOFTWARE.
+#
+# # # Copyright (c) 2024 Odos Matthews
+# # #
+# # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # of this software and associated documentation files (the "Software"), to deal
+# # # in the Software without restriction, including without limitation the rights
+# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # copies of the Software, and to permit persons to whom the Software is
+# # # furnished to do so, subject to the following conditions:
+# # #
+# # # The above copyright notice and this permission notice shall be included in all
+# # # copies or substantial portions of the Software.
+# # #
+# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # SOFTWARE.
+#
+# # Copyright (c) 2024 Odos Matthews
+# #
+# # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # of this software and associated documentation files (the "Software"), to deal
+# # in the Software without restriction, including without limitation the rights
+# # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # copies of the Software, and to permit persons to whom the Software is
+# # furnished to do so, subject to the following conditions:
+# #
+# # The above copyright notice and this permission notice shall be included in all
+# # copies or substantial portions of the Software.
+# #
+# # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # SOFTWARE.
+
 """
 Enhanced log writer for PipelineBuilder reports with comprehensive features.
 
@@ -25,7 +105,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, Literal, TypedDict
+from typing import Dict, List, Literal, Optional, TypedDict, Union
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
@@ -40,8 +120,8 @@ from pyspark.sql.types import (
 )
 
 # Type aliases for better readability
-ReportDict = Dict[str, Any]
-LogRow = Dict[str, Any]
+ReportDict = Dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]
+LogRow = Dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]
 
 
 class LogLevel(Enum):
@@ -215,9 +295,11 @@ PIPELINE_LOG_SCHEMA = StructType(
 # ---------- Enhanced flatten helpers with error handling ----------
 
 
-def _safe_get_nested(data: dict[str, Any], *keys: str, default: Any = None) -> Any:
+def _safe_get_nested(data: Union[str, int, float, bool, List[str], Dict[str, str], Dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]], None], *keys: str, default: Union[str, int, float, bool, List[str], Dict[str, str], None] = None) -> Union[str, int, float, bool, List[str], Dict[str, str], None]:
     """Safely get nested dictionary values with error handling."""
     try:
+        if data is None:
+            return default
         current = data
         for key in keys:
             if isinstance(current, dict) and key in current:
@@ -227,6 +309,55 @@ def _safe_get_nested(data: dict[str, Any], *keys: str, default: Any = None) -> A
         return current
     except (KeyError, TypeError, AttributeError):
         return default
+
+
+def _safe_get_string(data: Union[str, int, float, bool, List[str], Dict[str, str], Dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]], None], *keys: str, default: str = "") -> str:
+    """Safely get a string value from nested dictionary."""
+    result = _safe_get_nested(data, *keys, default=default)
+    return str(result) if result is not None else default
+
+
+def _safe_get_datetime(data: Union[str, int, float, bool, List[str], Dict[str, str], Dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]], None], *keys: str, default: Optional[datetime] = None) -> Optional[datetime]:
+    """Safely get a datetime value from nested dictionary."""
+    result = _safe_get_nested(data, *keys, default=None)
+    if isinstance(result, datetime):
+        return result
+    else:
+        return default
+
+
+def _safe_get_int(data: Union[str, int, float, bool, List[str], Dict[str, str], Dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]], None], *keys: str, default: int = 0) -> int:
+    """Safely get an integer value from nested dictionary."""
+    result = _safe_get_nested(data, *keys, default=default)
+    if isinstance(result, int):
+        return result
+    if isinstance(result, (str, float)):
+        try:
+            return int(result)
+        except (ValueError, TypeError):
+            return default
+    return default
+
+
+def _safe_get_float(data: Union[str, int, float, bool, List[str], Dict[str, str], Dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]], None], *keys: str, default: float = 0.0) -> float:
+    """Safely get a float value from nested dictionary."""
+    result = _safe_get_nested(data, *keys, default=default)
+    if isinstance(result, float):
+        return result
+    if isinstance(result, (str, int)):
+        try:
+            return float(result)
+        except (ValueError, TypeError):
+            return default
+    return default
+
+
+def _safe_get_literal(data: Union[str, int, float, bool, List[str], Dict[str, str], Dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]], None], *keys: str, default: str = "", valid_values: Optional[List[str]] = None) -> str:
+    """Safely get a literal value from nested dictionary."""
+    result = _safe_get_string(data, *keys, default=default)
+    if valid_values and result not in valid_values:
+        return default
+    return result
 
 
 def _calculate_duration(
@@ -290,12 +421,12 @@ def _create_base_log_row(
 ) -> PipelineLogRow:
     """Create a base log row with common fields."""
     run = _safe_get_nested(report, "run", default={})
-    run_started_at = _safe_get_nested(run, "started_at")
-    run_ended_at = _safe_get_nested(run, "ended_at")
+    run_started_at = _safe_get_datetime(run, "started_at")
+    run_ended_at = _safe_get_datetime(run, "ended_at")
 
     return {
         "run_id": _generate_run_id(),
-        "run_mode": _safe_get_nested(run, "mode", default="initial"),
+        "run_mode": _safe_get_literal(run, "mode", default="initial", valid_values=["initial", "incremental", "full_refresh", "validation_only"]),
         "run_started_at": run_started_at,
         "run_ended_at": run_ended_at,
         "run_duration_secs": _calculate_duration(run_started_at, run_ended_at),
@@ -338,7 +469,7 @@ def _create_base_log_row(
 
 def _row_from_bronze(
     phase_name: str,
-    record: dict[str, Any],
+    record: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]],
     report: ReportDict,
     step_order: int,
     schema_name: str,
@@ -353,27 +484,21 @@ def _row_from_bronze(
         validation = _safe_get_nested(record, "validation", default={})
 
         # Timing
-        row["start_time"] = _safe_get_nested(validation, "start_at")
-        row["end_time"] = _safe_get_nested(validation, "end_at")
+        row["start_time"] = _safe_get_datetime(validation, "start_at")
+        row["end_time"] = _safe_get_datetime(validation, "end_at")
         row["duration_secs"] = _calculate_duration(row["start_time"], row["end_time"])
 
         # Validation data
-        row["valid_rows"] = int(_safe_get_nested(validation, "valid_rows", default=0))
-        row["invalid_rows"] = int(
-            _safe_get_nested(validation, "invalid_rows", default=0)
-        )
-        row["validation_rate"] = float(
-            _safe_get_nested(validation, "validation_rate", default=100.0)
-        )
+        row["valid_rows"] = _safe_get_int(validation, "valid_rows", default=0)
+        row["invalid_rows"] = _safe_get_int(validation, "invalid_rows", default=0)
+        row["validation_rate"] = _safe_get_float(validation, "validation_rate", default=100.0)
         row["validation_passed"] = (
             row["validation_rate"] >= config.alert_thresholds["validation_rate"]
         )
 
         # Data quality metrics
-        null_percentage = _safe_get_nested(validation, "null_percentage", default=0.0)
-        duplicate_percentage = _safe_get_nested(
-            validation, "duplicate_percentage", default=0.0
-        )
+        null_percentage = _safe_get_float(validation, "null_percentage", default=0.0)
+        duplicate_percentage = _safe_get_float(validation, "duplicate_percentage", default=0.0)
         row["null_percentage"] = null_percentage
         row["duplicate_percentage"] = duplicate_percentage
         row["data_quality_status"] = _calculate_data_quality_status(
@@ -381,7 +506,7 @@ def _row_from_bronze(
         )
 
         # Table information
-        row["table_fqn"] = _safe_get_nested(record, "table_fqn")
+        row["table_fqn"] = _safe_get_string(record, "table_fqn")
 
         # Row counts
         row["input_rows"] = row["valid_rows"] + row["invalid_rows"]
@@ -389,9 +514,9 @@ def _row_from_bronze(
         row["rows_written"] = row["valid_rows"]
 
         # Performance metrics
-        row["memory_usage_mb"] = _safe_get_nested(validation, "memory_usage_mb")
-        row["cpu_usage_percent"] = _safe_get_nested(validation, "cpu_usage_percent")
-        row["io_operations"] = _safe_get_nested(validation, "io_operations")
+        row["memory_usage_mb"] = _safe_get_float(validation, "memory_usage_mb")
+        row["cpu_usage_percent"] = _safe_get_float(validation, "cpu_usage_percent")
+        row["io_operations"] = _safe_get_int(validation, "io_operations")
 
     except Exception as e:
         logging.warning(f"Error processing bronze step {phase_name}: {e}")
@@ -405,7 +530,7 @@ def _row_from_bronze(
 
 def _row_from_silver(
     phase_name: str,
-    record: dict[str, Any],
+    record: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]],
     report: ReportDict,
     step_order: int,
     schema_name: str,
@@ -423,51 +548,45 @@ def _row_from_silver(
 
         # Timing - prefer transform, then validation, then write
         row["start_time"] = (
-            _safe_get_nested(transform, "start_at")
-            or _safe_get_nested(validation, "start_at")
-            or _safe_get_nested(write, "start_at")
+            _safe_get_datetime(transform, "start_at")
+            or _safe_get_datetime(validation, "start_at")
+            or _safe_get_datetime(write, "start_at")
         )
         row["end_time"] = (
-            _safe_get_nested(transform, "end_at")
-            or _safe_get_nested(validation, "end_at")
-            or _safe_get_nested(write, "end_at")
+            _safe_get_datetime(transform, "end_at")
+            or _safe_get_datetime(validation, "end_at")
+            or _safe_get_datetime(write, "end_at")
         )
         row["duration_secs"] = _calculate_duration(row["start_time"], row["end_time"])
 
         # Table information
-        row["table_fqn"] = _safe_get_nested(record, "table_fqn")
-        row["write_mode"] = _safe_get_nested(write, "mode")
+        row["table_fqn"] = _safe_get_string(record, "table_fqn")
+        row["write_mode"] = _safe_get_literal(write, "mode", valid_values=["overwrite", "append"])
 
         # Row counts
         row["input_rows"] = (
-            int(_safe_get_nested(transform, "input_rows", default=0))
+            _safe_get_int(transform, "input_rows", default=0)
             if transform
             else None
         )
         row["output_rows"] = (
-            int(_safe_get_nested(transform, "output_rows", default=0))
+            _safe_get_int(transform, "output_rows", default=0)
             if transform
             else None
         )
-        row["rows_written"] = int(_safe_get_nested(write, "rows_written", default=0))
+        row["rows_written"] = _safe_get_int(write, "rows_written", default=0)
 
         # Validation data
-        row["valid_rows"] = int(_safe_get_nested(validation, "valid_rows", default=0))
-        row["invalid_rows"] = int(
-            _safe_get_nested(validation, "invalid_rows", default=0)
-        )
-        row["validation_rate"] = float(
-            _safe_get_nested(validation, "validation_rate", default=100.0)
-        )
+        row["valid_rows"] = _safe_get_int(validation, "valid_rows", default=0)
+        row["invalid_rows"] = _safe_get_int(validation, "invalid_rows", default=0)
+        row["validation_rate"] = _safe_get_float(validation, "validation_rate", default=100.0)
         row["validation_passed"] = (
             row["validation_rate"] >= config.alert_thresholds["validation_rate"]
         )
 
         # Data quality metrics
-        null_percentage = _safe_get_nested(validation, "null_percentage", default=0.0)
-        duplicate_percentage = _safe_get_nested(
-            validation, "duplicate_percentage", default=0.0
-        )
+        null_percentage = _safe_get_float(validation, "null_percentage", default=0.0)
+        duplicate_percentage = _safe_get_float(validation, "duplicate_percentage", default=0.0)
         row["null_percentage"] = null_percentage
         row["duplicate_percentage"] = duplicate_percentage
         row["data_quality_status"] = _calculate_data_quality_status(
@@ -475,19 +594,17 @@ def _row_from_silver(
         )
 
         # Watermarking
-        row["previous_watermark"] = _safe_get_nested(record, "previous_watermark")
-        row["new_watermark"] = _safe_get_nested(record, "new_watermark")
-        row["filtered_rows"] = _safe_get_nested(record, "filtered_rows")
+        row["previous_watermark"] = _safe_get_datetime(record, "previous_watermark")
+        row["new_watermark"] = _safe_get_datetime(record, "new_watermark")
+        row["filtered_rows"] = _safe_get_int(record, "filtered_rows")
 
         # Performance metrics
-        row["memory_usage_mb"] = _safe_get_nested(validation, "memory_usage_mb")
-        row["cpu_usage_percent"] = _safe_get_nested(validation, "cpu_usage_percent")
-        row["io_operations"] = _safe_get_nested(validation, "io_operations")
+        row["memory_usage_mb"] = _safe_get_float(validation, "memory_usage_mb")
+        row["cpu_usage_percent"] = _safe_get_float(validation, "cpu_usage_percent")
+        row["io_operations"] = _safe_get_int(validation, "io_operations")
 
         # Schema compliance
-        row["schema_compliance"] = _safe_get_nested(
-            validation, "schema_compliance", default=100.0
-        )
+        row["schema_compliance"] = _safe_get_float(validation, "schema_compliance", default=100.0)
 
     except Exception as e:
         logging.warning(f"Error processing silver step {phase_name}: {e}")
@@ -501,7 +618,7 @@ def _row_from_silver(
 
 def _row_from_gold(
     phase_name: str,
-    record: dict[str, Any],
+    record: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]],
     report: ReportDict,
     step_order: int,
     schema_name: str,
@@ -519,43 +636,37 @@ def _row_from_gold(
 
         # Timing
         row["start_time"] = (
-            _safe_get_nested(transform, "start_at")
-            or _safe_get_nested(validation, "start_at")
-            or _safe_get_nested(write, "start_at")
+            _safe_get_datetime(transform, "start_at")
+            or _safe_get_datetime(validation, "start_at")
+            or _safe_get_datetime(write, "start_at")
         )
         row["end_time"] = (
-            _safe_get_nested(transform, "end_at")
-            or _safe_get_nested(validation, "end_at")
-            or _safe_get_nested(write, "end_at")
+            _safe_get_datetime(transform, "end_at")
+            or _safe_get_datetime(validation, "end_at")
+            or _safe_get_datetime(write, "end_at")
         )
         row["duration_secs"] = _calculate_duration(row["start_time"], row["end_time"])
 
         # Table information
-        row["table_fqn"] = _safe_get_nested(record, "table_fqn")
-        row["write_mode"] = _safe_get_nested(write, "mode")
+        row["table_fqn"] = _safe_get_string(record, "table_fqn")
+        row["write_mode"] = _safe_get_literal(write, "mode", valid_values=["overwrite", "append"])
 
         # Row counts
-        row["input_rows"] = int(_safe_get_nested(transform, "input_rows", default=0))
-        row["output_rows"] = int(_safe_get_nested(transform, "output_rows", default=0))
-        row["rows_written"] = int(_safe_get_nested(write, "rows_written", default=0))
+        row["input_rows"] = _safe_get_int(transform, "input_rows", default=0)
+        row["output_rows"] = _safe_get_int(transform, "output_rows", default=0)
+        row["rows_written"] = _safe_get_int(write, "rows_written", default=0)
 
         # Validation data
-        row["valid_rows"] = int(_safe_get_nested(validation, "valid_rows", default=0))
-        row["invalid_rows"] = int(
-            _safe_get_nested(validation, "invalid_rows", default=0)
-        )
-        row["validation_rate"] = float(
-            _safe_get_nested(validation, "validation_rate", default=100.0)
-        )
+        row["valid_rows"] = _safe_get_int(validation, "valid_rows", default=0)
+        row["invalid_rows"] = _safe_get_int(validation, "invalid_rows", default=0)
+        row["validation_rate"] = _safe_get_float(validation, "validation_rate", default=100.0)
         row["validation_passed"] = (
             row["validation_rate"] >= config.alert_thresholds["validation_rate"]
         )
 
         # Data quality metrics
-        null_percentage = _safe_get_nested(validation, "null_percentage", default=0.0)
-        duplicate_percentage = _safe_get_nested(
-            validation, "duplicate_percentage", default=0.0
-        )
+        null_percentage = _safe_get_float(validation, "null_percentage", default=0.0)
+        duplicate_percentage = _safe_get_float(validation, "duplicate_percentage", default=0.0)
         row["null_percentage"] = null_percentage
         row["duplicate_percentage"] = duplicate_percentage
         row["data_quality_status"] = _calculate_data_quality_status(
@@ -563,14 +674,12 @@ def _row_from_gold(
         )
 
         # Performance metrics
-        row["memory_usage_mb"] = _safe_get_nested(validation, "memory_usage_mb")
-        row["cpu_usage_percent"] = _safe_get_nested(validation, "cpu_usage_percent")
-        row["io_operations"] = _safe_get_nested(validation, "io_operations")
+        row["memory_usage_mb"] = _safe_get_float(validation, "memory_usage_mb")
+        row["cpu_usage_percent"] = _safe_get_float(validation, "cpu_usage_percent")
+        row["io_operations"] = _safe_get_int(validation, "io_operations")
 
         # Schema compliance
-        row["schema_compliance"] = _safe_get_nested(
-            validation, "schema_compliance", default=100.0
-        )
+        row["schema_compliance"] = _safe_get_float(validation, "schema_compliance", default=100.0)
 
     except Exception as e:
         logging.warning(f"Error processing gold step {phase_name}: {e}")
@@ -607,35 +716,38 @@ def flatten_pipeline_report(
     try:
         # Process bronze steps
         bronze_steps = _safe_get_nested(report, "bronze", default={})
-        for step_name, step_data in bronze_steps.items():
-            if isinstance(step_data, dict):
-                rows.append(
-                    _row_from_bronze(
-                        step_name, step_data, report, step_order, schema_name, config
+        if isinstance(bronze_steps, dict):
+            for step_name, step_data in bronze_steps.items():
+                if isinstance(step_data, dict):
+                    rows.append(
+                        _row_from_bronze(
+                            step_name, step_data, report, step_order, schema_name, config
+                        )
                     )
-                )
-                step_order += 1
+                    step_order += 1
 
         # Process silver steps
         silver_steps = _safe_get_nested(report, "silver", default={})
-        for step_name, step_data in silver_steps.items():
-            if isinstance(step_data, dict):
-                rows.append(
-                    _row_from_silver(
-                        step_name, step_data, report, step_order, schema_name, config
+        if isinstance(silver_steps, dict):
+            for step_name, step_data in silver_steps.items():
+                if isinstance(step_data, dict):
+                    rows.append(
+                        _row_from_silver(
+                            step_name, step_data, report, step_order, schema_name, config
+                        )
                     )
-                )
                 step_order += 1
 
         # Process gold steps
         gold_steps = _safe_get_nested(report, "gold", default={})
-        for step_name, step_data in gold_steps.items():
-            if isinstance(step_data, dict):
-                rows.append(
-                    _row_from_gold(
-                        step_name, step_data, report, step_order, schema_name, config
+        if isinstance(gold_steps, dict):
+            for step_name, step_data in gold_steps.items():
+                if isinstance(step_data, dict):
+                    rows.append(
+                        _row_from_gold(
+                            step_name, step_data, report, step_order, schema_name, config
+                        )
                     )
-                )
                 step_order += 1
 
     except Exception as e:
@@ -739,8 +851,10 @@ class LogWriter:
                 self.logger.warning("No log rows generated from report")
                 return self.spark.createDataFrame([], schema=self.schema)
 
-            # Create DataFrame
-            df = self.spark.createDataFrame(rows, schema=self.schema)
+            # Create DataFrame - convert TypedDict to regular dict for PySpark compatibility
+            rows_data = [dict(row) for row in rows]
+            # Cast to proper type for PySpark compatibility
+            df = self.spark.createDataFrame(rows_data, schema=self.schema)  # type: ignore
 
             # Write to table
             writer = df.write.mode(mode)
@@ -778,8 +892,10 @@ class LogWriter:
                 self.logger.warning("No log rows generated from report")
                 return self.spark.createDataFrame([], schema=self.schema)
 
-            # Create DataFrame
-            df = self.spark.createDataFrame(rows, schema=self.schema)
+            # Create DataFrame - convert TypedDict to regular dict for PySpark compatibility
+            rows_data = [dict(row) for row in rows]
+            # Cast to proper type for PySpark compatibility
+            df = self.spark.createDataFrame(rows_data, schema=self.schema)  # type: ignore
 
             # Write to table
             writer = df.write.mode("append")
@@ -798,7 +914,7 @@ class LogWriter:
             raise
 
     def query(
-        self, filters: dict[str, Any] | None = None, limit: int | None = None
+        self, filters: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]] | None = None, limit: int | None = None
     ) -> DataFrame:
         """
         Query the logs table with optional filters.
@@ -829,7 +945,7 @@ class LogWriter:
             self.logger.error(f"Error querying logs table: {e}")
             raise
 
-    def get_summary(self) -> dict[str, Any]:
+    def get_summary(self) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """
         Get execution summary statistics.
 
@@ -843,7 +959,7 @@ class LogWriter:
                 "total_runs": df.select("run_id").distinct().count(),
                 "total_steps": df.count(),
                 "successful_steps": df.filter(F.col("success")).count(),
-                "failed_steps": df.filter(not F.col("success")).count(),
+                "failed_steps": df.filter(F.col("success") == False).count(),
                 "avg_duration_secs": df.agg(F.avg("duration_secs")).collect()[0][0],
                 "total_rows_processed": df.agg(F.sum("input_rows")).collect()[0][0]
                 or 0,
@@ -864,7 +980,7 @@ class LogWriter:
             self.logger.error(f"Error getting summary: {e}")
             return {}
 
-    def get_analytics(self) -> dict[str, Any]:
+    def get_analytics(self) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """
         Get advanced analytics and insights.
 
@@ -916,7 +1032,7 @@ class LogWriter:
                     .orderBy(F.desc("run_id"))
                     .limit(20)
                     .collect(),
-                    "failed_steps_by_phase": df.filter(not F.col("success"))
+                    "failed_steps_by_phase": df.filter(F.col("success") == False)
                     .groupBy("phase")
                     .count()
                     .collect(),
@@ -938,7 +1054,7 @@ class LogWriter:
             self.logger.error(f"Error getting analytics: {e}")
             return {}
 
-    def get_alerts(self) -> list[dict[str, Any]]:
+    def get_alerts(self) -> list[dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]]:
         """
         Get data quality and performance alerts.
 
@@ -967,7 +1083,7 @@ class LogWriter:
                 )
 
             # Success rate alerts
-            failed_steps = df.filter(not F.col("success"))
+            failed_steps = df.filter(F.col("success") == False)
             if failed_steps.count() > 0:
                 alerts.append(
                     {
@@ -1003,7 +1119,7 @@ class LogWriter:
             self.logger.error(f"Error getting alerts: {e}")
             return []
 
-    def show(self, n: int | None = None, filters: dict[str, Any] | None = None) -> None:
+    def show(self, n: int | None = None, filters: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]] | None = None) -> None:
         """
         Display logs with optional filtering.
 
@@ -1013,7 +1129,7 @@ class LogWriter:
         """
         try:
             df = self.query(filters, limit=n)
-            df.show(n, truncate=False)
+            df.show(n if n is not None else 20, truncate=False)
 
         except Exception as e:
             self.logger.error(f"Error displaying logs: {e}")
@@ -1094,7 +1210,7 @@ class LogWriter:
             self.logger.error(f"Error cleaning up logs: {e}")
             return 0
 
-    def get_table_info(self) -> dict[str, Any]:
+    def get_table_info(self) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """
         Get information about the logs table.
 
@@ -1121,7 +1237,7 @@ class LogWriter:
             self.logger.error(f"Error getting table info: {e}")
             return {"error": str(e)}
 
-    def get_health_status(self) -> dict[str, Any]:
+    def get_health_status(self) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """
         Get overall health status of the logging system.
 

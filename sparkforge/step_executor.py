@@ -1,4 +1,84 @@
 #!/usr/bin/env python3
+# # # # Copyright (c) 2024 Odos Matthews
+# # # #
+# # # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # # of this software and associated documentation files (the "Software"), to deal
+# # # # in the Software without restriction, including without limitation the rights
+# # # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # # copies of the Software, and to permit persons to whom the Software is
+# # # # furnished to do so, subject to the following conditions:
+# # # #
+# # # # The above copyright notice and this permission notice shall be included in all
+# # # # copies or substantial portions of the Software.
+# # # #
+# # # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # # SOFTWARE.
+# #
+# # # Copyright (c) 2024 Odos Matthews
+# # #
+# # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # of this software and associated documentation files (the "Software"), to deal
+# # # in the Software without restriction, including without limitation the rights
+# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # copies of the Software, and to permit persons to whom the Software is
+# # # furnished to do so, subject to the following conditions:
+# # #
+# # # The above copyright notice and this permission notice shall be included in all
+# # # copies or substantial portions of the Software.
+# # #
+# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # SOFTWARE.
+#
+# # # Copyright (c) 2024 Odos Matthews
+# # #
+# # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # of this software and associated documentation files (the "Software"), to deal
+# # # in the Software without restriction, including without limitation the rights
+# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # copies of the Software, and to permit persons to whom the Software is
+# # # furnished to do so, subject to the following conditions:
+# # #
+# # # The above copyright notice and this permission notice shall be included in all
+# # # copies or substantial portions of the Software.
+# # #
+# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # SOFTWARE.
+#
+# # Copyright (c) 2024 Odos Matthews
+# #
+# # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # of this software and associated documentation files (the "Software"), to deal
+# # in the Software without restriction, including without limitation the rights
+# # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # copies of the Software, and to permit persons to whom the Software is
+# # furnished to do so, subject to the following conditions:
+# #
+# # The above copyright notice and this permission notice shall be included in all
+# # copies or substantial portions of the Software.
+# #
+# # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # SOFTWARE.
+
 #
 
 
@@ -14,7 +94,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Dict, List, Union
+
+from sparkforge.models import ColumnRules
 
 from pyspark.sql import DataFrame, SparkSession
 
@@ -69,7 +151,7 @@ class StepExecutionResult:
     output_data: DataFrame | None = None
     output_count: int | None = None
     validation_result: StepValidationResult | None = None
-    write_result: dict[str, Any] | None = None
+    write_result: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]] | None = None
     error: str | None = None
     dependencies: list[str] = field(default_factory=list)
 
@@ -83,7 +165,7 @@ class StepExecutionResult:
         """Check if step execution failed."""
         return self.status == StepStatus.FAILED
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """Convert to dictionary for reporting."""
         return {
             "step_name": self.step_name,
@@ -152,7 +234,7 @@ class StepExecutor:
             "gold": list(self.gold_steps.keys()),
         }
 
-    def get_step_info(self, step_name: str) -> dict[str, Any] | None:
+    def get_step_info(self, step_name: str) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]] | None:
         """Get detailed information about a step."""
         # Check Bronze steps
         if step_name in self.bronze_steps:
@@ -178,7 +260,9 @@ class StepExecutor:
                 "table_name": silver_step.table_name,
                 "source_bronze": silver_step.source_bronze,
                 "description": getattr(silver_step, "description", None),
-                "dependencies": [silver_step.source_bronze] if silver_step.source_bronze else [],
+                "dependencies": [silver_step.source_bronze]
+                if silver_step.source_bronze
+                else [],
                 "dependents": self._get_silver_dependents(step_name),
             }
 
@@ -558,6 +642,8 @@ class StepExecutor:
         step_type = self._detect_step_type(step_name)
 
         if step_type == StepType.BRONZE:
+            if input_data is None:
+                raise ValueError(f"Bronze step '{step_name}' requires input_data")
             return self.execute_bronze_step(step_name, input_data, output_to_table)
         elif step_type == StepType.SILVER:
             return self.execute_silver_step(
@@ -660,7 +746,7 @@ class StepExecutor:
 
         return available_silvers[0] if available_silvers else None
 
-    def _write_bronze_data(self, data: DataFrame, table_name: str) -> dict[str, Any]:
+    def _write_bronze_data(self, data: DataFrame, table_name: str) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """Write Bronze data to table."""
         rows_written, duration, start_time, end_time = time_write_operation(
             mode="overwrite", df=data, fqn=table_name
@@ -677,7 +763,7 @@ class StepExecutor:
 
     def _write_silver_data(
         self, data: DataFrame, table_name: str, watermark_col: str
-    ) -> dict[str, Any]:
+    ) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """Write Silver data to table."""
         rows_written, duration, start_time, end_time = time_write_operation(
             mode="overwrite", df=data, fqn=table_name
@@ -693,7 +779,7 @@ class StepExecutor:
             "watermark_col": watermark_col,
         }
 
-    def _write_gold_data(self, data: DataFrame, table_name: str) -> dict[str, Any]:
+    def _write_gold_data(self, data: DataFrame, table_name: str) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """Write Gold data to table."""
         rows_written, duration, start_time, end_time = time_write_operation(
             mode="overwrite", df=data, fqn=table_name
@@ -708,7 +794,7 @@ class StepExecutor:
             "end_time": end_time,
         }
 
-    def _get_validation_predicate(self, rules: dict[str, list[Any]]) -> Any:
+    def _get_validation_predicate(self, rules: ColumnRules) -> Union[object, bool]:
         """Create a validation predicate from rules."""
         from .validation import and_all_rules
 

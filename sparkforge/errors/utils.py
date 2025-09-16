@@ -1,5 +1,22 @@
+# Copyright (c) 2024 Odos Matthews
 #
-
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 
 """
 Error handling utilities for SparkForge.
@@ -14,20 +31,20 @@ import logging
 import traceback
 from datetime import datetime
 from functools import wraps
-from typing import Any, Callable
+from typing import Callable, Dict, List, Optional, Union
 
-from .base import ErrorCategory, ErrorSeverity, SparkForgeError
+from .base import ErrorCategory, ErrorSeverity, SparkForgeError, ErrorContext, ErrorSuggestions
 
 
 def handle_errors(
     *,
     error_type: type[SparkForgeError],
     message: str = "An error occurred",
-    error_code: str | None = None,
-    category: ErrorCategory | None = None,
+    error_code: Optional[str] = None,
+    category: Optional[ErrorCategory] = None,
     severity: ErrorSeverity = ErrorSeverity.MEDIUM,
-    context: dict[str, Any] | None = None,
-    suggestions: list[str] | None = None,
+    context: Optional[ErrorContext] = None,
+    suggestions: Optional[ErrorSuggestions] = None,
     reraise: bool = True,
 ) -> Callable[[Callable], Callable]:
     """
@@ -46,7 +63,7 @@ def handle_errors(
 
     def decorator(func: Callable) -> Callable:
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def wrapper(*args: object, **kwargs: object) -> object:
             try:
                 return func(*args, **kwargs)
             except SparkForgeError:
@@ -54,7 +71,7 @@ def handle_errors(
                 raise
             except Exception as e:
                 # Convert other exceptions to SparkForge errors
-                error_context = context or {}
+                error_context: ErrorContext = context or {}
                 error_context.update(
                     {
                         "function": func.__name__,
@@ -87,14 +104,14 @@ def handle_errors(
 
 def create_error_context(
     *,
-    step_name: str | None = None,
-    step_type: str | None = None,
-    pipeline_id: str | None = None,
-    execution_id: str | None = None,
-    table_name: str | None = None,
-    column_name: str | None = None,
-    **kwargs: Any,
-) -> dict[str, Any]:
+    step_name: Optional[str] = None,
+    step_type: Optional[str] = None,
+    pipeline_id: Optional[str] = None,
+    execution_id: Optional[str] = None,
+    table_name: Optional[str] = None,
+    column_name: Optional[str] = None,
+    **kwargs: Union[str, int, float, bool, List[str], Dict[str, str], None],
+) -> ErrorContext:
     """
     Create standardized error context.
 
@@ -110,7 +127,7 @@ def create_error_context(
     Returns:
         Dictionary containing error context
     """
-    context = {"timestamp": datetime.now().isoformat(), **kwargs}
+    context: ErrorContext = {"timestamp": datetime.now().isoformat(), **kwargs}
 
     if step_name:
         context["step_name"] = step_name
@@ -128,7 +145,7 @@ def create_error_context(
     return context
 
 
-def get_error_suggestions(error: SparkForgeError) -> list[str]:
+def get_error_suggestions(error: SparkForgeError) -> ErrorSuggestions:
     """
     Get suggestions for fixing an error.
 
@@ -138,7 +155,7 @@ def get_error_suggestions(error: SparkForgeError) -> list[str]:
     Returns:
         List of suggested fixes
     """
-    suggestions = error.suggestions.copy()
+    suggestions: ErrorSuggestions = error.suggestions.copy()
 
     # Add category-specific suggestions
     if error.category == ErrorCategory.CONFIGURATION:
@@ -195,10 +212,10 @@ def format_error_message(error: SparkForgeError) -> str:
     Returns:
         Formatted error message
     """
-    parts = [str(error)]
+    parts: List[str] = [str(error)]
 
     if error.context:
-        context_parts = []
+        context_parts: List[str] = []
         for key, value in error.context.items():
             if key not in ["traceback", "original_error"]:
                 context_parts.append(f"{key}={value}")
@@ -207,7 +224,7 @@ def format_error_message(error: SparkForgeError) -> str:
             parts.append(f"Context: {', '.join(context_parts)}")
 
     if error.suggestions:
-        suggestions_str = "; ".join(error.suggestions[:3])  # Limit to first 3
+        suggestions_str: str = "; ".join(error.suggestions[:3])  # Limit to first 3
         parts.append(f"Suggestions: {suggestions_str}")
 
     return " | ".join(parts)
@@ -221,7 +238,7 @@ def log_error(error: SparkForgeError, logger: logging.Logger) -> None:
         error: The error to log
         logger: Logger instance
     """
-    message = format_error_message(error)
+    message: str = format_error_message(error)
 
     if error.severity == ErrorSeverity.CRITICAL:
         logger.critical(message)

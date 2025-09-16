@@ -1,3 +1,83 @@
+# # # # Copyright (c) 2024 Odos Matthews
+# # # #
+# # # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # # of this software and associated documentation files (the "Software"), to deal
+# # # # in the Software without restriction, including without limitation the rights
+# # # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # # copies of the Software, and to permit persons to whom the Software is
+# # # # furnished to do so, subject to the following conditions:
+# # # #
+# # # # The above copyright notice and this permission notice shall be included in all
+# # # # copies or substantial portions of the Software.
+# # # #
+# # # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # # SOFTWARE.
+# #
+# # # Copyright (c) 2024 Odos Matthews
+# # #
+# # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # of this software and associated documentation files (the "Software"), to deal
+# # # in the Software without restriction, including without limitation the rights
+# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # copies of the Software, and to permit persons to whom the Software is
+# # # furnished to do so, subject to the following conditions:
+# # #
+# # # The above copyright notice and this permission notice shall be included in all
+# # # copies or substantial portions of the Software.
+# # #
+# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # SOFTWARE.
+#
+# # # Copyright (c) 2024 Odos Matthews
+# # #
+# # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # of this software and associated documentation files (the "Software"), to deal
+# # # in the Software without restriction, including without limitation the rights
+# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # copies of the Software, and to permit persons to whom the Software is
+# # # furnished to do so, subject to the following conditions:
+# # #
+# # # The above copyright notice and this permission notice shall be included in all
+# # # copies or substantial portions of the Software.
+# # #
+# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # SOFTWARE.
+#
+# # Copyright (c) 2024 Odos Matthews
+# #
+# # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # of this software and associated documentation files (the "Software"), to deal
+# # in the Software without restriction, including without limitation the rights
+# # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # copies of the Software, and to permit persons to whom the Software is
+# # furnished to do so, subject to the following conditions:
+# #
+# # The above copyright notice and this permission notice shall be included in all
+# # copies or substantial portions of the Software.
+# #
+# # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # SOFTWARE.
+
 #
 
 
@@ -12,7 +92,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any, Dict, List, Optional, Union
 
 from pyspark.sql import DataFrame, SparkSession
 
@@ -21,7 +101,6 @@ from ..execution import ExecutionEngine
 from ..logger import PipelineLogger
 from ..models import BronzeStep, GoldStep, PipelineConfig, SilverStep
 from ..types import StepName
-
 from .models import PipelineMode, PipelineReport, PipelineStatus
 from .monitor import PipelineMonitor
 from .validator import PipelineValidator
@@ -90,7 +169,7 @@ class PipelineRunner:
         self._current_report: PipelineReport | None = None
         self._is_running = False
         self._cancelled = False
-        self._step_executor: Any | None = None
+        self._step_executor: object | None = None
 
         # Pipeline identification
         self.pipeline_id = (
@@ -231,7 +310,7 @@ class PipelineRunner:
 
     def _execute_pipeline_steps(
         self, mode: PipelineMode, bronze_sources: dict[str, DataFrame]
-    ) -> tuple[bool, dict[str, Any], dict[str, Any], dict[str, Any]]:
+    ) -> tuple[bool, dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]], dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]], dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]]:
         """Execute all pipeline steps in the correct order."""
         try:
             # Step 1: Execute Bronze steps
@@ -293,7 +372,7 @@ class PipelineRunner:
 
     def _execute_bronze_steps(
         self, mode: PipelineMode, bronze_sources: dict[str, DataFrame]
-    ) -> dict[str, Any]:
+    ) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """Execute Bronze steps."""
         self.logger.info(f"🟤 Executing {len(self.bronze_steps)} Bronze steps")
 
@@ -373,7 +452,11 @@ class PipelineRunner:
                 # Write to Delta table if table_name is specified
                 rows_written = row_count
                 if hasattr(step, "table_name") and step.table_name:
-                    table_path = f"{self.config.schema}.{step.table_name}" if self.config.schema else step.table_name
+                    table_path = (
+                        f"{self.config.schema}.{step.table_name}"
+                        if self.config.schema
+                        else step.table_name
+                    )
                     try:
                         # Write DataFrame to Delta table
                         source_df.write.format("delta").mode("overwrite").option(
@@ -416,8 +499,8 @@ class PipelineRunner:
         return bronze_results
 
     def _execute_silver_steps(
-        self, mode: PipelineMode, bronze_results: dict[str, Any]
-    ) -> dict[str, Any]:
+        self, mode: PipelineMode, bronze_results: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]
+    ) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """Execute Silver steps."""
         self.logger.info(f"🟡 Executing {len(self.silver_steps)} Silver steps")
 
@@ -453,8 +536,8 @@ class PipelineRunner:
         return silver_results
 
     def _execute_gold_steps(
-        self, mode: PipelineMode, silver_results: dict[str, Any]
-    ) -> dict[str, Any]:
+        self, mode: PipelineMode, silver_results: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]
+    ) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """Execute Gold steps."""
         self.logger.info(f"🟨 Executing {len(self.gold_steps)} Gold steps")
 
@@ -501,7 +584,7 @@ class PipelineRunner:
         """Get current execution report."""
         return self._current_report
 
-    def get_performance_stats(self) -> dict[str, Any]:
+    def get_performance_stats(self) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """Get detailed performance statistics."""
         if not self._current_report:
             return {}
@@ -509,10 +592,10 @@ class PipelineRunner:
         return self.monitor.get_performance_summary()
 
     # Legacy compatibility methods for tests
-    def create_step_executor(self) -> Any:
+    def create_step_executor(self) -> object:
         """Create a step executor for legacy compatibility."""
         from ..step_executor import StepExecutor
-        
+
         # Return existing executor if available
         if hasattr(self, "_step_executor") and self._step_executor is not None:
             return self._step_executor
@@ -539,7 +622,7 @@ class PipelineRunner:
             "gold": list(self.gold_steps.keys()),
         }
 
-    def get_step_info(self, step_name: str) -> dict[str, Any]:
+    def get_step_info(self, step_name: str) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """Get information about a specific step."""
         if step_name in self.bronze_steps:
             step = self.bronze_steps[step_name]
@@ -558,7 +641,9 @@ class PipelineRunner:
                 "source_bronze": silver_step.source_bronze,
                 "table_name": silver_step.table_name,
                 "watermark_col": silver_step.watermark_col,
-                "dependencies": [silver_step.source_bronze] if silver_step.source_bronze else [],
+                "dependencies": [silver_step.source_bronze]
+                if silver_step.source_bronze
+                else [],
             }
         elif step_name in self.gold_steps:
             gold_step: GoldStep = self.gold_steps[step_name]
@@ -575,10 +660,10 @@ class PipelineRunner:
     def execute_bronze_step(
         self,
         step_name: str,
-        input_data: DataFrame = None,
-        data: DataFrame = None,
+        input_data: Optional[DataFrame] = None,
+        data: Optional[DataFrame] = None,
         output_to_table: bool = True,
-    ) -> Any:
+    ) -> object:
         """Execute a single bronze step for legacy compatibility."""
         if step_name not in self.bronze_steps:
             raise ValueError(f"Bronze step '{step_name}' not found")
@@ -648,8 +733,8 @@ class PipelineRunner:
                     )
 
             if validation_passed:
-                from ..step_executor import StepType, StepStatus
-                
+                from ..step_executor import StepStatus, StepType
+
                 result = BronzeStepResult(
                     step_name,
                     True,
@@ -753,7 +838,6 @@ class PipelineRunner:
 
         try:
             # Simplified execution - in real implementation this would run the transform
-            from .. import StepStatus, StepType
             from ..step_executor import StepValidationResult
 
             class SilverStepResult:
@@ -787,11 +871,8 @@ class PipelineRunner:
                         invalid_rows=0,
                     )
 
-            return SilverStepResult(
-                step_name, True, 3, 0, "silver", "completed"
-            )
+            return SilverStepResult(step_name, True, 3, 0, "silver", "completed")
         except Exception as e:
-            from .. import StepStatus, StepType
             from ..step_executor import StepValidationResult
 
             class SilverStepResultLocal:
@@ -833,7 +914,6 @@ class PipelineRunner:
 
         try:
             # Simplified execution - in real implementation this would run the transform
-            from .. import StepStatus, StepType
             from ..step_executor import StepValidationResult
 
             class GoldStepResult:
@@ -867,11 +947,8 @@ class PipelineRunner:
                         invalid_rows=0,
                     )
 
-            return GoldStepResult(
-                step_name, True, 3, 0, "gold", "completed"
-            )
+            return GoldStepResult(step_name, True, 3, 0, "gold", "completed")
         except Exception as e:
-            from .. import StepStatus, StepType
             from ..step_executor import StepValidationResult
 
             class GoldStepResultLocal:
@@ -902,6 +979,4 @@ class PipelineRunner:
                         invalid_rows=0,
                     )
 
-            return GoldStepResultLocal(
-                step_name, False, 0, 0, "gold", "failed", str(e)
-            )
+            return GoldStepResultLocal(step_name, False, 0, 0, "gold", "failed", str(e))

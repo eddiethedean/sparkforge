@@ -7,7 +7,7 @@ import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
-from sparkforge import PipelineBuilder, StepExecutor, StepStatus, StepType
+from sparkforge import PipelineBuilder, StepExecutor
 
 
 class TestStepExecution:

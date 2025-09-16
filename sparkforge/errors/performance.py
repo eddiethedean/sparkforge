@@ -1,26 +1,22 @@
-# # # # Copyright (c) 2024 Odos Matthews
-# # # #
-# # # # Permission is hereby granted, free of charge, to any person obtaining a copy
-# # # # of this software and associated documentation files (the "Software"), to deal
-# # # # in the Software without restriction, including without limitation the rights
-# # # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# # # # copies of the Software, and to permit persons to whom the Software is
-# # # # furnished to do so, subject to the following conditions:
-# # # #
-# # # # The above copyright notice and this permission notice shall be included in all
-# # # # copies or substantial portions of the Software.
-# # # #
-# # # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# # # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# # # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# # # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# # # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# # # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# # # # SOFTWARE.
-# #
+# Copyright (c) 2024 Odos Matthews
 #
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 
 """
 Performance-specific exceptions for SparkForge.
@@ -31,9 +27,10 @@ providing detailed error context for performance-related issues.
 
 from __future__ import annotations
 
-from typing import Any
+from datetime import datetime
+from typing import Dict, List, Optional, Union
 
-from .base import ErrorCategory, ErrorSeverity, SparkForgeError
+from .base import ErrorCategory, ErrorSeverity, SparkForgeError, ErrorContext, ErrorSuggestions
 
 
 class PerformanceError(SparkForgeError):
@@ -43,16 +40,24 @@ class PerformanceError(SparkForgeError):
         self,
         message: str,
         *,
-        performance_metric: str | None = None,
-        threshold_value: float | None = None,
-        actual_value: float | None = None,
-        **kwargs: Any,
+        performance_metric: Optional[str] = None,
+        threshold_value: Optional[float] = None,
+        actual_value: Optional[float] = None,
+        error_code: Optional[str] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
     ):
         super().__init__(
             message,
+            error_code=error_code,
             category=ErrorCategory.PERFORMANCE,
             severity=ErrorSeverity.MEDIUM,
-            **kwargs,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
         )
         self.performance_metric = performance_metric
         self.threshold_value = threshold_value
@@ -69,14 +74,24 @@ class PerformanceThresholdError(PerformanceError):
         metric_name: str,
         threshold: float,
         actual_value: float,
-        **kwargs: Any,
+        performance_metric: Optional[str] = None,
+        threshold_value: Optional[float] = None,
+        error_code: Optional[str] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
     ):
         super().__init__(
             message,
-            performance_metric=metric_name,
-            threshold_value=threshold,
+            performance_metric=performance_metric,
+            threshold_value=threshold_value,
             actual_value=actual_value,
-            **kwargs,
+            error_code=error_code,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
         )
         self.metric_name = metric_name
         self.threshold = threshold
@@ -90,8 +105,31 @@ class PerformanceThresholdError(PerformanceError):
 class PerformanceMonitoringError(PerformanceError):
     """Raised when performance monitoring fails."""
 
-    def __init__(self, message: str, *, monitoring_step: str | None = None, **kwargs: Any):
-        super().__init__(message, **kwargs)
+    def __init__(
+        self,
+        message: str,
+        *,
+        monitoring_step: Optional[str] = None,
+        performance_metric: Optional[str] = None,
+        threshold_value: Optional[float] = None,
+        actual_value: Optional[float] = None,
+        error_code: Optional[str] = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
+    ):
+        super().__init__(
+            message,
+            performance_metric=performance_metric,
+            threshold_value=threshold_value,
+            actual_value=actual_value,
+            error_code=error_code,
+            context=context,
+            suggestions=suggestions,
+            timestamp=timestamp,
+            cause=cause,
+        )
         self.monitoring_step = monitoring_step
 
 

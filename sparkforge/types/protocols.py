@@ -1,3 +1,83 @@
+# # # # Copyright (c) 2024 Odos Matthews
+# # # #
+# # # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # # of this software and associated documentation files (the "Software"), to deal
+# # # # in the Software without restriction, including without limitation the rights
+# # # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # # copies of the Software, and to permit persons to whom the Software is
+# # # # furnished to do so, subject to the following conditions:
+# # # #
+# # # # The above copyright notice and this permission notice shall be included in all
+# # # # copies or substantial portions of the Software.
+# # # #
+# # # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # # SOFTWARE.
+# #
+# # # Copyright (c) 2024 Odos Matthews
+# # #
+# # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # of this software and associated documentation files (the "Software"), to deal
+# # # in the Software without restriction, including without limitation the rights
+# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # copies of the Software, and to permit persons to whom the Software is
+# # # furnished to do so, subject to the following conditions:
+# # #
+# # # The above copyright notice and this permission notice shall be included in all
+# # # copies or substantial portions of the Software.
+# # #
+# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # SOFTWARE.
+#
+# # # Copyright (c) 2024 Odos Matthews
+# # #
+# # # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # # of this software and associated documentation files (the "Software"), to deal
+# # # in the Software without restriction, including without limitation the rights
+# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # # copies of the Software, and to permit persons to whom the Software is
+# # # furnished to do so, subject to the following conditions:
+# # #
+# # # The above copyright notice and this permission notice shall be included in all
+# # # copies or substantial portions of the Software.
+# # #
+# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # # SOFTWARE.
+#
+# # Copyright (c) 2024 Odos Matthews
+# #
+# # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # of this software and associated documentation files (the "Software"), to deal
+# # in the Software without restriction, including without limitation the rights
+# # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # copies of the Software, and to permit persons to whom the Software is
+# # furnished to do so, subject to the following conditions:
+# #
+# # The above copyright notice and this permission notice shall be included in all
+# # copies or substantial portions of the Software.
+# #
+# # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# # SOFTWARE.
+
 #
 
 
@@ -10,7 +90,7 @@ and interface definition across all SparkForge modules.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, TypeVar, runtime_checkable
+from typing import Dict, List, Protocol, TypeVar, Union, runtime_checkable
 
 from .aliases import (
     DataFrame,
@@ -47,7 +127,7 @@ class Validatable(Protocol):
 class Serializable(Protocol):
     """Protocol for objects that can be serialized."""
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """Convert object to dictionary."""
         ...
 
@@ -60,7 +140,7 @@ class Serializable(Protocol):
 class Executable(Protocol):
     """Protocol for objects that can be executed."""
 
-    def execute(self) -> Any:
+    def execute(self) -> Union[str, int, float, bool, List[str], Dict[str, str]]:
         """Execute the object and return result."""
         ...
 
@@ -69,7 +149,7 @@ class Executable(Protocol):
 class Monitorable(Protocol):
     """Protocol for objects that can be monitored."""
 
-    def get_metrics(self) -> dict[str, Any]:
+    def get_metrics(self) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """Get performance metrics."""
         ...
 
@@ -90,7 +170,7 @@ class PipelineStep(Protocol):
     name: StepName
     step_type: StepType
 
-    def execute(self, context: dict[str, Any]) -> StepResult:
+    def execute(self, context: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]) -> StepResult:
         """Execute the step with given context."""
         ...
 
@@ -103,7 +183,7 @@ class PipelineStep(Protocol):
 class PipelineValidator(Protocol):
     """Protocol for pipeline validators."""
 
-    def validate_pipeline(self, pipeline: Any) -> ValidationResult:
+    def validate_pipeline(self, pipeline: object) -> ValidationResult:
         """Validate entire pipeline."""
         ...
 
@@ -124,7 +204,7 @@ class PipelineMonitor(Protocol):
         """Stop monitoring pipeline execution."""
         ...
 
-    def get_metrics(self) -> dict[str, Any]:
+    def get_metrics(self) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """Get current metrics."""
         ...
 
@@ -134,12 +214,12 @@ class PipelineExecutor(Protocol):
     """Protocol for pipeline executors."""
 
     def execute_pipeline(
-        self, pipeline: Any, sources: dict[str, DataFrame]
+        self, pipeline: object, sources: dict[str, DataFrame]
     ) -> PipelineResult:
         """Execute entire pipeline."""
         ...
 
-    def execute_step(self, step: PipelineStep, context: dict[str, Any]) -> StepResult:
+    def execute_step(self, step: PipelineStep, context: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]) -> StepResult:
         """Execute individual step."""
         ...
 
@@ -157,7 +237,7 @@ class DataSource(Protocol):
         """Read data from source."""
         ...
 
-    def get_schema(self) -> Any:
+    def get_schema(self) -> object:
         """Get data schema."""
         ...
 
@@ -170,7 +250,7 @@ class DataSink(Protocol):
         """Write data to sink."""
         ...
 
-    def get_schema(self) -> Any:
+    def get_schema(self) -> object:
         """Get expected schema."""
         ...
 
@@ -183,7 +263,7 @@ class DataTransformer(Protocol):
         """Transform data."""
         ...
 
-    def get_output_schema(self, input_schema: Any) -> Any:
+    def get_output_schema(self, input_schema: object) -> object:
         """Get output schema from input schema."""
         ...
 
@@ -210,11 +290,11 @@ class DataValidator(Protocol):
 class Configurable(Protocol):
     """Protocol for configurable objects."""
 
-    def configure(self, config: dict[str, Any]) -> None:
+    def configure(self, config: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]) -> None:
         """Configure object with given config."""
         ...
 
-    def get_config(self) -> dict[str, Any]:
+    def get_config(self) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """Get current configuration."""
         ...
 
@@ -236,11 +316,11 @@ class Loggable(Protocol):
 class Cacheable(Protocol):
     """Protocol for cacheable objects."""
 
-    def cache(self, key: str, value: Any) -> None:
+    def cache(self, key: str, value: Union[str, int, float, bool, List[str], Dict[str, str]]) -> None:
         """Cache value with given key."""
         ...
 
-    def get_cached(self, key: str) -> Any | None:
+    def get_cached(self, key: str) -> Union[str, int, float, bool, List[str], Dict[str, str], None]:
         """Get cached value by key."""
         ...
 
@@ -253,7 +333,7 @@ class Cacheable(Protocol):
 class Retryable(Protocol):
     """Protocol for retryable objects."""
 
-    def retry(self, func: Any, *args: Any, **kwargs: Any) -> Any:
+    def retry(self, func: object, *args: object, **kwargs: object) -> object:
         """Retry function execution."""
         ...
 
@@ -271,7 +351,7 @@ class Retryable(Protocol):
 class ExecutionStrategy(Protocol):
     """Protocol for execution strategies."""
 
-    def execute_steps(self, steps: dict[str, Any]) -> ExecutionResult:
+    def execute_steps(self, steps: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]) -> ExecutionResult:
         """Execute steps using this strategy."""
         ...
 
@@ -284,7 +364,7 @@ class ExecutionStrategy(Protocol):
 class DependencyAnalyzer(Protocol):
     """Protocol for dependency analyzers."""
 
-    def analyze_dependencies(self, steps: dict[str, Any]) -> dict[str, list[str]]:
+    def analyze_dependencies(self, steps: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]) -> dict[str, list[str]]:
         """Analyze step dependencies."""
         ...
 
@@ -297,7 +377,7 @@ class DependencyAnalyzer(Protocol):
 class ErrorHandler(Protocol):
     """Protocol for error handlers."""
 
-    def handle_error(self, error: Exception, context: dict[str, Any]) -> None:
+    def handle_error(self, error: Exception, context: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]) -> None:
         """Handle error with given context."""
         ...
 
@@ -315,7 +395,7 @@ class ErrorHandler(Protocol):
 class MetricsCollector(Protocol):
     """Protocol for metrics collectors."""
 
-    def collect_metrics(self) -> dict[str, Any]:
+    def collect_metrics(self) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """Collect current metrics."""
         ...
 
@@ -336,7 +416,7 @@ class PerformanceMonitor(Protocol):
         """Stop timing operation and return duration."""
         ...
 
-    def get_performance_summary(self) -> dict[str, Any]:
+    def get_performance_summary(self) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """Get performance summary."""
         ...
 
@@ -350,11 +430,11 @@ class PerformanceMonitor(Protocol):
 class QualityValidator(Protocol):
     """Protocol for quality validators."""
 
-    def validate_quality(self, data: DataFrame, rules: dict[str, Any]) -> QualityRate:
+    def validate_quality(self, data: DataFrame, rules: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]) -> QualityRate:
         """Validate data quality against rules."""
         ...
 
-    def get_quality_report(self, data: DataFrame) -> dict[str, Any]:
+    def get_quality_report(self, data: DataFrame) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
         """Get detailed quality report."""
         ...
 
@@ -363,11 +443,11 @@ class QualityValidator(Protocol):
 class SchemaValidator(Protocol):
     """Protocol for schema validators."""
 
-    def validate_schema(self, data: DataFrame, expected_schema: Any) -> bool:
+    def validate_schema(self, data: DataFrame, expected_schema: object) -> bool:
         """Validate data schema."""
         ...
 
-    def get_schema_differences(self, actual: Any, expected: Any) -> list[str]:
+    def get_schema_differences(self, actual: object, expected: object) -> list[str]:
         """Get schema differences."""
         ...
 
@@ -381,7 +461,7 @@ class SchemaValidator(Protocol):
 class Factory(Protocol):
     """Protocol for factory objects."""
 
-    def create(self, **kwargs: Any) -> Any:
+    def create(self, **kwargs: Union[str, int, float, bool, List[str], Dict[str, str]]) -> object:
         """Create object with given parameters."""
         ...
 
@@ -390,7 +470,7 @@ class Factory(Protocol):
 class Builder(Protocol):
     """Protocol for builder objects."""
 
-    def build(self) -> Any:
+    def build(self) -> object:
         """Build and return object."""
         ...
 
@@ -417,7 +497,7 @@ class Iterator(Protocol[T]):
 # ============================================================================
 
 
-def implements_protocol(obj: Any, protocol: type) -> bool:
+def implements_protocol(obj: object, protocol: type) -> bool:
     """Check if object implements protocol."""
     return isinstance(obj, protocol)
 
@@ -431,7 +511,7 @@ def get_protocol_methods(protocol: type) -> list[str]:
     ]
 
 
-def validate_protocol_implementation(obj: Any, protocol: type) -> list[str]:
+def validate_protocol_implementation(obj: object, protocol: type) -> list[str]:
     """Validate object implements protocol and return missing methods."""
     missing = []
     for name, method in protocol.__dict__.items():

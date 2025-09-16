@@ -32,10 +32,13 @@ except ImportError:
     # Fallback if test_helpers is not available
     class TestAssertions:
         pass
+
     class TestDataGenerator:
         pass
+
     class TestPerformance:
         pass
+
     class TestPipelineBuilder:
         pass
 
