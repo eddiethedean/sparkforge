@@ -577,7 +577,7 @@ class StepExecutor:
         """Get the current execution state."""
         return self._execution_state.copy()
 
-    def clear_execution_state(self):
+    def clear_execution_state(self) -> None:
         """Clear all execution state."""
         self._execution_state.clear()
         self._step_outputs.clear()
