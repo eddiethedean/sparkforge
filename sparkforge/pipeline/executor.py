@@ -18,6 +18,7 @@ from pyspark.sql import DataFrame, SparkSession
 from ..logger import PipelineLogger
 from ..models import BronzeStep, ExecutionContext, GoldStep, PipelineConfig, SilverStep
 from ..table_operations import fqn
+from ..types import SilverTransformFunction, GoldTransformFunction
 from ..validation import apply_column_rules
 from .models import StepExecutionContext
 from .validator import PipelineValidator
@@ -69,10 +70,15 @@ class StepExecutor:
             Dictionary containing execution results
         """
         start_time = datetime.now()
-        StepExecutionContext(
+        from .models import PipelineMode
+        
+        # Convert ExecutionMode to PipelineMode
+        pipeline_mode = PipelineMode.INITIAL if context.mode.value == "initial" else PipelineMode.INCREMENTAL
+        
+        step_context = StepExecutionContext(
             step_name=step.name,
             step_type="bronze",
-            mode=context.mode,
+            mode=pipeline_mode,
             start_time=start_time,
         )
 
@@ -159,10 +165,15 @@ class StepExecutor:
             Dictionary containing execution results
         """
         start_time = datetime.now()
-        StepExecutionContext(
+        from .models import PipelineMode
+        
+        # Convert ExecutionMode to PipelineMode
+        pipeline_mode = PipelineMode.INITIAL if context.mode.value == "initial" else PipelineMode.INCREMENTAL
+        
+        step_context = StepExecutionContext(
             step_name=step.name,
             step_type="silver",
-            mode=context.mode,
+            mode=pipeline_mode,
             start_time=start_time,
         )
 
@@ -177,7 +188,7 @@ class StepExecutor:
                 )
 
             # Execute transformation
-            transformed_df = step.transform(self.spark, bronze_df, prior_silvers)
+            transformed_df = step.transform(self.spark, bronze_df, prior_silvers)  # type: ignore
 
             # Apply validation rules
             validated_df = self._apply_validation_rules(
@@ -253,10 +264,15 @@ class StepExecutor:
             Dictionary containing execution results
         """
         start_time = datetime.now()
-        StepExecutionContext(
+        from .models import PipelineMode
+        
+        # Convert ExecutionMode to PipelineMode
+        pipeline_mode = PipelineMode.INITIAL if context.mode.value == "initial" else PipelineMode.INCREMENTAL
+        
+        step_context = StepExecutionContext(
             step_name=step.name,
             step_type="gold",
-            mode=context.mode,
+            mode=pipeline_mode,
             start_time=start_time,
         )
 
@@ -271,7 +287,7 @@ class StepExecutor:
                 )
 
             # Execute transformation
-            transformed_df = step.transform(self.spark, silver_dfs)
+            transformed_df = step.transform(silver_dfs)
 
             # Apply validation rules
             validated_df = self._apply_validation_rules(
