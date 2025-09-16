@@ -90,6 +90,7 @@ class PipelineRunner:
         self._current_report: PipelineReport | None = None
         self._is_running = False
         self._cancelled = False
+        self._step_executor: Any | None = None
 
         # Pipeline identification
         self.pipeline_id = (
@@ -713,7 +714,7 @@ class PipelineRunner:
             from .. import StepStatus, StepType
             from ..step_executor import StepValidationResult
 
-            class BronzeStepResult:
+            class BronzeStepResultLocal:
                 def __init__(
                     self,
                     step_name: str,
@@ -741,7 +742,7 @@ class PipelineRunner:
                         invalid_rows=0,
                     )
 
-            return BronzeStepResult(
+            return BronzeStepResultLocal(
                 step_name, False, 0, 0, "bronze", "failed", str(e)
             )
 
@@ -793,7 +794,7 @@ class PipelineRunner:
             from .. import StepStatus, StepType
             from ..step_executor import StepValidationResult
 
-            class SilverStepResult:
+            class SilverStepResultLocal:
                 def __init__(
                     self,
                     step_name: str,
@@ -821,7 +822,7 @@ class PipelineRunner:
                         invalid_rows=0,
                     )
 
-            return SilverStepResult(
+            return SilverStepResultLocal(
                 step_name, False, 0, 0, "silver", "failed", str(e)
             )
 
@@ -873,7 +874,7 @@ class PipelineRunner:
             from .. import StepStatus, StepType
             from ..step_executor import StepValidationResult
 
-            class GoldStepResult:
+            class GoldStepResultLocal:
                 def __init__(
                     self,
                     step_name: str,
@@ -901,6 +902,6 @@ class PipelineRunner:
                         invalid_rows=0,
                     )
 
-            return GoldStepResult(
+            return GoldStepResultLocal(
                 step_name, False, 0, 0, "gold", "failed", str(e)
             )

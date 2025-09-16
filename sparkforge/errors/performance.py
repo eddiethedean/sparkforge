@@ -31,6 +31,8 @@ providing detailed error context for performance-related issues.
 
 from __future__ import annotations
 
+from typing import Any
+
 from .base import ErrorCategory, ErrorSeverity, SparkForgeError
 
 
@@ -44,7 +46,7 @@ class PerformanceError(SparkForgeError):
         performance_metric: str | None = None,
         threshold_value: float | None = None,
         actual_value: float | None = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(
             message,
@@ -67,7 +69,7 @@ class PerformanceThresholdError(PerformanceError):
         metric_name: str,
         threshold: float,
         actual_value: float,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(
             message,
@@ -88,7 +90,7 @@ class PerformanceThresholdError(PerformanceError):
 class PerformanceMonitoringError(PerformanceError):
     """Raised when performance monitoring fails."""
 
-    def __init__(self, message: str, *, monitoring_step: str | None = None, **kwargs):
+    def __init__(self, message: str, *, monitoring_step: str | None = None, **kwargs: Any):
         super().__init__(message, **kwargs)
         self.monitoring_step = monitoring_step
 

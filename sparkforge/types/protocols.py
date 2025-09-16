@@ -253,7 +253,7 @@ class Cacheable(Protocol):
 class Retryable(Protocol):
     """Protocol for retryable objects."""
 
-    def retry(self, func: callable, *args, **kwargs) -> Any:
+    def retry(self, func: Any, *args: Any, **kwargs: Any) -> Any:
         """Retry function execution."""
         ...
 
@@ -378,19 +378,19 @@ class SchemaValidator(Protocol):
 
 
 @runtime_checkable
-class Factory(Protocol[T]):
+class Factory(Protocol):
     """Protocol for factory objects."""
 
-    def create(self, **kwargs) -> T:
+    def create(self, **kwargs: Any) -> Any:
         """Create object with given parameters."""
         ...
 
 
 @runtime_checkable
-class Builder(Protocol[T]):
+class Builder(Protocol):
     """Protocol for builder objects."""
 
-    def build(self) -> T:
+    def build(self) -> Any:
         """Build and return object."""
         ...
 

@@ -143,7 +143,6 @@ from .types import (
     ErrorCode,
     ErrorContext,
     ErrorSuggestions,
-    ExecutionConfig,
     ExecutionId,
     GoldTransformFunction,
     MonitoringConfig,

@@ -180,7 +180,7 @@ class DynamicWorkerPool:
         self.current_worker_count = min_workers
 
         # Task management
-        self.task_queue = queue.PriorityQueue()
+        self.task_queue: queue.PriorityQueue[Any] = queue.PriorityQueue()
         self.running_tasks: dict[str, Future] = {}
         self.completed_tasks: dict[str, TaskMetrics] = {}
         self.failed_tasks: dict[str, TaskMetrics] = {}
@@ -353,8 +353,8 @@ class DynamicWorkerPool:
                 worker_metrics = self.workers[worker_id]
                 worker_metrics.tasks_completed += 1
                 worker_metrics.total_duration += task_metrics.duration_seconds
-                worker_metrics.total_memory_usage += task_metrics.memory_usage_mb
-                worker_metrics.total_cpu_usage += task_metrics.cpu_usage_percent
+                worker_metrics.total_memory_usage += task_metrics.memory_usage_mb or 0.0
+                worker_metrics.total_cpu_usage += task_metrics.cpu_usage_percent or 0.0
                 worker_metrics.is_idle = True
                 worker_metrics.current_task = None
                 worker_metrics.last_activity = datetime.utcnow()
@@ -484,7 +484,7 @@ class DynamicWorkerPool:
     def _remove_workers(self, count: int) -> None:
         """Remove workers from the pool."""
         # Mark workers as idle and let them finish current tasks
-        workers_to_remove = []
+        workers_to_remove: list[str] = []
         for worker_id, metrics in self.workers.items():
             if metrics.is_idle and len(workers_to_remove) < count:
                 workers_to_remove.append(worker_id)
@@ -586,7 +586,7 @@ class DynamicWorkerPool:
 class ResourceMonitor:
     """Monitors system resources for optimization decisions."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.logger = logging.getLogger(__name__)
 
     def get_current_resources(self) -> SystemResources:
@@ -761,13 +761,13 @@ def get_dynamic_executor() -> DynamicParallelExecutor:
 def create_execution_task(
     task_id: str,
     function: Callable,
-    *args,
+    *args: Any,
     priority: TaskPriority = TaskPriority.NORMAL,
     dependencies: set[str] | None = None,
     estimated_duration: float = 0.0,
     memory_requirement_mb: float = 0.0,
     timeout_seconds: int | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> ExecutionTask:
     """Create an execution task with the given parameters."""
     return ExecutionTask(

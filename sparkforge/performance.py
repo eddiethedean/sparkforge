@@ -16,7 +16,7 @@ import time
 from contextlib import contextmanager
 from datetime import datetime
 from functools import wraps
-from typing import Callable
+from typing import Any, Callable, Generator
 
 from pyspark.sql import DataFrame
 
@@ -48,7 +48,7 @@ def format_duration(seconds: float) -> str:
         return f"{hours:.2f}h"
 
 
-def time_operation(operation_name: str = "operation"):
+def time_operation(operation_name: str = "operation") -> Callable[[Callable], Callable]:
     """Decorator to time operations and log performance."""
 
     def decorator(func: Callable) -> Callable:
@@ -73,7 +73,7 @@ def time_operation(operation_name: str = "operation"):
 
 
 @contextmanager
-def performance_monitor(operation_name: str, max_duration: float | None = None):
+def performance_monitor(operation_name: str, max_duration: float | None = None) -> Generator[None, None, None]:
     """Context manager to monitor operation performance."""
     start_time = time.time()
     logger.info(f"Starting {operation_name}...")

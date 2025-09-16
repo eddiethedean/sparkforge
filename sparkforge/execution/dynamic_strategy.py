@@ -21,7 +21,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Callable
 
 from ..logger import PipelineLogger
 from ..models import ParallelConfig, PipelineConfig, ValidationThresholds
@@ -93,7 +93,7 @@ class DynamicExecutionStrategy:
         self,
         steps: dict[str, Any],
         step_executor: Any,
-        max_workers: int = None,
+        max_workers: int | None = None,
         timeout_seconds: int | None = None,
     ) -> ExecutionResult:
         """Execute steps using dynamic parallel strategy."""
@@ -358,7 +358,7 @@ class DynamicExecutionStrategy:
 
         # Group steps that can run in parallel
         current_group = []
-        current_priority = None
+        current_priority: TaskPriority | None = None
 
         for step_name, analysis in sorted_steps:
             if current_priority is None or analysis.priority == current_priority:
@@ -366,13 +366,13 @@ class DynamicExecutionStrategy:
                 current_priority = analysis.priority
             else:
                 # Start new group
-                if current_group:
+                if current_group and current_priority is not None:
                     execution_groups.append((current_group, current_priority))
                 current_group = [step_name]
                 current_priority = analysis.priority
 
         # Add final group
-        if current_group:
+        if current_group and current_priority is not None:
             execution_groups.append((current_group, current_priority))
 
         return execution_groups
@@ -440,16 +440,16 @@ class DynamicExecutionStrategy:
 
     def _create_step_executor_wrapper(
         self, step_executor: Any, step_name: str, step_config: dict[str, Any]
-    ):
+    ) -> Callable[[], Any]:
         """Create a wrapper function for step execution."""
 
-        def wrapper():
+        def wrapper() -> Any:
             return step_executor.execute_step(step_name, step_config)
 
         return wrapper
 
     def _convert_task_metrics_to_step_result(
-        self, task_metrics, step_config: dict[str, Any]
+        self, task_metrics: Any, step_config: dict[str, Any]
     ) -> StepExecutionResult:
         """Convert task metrics to step execution result."""
         status = StepStatus.COMPLETED if task_metrics.success else StepStatus.FAILED

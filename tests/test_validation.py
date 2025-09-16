@@ -55,14 +55,16 @@ class TestAndAllRules:
         result = and_all_rules({})
         assert result is not None  # Should return F.lit(True)
 
-    def test_single_rule(self):
+    def test_single_rule(self, spark_session):
         """Test with single rule."""
+        # Create rules inside the test where Spark context is available
         rules = {"user_id": [F.col("user_id").isNotNull()]}
         result = and_all_rules(rules)
         assert result is not None
 
-    def test_multiple_rules(self):
+    def test_multiple_rules(self, spark_session):
         """Test with multiple rules."""
+        # Create rules inside the test where Spark context is available
         rules = {
             "user_id": [F.col("user_id").isNotNull()],
             "age": [F.col("age").isNotNull(), F.col("age") > 0],

@@ -10,6 +10,8 @@ providing detailed error context for pipeline-related issues.
 
 from __future__ import annotations
 
+from typing import Any
+
 from .base import ErrorCategory, ErrorSeverity, SparkForgeError
 
 
@@ -22,7 +24,7 @@ class PipelineError(SparkForgeError):
         *,
         pipeline_id: str | None = None,
         execution_id: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(message, **kwargs)
         self.pipeline_id = pipeline_id
@@ -38,7 +40,7 @@ class PipelineError(SparkForgeError):
 class PipelineConfigurationError(PipelineError):
     """Raised when pipeline configuration is invalid."""
 
-    def __init__(self, message: str, **kwargs):
+    def __init__(self, message: str, **kwargs: Any):
         super().__init__(
             message,
             category=ErrorCategory.CONFIGURATION,
@@ -56,7 +58,7 @@ class PipelineExecutionError(PipelineError):
         *,
         step_name: str | None = None,
         step_type: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(
             message,
@@ -78,7 +80,7 @@ class PipelineValidationError(PipelineError):
     """Raised when pipeline validation fails."""
 
     def __init__(
-        self, message: str, *, validation_errors: list[str] | None = None, **kwargs
+        self, message: str, *, validation_errors: list[str] | None = None, **kwargs: Any
     ):
         super().__init__(
             message,
@@ -100,7 +102,7 @@ class StepError(SparkForgeError):
     """Base exception for step-related errors."""
 
     def __init__(
-        self, message: str, *, step_name: str, step_type: str | None = None, **kwargs
+        self, message: str, *, step_name: str, step_type: str | None = None, **kwargs: Any
     ):
         super().__init__(message, **kwargs)
         self.step_name = step_name
@@ -121,7 +123,7 @@ class StepExecutionError(StepError):
         step_name: str,
         step_type: str | None = None,
         retry_count: int = 0,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(
             message,
@@ -150,7 +152,7 @@ class StepValidationError(StepError):
         step_name: str,
         step_type: str | None = None,
         validation_errors: list[str] | None = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(
             message,
@@ -179,7 +181,7 @@ class DependencyError(SparkForgeError):
         *,
         step_name: str | None = None,
         dependency_name: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(
             message,
@@ -202,7 +204,7 @@ class DependencyError(SparkForgeError):
 class CircularDependencyError(DependencyError):
     """Raised when circular dependencies are detected."""
 
-    def __init__(self, message: str, *, cycle: list[str], **kwargs):
+    def __init__(self, message: str, *, cycle: list[str], **kwargs: Any):
         super().__init__(message, **kwargs)
         self.cycle = cycle
 
@@ -215,7 +217,7 @@ class CircularDependencyError(DependencyError):
 class InvalidDependencyError(DependencyError):
     """Raised when invalid dependencies are detected."""
 
-    def __init__(self, message: str, *, invalid_dependencies: list[str], **kwargs):
+    def __init__(self, message: str, *, invalid_dependencies: list[str], **kwargs: Any):
         super().__init__(message, **kwargs)
         self.invalid_dependencies = invalid_dependencies
 

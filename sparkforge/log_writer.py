@@ -1073,7 +1073,7 @@ class LogWriter:
             # Count rows to be deleted
             df = self.spark.table(self.table_fqn)
             old_rows = df.filter(F.col("created_at") < cutoff_date)
-            count = old_rows.count()
+            count: int = old_rows.count()
 
             if count > 0:
                 if self.config.use_delta:

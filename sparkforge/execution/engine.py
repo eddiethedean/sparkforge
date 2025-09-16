@@ -36,7 +36,7 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import Any, Generator
 
 from pyspark.sql import SparkSession
 
@@ -476,7 +476,7 @@ class ExecutionEngine:
         self._stats = ExecutionStats()
 
     @contextmanager
-    def execution_context(self, context: ExecutionContext):
+    def execution_context(self, context: ExecutionContext) -> Generator[Any, None, None]:
         """Context manager for execution with proper cleanup."""
         try:
             yield self

@@ -22,10 +22,13 @@ class TestSourceSilvers:
         def dummy_transform(spark, silvers):
             return spark.createDataFrame([], ["test"])
 
+        # Create rules inside the test where Spark context is available
+        rules = {"test": [F.col("test").isNotNull()]}
+
         gold_step = GoldStep(
             name="test_gold",
             transform=dummy_transform,
-            rules={"test": [F.col("test").isNotNull()]},
+            rules=rules,
             table_name="test_gold",
             source_silvers=None,  # This should be allowed
         )
@@ -40,10 +43,13 @@ class TestSourceSilvers:
         def dummy_transform(spark, silvers):
             return spark.createDataFrame([], ["test"])
 
+        # Create rules inside the test where Spark context is available
+        rules = {"test": [F.col("test").isNotNull()]}
+
         gold_step = GoldStep(
             name="test_gold",
             transform=dummy_transform,
-            rules={"test": [F.col("test").isNotNull()]},
+            rules=rules,
             table_name="test_gold",
             source_silvers=["silver_events", "silver_users"],
         )
@@ -58,10 +64,13 @@ class TestSourceSilvers:
         def dummy_transform(spark, silvers):
             return spark.createDataFrame([], ["test"])
 
+        # Create rules inside the test where Spark context is available
+        rules = {"test": [F.col("test").isNotNull()]}
+
         gold_step = GoldStep(
             name="test_gold",
             transform=dummy_transform,
-            rules={"test": [F.col("test").isNotNull()]},
+            rules=rules,
             table_name="test_gold",
             source_silvers=None,
         )
@@ -95,10 +104,13 @@ class TestSourceSilvers:
         def dummy_transform(spark, silvers):
             return spark.createDataFrame([], ["test"])
 
+        # Create rules inside the test where Spark context is available
+        rules = {"test": [F.col("test").isNotNull()]}
+
         gold_step_specific = GoldStep(
             name="test_gold_specific",
             transform=dummy_transform,
-            rules={"test": [F.col("test").isNotNull()]},
+            rules=rules,
             table_name="test_gold_specific",
             source_silvers=["silver_events"],  # Specific list
         )
@@ -130,10 +142,13 @@ class TestSourceSilvers:
         def dummy_transform(spark, silvers):
             return spark.createDataFrame([], ["test"])
 
+        # Create rules inside the test where Spark context is available
+        rules = {"test": [F.col("test").isNotNull()]}
+
         gold_step = GoldStep(
             name="test_gold",
             transform=dummy_transform,
-            rules={"test": [F.col("test").isNotNull()]},
+            rules=rules,
             table_name="test_gold",
             source_silvers=source_silvers,
         )
@@ -155,11 +170,14 @@ class TestSourceSilvers:
         def dummy_transform(spark, silvers):
             return spark.createDataFrame([], ["test"])
 
+        # Create rules inside the test where Spark context is available
+        rules = {"test": [F.col("test").isNotNull()]}
+
         with pytest.raises(Exception, match="Source silvers must be a list or None"):
             gold_step = GoldStep(
                 name="test_gold_invalid",
                 transform=dummy_transform,
-                rules={"test": [F.col("test").isNotNull()]},
+                rules=rules,
                 table_name="test_gold_invalid",
                 source_silvers=source_silvers,
             )

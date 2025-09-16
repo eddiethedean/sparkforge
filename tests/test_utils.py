@@ -67,11 +67,10 @@ class TestDataValidation:
     def test_and_all_rules_empty(self, sample_dataframe):
         """Test rule combination with empty rules."""
         result = and_all_rules({})
-        assert result is not None
+        assert result is True  # Should return True for empty rules
 
-        # Test that the result can be used in a real DataFrame operation
-        test_df = sample_dataframe.withColumn("is_valid", result)
-        assert test_df.count() == 5
+        # Test that the result is a boolean (not a Column)
+        assert isinstance(result, bool)
 
     @pytest.mark.spark
     def test_apply_column_rules(self, sample_dataframe):

@@ -103,13 +103,13 @@ class Either(Generic[L, R]):
 
     def map_left(self, func: Callable[[L], T]) -> Either[T, R]:
         """Map over left value."""
-        if self.is_left:
+        if self.is_left and self.left is not None:
             return Either(left=func(self.left))
         return Either(right=self.right)
 
     def map_right(self, func: Callable[[R], T]) -> Either[L, T]:
         """Map over right value."""
-        if self.is_right:
+        if self.is_right and self.right is not None:
             return Either(right=func(self.right))
         return Either(left=self.left)
 
@@ -133,17 +133,19 @@ class Try(Generic[T]):
 
     def get(self) -> T:
         """Get the value, raising exception if failed."""
-        if self.is_failure:
+        if self.is_failure and self.exception is not None:
             raise self.exception
-        return self.value
+        if self.value is not None:
+            return self.value
+        raise ValueError("Try has no value or exception")
 
     def get_or_else(self, default: T) -> T:
         """Get the value or return default."""
-        return self.value if self.is_success else default
+        return self.value if self.is_success and self.value is not None else default
 
     def map(self, func: Callable[[T], R]) -> Try[R]:
         """Map over the value."""
-        if self.is_success:
+        if self.is_success and self.value is not None:
             try:
                 return Try(value=func(self.value))
             except Exception as e:
@@ -152,7 +154,7 @@ class Try(Generic[T]):
 
     def flat_map(self, func: Callable[[T], Try[R]]) -> Try[R]:
         """Flat map over the value."""
-        if self.is_success:
+        if self.is_success and self.value is not None:
             return func(self.value)
         return Try(exception=self.exception)
 
@@ -162,34 +164,34 @@ class Try(Generic[T]):
 # ============================================================================
 
 
-class Functor(Protocol[T]):
+class Functor(Protocol):
     """Protocol for functor types."""
 
-    def map(self, func: Callable[[T], R]) -> Functor[R]:
+    def map(self, func: Callable[[Any], Any]) -> "Functor":
         """Map function over the value."""
         ...
 
 
-class Monad(Protocol[T]):
+class Monad(Protocol):
     """Protocol for monad types."""
 
-    def flat_map(self, func: Callable[[T], Monad[R]]) -> Monad[R]:
+    def flat_map(self, func: Callable[[Any], "Monad"]) -> "Monad":
         """Flat map function over the value."""
         ...
 
-    def unit(self, value: T) -> Monad[T]:
+    def unit(self, value: Any) -> "Monad":
         """Wrap value in monad."""
         ...
 
 
-class Foldable(Protocol[T]):
+class Foldable(Protocol):
     """Protocol for foldable types."""
 
-    def fold_left(self, initial: R, func: Callable[[R, T], R]) -> R:
+    def fold_left(self, initial: Any, func: Callable[[Any, Any], Any]) -> Any:
         """Fold left over the values."""
         ...
 
-    def fold_right(self, initial: R, func: Callable[[T, R], R]) -> R:
+    def fold_right(self, initial: Any, func: Callable[[Any, Any], Any]) -> Any:
         """Fold right over the values."""
         ...
 
@@ -209,7 +211,7 @@ def constant(value: T) -> Callable[[Any], T]:
     return lambda _: value
 
 
-def compose(f: Callable[[B], C], g: Callable[[A], B]) -> Callable[[A], C]:
+def compose(f: Callable[[Any], Any], g: Callable[[Any], Any]) -> Callable[[Any], Any]:
     """Compose two functions."""
     return lambda x: f(g(x))
 
@@ -234,10 +236,10 @@ def pipe(*funcs: Callable[[T], T]) -> Callable[[T], T]:
 class TypedDict(Generic[K, V], Dict[K, V]):
     """Type-safe dictionary."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
-    def get_typed(self, key: K, default: V = None) -> V:
+    def get_typed(self, key: K, default: V | None = None) -> V | None:
         """Get value with type safety."""
         return super().get(key, default)
 
@@ -249,7 +251,7 @@ class TypedDict(Generic[K, V], Dict[K, V]):
 class TypedList(Generic[T], List[T]):
     """Type-safe list."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
     def append_typed(self, item: T) -> None:
@@ -266,15 +268,15 @@ class TypedList(Generic[T], List[T]):
 # ============================================================================
 
 
-def typed_function(func: Callable[..., T]) -> Callable[..., T]:
+def typed_function(func: Callable[..., Any]) -> Callable[..., Any]:
     """Decorator to mark function as typed."""
-    func.__typed__ = True
+    setattr(func, '__typed__', True)
     return func
 
 
-def generic_method(func: Callable[..., T]) -> Callable[..., T]:
+def generic_method(func: Callable[..., Any]) -> Callable[..., Any]:
     """Decorator to mark method as generic."""
-    func.__generic__ = True
+    setattr(func, '__generic__', True)
     return func
 
 
@@ -283,7 +285,7 @@ def generic_method(func: Callable[..., T]) -> Callable[..., T]:
 # ============================================================================
 
 
-def safe_cast(value: Any, target_type: type[T]) -> T | None:
+def safe_cast(value: Any, target_type: type[Any]) -> Any | None:
     """Safely cast value to target type."""
     try:
         return target_type(value)
@@ -291,7 +293,7 @@ def safe_cast(value: Any, target_type: type[T]) -> T | None:
         return None
 
 
-def force_cast(value: Any, target_type: type[T]) -> T:
+def force_cast(value: Any, target_type: type[Any]) -> Any:
     """Force cast value to target type, raising error if fails."""
     try:
         return target_type(value)
@@ -299,7 +301,7 @@ def force_cast(value: Any, target_type: type[T]) -> T:
         raise TypeError(f"Cannot cast {type(value)} to {target_type}: {e}")
 
 
-def is_instance_of(value: Any, target_type: type[T]) -> bool:
+def is_instance_of(value: Any, target_type: type[Any]) -> bool:
     """Check if value is instance of target type."""
     return isinstance(value, target_type)
 

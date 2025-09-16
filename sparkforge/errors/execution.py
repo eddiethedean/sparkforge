@@ -8,13 +8,15 @@ providing detailed error context for execution-related issues.
 
 from __future__ import annotations
 
+from typing import Any
+
 from .base import ErrorCategory, ErrorSeverity, SparkForgeError
 
 
 class ExecutionError(SparkForgeError):
     """Raised when execution operations fail."""
 
-    def __init__(self, message: str, *, execution_step: str | None = None, **kwargs):
+    def __init__(self, message: str, *, execution_step: str | None = None, **kwargs: Any):
         super().__init__(
             message,
             category=ErrorCategory.EXECUTION,
@@ -27,7 +29,7 @@ class ExecutionError(SparkForgeError):
 class ExecutionEngineError(SparkForgeError):
     """Raised when execution engine fails."""
 
-    def __init__(self, message: str, *, execution_mode: str | None = None, **kwargs):
+    def __init__(self, message: str, *, execution_mode: str | None = None, **kwargs: Any):
         super().__init__(
             message,
             category=ErrorCategory.EXECUTION,
@@ -53,7 +55,7 @@ class StepExecutionError(SparkForgeError):
         step_name: str,
         step_type: str | None = None,
         retry_count: int = 0,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(
             message,
@@ -75,7 +77,7 @@ class StepExecutionError(SparkForgeError):
 class StrategyError(SparkForgeError):
     """Raised when execution strategy fails."""
 
-    def __init__(self, message: str, *, strategy_name: str | None = None, **kwargs):
+    def __init__(self, message: str, *, strategy_name: str | None = None, **kwargs: Any):
         super().__init__(
             message,
             category=ErrorCategory.EXECUTION,
@@ -101,7 +103,7 @@ class RetryError(SparkForgeError):
         step_name: str | None = None,
         max_retries: int = 0,
         retry_count: int = 0,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(
             message,
@@ -129,7 +131,7 @@ class TimeoutError(SparkForgeError):
         *,
         timeout_seconds: float = 0.0,
         step_name: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(
             message,

@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+#
 #
 
 
@@ -9,8 +12,6 @@ used throughout SparkForge, improving type safety and readability.
 """
 
 from dataclasses import dataclass
-
-from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
@@ -183,17 +184,6 @@ class PipelineConfig(TypedDict, total=False):
     max_parallel_workers: WorkerCount
     enable_caching: bool
     enable_monitoring: bool
-
-
-@dataclass
-class ExecutionConfig:
-    """Execution configuration."""
-
-    mode: PipelineMode
-    max_workers: WorkerCount = 4
-    timeout_seconds: Duration | None = None
-    retry_count: RetryCount = 3
-    enable_parallel: bool = True
 
 
 class ValidationConfig(TypedDict, total=False):

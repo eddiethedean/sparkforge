@@ -172,7 +172,7 @@ class ConfigManager:
     """
 
     # Predefined configuration templates
-    TEMPLATES = {
+    TEMPLATES: dict[ConfigTemplate, dict[str, Any]] = {
         ConfigTemplate.DEVELOPMENT: {
             "thresholds": {"bronze": 80.0, "silver": 85.0, "gold": 90.0},
             "parallel": {"enabled": True, "max_workers": 2, "timeout_secs": 60},
@@ -303,7 +303,7 @@ class ConfigManager:
 
     @classmethod
     def from_template(
-        cls, schema: str, template: ConfigTemplate, **overrides
+        cls, schema: str, template: ConfigTemplate, **overrides: Any
     ) -> PipelineConfig:
         """
         Create configuration from a predefined template.
@@ -366,7 +366,7 @@ class ConfigManager:
         cls,
         schema: str | None = None,
         template: ConfigTemplate | None = None,
-        **overrides,
+        **overrides: Any,
     ) -> PipelineConfig:
         """
         Create configuration from environment variables.
@@ -533,7 +533,7 @@ class ConfigManager:
         config_dict = ConfigManager.to_dict(config)
         if metadata:
             config_dict["metadata"] = metadata.to_dict()
-        return yaml.dump(config_dict, default_flow_style=False, sort_keys=False)
+        return yaml.dump(config_dict, default_flow_style=False, sort_keys=False)  # type: ignore
 
     @staticmethod
     def from_yaml(yaml_str: str) -> tuple[PipelineConfig, ConfigMetadata | None]:
@@ -691,7 +691,7 @@ class ConfigManager:
     @classmethod
     def _extract_env_overrides(cls) -> dict[str, Any]:
         """Extract configuration overrides from environment variables."""
-        overrides = {}
+        overrides: dict[str, Any] = {}
 
         for env_var, config_path in cls.ENV_MAPPINGS.items():
             value = os.getenv(env_var)
@@ -706,7 +706,7 @@ class ConfigManager:
                     )
                 else:
                     # Direct path
-                    overrides[config_path] = cls._convert_env_value(value)
+                    overrides[str(config_path)] = cls._convert_env_value(value)
 
         return overrides
 
@@ -738,7 +738,7 @@ class ConfigManager:
         key: str,
         config: PipelineConfig,
         metadata: ConfigMetadata | None = None,
-    ):
+    ) -> None:
         """Cache a configuration."""
         self._config_cache[key] = config
         if metadata:
@@ -748,7 +748,7 @@ class ConfigManager:
         """Get cached configuration."""
         return self._config_cache.get(key)
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear configuration cache."""
         self._config_cache.clear()
         self._metadata_cache.clear()
@@ -791,7 +791,7 @@ def get_conservative_config(schema: str) -> PipelineConfig:
 
 
 def get_template_config(
-    schema: str, template: ConfigTemplate, **overrides
+    schema: str, template: ConfigTemplate, **overrides: Any
 ) -> PipelineConfig:
     """Get configuration from template."""
     return ConfigManager.from_template(schema, template, **overrides)

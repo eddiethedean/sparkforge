@@ -17,13 +17,27 @@ from pyspark.sql import SparkSession
 # Add the project root to the Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Add the tests directory to the Python path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 # Import test helpers
-from test_helpers import (
-    TestAssertions,
-    TestDataGenerator,
-    TestPerformance,
-    TestPipelineBuilder,
-)
+try:
+    from test_helpers import (
+        TestAssertions,
+        TestDataGenerator,
+        TestPerformance,
+        TestPipelineBuilder,
+    )
+except ImportError:
+    # Fallback if test_helpers is not available
+    class TestAssertions:
+        pass
+    class TestDataGenerator:
+        pass
+    class TestPerformance:
+        pass
+    class TestPipelineBuilder:
+        pass
 
 
 def get_test_schema():
@@ -102,12 +116,12 @@ def spark_session():
     # Ensure Spark session was created successfully
     if spark is None:
         raise RuntimeError("Failed to create Spark session")
-    
+
     # Verify Spark context is properly initialized
-    if not hasattr(spark, 'sparkContext') or spark.sparkContext is None:
+    if not hasattr(spark, "sparkContext") or spark.sparkContext is None:
         raise RuntimeError("Spark context is not properly initialized")
-    
-    if not hasattr(spark.sparkContext, '_jsc') or spark.sparkContext._jsc is None:
+
+    if not hasattr(spark.sparkContext, "_jsc") or spark.sparkContext._jsc is None:
         raise RuntimeError("Spark JVM context is not properly initialized")
 
     # Set log level to WARN to reduce noise
@@ -223,12 +237,12 @@ def isolated_spark_session():
     # Ensure Spark session was created successfully
     if spark is None:
         raise RuntimeError("Failed to create isolated Spark session")
-    
+
     # Verify Spark context is properly initialized
-    if not hasattr(spark, 'sparkContext') or spark.sparkContext is None:
+    if not hasattr(spark, "sparkContext") or spark.sparkContext is None:
         raise RuntimeError("Isolated Spark context is not properly initialized")
-    
-    if not hasattr(spark.sparkContext, '_jsc') or spark.sparkContext._jsc is None:
+
+    if not hasattr(spark.sparkContext, "_jsc") or spark.sparkContext._jsc is None:
         raise RuntimeError("Isolated Spark JVM context is not properly initialized")
 
     # Set log level to WARN to reduce noise

@@ -205,11 +205,11 @@ class PerformanceCache:
         if isinstance(value, DataFrame):
             # For DataFrames, estimate size based on row count and schema
             try:
-                row_count = value.count()
-                column_count = len(value.columns)
+                row_count: int = value.count()
+                column_count: int = len(value.columns)
                 # Rough estimate: 100 bytes per row per column
                 return row_count * column_count * 100
-            except:
+            except Exception:
                 return DEFAULT_MAX_MEMORY_MB  # Default estimate
         elif isinstance(value, (str, int, float, bool)):
             return len(str(value))
@@ -247,7 +247,7 @@ class PerformanceCache:
     def _start_cleanup_thread(self) -> None:
         """Start background cleanup thread."""
 
-        def cleanup_worker():
+        def cleanup_worker() -> None:
             while True:
                 time.sleep(self.config.cleanup_interval_seconds)
                 self._cleanup_expired()
@@ -315,7 +315,7 @@ def cached_validation(func: Callable) -> Callable:
     """Decorator to cache validation results."""
 
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         # Extract DataFrame and rules from arguments
         df = args[0] if args else None
         rules = args[1] if len(args) > 1 else kwargs.get("rules")
@@ -350,7 +350,7 @@ def cached_dataframe(ttl_seconds: int = 3600) -> Callable:
 
     def decorator(func: Callable) -> Callable:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Generate cache key from function name and arguments
             key_parts = [func.__name__]
             for arg in args:

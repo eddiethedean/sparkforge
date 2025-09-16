@@ -110,8 +110,8 @@ class TestStepExecution:
         )
 
         assert result.step_name == "events"
-        assert result.step_type == StepType.BRONZE
-        assert result.status == StepStatus.COMPLETED
+        assert result.step_type == "bronze"
+        assert result.status == "completed"
         assert result.output_count == 3
         assert result.validation_result.validation_passed
         assert result.duration_seconds > 0
@@ -151,8 +151,8 @@ class TestStepExecution:
         )
 
         assert result.step_name == "silver_events"
-        assert result.step_type == StepType.SILVER
-        assert result.status == StepStatus.COMPLETED
+        assert result.step_type == "silver"
+        assert result.status == "completed"
         assert result.output_count == 3
         assert result.validation_result.validation_passed
         assert result.duration_seconds > 0
@@ -202,8 +202,8 @@ class TestStepExecution:
         )
 
         assert result.step_name == "gold_summary"
-        assert result.step_type == StepType.GOLD
-        assert result.status == StepStatus.COMPLETED
+        assert result.step_type == "gold"
+        assert result.status == "completed"
         assert result.output_count == 3  # 3 different actions
         assert result.validation_result.validation_passed
         assert result.duration_seconds > 0
@@ -233,8 +233,8 @@ class TestStepExecution:
         )
 
         assert result.step_name == "events"
-        assert result.step_type == StepType.BRONZE
-        assert result.status == StepStatus.FAILED
+        assert result.step_type == "bronze"
+        assert result.status == "failed"
         assert not result.validation_result.validation_passed
         assert result.validation_result.validation_rate < 100.0
 

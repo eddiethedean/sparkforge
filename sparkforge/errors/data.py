@@ -24,7 +24,7 @@ class DataError(SparkForgeError):
         *,
         table_name: str | None = None,
         column_name: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(message, **kwargs)
         self.table_name = table_name
@@ -48,7 +48,7 @@ class DataQualityError(DataError):
         *,
         quality_rate: float | None = None,
         threshold: float | None = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(
             message,
@@ -75,7 +75,7 @@ class SchemaError(DataError):
         *,
         expected_schema: dict[str, Any] | None = None,
         actual_schema: dict[str, Any] | None = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(
             message,
@@ -97,7 +97,7 @@ class ValidationError(DataError):
     """Raised when data validation fails."""
 
     def __init__(
-        self, message: str, *, validation_errors: list[str] | None = None, **kwargs
+        self, message: str, *, validation_errors: list[str] | None = None, **kwargs: Any
     ):
         super().__init__(
             message,
@@ -118,7 +118,7 @@ class ValidationError(DataError):
 class TableOperationError(DataError):
     """Raised when table operations fail."""
 
-    def __init__(self, message: str, *, operation: str | None = None, **kwargs):
+    def __init__(self, message: str, *, operation: str | None = None, **kwargs: Any):
         super().__init__(
             message,
             category=ErrorCategory.SYSTEM,

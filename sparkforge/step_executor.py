@@ -325,9 +325,10 @@ class StepExecutor:
 
             # Apply transform function if available
             output_data = input_data
-            if hasattr(step, "transform") and step.transform:
+            if hasattr(step, "transform") and step.transform is not None:
                 try:
-                    output_data = step.transform(self.spark, input_data, {})
+                    # For silver steps, we only have the bronze input data
+                    output_data = step.transform(input_data)
                     if not isinstance(output_data, DataFrame):
                         raise ValueError("Transform function must return a DataFrame")
                 except Exception as e:
@@ -368,7 +369,7 @@ class StepExecutor:
             if output_to_table:
                 table_name = fqn(self.config.schema, step.table_name)
                 write_result = self._write_silver_data(
-                    output_data, table_name, step.watermark_col
+                    output_data, table_name, step.watermark_col or ""
                 )
 
             # Create execution result
@@ -448,7 +449,7 @@ class StepExecutor:
 
             # Apply transform function if available
             output_data = input_data
-            if hasattr(step, "transform") and step.transform:
+            if hasattr(step, "transform") and step.transform is not None:
                 try:
                     # For Gold steps, collect all Silver outputs as dict
                     silvers = {
@@ -456,7 +457,7 @@ class StepExecutor:
                         for name in (step.source_silvers or [])
                         if name in self._step_outputs
                     }
-                    output_data = step.transform(self.spark, silvers)
+                    output_data = step.transform(silvers)
                     if not isinstance(output_data, DataFrame):
                         raise ValueError("Transform function must return a DataFrame")
                 except Exception as e:

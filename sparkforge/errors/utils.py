@@ -29,7 +29,7 @@ def handle_errors(
     context: dict[str, Any] | None = None,
     suggestions: list[str] | None = None,
     reraise: bool = True,
-):
+) -> Callable[[Callable], Callable]:
     """
     Decorator for consistent error handling.
 
@@ -46,7 +46,7 @@ def handle_errors(
 
     def decorator(func: Callable) -> Callable:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 return func(*args, **kwargs)
             except SparkForgeError:
@@ -93,7 +93,7 @@ def create_error_context(
     execution_id: str | None = None,
     table_name: str | None = None,
     column_name: str | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> dict[str, Any]:
     """
     Create standardized error context.

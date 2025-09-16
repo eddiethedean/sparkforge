@@ -8,13 +8,15 @@ providing detailed error context for system-related issues.
 
 from __future__ import annotations
 
+from typing import Any
+
 from .base import ErrorCategory, ErrorSeverity, SparkForgeError
 
 
 class SystemError(SparkForgeError):
     """Base exception for all system-related errors."""
 
-    def __init__(self, message: str, *, component: str | None = None, **kwargs):
+    def __init__(self, message: str, *, component: str | None = None, **kwargs: Any):
         super().__init__(message, **kwargs)
         self.component = component
 
@@ -34,7 +36,7 @@ class ResourceError(SystemError):
         *,
         resource_type: str | None = None,
         resource_name: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(
             message,
@@ -57,7 +59,7 @@ class ResourceError(SystemError):
 class ConfigurationError(SystemError):
     """Raised when system configuration is invalid."""
 
-    def __init__(self, message: str, *, config_key: str | None = None, **kwargs):
+    def __init__(self, message: str, *, config_key: str | None = None, **kwargs: Any):
         super().__init__(
             message,
             category=ErrorCategory.CONFIGURATION,
@@ -76,7 +78,7 @@ class ConfigurationError(SystemError):
 class NetworkError(SystemError):
     """Raised when network-related errors occur."""
 
-    def __init__(self, message: str, *, endpoint: str | None = None, **kwargs):
+    def __init__(self, message: str, *, endpoint: str | None = None, **kwargs: Any):
         super().__init__(
             message,
             category=ErrorCategory.NETWORK,
@@ -95,7 +97,7 @@ class NetworkError(SystemError):
 class StorageError(SystemError):
     """Raised when storage-related errors occur."""
 
-    def __init__(self, message: str, *, storage_path: str | None = None, **kwargs):
+    def __init__(self, message: str, *, storage_path: str | None = None, **kwargs: Any):
         super().__init__(
             message,
             category=ErrorCategory.STORAGE,

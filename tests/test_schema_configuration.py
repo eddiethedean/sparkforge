@@ -6,25 +6,21 @@ This module tests the configurable schema functionality that was added
 to replace hardcoded 'test_schema' references throughout the codebase.
 """
 
-import unittest
 from unittest.mock import Mock, patch
 
+import pytest
 from pyspark.sql import SparkSession
 
 from sparkforge.constants import TEST_SCHEMA
 
 
-class TestSchemaConfiguration(unittest.TestCase):
+class TestSchemaConfiguration:
     """Test configurable schema functionality."""
 
-    def setUp(self):
-        """Set up test fixtures."""
-        self.spark = SparkSession.builder.appName("test_schema_config").getOrCreate()
-        self.spark.sparkContext.setLogLevel("WARN")
-
-    def tearDown(self):
-        """Clean up test fixtures."""
-        self.spark.stop()
+    @pytest.fixture(autouse=True)
+    def setup_spark(self, spark_session):
+        """Set up Spark session for each test."""
+        self.spark = spark_session
 
     def test_execution_engine_schema_parameter(self):
         """Test that ExecutionEngine accepts and uses schema parameter."""
@@ -39,7 +35,7 @@ class TestSchemaConfiguration(unittest.TestCase):
             schema=custom_schema
         )
 
-        self.assertEqual(engine.schema, custom_schema)
+        assert engine.schema == custom_schema
 
         # Test with empty schema
         engine_empty = ExecutionEngine(
@@ -48,7 +44,7 @@ class TestSchemaConfiguration(unittest.TestCase):
             schema=""
         )
 
-        self.assertEqual(engine_empty.schema, "")
+        assert engine_empty.schema == ""
 
         # Test with default schema
         engine_default = ExecutionEngine(
@@ -56,7 +52,7 @@ class TestSchemaConfiguration(unittest.TestCase):
             logger=PipelineLogger()
         )
 
-        self.assertEqual(engine_default.schema, "")
+        assert engine_default.schema == ""
 
     def test_pipeline_runner_schema_parameter(self):
         """Test that PipelineRunner uses schema from config."""
@@ -85,7 +81,7 @@ class TestSchemaConfiguration(unittest.TestCase):
             dependency_analyzer=DependencyAnalyzer()
         )
 
-        self.assertEqual(runner.config.schema, custom_schema)
+        assert runner.config.schema == custom_schema
 
         # Test with empty schema
         config_empty = PipelineConfig(
@@ -105,7 +101,7 @@ class TestSchemaConfiguration(unittest.TestCase):
             dependency_analyzer=DependencyAnalyzer()
         )
 
-        self.assertEqual(runner_empty.config.schema, "")
+        assert runner_empty.config.schema == ""
 
     def test_schema_usage_in_table_path_generation(self):
         """Test that schema is used correctly in table path generation."""
@@ -129,7 +125,7 @@ class TestSchemaConfiguration(unittest.TestCase):
         # Test table path generation logic
         if hasattr(mock_step, "table_name") and mock_step.table_name:
             table_path = f"{engine.schema}.{mock_step.table_name}" if engine.schema else mock_step.table_name
-            self.assertEqual(table_path, "my_schema.test_table")
+            assert table_path == "my_schema.test_table"
 
         # Test with empty schema
         engine_empty = ExecutionEngine(
@@ -140,7 +136,7 @@ class TestSchemaConfiguration(unittest.TestCase):
 
         if hasattr(mock_step, "table_name") and mock_step.table_name:
             table_path = f"{engine_empty.schema}.{mock_step.table_name}" if engine_empty.schema else mock_step.table_name
-            self.assertEqual(table_path, "test_table")
+            assert table_path == "test_table"
 
     def test_pipeline_builder_schema_usage(self):
         """Test that PipelineBuilder uses schema correctly."""
@@ -153,7 +149,7 @@ class TestSchemaConfiguration(unittest.TestCase):
             schema=custom_schema
         )
 
-        self.assertEqual(builder.schema, custom_schema)
+        assert builder.schema == custom_schema
 
         # Test schema validation - this might fail if schema doesn't exist
         try:
@@ -161,7 +157,7 @@ class TestSchemaConfiguration(unittest.TestCase):
         except Exception as e:
             # Schema validation might fail if schema doesn't exist in database
             # This is acceptable for testing purposes
-            self.assertIn("not found", str(e).lower())
+            assert "not found" in str(e).lower()
 
     def test_schema_validation(self):
         """Test schema validation functionality."""
@@ -177,7 +173,7 @@ class TestSchemaConfiguration(unittest.TestCase):
             except Exception as e:
                 # Schema validation might fail if schema doesn't exist in database
                 # This is acceptable for testing purposes
-                self.assertIn("not found", str(e).lower())
+                assert "not found" in str(e).lower()
 
         # Test invalid schema names (if validation exists)
         # Note: This depends on the actual validation logic in PipelineBuilder
@@ -214,8 +210,8 @@ class TestSchemaConfiguration(unittest.TestCase):
         )
 
         # Both should have the same schema
-        self.assertEqual(builder.schema, custom_schema)
-        self.assertEqual(engine.schema, custom_schema)
+        assert builder.schema == custom_schema
+        assert engine.schema == custom_schema
 
     def test_schema_with_special_characters(self):
         """Test schema handling with special characters."""
@@ -232,7 +228,7 @@ class TestSchemaConfiguration(unittest.TestCase):
         for schema in test_schemas:
             try:
                 builder = PipelineBuilder(spark=self.spark, schema=schema)
-                self.assertEqual(builder.schema, schema)
+                assert builder.schema == schema
             except Exception as e:
                 # Some schemas might not be valid depending on the database
                 # This is acceptable for testing purposes
@@ -245,7 +241,7 @@ class TestSchemaConfiguration(unittest.TestCase):
         # Test default schema behavior - schema is required
         builder = PipelineBuilder(spark=self.spark, schema="default_schema")
         # Should have the provided schema
-        self.assertEqual(builder.schema, "default_schema")
+        assert builder.schema == "default_schema"
 
     def test_schema_in_documentation_examples(self):
         """Test that documentation examples use appropriate schema names."""
@@ -257,7 +253,7 @@ class TestSchemaConfiguration(unittest.TestCase):
             content = f.read()
             
         # Check that the example uses 'my_schema' instead of 'test_schema'
-        self.assertIn("my_schema", content)
+        assert "my_schema" in content
         # Optionally check that 'test_schema' is not in the main example
         # (though it might still be in some test-related code)
 
@@ -266,30 +262,26 @@ class TestSchemaConfiguration(unittest.TestCase):
         from sparkforge.constants import TEST_SCHEMA, DEFAULT_SCHEMA
 
         # Test that constants are defined
-        self.assertEqual(TEST_SCHEMA, "test_schema")
-        self.assertEqual(DEFAULT_SCHEMA, "default")
+        assert TEST_SCHEMA == "test_schema"
+        assert DEFAULT_SCHEMA == "default"
 
         # Test that constants can be used in components
         from sparkforge.pipeline.builder import PipelineBuilder
 
         builder_test = PipelineBuilder(spark=self.spark, schema=TEST_SCHEMA)
-        self.assertEqual(builder_test.schema, TEST_SCHEMA)
+        assert builder_test.schema == TEST_SCHEMA
 
         builder_default = PipelineBuilder(spark=self.spark, schema=DEFAULT_SCHEMA)
-        self.assertEqual(builder_default.schema, DEFAULT_SCHEMA)
+        assert builder_default.schema == DEFAULT_SCHEMA
 
 
-class TestSchemaBackwardCompatibility(unittest.TestCase):
+class TestSchemaBackwardCompatibility:
     """Test backward compatibility with existing schema usage."""
 
-    def setUp(self):
-        """Set up test fixtures."""
-        self.spark = SparkSession.builder.appName("test_backward_compat").getOrCreate()
-        self.spark.sparkContext.setLogLevel("WARN")
-
-    def tearDown(self):
-        """Clean up test fixtures."""
-        self.spark.stop()
+    @pytest.fixture(autouse=True)
+    def setup_spark(self, spark_session):
+        """Set up Spark session for each test."""
+        self.spark = spark_session
 
     def test_old_test_schema_still_works(self):
         """Test that old 'test_schema' usage still works."""
@@ -297,18 +289,18 @@ class TestSchemaBackwardCompatibility(unittest.TestCase):
 
         # Test that 'test_schema' still works as a schema name
         builder = PipelineBuilder(spark=self.spark, schema="test_schema")
-        self.assertEqual(builder.schema, "test_schema")
+        assert builder.schema == "test_schema"
 
     def test_schema_parameter_optional(self):
         """Test that schema parameter is required."""
         from sparkforge.pipeline.builder import PipelineBuilder
 
         # Test that schema parameter is required
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             PipelineBuilder(spark=self.spark)
 
         # Test with None schema - should raise an error
-        with self.assertRaises(Exception):  # PipelineConfigurationError
+        with pytest.raises(Exception):  # PipelineConfigurationError
             PipelineBuilder(spark=self.spark, schema=None)
 
 

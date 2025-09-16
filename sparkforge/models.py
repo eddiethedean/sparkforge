@@ -336,7 +336,7 @@ class PipelineConfig(BaseModel):
     @property
     def enable_parallel_silver(self) -> bool:
         """Get parallel silver execution setting."""
-        return self.parallel.enable_parallel_silver
+        return self.parallel.enabled
 
     @property
     def max_parallel_workers(self) -> int:
@@ -917,7 +917,7 @@ class PipelineMetrics(BaseModel):
             total_steps=total_steps,
             successful_steps=successful_steps,
             failed_steps=failed_steps,
-            total_duration_secs=total_duration_secs,
+            total_duration=total_duration_secs,
             total_rows_processed=total_rows_processed,
             total_rows_written=total_rows_written,
             avg_validation_rate=avg_validation_rate,

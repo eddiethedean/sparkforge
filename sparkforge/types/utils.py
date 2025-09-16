@@ -32,9 +32,9 @@ T = TypeVar("T")
 def is_valid_type(value: Any, expected_type: type[T]) -> bool:
     """Check if value is valid for expected type."""
     try:
-        if expected_type == Any:
+        if expected_type.__name__ == 'Any':
             return True
-        if expected_type == Optional[Any]:
+        if expected_type.__name__ == 'Union' and get_args(expected_type) == (type(None), Any):
             return True
         if get_origin(expected_type) == Union:
             return any(isinstance(value, arg) for arg in get_args(expected_type))
@@ -45,10 +45,10 @@ def is_valid_type(value: Any, expected_type: type[T]) -> bool:
         return False
 
 
-def get_type_hints(obj: Any) -> dict[str, Any]:
+def get_type_hints_for_object(obj: Any) -> dict[str, Any]:
     """Get type hints for object."""
     try:
-        return inspect.get_type_hints(obj)
+        return get_type_hints(obj)
     except Exception:
         return {}
 
@@ -57,7 +57,7 @@ def validate_type(value: Any, expected_type: type[T], name: str = "value") -> T:
     """Validate value against expected type."""
     if not is_valid_type(value, expected_type):
         raise TypeError(f"{name} must be of type {expected_type}, got {type(value)}")
-    return value
+    return value  # type: ignore
 
 
 def validate_types(**kwargs: Any) -> None:
@@ -74,20 +74,20 @@ def validate_types(**kwargs: Any) -> None:
 def cast_safe(value: Any, target_type: type[T]) -> T | None:
     """Safely cast value to target type."""
     try:
-        if target_type == Any:
-            return value
-        if target_type == Optional[Any]:
-            return value
+        if target_type.__name__ == 'Any':
+            return value  # type: ignore
+        if target_type.__name__ == 'Union' and get_args(target_type) == (type(None), Any):
+            return value  # type: ignore
         if get_origin(target_type) == Union:
             for arg in get_args(target_type):
                 if isinstance(value, arg):
-                    return value
+                    return value  # type: ignore
             return None
         if get_origin(target_type) == Optional:
             if value is None:
                 return None
             return cast_safe(value, get_args(target_type)[0])
-        return target_type(value)
+        return target_type(value)  # type: ignore
     except Exception:
         return None
 
@@ -95,20 +95,20 @@ def cast_safe(value: Any, target_type: type[T]) -> T | None:
 def convert_type(value: Any, target_type: type[T]) -> T:
     """Convert value to target type, raising error if fails."""
     try:
-        if target_type == Any:
-            return value
-        if target_type == Optional[Any]:
-            return value
+        if target_type.__name__ == 'Any':
+            return value  # type: ignore
+        if target_type.__name__ == 'Union' and get_args(target_type) == (type(None), Any):
+            return value  # type: ignore
         if get_origin(target_type) == Union:
             for arg in get_args(target_type):
                 if isinstance(value, arg):
-                    return value
+                    return value  # type: ignore
             raise TypeError(f"Cannot convert {type(value)} to {target_type}")
         if get_origin(target_type) == Optional:
             if value is None:
-                return None
-            return convert_type(value, get_args(target_type)[0])
-        return target_type(value)
+                return None  # type: ignore
+            return convert_type(value, get_args(target_type)[0])  # type: ignore
+        return target_type(value)  # type: ignore
     except Exception as e:
         raise TypeError(f"Cannot convert {type(value)} to {target_type}: {e}")
 
@@ -119,13 +119,13 @@ def normalize_type(value: Any, target_type: type[T]) -> T:
         return convert_type(value, target_type)
     except TypeError:
         if target_type == str:
-            return str(value)
+            return str(value)  # type: ignore
         if target_type == int:
-            return int(float(value))
+            return int(float(value))  # type: ignore
         if target_type == float:
-            return float(value)
+            return float(value)  # type: ignore
         if target_type == bool:
-            return bool(value)
+            return bool(value)  # type: ignore
         raise
 
 
@@ -157,19 +157,19 @@ def infer_type(value: Any) -> type:
     return type(value)
 
 
-def infer_return_type(func: callable) -> type:
+def infer_return_type(func: Any) -> type:
     """Infer return type of function."""
     try:
-        hints = get_type_hints(func)
-        return hints.get("return", Any)
+        hints = get_type_hints_for_object(func)
+        return hints.get("return", Any)  # type: ignore
     except Exception:
-        return Any
+        return Any  # type: ignore
 
 
-def infer_parameter_types(func: callable) -> dict[str, type]:
+def infer_parameter_types(func: Any) -> dict[str, type]:
     """Infer parameter types of function."""
     try:
-        hints = get_type_hints(func)
+        hints = get_type_hints_for_object(func)
         return {name: hint for name, hint in hints.items() if name != "return"}
     except Exception:
         return {}
@@ -180,13 +180,13 @@ def infer_parameter_types(func: callable) -> dict[str, type]:
 # ============================================================================
 
 
-def typed(func: callable) -> callable:
+def typed(func: Any) -> Any:
     """Decorator to add type checking to function."""
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         # Get type hints
-        hints = get_type_hints(func)
+        hints = get_type_hints_for_object(func)
 
         # Check positional arguments
         for i, (name, expected_type) in enumerate(hints.items()):
@@ -214,13 +214,13 @@ def typed(func: callable) -> callable:
     return wrapper
 
 
-def typed_method(func: callable) -> callable:
+def typed_method(func: Any) -> Any:
     """Decorator to add type checking to method."""
 
     @functools.wraps(func)
-    def wrapper(self, *args, **kwargs):
+    def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
         # Get type hints
-        hints = get_type_hints(func)
+        hints = get_type_hints_for_object(func)
 
         # Check positional arguments (skip self)
         for i, (name, expected_type) in enumerate(hints.items()):
@@ -256,7 +256,7 @@ def typed_method(func: callable) -> callable:
 class TypedDict(dict):
     """Type-safe dictionary with validation."""
 
-    def __init__(self, value_type: type[T], *args, **kwargs):
+    def __init__(self, value_type: type[T], *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.value_type = value_type
 
@@ -264,7 +264,7 @@ class TypedDict(dict):
         validate_type(value, self.value_type, f"dict[{key}]")
         super().__setitem__(key, value)
 
-    def update(self, other: dict[str, T]) -> None:
+    def update(self, other: dict[str, T]) -> None:  # type: ignore
         for key, value in other.items():
             self[key] = value
 
@@ -272,7 +272,7 @@ class TypedDict(dict):
 class TypedList(list):
     """Type-safe list with validation."""
 
-    def __init__(self, item_type: type[T], *args, **kwargs):
+    def __init__(self, item_type: type[T], *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.item_type = item_type
 
@@ -280,11 +280,11 @@ class TypedList(list):
         validate_type(item, self.item_type, "list item")
         super().append(item)
 
-    def extend(self, items: list[T]) -> None:
+    def extend(self, items: list[T]) -> None:  # type: ignore
         for item in items:
             self.append(item)
 
-    def insert(self, index: int, item: T) -> None:
+    def insert(self, index: int, item: T) -> None:  # type: ignore
         validate_type(item, self.item_type, "list item")
         super().insert(index, item)
 
@@ -294,7 +294,7 @@ class TypedList(list):
 # ============================================================================
 
 
-def safe_call(func: callable, *args, **kwargs) -> Any | None:
+def safe_call(func: Any, *args: Any, **kwargs: Any) -> Any | None:
     """Safely call function with type checking."""
     try:
         return func(*args, **kwargs)
@@ -304,10 +304,10 @@ def safe_call(func: callable, *args, **kwargs) -> Any | None:
         raise
 
 
-def typed_call(func: callable, *args, **kwargs) -> Any:
+def typed_call(func: Any, *args: Any, **kwargs: Any) -> Any:
     """Call function with type checking."""
     # Get type hints
-    hints = get_type_hints(func)
+    hints = get_type_hints_for_object(func)
 
     # Validate arguments
     for i, (name, expected_type) in enumerate(hints.items()):
@@ -355,9 +355,9 @@ def get_type_info(obj: Any) -> dict[str, Any]:
     }
 
 
-def get_function_info(func: callable) -> dict[str, Any]:
+def get_function_info(func: Any) -> dict[str, Any]:
     """Get comprehensive function information."""
-    hints = get_type_hints(func)
+    hints = get_type_hints_for_object(func)
     return {
         "name": func.__name__,
         "module": func.__module__,

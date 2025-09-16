@@ -24,7 +24,6 @@ from .base import (
     ValidationError,
 )
 from .data import DataError, SchemaError, TableOperationError
-from .data import DataQualityError as DataQualityError
 from .data import ValidationError as DataValidationError
 from .execution import ExecutionEngineError, RetryError, StrategyError
 from .execution import StepExecutionError as ExecutionStepError

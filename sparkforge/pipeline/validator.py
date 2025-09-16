@@ -201,8 +201,8 @@ class PipelineValidator:
         self, bronze_steps: dict[str, BronzeStep]
     ) -> tuple[list[str], list[str]]:
         """Validate bronze steps."""
-        errors = []
-        warnings = []
+        errors: list[str] = []
+        warnings: list[str] = []
 
         if not bronze_steps:
             warnings.append("No bronze steps defined")
@@ -210,11 +210,9 @@ class PipelineValidator:
 
         for name, step in bronze_steps.items():
             # Use the validate_step method which includes custom validators
-            from ..models import ExecutionMode
+            from ..models import ExecutionContext, ExecutionMode
 
-            context = StepExecutionContext(
-                step_name=name,
-                step_type="bronze",
+            context = ExecutionContext(
                 mode=ExecutionMode.INITIAL,
                 start_time=datetime.now(),
             )
@@ -276,8 +274,8 @@ class PipelineValidator:
         gold_steps: dict[str, GoldStep],
     ) -> tuple[list[str], list[str]]:
         """Validate step dependencies."""
-        errors = []
-        warnings = []
+        errors: list[str] = []
+        warnings: list[str] = []
 
         # Check for circular dependencies
         # This is a simplified check - in practice, you'd use a proper graph algorithm

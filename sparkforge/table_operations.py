@@ -12,6 +12,7 @@ in the data lake.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.utils import AnalysisException
@@ -42,7 +43,7 @@ def fqn(schema: str, table: str) -> str:
 
 
 @time_operation("table write (overwrite)")
-def write_overwrite_table(df: DataFrame, fqn: str, **options) -> int:
+def write_overwrite_table(df: DataFrame, fqn: str, **options: Any) -> int:
     """
     Write DataFrame to table in overwrite mode.
 
@@ -60,7 +61,7 @@ def write_overwrite_table(df: DataFrame, fqn: str, **options) -> int:
     try:
         # Cache DataFrame for potential multiple operations
         df.cache()
-        cnt = df.count()
+        cnt: int = df.count()
         writer = (
             df.write.format("parquet")
             .mode("overwrite")
@@ -80,7 +81,7 @@ def write_overwrite_table(df: DataFrame, fqn: str, **options) -> int:
 
 
 @time_operation("table write (append)")
-def write_append_table(df: DataFrame, fqn: str, **options) -> int:
+def write_append_table(df: DataFrame, fqn: str, **options: Any) -> int:
     """
     Write DataFrame to table in append mode.
 
@@ -98,7 +99,7 @@ def write_append_table(df: DataFrame, fqn: str, **options) -> int:
     try:
         # Cache DataFrame for potential multiple operations
         df.cache()
-        cnt = df.count()
+        cnt: int = df.count()
         writer = df.write.format("parquet").mode("append")
 
         # Apply additional options
