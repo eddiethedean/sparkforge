@@ -99,6 +99,17 @@ def spark_session():
             print(f"❌ Failed to create Spark session: {e2}")
             raise
 
+    # Ensure Spark session was created successfully
+    if spark is None:
+        raise RuntimeError("Failed to create Spark session")
+    
+    # Verify Spark context is properly initialized
+    if not hasattr(spark, 'sparkContext') or spark.sparkContext is None:
+        raise RuntimeError("Spark context is not properly initialized")
+    
+    if not hasattr(spark.sparkContext, '_jsc') or spark.sparkContext._jsc is None:
+        raise RuntimeError("Spark JVM context is not properly initialized")
+
     # Set log level to WARN to reduce noise
     spark.sparkContext.setLogLevel("WARN")
 
@@ -208,6 +219,17 @@ def isolated_spark_session():
         except Exception as e2:
             print(f"❌ Failed to create isolated Spark session: {e2}")
             raise
+
+    # Ensure Spark session was created successfully
+    if spark is None:
+        raise RuntimeError("Failed to create isolated Spark session")
+    
+    # Verify Spark context is properly initialized
+    if not hasattr(spark, 'sparkContext') or spark.sparkContext is None:
+        raise RuntimeError("Isolated Spark context is not properly initialized")
+    
+    if not hasattr(spark.sparkContext, '_jsc') or spark.sparkContext._jsc is None:
+        raise RuntimeError("Isolated Spark JVM context is not properly initialized")
 
     # Set log level to WARN to reduce noise
     spark.sparkContext.setLogLevel("WARN")

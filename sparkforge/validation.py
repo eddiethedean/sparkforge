@@ -99,16 +99,23 @@ def and_all_rules(rules: ColumnRules) -> Any:
         Combined predicate expression
     """
     if not rules:
-        return F.lit(True)
+        # Return a simple boolean instead of F.lit(True) to avoid Spark context requirement
+        return True
 
     # Convert string rules to PySpark expressions
     converted_rules = _convert_rules_to_expressions(rules)
 
-    pred = F.lit(True)
+    # Start with the first expression, then combine with others
+    pred = None
     for _, exprs in converted_rules.items():
         for e in exprs:
-            pred = pred & e
-    return pred
+            if pred is None:
+                pred = e
+            else:
+                pred = pred & e
+    
+    # If no valid expressions were found, return True
+    return pred if pred is not None else True
 
 
 def validate_dataframe_schema(df: DataFrame, expected_columns: list[str]) -> bool:
