@@ -165,26 +165,25 @@ class DependencyAnalyzer:
 
         # Add silver steps
         if silver_steps:
-            for name, step in silver_steps.items():
-                step: SilverStep = step  # Type annotation for mypy
+            for name, silver_step in silver_steps.items():
                 node = StepNode(
-                    name=name, step_type=StepType.SILVER, metadata={"step": step}
+                    name=name, step_type=StepType.SILVER, metadata={"step": silver_step}
                 )
                 graph.add_node(node)
 
                 # Add dependencies
-                if hasattr(step, "source_bronze") and step.source_bronze:
+                if hasattr(silver_step, "source_bronze") and silver_step.source_bronze:
                     # Check if the source bronze step exists
-                    if step.source_bronze in graph.nodes:
-                        graph.add_dependency(name, step.source_bronze)
+                    if silver_step.source_bronze in graph.nodes:
+                        graph.add_dependency(name, silver_step.source_bronze)
                     else:
                         # Log warning about missing dependency
                         self.logger.warning(
-                            f"Silver step {name} references non-existent bronze step {step.source_bronze}"
+                            f"Silver step {name} references non-existent bronze step {silver_step.source_bronze}"
                         )
 
-                if hasattr(step, "depends_on") and step.depends_on:
-                    for dep in step.depends_on:
+                if hasattr(silver_step, "depends_on") and silver_step.depends_on:
+                    for dep in silver_step.depends_on:
                         if dep in graph.nodes:
                             graph.add_dependency(name, dep)
                         else:
@@ -194,16 +193,15 @@ class DependencyAnalyzer:
 
         # Add gold steps
         if gold_steps:
-            for name, step in gold_steps.items():
-                step: GoldStep = step  # Type annotation for mypy
+            for name, gold_step in gold_steps.items():
                 node = StepNode(
-                    name=name, step_type=StepType.GOLD, metadata={"step": step}
+                    name=name, step_type=StepType.GOLD, metadata={"step": gold_step}
                 )
                 graph.add_node(node)
 
                 # Add dependencies
-                if hasattr(step, "source_silvers") and step.source_silvers:
-                    for dep in step.source_silvers:
+                if hasattr(gold_step, "source_silvers") and gold_step.source_silvers:
+                    for dep in gold_step.source_silvers:
                         if dep in graph.nodes:
                             graph.add_dependency(name, dep)
                         else:

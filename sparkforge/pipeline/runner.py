@@ -19,8 +19,8 @@ from pyspark.sql import DataFrame, SparkSession
 from ..dependencies import DependencyAnalyzer
 from ..execution import ExecutionEngine
 from ..logger import PipelineLogger
-from ..models import BronzeStep, GoldStep, SilverStep
-from ..types import PipelineConfig, StepName
+from ..models import BronzeStep, GoldStep, PipelineConfig, SilverStep
+from ..types import StepName
 from .models import PipelineMode, PipelineReport, PipelineStatus
 from .monitor import PipelineMonitor
 from .validator import PipelineValidator
@@ -550,23 +550,23 @@ class PipelineRunner:
                 "dependencies": [],
             }
         elif step_name in self.silver_steps:
-            step: SilverStep = self.silver_steps[step_name]
+            silver_step: SilverStep = self.silver_steps[step_name]
             return {
-                "name": step.name,
+                "name": silver_step.name,
                 "type": "silver",
-                "source_bronze": step.source_bronze,
-                "table_name": step.table_name,
-                "watermark_col": step.watermark_col,
-                "dependencies": [step.source_bronze] if step.source_bronze else [],
+                "source_bronze": silver_step.source_bronze,
+                "table_name": silver_step.table_name,
+                "watermark_col": silver_step.watermark_col,
+                "dependencies": [silver_step.source_bronze] if silver_step.source_bronze else [],
             }
         elif step_name in self.gold_steps:
-            step: GoldStep = self.gold_steps[step_name]
+            gold_step: GoldStep = self.gold_steps[step_name]
             return {
-                "name": step.name,
+                "name": gold_step.name,
                 "type": "gold",
-                "table_name": step.table_name,
-                "source_silvers": step.source_silvers,
-                "dependencies": step.source_silvers,
+                "table_name": gold_step.table_name,
+                "source_silvers": gold_step.source_silvers,
+                "dependencies": gold_step.source_silvers,
             }
         else:
             raise ValueError(f"Step '{step_name}' not found")

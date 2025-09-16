@@ -169,30 +169,30 @@ class StepExecutor:
 
         # Check Silver steps
         if step_name in self.silver_steps:
-            step: SilverStep = self.silver_steps[step_name]
+            silver_step: SilverStep = self.silver_steps[step_name]
             return {
                 "name": step_name,
                 "type": "silver",
-                "rules": step.rules,
-                "watermark_col": step.watermark_col,
-                "table_name": step.table_name,
-                "source_bronze": step.source_bronze,
-                "description": getattr(step, "description", None),
-                "dependencies": [step.source_bronze] if step.source_bronze else [],
+                "rules": silver_step.rules,
+                "watermark_col": silver_step.watermark_col,
+                "table_name": silver_step.table_name,
+                "source_bronze": silver_step.source_bronze,
+                "description": getattr(silver_step, "description", None),
+                "dependencies": [silver_step.source_bronze] if silver_step.source_bronze else [],
                 "dependents": self._get_silver_dependents(step_name),
             }
 
         # Check Gold steps
         if step_name in self.gold_steps:
-            step: GoldStep = self.gold_steps[step_name]
+            gold_step: GoldStep = self.gold_steps[step_name]
             return {
                 "name": step_name,
                 "type": "gold",
-                "rules": step.rules,
-                "table_name": step.table_name,
-                "source_silvers": step.source_silvers,
-                "description": getattr(step, "description", None),
-                "dependencies": step.source_silvers or [],
+                "rules": gold_step.rules,
+                "table_name": gold_step.table_name,
+                "source_silvers": gold_step.source_silvers,
+                "description": getattr(gold_step, "description", None),
+                "dependencies": gold_step.source_silvers or [],
                 "dependents": [],  # Gold steps are leaves
             }
 

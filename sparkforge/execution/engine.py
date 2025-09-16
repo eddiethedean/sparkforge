@@ -42,7 +42,6 @@ from pyspark.sql import SparkSession
 
 from ..logger import PipelineLogger
 from ..models import ExecutionContext
-from ..types import ExecutionConfig
 from .exceptions import ExecutionError, StepExecutionError
 from .results import (
     ExecutionResult,
@@ -86,6 +85,21 @@ class RetryStrategy(Enum):
     IMMEDIATE = "immediate"
     EXPONENTIAL_BACKOFF = "exponential_backoff"
     LINEAR_BACKOFF = "linear_backoff"
+
+
+@dataclass
+class ExecutionConfig:
+    """Configuration for the unified execution engine."""
+
+    mode: ExecutionMode = ExecutionMode.ADAPTIVE
+    max_workers: int = 4
+    retry_strategy: RetryStrategy = RetryStrategy.EXPONENTIAL_BACKOFF
+    max_retries: int = 3
+    retry_delay: float = 1.0
+    timeout_seconds: int | None = None
+    enable_caching: bool = True
+    enable_monitoring: bool = True
+    verbose: bool = True
 
 
 class StepExecutor:
@@ -186,11 +200,11 @@ class StepExecutor:
             write_mode = "append"
 
         # Get the source bronze DataFrame
-        source_bronze = getattr(step, "source_bronze", None)
+        source_bronze = getattr(step, "source_bronze", None) if step else None
         if source_bronze and source_bronze in bronze_results:
             # Get the actual DataFrame from bronze results
             bronze_df = bronze_results[source_bronze].get("dataframe")
-            if bronze_df is not None and hasattr(step, "transform"):
+            if bronze_df is not None and step and hasattr(step, "transform"):
                 # Call the transform function with the DataFrame
                 try:
                     # Check function signature to determine how many parameters to pass
@@ -207,7 +221,7 @@ class StepExecutor:
                         transformed_df = step.transform(self.spark, bronze_df, {})
                     # Write to Delta table if table_name is specified
                     rows_written = 0
-                    if hasattr(step, "table_name") and step.table_name:
+                    if step and hasattr(step, "table_name") and step.table_name:
                         table_path = f"{self.schema}.{step.table_name}" if self.schema else step.table_name
                         try:
                             # Write DataFrame to Delta table
@@ -264,8 +278,8 @@ class StepExecutor:
         silver_results = step_config.get("silver_results", {})
 
         # Get the source silver DataFrames
-        source_silvers = getattr(step, "source_silvers", [])
-        if source_silvers and hasattr(step, "transform"):
+        source_silvers = getattr(step, "source_silvers", []) if step else []
+        if source_silvers and step and hasattr(step, "transform"):
             # Collect DataFrames from silver results
             silver_dfs = {}
             for silver_name in source_silvers:
@@ -280,7 +294,7 @@ class StepExecutor:
                     transformed_df = step.transform(self.spark, silver_dfs)
                     # Write to Delta table if table_name is specified
                     rows_written = 0
-                    if hasattr(step, "table_name") and step.table_name:
+                    if step and hasattr(step, "table_name") and step.table_name:
                         table_path = f"{self.schema}.{step.table_name}" if self.schema else step.table_name
                         try:
                             # Write DataFrame to Delta table
