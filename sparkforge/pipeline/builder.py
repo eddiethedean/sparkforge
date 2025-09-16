@@ -11,8 +11,9 @@ pipeline construction, delegating execution and monitoring to specialized compon
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
-from pyspark.sql import SparkSession
+from pyspark.sql import DataFrame, SparkSession
 
 from ..dependencies import DependencyAnalyzer
 from ..errors import PipelineConfigurationError, StepError
@@ -26,6 +27,7 @@ from ..types import (
     StepName,
     TableName,
 )
+
 from .runner import PipelineRunner
 from .validator import PipelineValidator
 
@@ -215,7 +217,7 @@ class PipelineBuilder:
                 suggestions=[
                     "Provide a valid step name",
                     "Check step naming conventions",
-                ],
+                ], 
             )
 
         if name in self.bronze_steps:
@@ -307,10 +309,17 @@ class PipelineBuilder:
             self._validate_schema(schema)
 
         # Create SilverStep for existing table
+        # Create a dummy transform function for existing tables
+        def dummy_transform_func(spark: SparkSession, bronze_df: DataFrame, prior_silvers: dict[str, DataFrame]) -> DataFrame:
+            return bronze_df
+        
+        # Type the function properly
+        dummy_transform: SilverTransformFunction = dummy_transform_func
+        
         silver_step = SilverStep(
             name=name,
             source_bronze="",  # No source for existing tables
-            transform=None,  # No transform for existing tables
+            transform=dummy_transform,  # type: ignore
             rules=rules,
             table_name=table_name,
             watermark_col=watermark_col,
@@ -323,7 +332,7 @@ class PipelineBuilder:
 
         return self
 
-    def add_validator(self, validator: StepValidator) -> PipelineBuilder:
+    def add_validator(self, validator: Any) -> PipelineBuilder:
         """
         Add a custom step validator to the pipeline.
 
@@ -474,7 +483,7 @@ class PipelineBuilder:
         silver_step = SilverStep(
             name=name,
             source_bronze=source_bronze,
-            transform=transform,
+            transform=transform,  # type: ignore
             rules=rules,
             table_name=table_name,
             watermark_col=watermark_col,
@@ -647,7 +656,7 @@ class PipelineBuilder:
 
     @classmethod
     def for_development(
-        cls, spark: SparkSession, schema: str, **kwargs
+        cls, spark: SparkSession, schema: str, **kwargs: Any
     ) -> PipelineBuilder:
         """
         Create a PipelineBuilder optimized for development with relaxed validation.
@@ -680,7 +689,7 @@ class PipelineBuilder:
 
     @classmethod
     def for_production(
-        cls, spark: SparkSession, schema: str, **kwargs
+        cls, spark: SparkSession, schema: str, **kwargs: Any
     ) -> PipelineBuilder:
         """
         Create a PipelineBuilder optimized for production with strict validation.
@@ -712,7 +721,7 @@ class PipelineBuilder:
         )
 
     @classmethod
-    def for_testing(cls, spark: SparkSession, schema: str, **kwargs) -> PipelineBuilder:
+    def for_testing(cls, spark: SparkSession, schema: str, **kwargs: Any) -> PipelineBuilder:
         """
         Create a PipelineBuilder optimized for testing with minimal validation.
 
@@ -844,7 +853,7 @@ class PipelineBuilder:
         }
 
     @staticmethod
-    def detect_timestamp_columns(df_schema) -> list[str]:
+    def detect_timestamp_columns(df_schema: Any) -> list[str]:
         """
         Detect timestamp columns from a DataFrame schema.
 
