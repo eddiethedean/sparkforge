@@ -41,12 +41,25 @@ raise StepValidationError(
 )
 ```
 
-### **3. Error Categories and Severity**
+### **3. Early Validation System**
+
+**New:** Robust validation with early error detection
+```python
+# Validation errors are caught during construction
+try:
+    BronzeStep(name="events", rules={})  # Empty rules
+except ValidationError as e:
+    print(f"Validation failed: {e}")
+    # Output: "Rules must be a non-empty dictionary"
+```
+
+### **4. Error Categories and Severity**
 
 All errors are now categorized and have severity levels:
 
 | Category | Description | Severity | Examples |
 |----------|-------------|----------|----------|
+| `VALIDATION` | Early validation failures | HIGH | Empty rules, invalid transforms |
 | `CONFIGURATION` | Configuration issues | HIGH | Invalid schema, missing parameters |
 | `VALIDATION` | Data validation failures | MEDIUM | Quality below threshold, schema mismatch |
 | `EXECUTION` | Execution failures | HIGH | Step execution failed, timeout |

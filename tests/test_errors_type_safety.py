@@ -1,4 +1,3 @@
-
 """
 Tests for error system type safety.
 
@@ -9,21 +8,16 @@ This module tests that all error classes use explicit types instead of Any,
 from datetime import datetime
 from typing import List
 
-import pytest
-
 from sparkforge.errors import (
     ConfigurationError,
     DataError,
-    DataQualityError,
     ErrorCategory,
     ErrorContext,
     ErrorSeverity,
     ErrorSuggestions,
     ExecutionError,
-    NetworkError,
     PerformanceError,
     PipelineError,
-    ResourceError,
     SparkForgeError,
     StepError,
     SystemError,
@@ -123,7 +117,11 @@ class TestErrorTypeSafety:
         error = DataError(
             message="Data error",
             error_code="DATA_001",
-            context={"table_name": "test_table", "column_name": "test_column", "row_count": 1000},
+            context={
+                "table_name": "test_table",
+                "column_name": "test_column",
+                "row_count": 1000,
+            },
             suggestions=["Check data quality"],
         )
 
@@ -137,7 +135,11 @@ class TestErrorTypeSafety:
         error = PipelineError(
             message="Pipeline error",
             error_code="PIPELINE_001",
-            context={"pipeline_id": "pipeline_123", "execution_id": "exec_456", "step_count": 5},
+            context={
+                "pipeline_id": "pipeline_123",
+                "execution_id": "exec_456",
+                "step_count": 5,
+            },
             suggestions=["Check dependencies"],
         )
 
@@ -151,7 +153,11 @@ class TestErrorTypeSafety:
         error = StepError(
             message="Step error",
             error_code="STEP_001",
-            context={"step_name": "bronze_step", "step_type": "bronze", "transform": "data_cleaning"},
+            context={
+                "step_name": "bronze_step",
+                "step_type": "bronze",
+                "transform": "data_cleaning",
+            },
             suggestions=["Check transform function"],
         )
 
@@ -191,7 +197,12 @@ class TestErrorTypeSafety:
         error = PerformanceError(
             message="Performance error",
             error_code="PERF_001",
-            context={"performance_metric": "execution_time", "threshold_value": 60.0, "actual_value": 120.0, "operation": "data_processing"},
+            context={
+                "performance_metric": "execution_time",
+                "threshold_value": 60.0,
+                "actual_value": 120.0,
+                "operation": "data_processing",
+            },
             suggestions=["Optimize query"],
         )
 
@@ -228,8 +239,8 @@ class TestErrorTypeSafety:
                 "bool_key": True,
                 "list_key": ["item1", "item2"],
                 "dict_key": {"nested": "value"},
-                "none_key": None
-            }
+                "none_key": None,
+            },
         )
 
         assert error.context["string_key"] == "string_value"
@@ -244,7 +255,7 @@ class TestErrorTypeSafety:
         """Test error suggestion manipulation uses explicit types."""
         error = SparkForgeError(
             "Test error",
-            suggestions=["Check configuration", "Verify data quality", "Review logs"]
+            suggestions=["Check configuration", "Verify data quality", "Review logs"],
         )
 
         assert len(error.suggestions) == 3
@@ -339,9 +350,7 @@ class TestErrorBackwardCompatibility:
     def test_error_context_manipulation_still_works(self):
         """Test that error context manipulation still works."""
         error = SparkForgeError(
-            "Test error",
-            context={"key": "value"},
-            suggestions=["suggestion"]
+            "Test error", context={"key": "value"}, suggestions=["suggestion"]
         )
 
         # Test context access

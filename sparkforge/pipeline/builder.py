@@ -12,14 +12,14 @@ The builder creates pipelines that can be executed with the simplified execution
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from pyspark.sql import DataFrame, SparkSession
 
 from ..dependencies import DependencyAnalyzer
-from ..errors import ConfigurationError as PipelineConfigurationError, ExecutionError as StepError
+from ..errors import ConfigurationError as PipelineConfigurationError
+from ..errors import ExecutionError as StepError
 from ..execution import ExecutionEngine, ExecutionMode
-from ..types import ExecutionConfig
 from ..logging import PipelineLogger
 from ..models import BronzeStep, GoldStep, ParallelConfig, PipelineConfig, SilverStep
 from ..types import (
@@ -29,24 +29,87 @@ from ..types import (
     StepName,
     TableName,
 )
-
-from .runner import PipelineRunner
 from ..validation import UnifiedValidator as PipelineValidator
+from ..validation import _convert_rules_to_expressions
+from .runner import PipelineRunner
 
 
 class PipelineBuilder:
     """
-    Clean, focused builder for creating data pipelines with Bronze → Silver → Gold architecture.
+    Production-ready builder for creating data pipelines with Bronze → Silver → Gold architecture.
 
-    This refactored PipelineBuilder focuses solely on pipeline construction,
-    delegating execution, validation, and monitoring to specialized components.
+    The PipelineBuilder provides a fluent API for constructing robust data pipelines with
+    comprehensive validation, automatic dependency management, and enterprise-grade features.
 
-    Features:
-    - Fluent API for easy pipeline construction
-    - Clean separation of concerns
-    - Comprehensive validation
-    - Better error handling
-    - Extensible architecture
+    Key Features:
+    - **Fluent API**: Chain methods for intuitive pipeline construction
+    - **Robust Validation**: Early error detection with clear validation messages
+    - **Auto-inference**: Automatic dependency detection and validation
+    - **String Rules**: Convert human-readable rules to PySpark expressions
+    - **Multi-schema Support**: Cross-schema data flows for enterprise environments
+    - **Comprehensive Error Handling**: Detailed error messages with suggestions
+
+    Validation Requirements:
+        All pipeline steps must have validation rules. Invalid configurations are rejected
+        during construction with clear error messages.
+
+    Example:
+        from sparkforge import PipelineBuilder
+        from pyspark.sql import functions as F
+
+        # Initialize builder
+        builder = PipelineBuilder(spark=spark, schema="analytics")
+
+        # Bronze: Raw data validation (required)
+        builder.with_bronze_rules(
+            name="events",
+            rules={"user_id": ["not_null"], "timestamp": ["not_null"]},  # String rules
+            incremental_col="timestamp"
+        )
+
+        # Silver: Data transformation (required)
+        builder.add_silver_transform(
+            name="clean_events",
+            source_bronze="events",
+            transform=lambda spark, df, silvers: df.filter(F.col("value") > 0),
+            rules={"value": ["gt", 0]},  # String rules
+            table_name="clean_events"
+        )
+
+        # Gold: Business analytics (required)
+        builder.add_gold_transform(
+            name="daily_metrics",
+            transform=lambda spark, silvers: silvers["clean_events"].groupBy("date").agg(F.count("*").alias("count")),
+            rules={"count": ["gt", 0]},  # String rules
+            table_name="daily_metrics",
+            source_silvers=["clean_events"]
+        )
+
+        # Build and execute pipeline
+        pipeline = builder.to_pipeline()
+        result = pipeline.run_initial_load(bronze_sources={"events": source_df})
+
+    String Rules Support:
+        You can use human-readable string rules that are automatically converted to PySpark expressions:
+
+        - "not_null" → F.col("column").isNotNull()
+        - "gt", value → F.col("column") > value
+        - "lt", value → F.col("column") < value
+        - "eq", value → F.col("column") == value
+        - "in", [values] → F.col("column").isin(values)
+        - "between", min, max → F.col("column").between(min, max)
+
+    Args:
+        spark: Active SparkSession instance
+        schema: Target schema name for pipeline tables
+        quality_thresholds: Validation thresholds for each layer (default: Bronze=90%, Silver=95%, Gold=98%)
+        parallel_config: Parallel execution configuration
+        logger: Optional logger instance
+
+    Raises:
+        ValidationError: If validation rules are invalid or missing
+        ConfigurationError: If configuration parameters are invalid
+        StepError: If step dependencies cannot be resolved
 
     Example:
         >>> from sparkforge import PipelineBuilder
@@ -186,15 +249,18 @@ class PipelineBuilder:
         schema: str | None = None,
     ) -> PipelineBuilder:
         """
-        Add Bronze layer validation rules for raw data.
+        Add Bronze layer validation rules for raw data ingestion.
 
         Bronze steps represent the first layer of the Medallion Architecture,
-        handling raw data ingestion and basic validation.
+        handling raw data ingestion and initial validation. All Bronze steps
+        must have non-empty validation rules.
 
         Args:
             name: Unique identifier for this Bronze step
             rules: Dictionary mapping column names to validation rule lists.
-                   Each rule should be a PySpark Column expression.
+                   Supports both PySpark Column expressions and string rules:
+                   - PySpark: {"user_id": [F.col("user_id").isNotNull()]}
+                   - String: {"user_id": ["not_null"], "age": ["gt", 0]}
             incremental_col: Column name for incremental processing (e.g., "timestamp", "updated_at").
                             If provided, enables incremental processing with append mode.
             description: Optional description of this Bronze step
@@ -203,8 +269,32 @@ class PipelineBuilder:
         Returns:
             Self for method chaining
 
+        Raises:
+            ValidationError: If rules are empty or invalid
+            ConfigurationError: If step name conflicts or configuration is invalid
+
         Example:
+            >>> # Using PySpark Column expressions
             >>> builder.with_bronze_rules(
+            ...     name="events",
+            ...     rules={"user_id": [F.col("user_id").isNotNull()]},
+            ...     incremental_col="timestamp"
+            ... )
+
+            >>> # Using string rules (automatically converted)
+            >>> builder.with_bronze_rules(
+            ...     name="users",
+            ...     rules={"user_id": ["not_null"], "age": ["gt", 0], "status": ["in", ["active", "inactive"]]},
+            ...     incremental_col="updated_at"
+            ... )
+
+        String Rules Support:
+            - "not_null" → F.col("column").isNotNull()
+            - "gt", value → F.col("column") > value
+            - "lt", value → F.col("column") < value
+            - "eq", value → F.col("column") == value
+            - "in", [values] → F.col("column").isin(values)
+            - "between", min, max → F.col("column").between(min, max)
             ...     name="user_events",
             ...     rules={"user_id": [F.col("user_id").isNotNull()]},
             ...     incremental_col="timestamp",
@@ -213,18 +303,18 @@ class PipelineBuilder:
         """
         if not name:
             raise StepError(
-                    "Bronze step name cannot be empty",
-                    context={"step_name": name or "unknown", "step_type": "bronze"},
+                "Bronze step name cannot be empty",
+                context={"step_name": name or "unknown", "step_type": "bronze"},
                 suggestions=[
                     "Provide a valid step name",
                     "Check step naming conventions",
-                ], 
+                ],
             )
 
         if name in self.bronze_steps:
             raise StepError(
-                    f"Bronze step '{name}' already exists",
-                    context={"step_name": name, "step_type": "bronze"},
+                f"Bronze step '{name}' already exists",
+                context={"step_name": name, "step_type": "bronze"},
                 suggestions=[
                     "Use a different step name",
                     "Remove the existing step first",
@@ -235,9 +325,15 @@ class PipelineBuilder:
         if schema is not None:
             self._validate_schema(schema)
 
+        # Convert string rules to PySpark Column objects
+        converted_rules = _convert_rules_to_expressions(rules)
+
         # Create bronze step
         bronze_step = BronzeStep(
-            name=name, rules=rules, incremental_col=incremental_col, schema=schema
+            name=name,
+            rules=converted_rules,
+            incremental_col=incremental_col,
+            schema=schema,
         )
 
         self.bronze_steps[name] = bronze_step
@@ -284,8 +380,8 @@ class PipelineBuilder:
         """
         if not name:
             raise StepError(
-                    "Silver step name cannot be empty",
-                    context={"step_name": name or "unknown", "step_type": "silver"},
+                "Silver step name cannot be empty",
+                context={"step_name": name or "unknown", "step_type": "silver"},
                 suggestions=[
                     "Provide a valid step name",
                     "Check step naming conventions",
@@ -294,8 +390,8 @@ class PipelineBuilder:
 
         if name in self.silver_steps:
             raise StepError(
-                    f"Silver step '{name}' already exists",
-                    context={"step_name": name, "step_type": "silver"},
+                f"Silver step '{name}' already exists",
+                context={"step_name": name, "step_type": "silver"},
                 suggestions=[
                     "Use a different step name",
                     "Remove the existing step first",
@@ -308,17 +404,24 @@ class PipelineBuilder:
 
         # Create SilverStep for existing table
         # Create a dummy transform function for existing tables
-        def dummy_transform_func(spark: SparkSession, bronze_df: DataFrame, prior_silvers: dict[str, DataFrame]) -> DataFrame:
+        def dummy_transform_func(
+            spark: SparkSession,
+            bronze_df: DataFrame,
+            prior_silvers: dict[str, DataFrame],
+        ) -> DataFrame:
             return bronze_df
-        
+
         # Type the function properly
         dummy_transform: SilverTransformFunction = dummy_transform_func
-        
+
+        # Convert string rules to PySpark Column objects
+        converted_rules = _convert_rules_to_expressions(rules)
+
         silver_step = SilverStep(
             name=name,
             source_bronze="",  # No source for existing tables
-            transform=dummy_transform,  # type: ignore
-            rules=rules,
+            transform=dummy_transform,
+            rules=converted_rules,
             table_name=table_name,
             watermark_col=watermark_col,
             existing=True,
@@ -372,7 +475,8 @@ class PipelineBuilder:
         Add Silver layer transformation step for data cleaning and enrichment.
 
         Silver steps represent the second layer of the Medallion Architecture,
-        transforming raw Bronze data into clean, business-ready datasets.
+        transforming raw Bronze data into clean, business-ready datasets. All Silver steps
+        must have non-empty validation rules and a valid transform function.
 
         Args:
             name: Unique identifier for this Silver step
@@ -381,8 +485,11 @@ class PipelineBuilder:
                           with_bronze_rules() call. If no bronze steps exist, will raise an error.
             transform: Transformation function with signature:
                      (spark: SparkSession, bronze_df: DataFrame, prior_silvers: Dict[str, DataFrame]) -> DataFrame
+                     Must be callable and cannot be None.
             rules: Dictionary mapping column names to validation rule lists.
-                   Each rule should be a PySpark Column expression.
+                   Supports both PySpark Column expressions and string rules:
+                   - PySpark: {"user_id": [F.col("user_id").isNotNull()]}
+                   - String: {"user_id": ["not_null"], "age": ["gt", 0]}
             table_name: Target Delta table name where results will be stored
             watermark_col: Column name for watermarking (e.g., "timestamp", "updated_at").
                           If provided, enables incremental processing with append mode.
@@ -393,6 +500,10 @@ class PipelineBuilder:
         Returns:
             Self for method chaining
 
+        Raises:
+            ValidationError: If rules are empty, transform is None, or configuration is invalid
+            ConfigurationError: If step name conflicts or dependencies cannot be resolved
+
         Example:
             >>> def clean_user_events(spark, bronze_df, prior_silvers):
             ...     return (bronze_df
@@ -400,11 +511,32 @@ class PipelineBuilder:
             ...         .withColumn("event_date", F.date_trunc("day", "timestamp"))
             ...     )
             >>>
-            >>> # Explicit source_bronze
+            >>> # Using PySpark Column expressions
             >>> builder.add_silver_transform(
             ...     name="clean_events",
             ...     source_bronze="user_events",
             ...     transform=clean_user_events,
+            ...     rules={"user_id": [F.col("user_id").isNotNull()]},
+            ...     table_name="clean_events"
+            ... )
+
+            >>> # Using string rules (automatically converted)
+            >>> builder.add_silver_transform(
+            ...     name="enriched_events",
+            ...     source_bronze="user_events",
+            ...     transform=lambda spark, df, silvers: df.withColumn("processed_at", F.current_timestamp()),
+            ...     rules={"user_id": ["not_null"], "processed_at": ["not_null"]},
+            ...     table_name="enriched_events",
+            ...     watermark_col="processed_at"
+            ... )
+
+        String Rules Support:
+            - "not_null" → F.col("column").isNotNull()
+            - "gt", value → F.col("column") > value
+            - "lt", value → F.col("column") < value
+            - "eq", value → F.col("column") == value
+            - "in", [values] → F.col("column").isin(values)
+            - "between", min, max → F.col("column").between(min, max)
             ...     rules={"user_id": [F.col("user_id").isNotNull()]},
             ...     table_name="clean_user_events",
             ...     watermark_col="timestamp"
@@ -421,8 +553,8 @@ class PipelineBuilder:
         """
         if not name:
             raise StepError(
-                    "Silver step name cannot be empty",
-                    context={"step_name": name or "unknown", "step_type": "silver"},
+                "Silver step name cannot be empty",
+                context={"step_name": name or "unknown", "step_type": "silver"},
                 suggestions=[
                     "Provide a valid step name",
                     "Check step naming conventions",
@@ -431,8 +563,8 @@ class PipelineBuilder:
 
         if name in self.silver_steps:
             raise StepError(
-                    f"Silver step '{name}' already exists",
-                    context={"step_name": name, "step_type": "silver"},
+                f"Silver step '{name}' already exists",
+                context={"step_name": name, "step_type": "silver"},
                 suggestions=[
                     "Use a different step name",
                     "Remove the existing step first",
@@ -458,8 +590,8 @@ class PipelineBuilder:
         # Validate that the source_bronze exists
         if source_bronze not in self.bronze_steps:
             raise StepError(
-                    f"Bronze step '{source_bronze}' not found",
-                    context={"step_name": name, "step_type": "silver"},
+                f"Bronze step '{source_bronze}' not found",
+                context={"step_name": name, "step_type": "silver"},
                 suggestions=[
                     f"Available bronze steps: {list(self.bronze_steps.keys())}",
                     "Add the bronze step first using with_bronze_rules()",
@@ -473,12 +605,15 @@ class PipelineBuilder:
         if schema is not None:
             self._validate_schema(schema)
 
+        # Convert string rules to PySpark Column objects
+        converted_rules = _convert_rules_to_expressions(rules)
+
         # Create silver step
         silver_step = SilverStep(
             name=name,
             source_bronze=source_bronze,
-            transform=transform,  # type: ignore
-            rules=rules,
+            transform=transform,
+            rules=converted_rules,
             table_name=table_name,
             watermark_col=watermark_col,
             schema=schema,
@@ -504,14 +639,18 @@ class PipelineBuilder:
         Add Gold layer transformation step for business analytics and aggregations.
 
         Gold steps represent the third layer of the Medallion Architecture,
-        creating business-ready datasets for analytics and reporting.
+        creating business-ready datasets for analytics and reporting. All Gold steps
+        must have non-empty validation rules and a valid transform function.
 
         Args:
             name: Unique identifier for this Gold step
             transform: Transformation function with signature:
                      (spark: SparkSession, silvers: Dict[str, DataFrame]) -> DataFrame
+                     Must be callable and cannot be None.
             rules: Dictionary mapping column names to validation rule lists.
-                   Each rule should be a PySpark Column expression.
+                   Supports both PySpark Column expressions and string rules:
+                   - PySpark: {"user_id": [F.col("user_id").isNotNull()]}
+                   - String: {"user_id": ["not_null"], "count": ["gt", 0]}
             table_name: Target Delta table name where results will be stored
             source_silvers: List of Silver step names this Gold step depends on.
                            If not provided, will automatically use all available Silver steps.
@@ -522,6 +661,10 @@ class PipelineBuilder:
         Returns:
             Self for method chaining
 
+        Raises:
+            ValidationError: If rules are empty, transform is None, or configuration is invalid
+            ConfigurationError: If step name conflicts or dependencies cannot be resolved
+
         Example:
             >>> def user_daily_metrics(spark, silvers):
             ...     events_df = silvers["clean_events"]
@@ -530,7 +673,7 @@ class PipelineBuilder:
             ...         .agg(F.count("*").alias("event_count"))
             ...     )
             >>>
-            >>> # Explicit source_silvers
+            >>> # Using PySpark Column expressions
             >>> builder.add_gold_transform(
             ...     name="user_metrics",
             ...     transform=user_daily_metrics,
@@ -538,7 +681,23 @@ class PipelineBuilder:
             ...     table_name="user_daily_metrics",
             ...     source_silvers=["clean_events"]
             ... )
-            >>>
+
+            >>> # Using string rules (automatically converted)
+            >>> builder.add_gold_transform(
+            ...     name="daily_analytics",
+            ...     transform=lambda spark, silvers: silvers["clean_events"].groupBy("date").agg(F.count("*").alias("count")),
+            ...     rules={"date": ["not_null"], "count": ["gt", 0]},
+            ...     table_name="daily_analytics",
+            ...     source_silvers=["clean_events"]
+            ... )
+
+        String Rules Support:
+            - "not_null" → F.col("column").isNotNull()
+            - "gt", value → F.col("column") > value
+            - "lt", value → F.col("column") < value
+            - "eq", value → F.col("column") == value
+            - "in", [values] → F.col("column").isin(values)
+            - "between", min, max → F.col("column").between(min, max)
             >>> # Auto-infer source_silvers from all available Silver steps
             >>> builder.add_gold_transform(
             ...     name="daily_analytics",
@@ -550,8 +709,8 @@ class PipelineBuilder:
         """
         if not name:
             raise StepError(
-                    "Gold step name cannot be empty",
-                    context={"step_name": name or "unknown", "step_type": "gold"},
+                "Gold step name cannot be empty",
+                context={"step_name": name or "unknown", "step_type": "gold"},
                 suggestions=[
                     "Provide a valid step name",
                     "Check step naming conventions",
@@ -560,8 +719,8 @@ class PipelineBuilder:
 
         if name in self.gold_steps:
             raise StepError(
-                    f"Gold step '{name}' already exists",
-                    context={"step_name": name, "step_type": "gold"},
+                f"Gold step '{name}' already exists",
+                context={"step_name": name, "step_type": "gold"},
                 suggestions=[
                     "Use a different step name",
                     "Remove the existing step first",
@@ -588,8 +747,8 @@ class PipelineBuilder:
         invalid_silvers = [s for s in source_silvers if s not in self.silver_steps]
         if invalid_silvers:
             raise StepError(
-                    f"Silver steps not found: {invalid_silvers}",
-                    context={"step_name": name, "step_type": "gold"},
+                f"Silver steps not found: {invalid_silvers}",
+                context={"step_name": name, "step_type": "gold"},
                 suggestions=[
                     f"Available silver steps: {list(self.silver_steps.keys())}",
                     "Add the missing silver steps first using add_silver_transform()",
@@ -603,11 +762,14 @@ class PipelineBuilder:
         if schema is not None:
             self._validate_schema(schema)
 
+        # Convert string rules to PySpark Column objects
+        converted_rules = _convert_rules_to_expressions(rules)
+
         # Create gold step
         gold_step = GoldStep(
             name=name,
             transform=transform,
-            rules=rules,
+            rules=converted_rules,
             table_name=table_name,
             source_silvers=source_silvers,
             schema=schema,
@@ -711,7 +873,9 @@ class PipelineBuilder:
         )
 
     @classmethod
-    def for_testing(cls, spark: SparkSession, schema: str, **kwargs: Any) -> PipelineBuilder:
+    def for_testing(
+        cls, spark: SparkSession, schema: str, **kwargs: Any
+    ) -> PipelineBuilder:
         """
         Create a PipelineBuilder optimized for testing with minimal validation.
 
@@ -901,8 +1065,8 @@ class PipelineBuilder:
             self.logger.debug(f"✅ Schema '{schema}' is accessible")
         except Exception as e:
             raise StepError(
-                    f"Schema '{schema}' does not exist or is not accessible: {str(e)}",
-                    context={"step_name": "schema_validation", "step_type": "validation"},
+                f"Schema '{schema}' does not exist or is not accessible: {str(e)}",
+                context={"step_name": "schema_validation", "step_type": "validation"},
                 suggestions=[
                     f"Create the schema first: CREATE SCHEMA IF NOT EXISTS {schema}",
                     "Check schema permissions",
@@ -922,8 +1086,8 @@ class PipelineBuilder:
             self.logger.info(f"✅ Schema '{schema}' created or already exists")
         except Exception as e:
             raise StepError(
-                    f"Failed to create schema '{schema}': {str(e)}",
-                    context={"step_name": "schema_creation", "step_type": "validation"},
+                f"Failed to create schema '{schema}': {str(e)}",
+                context={"step_name": "schema_creation", "step_type": "validation"},
                 suggestions=[
                     "Check schema permissions",
                     "Verify schema name is valid",
@@ -961,20 +1125,15 @@ class PipelineBuilder:
             )
 
         # Create execution engine
-        execution_config = {
-            "mode": ExecutionMode.INITIAL,
-            "max_workers": self.config.parallel.max_workers,
-            "timeout_seconds": 300,
-        }
 
-        execution_engine = ExecutionEngine(
+        ExecutionEngine(
             spark=self.spark,
             config=self.config,
             logger=self.logger,
         )
 
         # Create dependency analyzer
-        dependency_analyzer = DependencyAnalyzer(logger=self.logger)
+        DependencyAnalyzer(logger=self.logger)
 
         # Create pipeline runner
         runner = PipelineRunner(

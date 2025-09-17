@@ -20,6 +20,30 @@ SparkForge implements the Medallion Architecture with three distinct layers:
 - **Silver Layer**: Cleaned, enriched, and transformed data
 - **Gold Layer**: Business-ready analytics and reporting datasets
 
+Validation System
+~~~~~~~~~~~~~~~~~
+
+SparkForge includes a robust validation system that ensures data quality from the start:
+
+- **Early Validation**: Invalid configurations are rejected during construction
+- **Required Rules**: All step types must have non-empty validation rules
+- **Clear Error Messages**: Detailed error messages help you fix issues quickly
+- **Type Safety**: Transform functions and dependencies are validated
+
+.. code-block:: python
+
+   # ✅ Valid - has required rules
+   BronzeStep(
+       name="events",
+       rules={"user_id": [F.col("user_id").isNotNull()]}
+   )
+   
+   # ❌ Invalid - empty rules rejected
+   BronzeStep(
+       name="events",
+       rules={}  # ValidationError: Rules must be a non-empty dictionary
+   )
+
 Pipeline Building
 ~~~~~~~~~~~~~~~~~
 
@@ -29,17 +53,17 @@ Use the PipelineBuilder to construct your data pipeline:
 
    from sparkforge import PipelineBuilder
    from pyspark.sql import functions as F
-   
+
    # Initialize builder
    builder = PipelineBuilder(spark=spark, schema="analytics")
-   
+
    # Add Bronze validation
    builder.with_bronze_rules(
        name="events",
        rules={"user_id": [F.col("user_id").isNotNull()]},
        incremental_col="timestamp"
    )
-   
+
    # Add Silver transformation
    builder.add_silver_transform(
        name="clean_events",
@@ -48,7 +72,7 @@ Use the PipelineBuilder to construct your data pipeline:
        rules={"status": [F.col("status").isNotNull()]},
        table_name="clean_events"
    )
-   
+
    # Add Gold aggregation
    builder.add_gold_transform(
        name="daily_metrics",
@@ -70,7 +94,7 @@ SparkForge supports different execution modes:
 
    # Initial load
    result = pipeline.run_initial_load(bronze_sources={"events": source_df})
-   
+
    # Validation only
    result = pipeline.run_validation(bronze_sources={"events": source_df})
 
@@ -127,7 +151,7 @@ Configure validation thresholds for each layer:
 .. code-block:: python
 
    from sparkforge.models import ValidationThresholds
-   
+
    thresholds = ValidationThresholds(
        bronze=95.0,  # 95% of bronze data must pass validation
        silver=98.0,  # 98% of silver data must pass validation
@@ -175,7 +199,7 @@ SparkForge includes built-in logging and monitoring:
 .. code-block:: python
 
    from sparkforge.logging import PipelineLogger
-   
+
    logger = PipelineLogger(level="INFO")
    builder = PipelineBuilder(spark=spark, schema="analytics", logger=logger)
 
@@ -183,7 +207,7 @@ SparkForge includes built-in logging and monitoring:
 .. code-block:: python
 
    result = pipeline.run_initial_load(bronze_sources={"events": df})
-   
+
    print(f"Status: {result.status}")
    print(f"Total steps: {result.total_steps}")
    print(f"Successful steps: {result.successful_steps}")
@@ -209,7 +233,7 @@ Work with multiple schemas for different environments:
 
    # Development schema
    dev_builder = PipelineBuilder(spark=spark, schema="dev_analytics")
-   
+
    # Production schema
    prod_builder = PipelineBuilder(spark=spark, schema="prod_analytics")
 

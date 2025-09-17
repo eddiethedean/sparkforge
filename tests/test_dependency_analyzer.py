@@ -192,7 +192,7 @@ class TestDependencyAnalyzer(unittest.TestCase):
         gold_steps = {
             "gold1": GoldStep(
                 name="gold1",
-                source_silvers=[],
+                source_silvers=None,  # None means use all available silvers
                 transform=lambda df: df,
                 rules={"id": ["not_null"]},
                 table_name="gold1",

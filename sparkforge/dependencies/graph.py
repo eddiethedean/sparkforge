@@ -62,7 +62,6 @@ class StepNode:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-
 class DependencyGraph:
     """
     Represents the dependency graph of a pipeline.

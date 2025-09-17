@@ -24,6 +24,10 @@ Your First Pipeline (2 minutes)
 
 Let's create the simplest possible pipeline:
 
+.. note::
+
+   **Validation Requirements**: All pipeline steps must have validation rules. SparkForge will reject invalid configurations with clear error messages to help you fix issues quickly.
+
 .. code-block:: python
 
    from sparkforge import PipelineBuilder

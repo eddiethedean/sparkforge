@@ -9,11 +9,12 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Union, cast, Optional
+from typing import Dict, List, Optional, Union, cast
 
 
 class ErrorSeverity(Enum):
     """Severity levels for errors."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -22,6 +23,7 @@ class ErrorSeverity(Enum):
 
 class ErrorCategory(Enum):
     """Categories of errors."""
+
     CONFIGURATION = "configuration"
     VALIDATION = "validation"
     EXECUTION = "execution"
@@ -40,7 +42,7 @@ ErrorSuggestions = List[str]
 class SparkForgeError(Exception):
     """
     Base exception for all SparkForge errors.
-    
+
     This is the root exception class that all other SparkForge exceptions
     inherit from, providing consistent error handling patterns and rich context.
     """
@@ -83,20 +85,31 @@ class SparkForgeError(Exception):
     def __str__(self) -> str:
         """Return string representation of the error."""
         parts = [self.message]
-        
+
         if self.error_code:
             parts.append(f"[{self.error_code}]")
-        
+
         if self.context:
             context_str = ", ".join(f"{k}={v}" for k, v in self.context.items())
             parts.append(f"Context: {context_str}")
-        
+
         if self.suggestions:
             parts.append(f"Suggestions: {'; '.join(self.suggestions)}")
-        
+
         return " | ".join(parts)
 
-    def to_dict(self) -> Dict[str, Union[str, int, float, bool, List[str], Dict[str, Union[str, int, float, bool, List[str], Dict[str, str], None]], None]]:
+    def to_dict(
+        self,
+    ) -> dict[
+        str,
+        str
+        | int
+        | float
+        | bool
+        | list[str]
+        | dict[str, str | int | float | bool | list[str] | dict[str, str] | None]
+        | None,
+    ]:
         """Convert error to dictionary for serialization."""
         return {
             "message": self.message,
@@ -112,106 +125,288 @@ class SparkForgeError(Exception):
 
 class ConfigurationError(SparkForgeError):
     """Raised when there's a configuration-related error."""
-    
-    def __init__(self, message: str, **kwargs: Union[str, int, float, bool, List[str], Dict[str, str], None]):
+
+    def __init__(
+        self,
+        message: str,
+        **kwargs: str | int | float | bool | list[str] | dict[str, str] | None,
+    ):
         super().__init__(
             message,
             category=ErrorCategory.CONFIGURATION,
             severity=ErrorSeverity.HIGH,
-            error_code=cast(Optional[str], kwargs.get('error_code')) if isinstance(kwargs.get('error_code'), str) else None,
-            context=cast(Dict[str, Union[str, int, float, bool, List[str], Dict[str, str], None]], kwargs.get('context', {})) if isinstance(kwargs.get('context'), dict) else {},
-            suggestions=cast(List[str], kwargs.get('suggestions', [])) if isinstance(kwargs.get('suggestions'), list) else [],
-            cause=cast(Optional[Exception], kwargs.get('cause')) if isinstance(kwargs.get('cause'), Exception) else None
+            error_code=(
+                cast(Optional[str], kwargs.get("error_code"))
+                if isinstance(kwargs.get("error_code"), str)
+                else None
+            ),
+            context=(
+                cast(
+                    Dict[
+                        str,
+                        Union[str, int, float, bool, List[str], Dict[str, str], None],
+                    ],
+                    kwargs.get("context", {}),
+                )
+                if isinstance(kwargs.get("context"), dict)
+                else {}
+            ),
+            suggestions=(
+                cast(List[str], kwargs.get("suggestions", []))
+                if isinstance(kwargs.get("suggestions"), list)
+                else []
+            ),
+            cause=(
+                cast(Optional[Exception], kwargs.get("cause"))
+                if isinstance(kwargs.get("cause"), Exception)
+                else None
+            ),
         )
 
 
 class ValidationError(SparkForgeError):
     """Raised when data validation fails."""
-    
-    def __init__(self, message: str, **kwargs: Union[str, int, float, bool, List[str], Dict[str, str], None]):
+
+    def __init__(
+        self,
+        message: str,
+        **kwargs: str | int | float | bool | list[str] | dict[str, str] | None,
+    ):
         super().__init__(
             message,
             category=ErrorCategory.VALIDATION,
             severity=ErrorSeverity.MEDIUM,
-            error_code=cast(Optional[str], kwargs.get('error_code')) if isinstance(kwargs.get('error_code'), str) else None,
-            context=cast(Dict[str, Union[str, int, float, bool, List[str], Dict[str, str], None]], kwargs.get('context', {})) if isinstance(kwargs.get('context'), dict) else {},
-            suggestions=cast(List[str], kwargs.get('suggestions', [])) if isinstance(kwargs.get('suggestions'), list) else [],
-            cause=cast(Optional[Exception], kwargs.get('cause')) if isinstance(kwargs.get('cause'), Exception) else None
+            error_code=(
+                cast(Optional[str], kwargs.get("error_code"))
+                if isinstance(kwargs.get("error_code"), str)
+                else None
+            ),
+            context=(
+                cast(
+                    Dict[
+                        str,
+                        Union[str, int, float, bool, List[str], Dict[str, str], None],
+                    ],
+                    kwargs.get("context", {}),
+                )
+                if isinstance(kwargs.get("context"), dict)
+                else {}
+            ),
+            suggestions=(
+                cast(List[str], kwargs.get("suggestions", []))
+                if isinstance(kwargs.get("suggestions"), list)
+                else []
+            ),
+            cause=(
+                cast(Optional[Exception], kwargs.get("cause"))
+                if isinstance(kwargs.get("cause"), Exception)
+                else None
+            ),
         )
 
 
 class ExecutionError(SparkForgeError):
     """Raised when pipeline execution fails."""
-    
-    def __init__(self, message: str, **kwargs: Union[str, int, float, bool, List[str], Dict[str, str], None]):
+
+    def __init__(
+        self,
+        message: str,
+        **kwargs: str | int | float | bool | list[str] | dict[str, str] | None,
+    ):
         super().__init__(
             message,
             category=ErrorCategory.EXECUTION,
             severity=ErrorSeverity.HIGH,
-            error_code=cast(Optional[str], kwargs.get('error_code')) if isinstance(kwargs.get('error_code'), str) else None,
-            context=cast(Dict[str, Union[str, int, float, bool, List[str], Dict[str, str], None]], kwargs.get('context', {})) if isinstance(kwargs.get('context'), dict) else {},
-            suggestions=cast(List[str], kwargs.get('suggestions', [])) if isinstance(kwargs.get('suggestions'), list) else [],
-            cause=cast(Optional[Exception], kwargs.get('cause')) if isinstance(kwargs.get('cause'), Exception) else None
+            error_code=(
+                cast(Optional[str], kwargs.get("error_code"))
+                if isinstance(kwargs.get("error_code"), str)
+                else None
+            ),
+            context=(
+                cast(
+                    Dict[
+                        str,
+                        Union[str, int, float, bool, List[str], Dict[str, str], None],
+                    ],
+                    kwargs.get("context", {}),
+                )
+                if isinstance(kwargs.get("context"), dict)
+                else {}
+            ),
+            suggestions=(
+                cast(List[str], kwargs.get("suggestions", []))
+                if isinstance(kwargs.get("suggestions"), list)
+                else []
+            ),
+            cause=(
+                cast(Optional[Exception], kwargs.get("cause"))
+                if isinstance(kwargs.get("cause"), Exception)
+                else None
+            ),
         )
 
 
 class DataError(SparkForgeError):
     """Raised when there's a data-related error."""
-    
-    def __init__(self, message: str, **kwargs: Union[str, int, float, bool, List[str], Dict[str, str], None]):
+
+    def __init__(
+        self,
+        message: str,
+        **kwargs: str | int | float | bool | list[str] | dict[str, str] | None,
+    ):
         super().__init__(
             message,
             category=ErrorCategory.DATA,
             severity=ErrorSeverity.MEDIUM,
-            error_code=cast(Optional[str], kwargs.get('error_code')) if isinstance(kwargs.get('error_code'), str) else None,
-            context=cast(Dict[str, Union[str, int, float, bool, List[str], Dict[str, str], None]], kwargs.get('context', {})) if isinstance(kwargs.get('context'), dict) else {},
-            suggestions=cast(List[str], kwargs.get('suggestions', [])) if isinstance(kwargs.get('suggestions'), list) else [],
-            cause=cast(Optional[Exception], kwargs.get('cause')) if isinstance(kwargs.get('cause'), Exception) else None
+            error_code=(
+                cast(Optional[str], kwargs.get("error_code"))
+                if isinstance(kwargs.get("error_code"), str)
+                else None
+            ),
+            context=(
+                cast(
+                    Dict[
+                        str,
+                        Union[str, int, float, bool, List[str], Dict[str, str], None],
+                    ],
+                    kwargs.get("context", {}),
+                )
+                if isinstance(kwargs.get("context"), dict)
+                else {}
+            ),
+            suggestions=(
+                cast(List[str], kwargs.get("suggestions", []))
+                if isinstance(kwargs.get("suggestions"), list)
+                else []
+            ),
+            cause=(
+                cast(Optional[Exception], kwargs.get("cause"))
+                if isinstance(kwargs.get("cause"), Exception)
+                else None
+            ),
         )
 
 
 class SystemError(SparkForgeError):
     """Raised when there's a system-level error."""
-    
-    def __init__(self, message: str, **kwargs: Union[str, int, float, bool, List[str], Dict[str, str], None]):
+
+    def __init__(
+        self,
+        message: str,
+        **kwargs: str | int | float | bool | list[str] | dict[str, str] | None,
+    ):
         super().__init__(
             message,
             category=ErrorCategory.SYSTEM,
             severity=ErrorSeverity.HIGH,
-            error_code=cast(Optional[str], kwargs.get('error_code')) if isinstance(kwargs.get('error_code'), str) else None,
-            context=cast(Dict[str, Union[str, int, float, bool, List[str], Dict[str, str], None]], kwargs.get('context', {})) if isinstance(kwargs.get('context'), dict) else {},
-            suggestions=cast(List[str], kwargs.get('suggestions', [])) if isinstance(kwargs.get('suggestions'), list) else [],
-            cause=cast(Optional[Exception], kwargs.get('cause')) if isinstance(kwargs.get('cause'), Exception) else None
+            error_code=(
+                cast(Optional[str], kwargs.get("error_code"))
+                if isinstance(kwargs.get("error_code"), str)
+                else None
+            ),
+            context=(
+                cast(
+                    Dict[
+                        str,
+                        Union[str, int, float, bool, List[str], Dict[str, str], None],
+                    ],
+                    kwargs.get("context", {}),
+                )
+                if isinstance(kwargs.get("context"), dict)
+                else {}
+            ),
+            suggestions=(
+                cast(List[str], kwargs.get("suggestions", []))
+                if isinstance(kwargs.get("suggestions"), list)
+                else []
+            ),
+            cause=(
+                cast(Optional[Exception], kwargs.get("cause"))
+                if isinstance(kwargs.get("cause"), Exception)
+                else None
+            ),
         )
 
 
 class PerformanceError(SparkForgeError):
     """Raised when there's a performance-related error."""
-    
-    def __init__(self, message: str, **kwargs: Union[str, int, float, bool, List[str], Dict[str, str], None]):
+
+    def __init__(
+        self,
+        message: str,
+        **kwargs: str | int | float | bool | list[str] | dict[str, str] | None,
+    ):
         super().__init__(
             message,
             category=ErrorCategory.PERFORMANCE,
             severity=ErrorSeverity.MEDIUM,
-            error_code=cast(Optional[str], kwargs.get('error_code')) if isinstance(kwargs.get('error_code'), str) else None,
-            context=cast(Dict[str, Union[str, int, float, bool, List[str], Dict[str, str], None]], kwargs.get('context', {})) if isinstance(kwargs.get('context'), dict) else {},
-            suggestions=cast(List[str], kwargs.get('suggestions', [])) if isinstance(kwargs.get('suggestions'), list) else [],
-            cause=cast(Optional[Exception], kwargs.get('cause')) if isinstance(kwargs.get('cause'), Exception) else None
+            error_code=(
+                cast(Optional[str], kwargs.get("error_code"))
+                if isinstance(kwargs.get("error_code"), str)
+                else None
+            ),
+            context=(
+                cast(
+                    Dict[
+                        str,
+                        Union[str, int, float, bool, List[str], Dict[str, str], None],
+                    ],
+                    kwargs.get("context", {}),
+                )
+                if isinstance(kwargs.get("context"), dict)
+                else {}
+            ),
+            suggestions=(
+                cast(List[str], kwargs.get("suggestions", []))
+                if isinstance(kwargs.get("suggestions"), list)
+                else []
+            ),
+            cause=(
+                cast(Optional[Exception], kwargs.get("cause"))
+                if isinstance(kwargs.get("cause"), Exception)
+                else None
+            ),
         )
 
 
 class ResourceError(SparkForgeError):
     """Raised when there's a resource-related error."""
-    
-    def __init__(self, message: str, **kwargs: Union[str, int, float, bool, List[str], Dict[str, str], None]):
+
+    def __init__(
+        self,
+        message: str,
+        **kwargs: str | int | float | bool | list[str] | dict[str, str] | None,
+    ):
         super().__init__(
             message,
             category=ErrorCategory.RESOURCE,
             severity=ErrorSeverity.HIGH,
-            error_code=cast(Optional[str], kwargs.get('error_code')) if isinstance(kwargs.get('error_code'), str) else None,
-            context=cast(Dict[str, Union[str, int, float, bool, List[str], Dict[str, str], None]], kwargs.get('context', {})) if isinstance(kwargs.get('context'), dict) else {},
-            suggestions=cast(List[str], kwargs.get('suggestions', [])) if isinstance(kwargs.get('suggestions'), list) else [],
-            cause=cast(Optional[Exception], kwargs.get('cause')) if isinstance(kwargs.get('cause'), Exception) else None
+            error_code=(
+                cast(Optional[str], kwargs.get("error_code"))
+                if isinstance(kwargs.get("error_code"), str)
+                else None
+            ),
+            context=(
+                cast(
+                    Dict[
+                        str,
+                        Union[str, int, float, bool, List[str], Dict[str, str], None],
+                    ],
+                    kwargs.get("context", {}),
+                )
+                if isinstance(kwargs.get("context"), dict)
+                else {}
+            ),
+            suggestions=(
+                cast(List[str], kwargs.get("suggestions", []))
+                if isinstance(kwargs.get("suggestions"), list)
+                else []
+            ),
+            cause=(
+                cast(Optional[Exception], kwargs.get("cause"))
+                if isinstance(kwargs.get("cause"), Exception)
+                else None
+            ),
         )
 
 

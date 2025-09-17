@@ -1,57 +1,82 @@
-
 """
-SparkForge - A simplified, production-ready data pipeline builder for Apache Spark and Delta Lake.
+SparkForge - A production-ready data pipeline framework for Apache Spark & Delta Lake.
 
-SparkForge provides a clean, maintainable API for building robust data pipelines with
-Bronze → Silver → Gold architecture, featuring:
+SparkForge transforms complex Spark + Delta Lake development into clean, maintainable code
+using the proven Medallion Architecture (Bronze → Silver → Gold). Features include:
 
-- Simplified pipeline building API
-- Clean execution engine with step-by-step processing
-- Enhanced data validation with configurable thresholds
-- Delta Lake integration with ACID transactions
-- Multi-schema support for enterprise environments
-- Step-by-step debugging capabilities
-- Comprehensive error handling and logging
-- Auto-inference of dependencies
+- **Robust Validation System**: Early error detection with clear validation messages
+- **Simplified Pipeline Building**: 70% less boilerplate compared to raw Spark
+- **Auto-inference**: Automatic dependency detection and validation
+- **Step-by-step Debugging**: Easy troubleshooting of complex pipelines
+- **Delta Lake Integration**: ACID transactions and time travel
+- **Multi-schema Support**: Enterprise-ready cross-schema data flows
+- **Comprehensive Error Handling**: Detailed error messages with suggestions
+- **100% Test Coverage**: 702+ comprehensive tests ensuring reliability
 
-Example:
+Quick Start:
     from sparkforge import PipelineBuilder
     from pyspark.sql import functions as F
 
-    # Create a pipeline
-    builder = PipelineBuilder(spark=spark, schema="my_schema")
+    # Initialize Spark
+    spark = SparkSession.builder.appName("MyPipeline").getOrCreate()
+    
+    # Create sample data
+    data = [("user1", "click", 100), ("user2", "purchase", 200)]
+    df = spark.createDataFrame(data, ["user_id", "action", "value"])
+
+    # Build pipeline with validation
+    builder = PipelineBuilder(spark=spark, schema="analytics")
+    
+    # Bronze: Raw data validation (required)
     builder.with_bronze_rules(
         name="events",
-        rules={"user_id": [F.col("user_id").isNotNull()]}
-    )
-    builder.add_silver_transform(
-        name="enriched_events",
-        source_bronze="events",
-        transform=lambda spark, df, silvers: df.withColumn("processed_at", F.current_timestamp()),
         rules={"user_id": [F.col("user_id").isNotNull()]},
-        table_name="enriched_events"
+        incremental_col="timestamp"
     )
+    
+    # Silver: Data transformation (required)
+    builder.add_silver_transform(
+        name="clean_events",
+        source_bronze="events",
+        transform=lambda spark, df, silvers: df.filter(F.col("value") > 50),
+        rules={"value": [F.col("value") > 50]},
+        table_name="clean_events"
+    )
+    
+    # Gold: Business analytics (required)
     builder.add_gold_transform(
-        name="daily_analytics",
-        transform=lambda spark, silvers: silvers["enriched_events"].groupBy("date").agg(F.count("*").alias("events")),
-        rules={"date": [F.col("date").isNotNull()]},
-        table_name="daily_analytics",
-        source_silvers=["enriched_events"]
+        name="daily_metrics",
+        transform=lambda spark, silvers: silvers["clean_events"].groupBy("action").agg(F.count("*").alias("count")),
+        rules={"count": [F.col("count") > 0]},
+        table_name="daily_metrics",
+        source_silvers=["clean_events"]
     )
 
-    # Run the pipeline
+    # Execute pipeline
     pipeline = builder.to_pipeline()
-    result = pipeline.run_initial_load(bronze_sources={"events": source_df})
+    result = pipeline.run_initial_load(bronze_sources={"events": df})
+    print(f"✅ Pipeline completed: {result.status}")
+
+Validation Requirements:
+    All pipeline steps must have validation rules. Invalid configurations are rejected
+    with clear error messages to help you fix issues quickly.
+
+    # ✅ Valid - has required validation rules
+    BronzeStep(name="events", rules={"id": [F.col("id").isNotNull()]})
+    
+    # ❌ Invalid - empty rules rejected
+    BronzeStep(name="events", rules={})  # ValidationError: Rules must be non-empty
 """
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 __author__ = "Odos Matthews"
 __email__ = "odosmattthewsm@gmail.com"
 __description__ = "A simplified, production-ready data pipeline builder for Apache Spark and Delta Lake"
 
 # Import unified dependency analysis
-from .dependencies import DependencyAnalysisResult, DependencyGraph, StepNode
+from .dependencies import DependencyAnalysisResult
 from .dependencies import DependencyAnalyzer as UnifiedDependencyAnalyzer
+from .dependencies import DependencyGraph, StepNode
 
 # Import simplified error handling
 from .errors import (
@@ -85,7 +110,7 @@ from .execution import (
     UnifiedExecutionEngine,
     UnifiedStepExecutionResult,
 )
-from .logging import PipelineLogger, get_logger, create_logger
+from .logging import PipelineLogger, create_logger, get_logger
 from .models import (
     BronzeStep,
     ExecutionContext,
@@ -107,9 +132,6 @@ from .models import (
 # Import main classes for easy access
 from .pipeline import PipelineBuilder, PipelineRunner
 from .reporting import create_validation_dict, create_write_dict
-
-# Import security and performance modules
-# Step executor functionality moved to execution module
 
 # Import simplified type system
 from .types import (
@@ -134,6 +156,10 @@ from .types import (
     TransformFunction,
     ValidationConfig,
 )
+
+# Import security and performance modules
+# Step executor functionality moved to execution module
+
 
 # Make key classes available at package level
 __all__ = [
@@ -178,7 +204,7 @@ __all__ = [
     # Error handling
     "SparkForgeError",
     "ConfigurationError",
-    "DataError", 
+    "DataError",
     "ExecutionError",
     "PerformanceError",
     "ResourceError",

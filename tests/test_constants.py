@@ -14,7 +14,7 @@ class TestConstantsValues(unittest.TestCase):
 
     def test_memory_constants(self):
         """Test memory-related constants."""
-        from sparkforge.constants import BYTES_PER_KB, BYTES_PER_MB, BYTES_PER_GB
+        from sparkforge.constants import BYTES_PER_GB, BYTES_PER_KB, BYTES_PER_MB
 
         self.assertEqual(BYTES_PER_KB, 1024)
         self.assertEqual(BYTES_PER_MB, 1024 * 1024)
@@ -22,21 +22,24 @@ class TestConstantsValues(unittest.TestCase):
 
     def test_default_memory_limits(self):
         """Test default memory limit constants."""
-        from sparkforge.constants import DEFAULT_MAX_MEMORY_MB, DEFAULT_CACHE_MEMORY_MB
+        from sparkforge.constants import DEFAULT_CACHE_MEMORY_MB, DEFAULT_MAX_MEMORY_MB
 
         self.assertEqual(DEFAULT_MAX_MEMORY_MB, 1024)
         self.assertEqual(DEFAULT_CACHE_MEMORY_MB, 512)
 
     def test_file_size_constants(self):
         """Test file size constants."""
-        from sparkforge.constants import DEFAULT_MAX_FILE_SIZE_MB, DEFAULT_BACKUP_COUNT
+        from sparkforge.constants import DEFAULT_BACKUP_COUNT, DEFAULT_MAX_FILE_SIZE_MB
 
         self.assertEqual(DEFAULT_MAX_FILE_SIZE_MB, 10)
         self.assertEqual(DEFAULT_BACKUP_COUNT, 5)
 
     def test_performance_constants(self):
         """Test performance-related constants."""
-        from sparkforge.constants import DEFAULT_CACHE_PARTITIONS, DEFAULT_SHUFFLE_PARTITIONS
+        from sparkforge.constants import (
+            DEFAULT_CACHE_PARTITIONS,
+            DEFAULT_SHUFFLE_PARTITIONS,
+        )
 
         self.assertEqual(DEFAULT_CACHE_PARTITIONS, 200)
         self.assertEqual(DEFAULT_SHUFFLE_PARTITIONS, 200)
@@ -45,8 +48,8 @@ class TestConstantsValues(unittest.TestCase):
         """Test validation threshold constants."""
         from sparkforge.constants import (
             DEFAULT_BRONZE_THRESHOLD,
-            DEFAULT_SILVER_THRESHOLD,
             DEFAULT_GOLD_THRESHOLD,
+            DEFAULT_SILVER_THRESHOLD,
         )
 
         self.assertEqual(DEFAULT_BRONZE_THRESHOLD, 95.0)
@@ -55,7 +58,10 @@ class TestConstantsValues(unittest.TestCase):
 
     def test_timeout_constants(self):
         """Test timeout constants."""
-        from sparkforge.constants import DEFAULT_TIMEOUT_SECONDS, DEFAULT_RETRY_TIMEOUT_SECONDS
+        from sparkforge.constants import (
+            DEFAULT_RETRY_TIMEOUT_SECONDS,
+            DEFAULT_TIMEOUT_SECONDS,
+        )
 
         self.assertEqual(DEFAULT_TIMEOUT_SECONDS, 300)
         self.assertEqual(DEFAULT_RETRY_TIMEOUT_SECONDS, 60)
@@ -83,7 +89,10 @@ class TestConstantsValues(unittest.TestCase):
 
     def test_performance_monitoring_constants(self):
         """Test performance monitoring constants."""
-        from sparkforge.constants import DEFAULT_METRICS_INTERVAL_SECONDS, DEFAULT_ALERT_THRESHOLD_PERCENT
+        from sparkforge.constants import (
+            DEFAULT_ALERT_THRESHOLD_PERCENT,
+            DEFAULT_METRICS_INTERVAL_SECONDS,
+        )
 
         self.assertEqual(DEFAULT_METRICS_INTERVAL_SECONDS, 30)
         self.assertEqual(DEFAULT_ALERT_THRESHOLD_PERCENT, 80.0)
@@ -94,7 +103,7 @@ class TestConstantsUsage(unittest.TestCase):
 
     def test_performance_cache_uses_constants(self):
         """Test that performance_cache.py uses constants correctly."""
-        from sparkforge.constants import DEFAULT_MAX_MEMORY_MB, BYTES_PER_MB
+        from sparkforge.constants import BYTES_PER_MB, DEFAULT_MAX_MEMORY_MB
 
         # Test that constants are defined correctly
         self.assertEqual(DEFAULT_MAX_MEMORY_MB, 1024)  # 1GB in MB
@@ -112,7 +121,7 @@ class TestConstantsUsage(unittest.TestCase):
         from sparkforge.constants import BYTES_PER_MB
 
         original_value = BYTES_PER_MB
-        
+
         # Attempting to modify should not work (constants should be immutable)
         # This is more of a documentation test - Python doesn't prevent modification
         # but we can verify the value is what we expect
@@ -125,39 +134,6 @@ class TestConstantsCompleteness(unittest.TestCase):
 
     def test_all_required_constants_exist(self):
         """Test that all required constants are defined and importable."""
-        from sparkforge.constants import (
-            # Memory constants
-            BYTES_PER_KB,
-            BYTES_PER_MB,
-            BYTES_PER_GB,
-            DEFAULT_MAX_MEMORY_MB,
-            DEFAULT_CACHE_MEMORY_MB,
-            # File constants
-            DEFAULT_MAX_FILE_SIZE_MB,
-            DEFAULT_BACKUP_COUNT,
-            # Performance constants
-            DEFAULT_CACHE_PARTITIONS,
-            DEFAULT_SHUFFLE_PARTITIONS,
-            # Validation constants
-            DEFAULT_BRONZE_THRESHOLD,
-            DEFAULT_SILVER_THRESHOLD,
-            DEFAULT_GOLD_THRESHOLD,
-            # Timeout constants
-            DEFAULT_TIMEOUT_SECONDS,
-            DEFAULT_RETRY_TIMEOUT_SECONDS,
-            # Logging constants
-            DEFAULT_LOG_LEVEL,
-            DEFAULT_VERBOSE,
-            # Schema constants
-            DEFAULT_SCHEMA,
-            TEST_SCHEMA,
-            # Error constants
-            MAX_ERROR_MESSAGE_LENGTH,
-            MAX_STACK_TRACE_LINES,
-            # Performance monitoring constants
-            DEFAULT_METRICS_INTERVAL_SECONDS,
-            DEFAULT_ALERT_THRESHOLD_PERCENT,
-        )
 
         # If we get here without ImportError, all constants exist
         self.assertTrue(True)
@@ -165,12 +141,12 @@ class TestConstantsCompleteness(unittest.TestCase):
     def test_constants_have_appropriate_types(self):
         """Test that constants have the appropriate types."""
         from sparkforge.constants import (
+            BYTES_PER_GB,
             BYTES_PER_KB,
             BYTES_PER_MB,
-            BYTES_PER_GB,
-            DEFAULT_MAX_MEMORY_MB,
             DEFAULT_BRONZE_THRESHOLD,
             DEFAULT_LOG_LEVEL,
+            DEFAULT_MAX_MEMORY_MB,
             DEFAULT_VERBOSE,
         )
 

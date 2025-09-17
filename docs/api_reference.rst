@@ -9,6 +9,16 @@ This section provides comprehensive API documentation for all SparkForge classes
    If you're viewing this on Read the Docs, the classes may not be fully documented due to missing dependencies.
    For complete API documentation with examples, see the full reference below.
 
+.. important::
+
+   **Validation System**: SparkForge now includes a robust validation system that enforces data quality requirements:
+   
+   - **BronzeStep**: Must have non-empty validation rules
+   - **SilverStep**: Must have non-empty validation rules, valid transform function, and valid source_bronze (except for existing tables)
+   - **GoldStep**: Must have non-empty validation rules and valid transform function
+   
+   Invalid configurations are rejected during construction with clear error messages, ensuring data quality from the start.
+
 Core Classes
 ------------
 
@@ -501,14 +511,14 @@ Basic Pipeline
 
    # Create pipeline
    builder = PipelineBuilder(spark=spark, schema="analytics")
-   
+
    # Add Bronze step
    builder.with_bronze_rules(
        name="events",
        rules={"user_id": [F.col("user_id").isNotNull()]},
        incremental_col="timestamp"
    )
-   
+
    # Add Silver step
    builder.add_silver_transform(
        name="clean_events",
@@ -517,7 +527,7 @@ Basic Pipeline
        rules={"status": [F.col("status").isNotNull()]},
        table_name="clean_events"
    )
-   
+
    # Add Gold step
    builder.add_gold_transform(
        name="daily_metrics",
@@ -525,7 +535,7 @@ Basic Pipeline
        rules={"date": [F.col("date").isNotNull()]},
        table_name="daily_metrics"
    )
-   
+
    # Execute pipeline
    pipeline = builder.to_pipeline()
    result = pipeline.run_initial_load(bronze_sources={"events": source_df})
@@ -558,10 +568,10 @@ Logging
 
    # Create logger
    logger = PipelineLogger(level="INFO")
-   
+
    # Use with pipeline
    builder = PipelineBuilder(spark=spark, schema="analytics", logger=logger)
-   
+
    # Log messages
    logger.info("Starting pipeline execution")
    logger.error("Pipeline failed", extra={"step": "bronze"})
@@ -577,7 +587,7 @@ Validation
    valid_df, invalid_df, stats = apply_column_rules(
        df, rules, stage="bronze", step="events"
    )
-   
+
    # Assess data quality
    quality = assess_data_quality(df)
    print(f"Quality rate: {quality['quality_rate']}%")
@@ -592,7 +602,7 @@ Dependencies
    # Analyze dependencies
    analyzer = DependencyAnalyzer()
    result = analyzer.analyze_pipeline(bronze_steps, silver_steps, gold_steps)
-   
+
    # Get execution order
    execution_order = result.execution_order
    print(f"Execution order: {execution_order}")

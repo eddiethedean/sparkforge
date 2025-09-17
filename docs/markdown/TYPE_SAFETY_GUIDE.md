@@ -37,6 +37,26 @@ def add_silver_transform(
 - `generics.py` - Generic types and type variables
 - `utils.py` - Type utilities and validation helpers
 
+### **3. Early Validation System**
+
+**New:** Robust validation with type safety
+```python
+# Validation errors are caught during construction with type safety
+@dataclass
+class BronzeStep(BaseModel):
+    name: str
+    rules: ColumnRules
+    incremental_col: str | None = None
+    schema: str | None = None
+    
+    def __post_init__(self):
+        """Validate required fields after initialization."""
+        if not self.name or not isinstance(self.name, str):
+            raise ValidationError("Step name must be a non-empty string")
+        if not isinstance(self.rules, dict) or not self.rules:
+            raise ValidationError("Rules must be a non-empty dictionary")
+```
+
 ### **3. Rich Type Definitions**
 
 #### **Core Types**

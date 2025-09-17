@@ -27,6 +27,25 @@ Validation Failures
 - Adjust quality thresholds if appropriate
 - Investigate specific validation failures
 
+**Problem**: ValidationError during step construction
+
+**Solutions**:
+- Ensure all step types have non-empty validation rules
+- Verify transform functions are callable and properly defined
+- Check that source dependencies are correctly specified
+- For existing tables, ensure proper configuration
+
+.. code-block:: python
+
+   # ❌ This will raise ValidationError
+   BronzeStep(name="events", rules={})
+   
+   # ✅ This is correct
+   BronzeStep(
+       name="events", 
+       rules={"user_id": [F.col("user_id").isNotNull()]}
+   )
+
 Execution Timeouts
 ~~~~~~~~~~~~~~~~~
 

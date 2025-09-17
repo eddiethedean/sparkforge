@@ -7,7 +7,6 @@ for better type safety without over-engineering.
 
 from __future__ import annotations
 
-from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -51,25 +50,32 @@ OptionalList = Optional[List[Any]]
 # Enums
 # ============================================================================
 
+
 class StepType(Enum):
     """Types of pipeline steps."""
+
     BRONZE = "bronze"
     SILVER = "silver"
     GOLD = "gold"
 
+
 class StepStatus(Enum):
     """Step execution status."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
     SKIPPED = "skipped"
 
+
 class PipelineMode(Enum):
     """Pipeline execution modes."""
+
     INITIAL = "initial"
     INCREMENTAL = "incremental"
     FULL_REFRESH = "full_refresh"
+
 
 # ============================================================================
 # Function Types
@@ -78,7 +84,9 @@ class PipelineMode(Enum):
 # Transform function types
 TransformFunction = Callable[[SparkSession, DataFrame], DataFrame]
 BronzeTransformFunction = Callable[[SparkSession, DataFrame], DataFrame]
-SilverTransformFunction = Callable[[SparkSession, DataFrame, Dict[str, DataFrame]], DataFrame]
+SilverTransformFunction = Callable[
+    [SparkSession, DataFrame, Dict[str, DataFrame]], DataFrame
+]
 GoldTransformFunction = Callable[[SparkSession, Dict[str, DataFrame]], DataFrame]
 
 # Filter function type
@@ -120,17 +128,22 @@ ErrorSuggestions = List[str]
 
 from typing import Protocol
 
+
 class Validatable(Protocol):
     """Protocol for objects that can be validated."""
+
     def validate(self) -> None:
         """Validate the object and raise ValidationError if invalid."""
         ...
 
+
 class Serializable(Protocol):
     """Protocol for objects that can be serialized."""
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert object to dictionary."""
         ...
+
 
 # ============================================================================
 # Backward Compatibility Aliases

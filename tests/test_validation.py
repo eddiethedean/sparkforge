@@ -19,7 +19,6 @@ from sparkforge.errors import ValidationError
 from sparkforge.validation import (
     and_all_rules,
     apply_column_rules,
-    assess_data_quality,
     get_dataframe_info,
     safe_divide,
     validate_dataframe_schema,

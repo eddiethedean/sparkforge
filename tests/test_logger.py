@@ -5,7 +5,6 @@ Comprehensive tests for the logger module.
 This module tests all logging functionality, formatters, timers, and performance monitoring.
 """
 
-import json
 import logging
 import os
 import tempfile
@@ -13,12 +12,9 @@ import unittest
 
 from sparkforge.logging import (
     PipelineLogger,
-    create_logger,
-    get_logger,
-    set_logger,
     get_global_logger,
-    set_global_logger,
     reset_global_logger,
+    set_global_logger,
 )
 
 
@@ -74,8 +70,6 @@ class TestPipelineLogger(unittest.TestCase):
 
         logger.close()
 
-
-
     def test_log_level_management(self):
         """Test log level management."""
         logger = PipelineLogger(verbose=False, level=logging.WARNING)
@@ -90,7 +84,6 @@ class TestPipelineLogger(unittest.TestCase):
         logger.debug("Debug message after level change")
 
         logger.close()
-
 
 
 class TestGlobalLogger(unittest.TestCase):

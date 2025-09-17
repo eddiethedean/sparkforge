@@ -8,11 +8,10 @@ the fluent API, validation, execution modes, error handling, and reporting.
 
 import unittest
 from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from sparkforge.errors import StepError
 from sparkforge.logging import PipelineLogger
-from sparkforge.models import BronzeStep, ExecutionContext
 from sparkforge.pipeline import (
     PipelineBuilder,
     PipelineMetrics,
@@ -194,7 +193,11 @@ class TestPipelineBuilder(unittest.TestCase):
         self.assertIn("bronze1", self.builder.bronze_steps)
         bronze_step = self.builder.bronze_steps["bronze1"]
         self.assertEqual(bronze_step.name, "bronze1")
-        self.assertEqual(bronze_step.rules, {"id": ["not_null"]})
+        # Rules should be converted to PySpark Column objects
+        self.assertIn("id", bronze_step.rules)
+        self.assertEqual(len(bronze_step.rules["id"]), 1)
+        # Check that it's a PySpark Column object (not a string)
+        self.assertTrue(hasattr(bronze_step.rules["id"][0], 'expr'))
         self.assertEqual(bronze_step.incremental_col, "created_at")
 
     def test_with_silver_rules(self):
@@ -215,7 +218,11 @@ class TestPipelineBuilder(unittest.TestCase):
         silver_step = self.builder.silver_steps["silver1"]
         self.assertEqual(silver_step.name, "silver1")
         self.assertEqual(silver_step.table_name, "silver_table")
-        self.assertEqual(silver_step.rules, {"id": ["not_null"]})
+        # Rules should be converted to PySpark Column objects
+        self.assertIn("id", silver_step.rules)
+        self.assertEqual(len(silver_step.rules["id"]), 1)
+        # Check that it's a PySpark Column object (not a string)
+        self.assertTrue(hasattr(silver_step.rules["id"][0], 'expr'))
         self.assertEqual(silver_step.watermark_col, "updated_at")
         self.assertTrue(silver_step.existing)
 
@@ -301,7 +308,6 @@ class TestPipelineBuilder(unittest.TestCase):
         self.assertEqual(gold_step.transform, mock_transform)
         self.assertEqual(gold_step.table_name, "gold_table")
         self.assertEqual(gold_step.source_silvers, ["silver1", "silver2"])
-
 
     def test_validate_pipeline_success(self):
         """Test successful pipeline validation."""

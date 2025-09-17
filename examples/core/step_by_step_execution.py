@@ -113,7 +113,8 @@ def main():
                 )
             else:
                 return spark.createDataFrame(
-                    [], "event_date date, action string, event_count long, total_value long, avg_value double"
+                    [],
+                    "event_date date, action string, event_count long, total_value long, avg_value double",
                 )
 
         builder.add_gold_transform(
@@ -148,7 +149,7 @@ def main():
         print("\n🚀 Running complete pipeline...")
         result = pipeline.run_initial_load(bronze_sources={"events": source_df})
 
-        print(f"\n📊 Pipeline Results:")
+        print("\n📊 Pipeline Results:")
         print(f"   Status: {result.status}")
         print(f"   Total steps: {result.total_steps}")
         print(f"   Successful steps: {result.successful_steps}")
@@ -173,7 +174,7 @@ def main():
         def debug_silver_transform(spark, df, silvers):
             print("   🔍 Debug: Input data shape:", df.count(), "rows")
             print("   🔍 Debug: Input columns:", df.columns)
-            
+
             # Apply the same transformation but with debug info
             result_df = (
                 df.withColumn("event_date", F.to_date("timestamp"))
@@ -181,15 +182,15 @@ def main():
                 .filter(F.col("value") > 100)  # Changed threshold for debugging
                 .select("user_id", "action", "value", "event_date", "processed_at")
             )
-            
+
             print("   🔍 Debug: Output data shape:", result_df.count(), "rows")
             print("   🔍 Debug: Output columns:", result_df.columns)
-            
+
             return result_df
 
         # Create a new pipeline with the debug transform
         debug_builder = PipelineBuilder(spark=spark, schema="debug_schema")
-        
+
         debug_builder.with_bronze_rules(
             name="events",
             rules={"user_id": [F.col("user_id").isNotNull()]},
@@ -207,9 +208,11 @@ def main():
         debug_pipeline = debug_builder.to_pipeline()
 
         print("\n🚀 Running debug pipeline...")
-        debug_result = debug_pipeline.run_initial_load(bronze_sources={"events": source_df})
+        debug_result = debug_pipeline.run_initial_load(
+            bronze_sources={"events": source_df}
+        )
 
-        print(f"\n📊 Debug Pipeline Results:")
+        print("\n📊 Debug Pipeline Results:")
         print(f"   Status: {debug_result.status}")
         print(f"   Total steps: {debug_result.total_steps}")
 

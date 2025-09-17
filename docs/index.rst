@@ -4,7 +4,7 @@ SparkForge Documentation
 A simplified, production-ready PySpark + Delta Lake pipeline engine with the Medallion Architecture (Bronze → Silver → Gold). Build scalable data pipelines with clean, maintainable code and comprehensive validation.
 
 .. note::
-   
+
    SparkForge provides a complete Medallion Architecture implementation with Bronze → Silver → Gold data layering.
 
 Quick Start

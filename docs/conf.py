@@ -12,16 +12,17 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('..'))
+
+sys.path.insert(0, os.path.abspath(".."))
 
 # -- Project information -----------------------------------------------------
 
-project = 'SparkForge'
-copyright = '2024, SparkForge Team'
-author = 'SparkForge Team'
+project = "SparkForge"
+copyright = "2024, SparkForge Team"
+author = "SparkForge Team"
 
 # The full version, including alpha/beta/rc tags
-release = '0.6.0'
+release = "0.6.0"
 
 # -- General configuration ---------------------------------------------------
 
@@ -29,40 +30,40 @@ release = '0.6.0'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.autosummary',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.napoleon',
-    'sphinx.ext.viewcode',
-    'sphinx.ext.githubpages',
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.githubpages",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'alabaster'
+html_theme = "alabaster"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = ["_static"]
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
 html_sidebars = {
-    '**': [
-        'relations.html',  # needs 'show_related': True theme option to display
-        'searchbox.html',
+    "**": [
+        "relations.html",  # needs 'show_related': True theme option to display
+        "searchbox.html",
     ]
 }
 
@@ -70,11 +71,11 @@ html_sidebars = {
 
 # -- Options for autodoc extension -------------------------------------------
 autodoc_default_options = {
-    'members': True,
-    'member-order': 'bysource',
-    'special-members': '__init__',
-    'undoc-members': True,
-    'exclude-members': '__weakref__'
+    "members": True,
+    "member-order": "bysource",
+    "special-members": "__init__",
+    "undoc-members": True,
+    "exclude-members": "__weakref__",
 }
 
 # -- Options for napoleon extension ------------------------------------------
@@ -95,8 +96,8 @@ napoleon_attr_annotations = True
 
 # -- Options for intersphinx extension ---------------------------------------
 intersphinx_mapping = {
-    'python': ('https://docs.python.org/3/', None),
-    'pyspark': ('https://spark.apache.org/docs/latest/api/python/', None),
+    "python": ("https://docs.python.org/3/", None),
+    "pyspark": ("https://spark.apache.org/docs/latest/api/python/", None),
 }
 
 # -- Options for myst_parser -------------------------------------------------
@@ -132,9 +133,11 @@ sphinx_tabs_disable_tab_closing = True
 
 # -- Custom configuration ----------------------------------------------------
 
+
 # Add custom CSS
 def setup(app):
-    app.add_css_file('custom.css')
+    app.add_css_file("custom.css")
+
 
 # -- Options for HTML output -------------------------------------------------
 html_title = "SparkForge Documentation"
@@ -144,10 +147,10 @@ html_short_title = "SparkForge"
 
 # Theme options (simplified for alabaster theme)
 html_theme_options = {
-    'description': 'A production-ready PySpark + Delta Lake pipeline engine with the Medallion Architecture',
-    'github_user': 'eddiethedean',
-    'github_repo': 'sparkforge',
-    'github_button': True,
-    'github_banner': True,
-    'show_powered_by': False
+    "description": "A production-ready PySpark + Delta Lake pipeline engine with the Medallion Architecture",
+    "github_user": "eddiethedean",
+    "github_repo": "sparkforge",
+    "github_button": True,
+    "github_banner": True,
+    "show_powered_by": False,
 }

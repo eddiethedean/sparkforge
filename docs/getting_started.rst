@@ -15,6 +15,10 @@ Your First Pipeline
 
 Let's build a simple e-commerce analytics pipeline:
 
+.. important::
+
+   **Validation System**: SparkForge includes a robust validation system that ensures data quality from the start. All pipeline steps must have validation rules, and invalid configurations are rejected with clear error messages.
+
 .. code-block:: python
 
    from sparkforge import PipelineBuilder

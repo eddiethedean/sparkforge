@@ -198,8 +198,8 @@ class TestSilverStep:
         rules = {"user_id": [F.col("user_id").isNotNull()]}
         step = SilverStep(
             name="existing_step",
-            source_bronze=None,
-            transform=None,
+            source_bronze="bronze_step",
+            transform=lambda spark, df, silvers: df,
             rules=rules,
             table_name="existing_table",
             watermark_col="updated_at",
@@ -207,8 +207,8 @@ class TestSilverStep:
         )
 
         assert step.existing is True
-        assert step.source_bronze is None
-        assert step.transform is None
+        assert step.source_bronze == "bronze_step"
+        assert step.transform is not None
 
     def test_silver_step_validation(self):
         """Test SilverStep validation."""

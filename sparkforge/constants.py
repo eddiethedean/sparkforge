@@ -1,4 +1,3 @@
-
 """
 Constants and configuration values for SparkForge.
 

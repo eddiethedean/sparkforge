@@ -6,13 +6,19 @@ and therefore force full refresh of downstream Silver steps.
 """
 
 import pytest
-from pyspark.sql import DataFrame, SparkSession, functions as F
+from pyspark.sql import functions as F
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
 from sparkforge import PipelineBuilder
-from sparkforge.execution import ExecutionEngine, ExecutionMode, StepStatus, StepType
-from sparkforge.models import BronzeStep, SilverStep, GoldStep, PipelineConfig, ValidationThresholds, ParallelConfig
-from sparkforge.logging import PipelineLogger
+from sparkforge.execution import ExecutionEngine
+from sparkforge.models import (
+    BronzeStep,
+    GoldStep,
+    ParallelConfig,
+    PipelineConfig,
+    SilverStep,
+    ValidationThresholds,
+)
 
 
 class TestBronzeNoDatetime:
@@ -37,7 +43,9 @@ class TestBronzeNoDatetime:
         )
         return spark_session.createDataFrame(data, schema)
 
-    def test_bronze_step_without_incremental_col(self, spark_session, sample_data_no_datetime):
+    def test_bronze_step_without_incremental_col(
+        self, spark_session, sample_data_no_datetime
+    ):
         """Test Bronze step without incremental column."""
         builder = PipelineBuilder(spark=spark_session, schema="test_schema")
 
@@ -48,7 +56,7 @@ class TestBronzeNoDatetime:
                 "user_id": [F.col("user_id").isNotNull()],
                 "action": [F.col("action").isNotNull()],
                 "value": [F.col("value").isNotNull()],
-            }
+            },
         )
 
         # Verify bronze step was created correctly
@@ -72,7 +80,7 @@ class TestBronzeNoDatetime:
                 "action": [F.col("action").isNotNull()],
                 "timestamp": [F.col("timestamp").isNotNull()],
             },
-            incremental_col="timestamp"
+            incremental_col="timestamp",
         )
 
         # Verify bronze step was created correctly
@@ -95,7 +103,7 @@ class TestBronzeNoDatetime:
                 "user_id": [F.col("user_id").isNotNull()],
                 "action": [F.col("action").isNotNull()],
                 "value": [F.col("value").isNotNull()],
-            }
+            },
         )
 
         # Add Silver step
@@ -111,7 +119,7 @@ class TestBronzeNoDatetime:
                 "action": [F.col("action").isNotNull()],
                 "value": [F.col("value") > 150],
             },
-            table_name="high_value_events"
+            table_name="high_value_events",
         )
 
         # Verify silver step was created correctly
@@ -133,7 +141,7 @@ class TestBronzeNoDatetime:
                 "user_id": [F.col("user_id").isNotNull()],
                 "action": [F.col("action").isNotNull()],
                 "value": [F.col("value").isNotNull()],
-            }
+            },
         )
 
         # Add Silver step
@@ -149,14 +157,16 @@ class TestBronzeNoDatetime:
                 "action": [F.col("action").isNotNull()],
                 "value": [F.col("value") > 150],
             },
-            table_name="high_value_events"
+            table_name="high_value_events",
         )
 
         # Add Gold step
         def gold_transform(spark, silvers):
             events_df = silvers.get("high_value_events")
             if events_df is not None:
-                return events_df.groupBy("action").agg(F.sum("value").alias("total_value"))
+                return events_df.groupBy("action").agg(
+                    F.sum("value").alias("total_value")
+                )
             else:
                 return spark.createDataFrame([], ["action", "total_value"])
 
@@ -167,7 +177,7 @@ class TestBronzeNoDatetime:
                 "action": [F.col("action").isNotNull()],
                 "total_value": [F.col("total_value").isNotNull()],
             },
-            table_name="action_summary"
+            table_name="action_summary",
         )
 
         # Verify gold step was created correctly
@@ -188,7 +198,7 @@ class TestBronzeNoDatetime:
                 "user_id": [F.col("user_id").isNotNull()],
                 "action": [F.col("action").isNotNull()],
                 "value": [F.col("value").isNotNull()],
-            }
+            },
         )
 
         # Add Silver step
@@ -204,14 +214,16 @@ class TestBronzeNoDatetime:
                 "action": [F.col("action").isNotNull()],
                 "value": [F.col("value") > 150],
             },
-            table_name="high_value_events"
+            table_name="high_value_events",
         )
 
         # Add Gold step
         def gold_transform(spark, silvers):
             events_df = silvers.get("high_value_events")
             if events_df is not None:
-                return events_df.groupBy("action").agg(F.sum("value").alias("total_value"))
+                return events_df.groupBy("action").agg(
+                    F.sum("value").alias("total_value")
+                )
             else:
                 return spark.createDataFrame([], ["action", "total_value"])
 
@@ -222,7 +234,7 @@ class TestBronzeNoDatetime:
                 "action": [F.col("action").isNotNull()],
                 "total_value": [F.col("total_value").isNotNull()],
             },
-            table_name="action_summary"
+            table_name="action_summary",
         )
 
         # Test validation
@@ -240,7 +252,7 @@ class TestBronzeNoDatetime:
                 "user_id": [F.col("user_id").isNotNull()],
                 "action": [F.col("action").isNotNull()],
                 "value": [F.col("value").isNotNull()],
-            }
+            },
         )
 
         # Add Silver step
@@ -256,14 +268,16 @@ class TestBronzeNoDatetime:
                 "action": [F.col("action").isNotNull()],
                 "value": [F.col("value") > 150],
             },
-            table_name="high_value_events"
+            table_name="high_value_events",
         )
 
         # Add Gold step
         def gold_transform(spark, silvers):
             events_df = silvers.get("high_value_events")
             if events_df is not None:
-                return events_df.groupBy("action").agg(F.sum("value").alias("total_value"))
+                return events_df.groupBy("action").agg(
+                    F.sum("value").alias("total_value")
+                )
             else:
                 return spark.createDataFrame([], ["action", "total_value"])
 
@@ -274,14 +288,14 @@ class TestBronzeNoDatetime:
                 "action": [F.col("action").isNotNull()],
                 "total_value": [F.col("total_value").isNotNull()],
             },
-            table_name="action_summary"
+            table_name="action_summary",
         )
 
         # Create pipeline
         pipeline = builder.to_pipeline()
         assert pipeline is not None
-        assert hasattr(pipeline, 'run_initial_load')
-        assert hasattr(pipeline, 'run_pipeline')
+        assert hasattr(pipeline, "run_initial_load")
+        assert hasattr(pipeline, "run_pipeline")
 
     def test_dataframe_operations(self, spark_session, sample_data_no_datetime):
         """Test DataFrame operations with data without datetime columns."""
@@ -297,7 +311,9 @@ class TestBronzeNoDatetime:
         assert filtered_df.count() == 3
 
         # Test grouping
-        grouped_df = sample_data_no_datetime.groupBy("action").agg(F.sum("value").alias("total_value"))
+        grouped_df = sample_data_no_datetime.groupBy("action").agg(
+            F.sum("value").alias("total_value")
+        )
         assert grouped_df.count() == 3
 
         # Test aggregation
@@ -309,7 +325,7 @@ class TestBronzeNoDatetime:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(max_workers=4, enabled=True)
+            parallel=ParallelConfig(max_workers=4, enabled=True),
         )
 
         engine = ExecutionEngine(spark=spark_session, config=config)
@@ -323,7 +339,7 @@ class TestBronzeNoDatetime:
         bronze_step = BronzeStep(
             name="test_bronze",
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            incremental_col=None
+            incremental_col=None,
         )
         assert isinstance(bronze_step, BronzeStep)
 
@@ -336,19 +352,23 @@ class TestBronzeNoDatetime:
             source_bronze="test_bronze",
             transform=silver_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="test_silver"
+            table_name="test_silver",
         )
         assert isinstance(silver_step, SilverStep)
 
         # Test GoldStep
         def gold_transform(spark, silvers):
-            return list(silvers.values())[0] if silvers else spark.createDataFrame([], ["user_id"])
+            return (
+                list(silvers.values())[0]
+                if silvers
+                else spark.createDataFrame([], ["user_id"])
+            )
 
         gold_step = GoldStep(
             name="test_gold",
             transform=gold_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="test_gold"
+            table_name="test_gold",
         )
         assert isinstance(gold_step, GoldStep)
 
@@ -357,7 +377,7 @@ class TestBronzeNoDatetime:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(max_workers=4, enabled=True)
+            parallel=ParallelConfig(max_workers=4, enabled=True),
         )
 
         assert config.schema == "test_schema"

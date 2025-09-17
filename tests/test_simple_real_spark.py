@@ -11,8 +11,6 @@ import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import StringType, StructField, StructType
 
-# add_metadata_columns function removed - not needed for simplified system
-
 # Import the actual functions we're testing
 from sparkforge.validation import (
     and_all_rules,
@@ -20,6 +18,9 @@ from sparkforge.validation import (
     get_dataframe_info,
     validate_dataframe_schema,
 )
+
+# add_metadata_columns function removed - not needed for simplified system
+
 
 
 class TestRealSparkOperations:

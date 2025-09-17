@@ -1,4 +1,3 @@
-
 # models.py
 """
 Enhanced data models and type definitions for the Pipeline Builder.
@@ -21,15 +20,15 @@ from __future__ import annotations
 
 import json
 import uuid
-from abc import ABC
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Callable, Dict, List, Protocol, TypeVar, Union
 
-from pyspark.sql import DataFrame
+from pyspark.sql import Column, DataFrame, SparkSession
 
-from .errors import PipelineValidationError
+from .errors import PipelineValidationError, ValidationError
 
 # ============================================================================
 # Custom Exceptions
@@ -97,10 +96,12 @@ ResourceValue = Union[str, int, float, bool, List[str], Dict[str, str]]
 # ============================================================================
 
 # Type aliases for better readability
-ColumnRules = Dict[str, List[ColumnRule]]
+ColumnRules = Dict[str, List[Union[str, Column]]]
 TransformFunction = Callable[[DataFrame], DataFrame]
-SilverTransformFunction = Callable[[DataFrame], DataFrame]
-GoldTransformFunction = Callable[[Dict[str, DataFrame]], DataFrame]
+SilverTransformFunction = Callable[
+    [SparkSession, DataFrame, Dict[str, DataFrame]], DataFrame
+]
+GoldTransformFunction = Callable[[SparkSession, Dict[str, DataFrame]], DataFrame]
 
 # Generic type for pipeline results
 T = TypeVar("T")
@@ -164,6 +165,7 @@ class BaseModel(ABC):
         >>> print(step.to_json())
     """
 
+    @abstractmethod
     def validate(self) -> None:
         """Validate the model. Override in subclasses."""
         pass
@@ -395,6 +397,11 @@ class BronzeStep(BaseModel):
     handling raw data validation and establishing the foundation for downstream
     processing. They define validation rules and incremental processing capabilities.
 
+    **Validation Requirements:**
+        - `name`: Must be a non-empty string
+        - `rules`: Must be a non-empty dictionary with validation rules
+        - `incremental_col`: Must be a string if provided
+
     Attributes:
         name: Unique identifier for this Bronze step
         rules: Dictionary mapping column names to validation rule lists.
@@ -402,10 +409,15 @@ class BronzeStep(BaseModel):
         incremental_col: Column name for incremental processing (e.g., "timestamp").
                         If provided, enables watermarking for efficient updates.
                         If None, forces full refresh mode for downstream steps.
+        schema: Optional schema name for reading bronze data
+
+    Raises:
+        ValidationError: If validation requirements are not met during construction
 
     Example:
         >>> from pyspark.sql import functions as F
         >>>
+        >>> # Valid Bronze step with PySpark expressions
         >>> bronze_step = BronzeStep(
         ...     name="user_events",
         ...     rules={
@@ -419,12 +431,30 @@ class BronzeStep(BaseModel):
         >>> # Validate configuration
         >>> bronze_step.validate()
         >>> print(f"Supports incremental: {bronze_step.has_incremental_capability}")
+
+        >>> # Invalid Bronze step (will raise ValidationError)
+        >>> try:
+        ...     BronzeStep(name="", rules={})  # Empty name and rules
+        ... except ValidationError as e:
+        ...     print(f"Validation failed: {e}")
+        ...     # Output: "Step name must be a non-empty string"
     """
 
     name: str
     rules: ColumnRules
     incremental_col: str | None = None
     schema: str | None = None
+
+    def __post_init__(self) -> None:
+        """Validate required fields after initialization."""
+        if not self.name or not isinstance(self.name, str):
+            raise ValidationError("Step name must be a non-empty string")
+        if not isinstance(self.rules, dict) or not self.rules:
+            raise ValidationError("Rules must be a non-empty dictionary")
+        if self.incremental_col is not None and not isinstance(
+            self.incremental_col, str
+        ):
+            raise ValidationError("Incremental column must be a string")
 
     def validate(self) -> None:
         """Validate bronze step configuration."""
@@ -452,11 +482,19 @@ class SilverStep(BaseModel):
     transforming raw Bronze data into clean, business-ready datasets.
     They apply data quality rules, business logic, and data transformations.
 
+    **Validation Requirements:**
+        - `name`: Must be a non-empty string
+        - `source_bronze`: Must be a non-empty string (except for existing tables)
+        - `transform`: Must be callable and cannot be None
+        - `rules`: Must be a non-empty dictionary with validation rules
+        - `table_name`: Must be a non-empty string
+
     Attributes:
         name: Unique identifier for this Silver step
         source_bronze: Name of the Bronze step providing input data
         transform: Transformation function with signature:
                  (spark: SparkSession, bronze_df: DataFrame, prior_silvers: Dict[str, DataFrame]) -> DataFrame
+                 Must be callable and cannot be None.
         rules: Dictionary mapping column names to validation rule lists.
                Each rule should be a PySpark Column expression.
         table_name: Target Delta table name where results will be stored
@@ -464,6 +502,10 @@ class SilverStep(BaseModel):
                       If provided, enables incremental processing with append mode.
                       If None, uses overwrite mode for full refresh.
         existing: Whether this represents an existing table (for validation-only steps)
+        schema: Optional schema name for writing silver data
+
+    Raises:
+        ValidationError: If validation requirements are not met during construction
 
     Example:
         >>> def clean_user_events(spark, bronze_df, prior_silvers):
@@ -473,6 +515,7 @@ class SilverStep(BaseModel):
         ...         .withColumn("is_weekend", F.dayofweek("timestamp").isin([1, 7]))
         ...     )
         >>>
+        >>> # Valid Silver step
         >>> silver_step = SilverStep(
         ...     name="clean_events",
         ...     source_bronze="user_events",
@@ -484,6 +527,13 @@ class SilverStep(BaseModel):
         ...     table_name="clean_user_events",
         ...     watermark_col="timestamp"
         ... )
+
+        >>> # Invalid Silver step (will raise ValidationError)
+        >>> try:
+        ...     SilverStep(name="clean_events", source_bronze="", transform=None, rules={}, table_name="")
+        ... except ValidationError as e:
+        ...     print(f"Validation failed: {e}")
+        ...     # Output: "Transform function is required and must be callable"
     """
 
     name: str
@@ -494,6 +544,19 @@ class SilverStep(BaseModel):
     watermark_col: str | None = None
     existing: bool = False
     schema: str | None = None
+
+    def __post_init__(self) -> None:
+        """Validate required fields after initialization."""
+        if not self.name or not isinstance(self.name, str):
+            raise ValidationError("Step name must be a non-empty string")
+        if not self.existing and (
+            not self.source_bronze or not isinstance(self.source_bronze, str)
+        ):
+            raise ValidationError("Source bronze step name must be a non-empty string")
+        if self.transform is None or not callable(self.transform):
+            raise ValidationError("Transform function is required and must be callable")
+        if not self.table_name or not isinstance(self.table_name, str):
+            raise ValidationError("Table name must be a non-empty string")
 
     def validate(self) -> None:
         """Validate silver step configuration."""
@@ -520,18 +583,30 @@ class GoldStep(BaseModel):
     creating business-ready datasets for analytics, reporting, and dashboards.
     They aggregate and transform Silver layer data into meaningful business insights.
 
+    **Validation Requirements:**
+        - `name`: Must be a non-empty string
+        - `transform`: Must be callable and cannot be None
+        - `rules`: Must be a non-empty dictionary with validation rules
+        - `table_name`: Must be a non-empty string
+        - `source_silvers`: Must be a non-empty list if provided
+
     Attributes:
         name: Unique identifier for this Gold step
         transform: Transformation function with signature:
                  (spark: SparkSession, silvers: Dict[str, DataFrame]) -> DataFrame
                  - spark: Active SparkSession for operations
                  - silvers: Dictionary of all Silver DataFrames by step name
+                 Must be callable and cannot be None.
         rules: Dictionary mapping column names to validation rule lists.
                Each rule should be a PySpark Column expression.
         table_name: Target Delta table name where results will be stored
         source_silvers: List of Silver step names to use as input sources.
                        If None, uses all available Silver steps.
                        Allows selective consumption of Silver data.
+        schema: Optional schema name for writing gold data
+
+    Raises:
+        ValidationError: If validation requirements are not met during construction
 
     Example:
         >>> def user_daily_metrics(spark, silvers):
@@ -547,6 +622,7 @@ class GoldStep(BaseModel):
         ...         .withColumn("is_active_user", F.col("total_events") > 5)
         ...     )
         >>>
+        >>> # Valid Gold step
         >>> gold_step = GoldStep(
         ...     name="user_metrics",
         ...     transform=user_daily_metrics,
@@ -557,6 +633,13 @@ class GoldStep(BaseModel):
         ...     table_name="user_daily_metrics",
         ...     source_silvers=["clean_events"]
         ... )
+
+        >>> # Invalid Gold step (will raise ValidationError)
+        >>> try:
+        ...     GoldStep(name="", transform=None, rules={}, table_name="", source_silvers=[])
+        ... except ValidationError as e:
+        ...     print(f"Validation failed: {e}")
+        ...     # Output: "Step name must be a non-empty string"
     """
 
     name: str
@@ -565,6 +648,21 @@ class GoldStep(BaseModel):
     table_name: str
     source_silvers: list[str] | None = None
     schema: str | None = None
+
+    def __post_init__(self) -> None:
+        """Validate required fields after initialization."""
+        if not self.name or not isinstance(self.name, str):
+            raise ValidationError("Step name must be a non-empty string")
+        if self.transform is None or not callable(self.transform):
+            raise ValidationError("Transform function is required and must be callable")
+        if not self.table_name or not isinstance(self.table_name, str):
+            raise ValidationError("Table name must be a non-empty string")
+        if not isinstance(self.rules, dict) or not self.rules:
+            raise ValidationError("Rules must be a non-empty dictionary")
+        if self.source_silvers is not None and (
+            not isinstance(self.source_silvers, list) or not self.source_silvers
+        ):
+            raise ValidationError("Source silvers must be a non-empty list")
 
     def validate(self) -> None:
         """Validate gold step configuration."""
@@ -605,6 +703,13 @@ class ExecutionContext(BaseModel):
     end_time: datetime | None = None
     duration_secs: float | None = None
     run_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+
+    def validate(self) -> None:
+        """Validate the execution context."""
+        if not self.run_id:
+            raise ValueError("Run ID cannot be empty")
+        if self.duration_secs is not None and self.duration_secs < 0:
+            raise ValueError("Duration cannot be negative")
 
     def finish(self) -> None:
         """Mark execution as finished and calculate duration."""
@@ -780,10 +885,32 @@ class StepResult(BaseModel):
     validation_rate: float
     error_message: str | None = None
 
+    def validate(self) -> None:
+        """Validate the step result."""
+        if not self.step_name:
+            raise ValueError("Step name cannot be empty")
+        if self.duration_secs < 0:
+            raise ValueError("Duration cannot be negative")
+        if self.rows_processed < 0:
+            raise ValueError("Rows processed cannot be negative")
+        if self.rows_written < 0:
+            raise ValueError("Rows written cannot be negative")
+        if not 0 <= self.validation_rate <= 100:
+            raise ValueError("Validation rate must be between 0 and 100")
+
     @property
     def is_valid(self) -> bool:
         """Check if the step result is valid."""
         return self.success and self.validation_rate >= 95.0
+
+    @property
+    def is_high_quality(self) -> bool:
+        """Check if the step result is high quality."""
+        return (
+            self.success
+            and self.validation_rate >= 95.0
+            and self.rows_written >= self.rows_processed * 0.9
+        )
 
     @classmethod
     def create_success(
@@ -874,6 +1001,21 @@ class PipelineMetrics(BaseModel):
     error_count: int = 0
     retry_count: int = 0
 
+    def validate(self) -> None:
+        """Validate the pipeline metrics."""
+        if self.total_steps < 0:
+            raise ValueError("Total steps cannot be negative")
+        if self.successful_steps < 0:
+            raise ValueError("Successful steps cannot be negative")
+        if self.failed_steps < 0:
+            raise ValueError("Failed steps cannot be negative")
+        if self.skipped_steps < 0:
+            raise ValueError("Skipped steps cannot be negative")
+        if self.total_duration < 0:
+            raise ValueError("Total duration cannot be negative")
+        if not 0 <= self.avg_validation_rate <= 100:
+            raise ValueError("Average validation rate must be between 0 and 100")
+
     @property
     def success_rate(self) -> float:
         """Calculate success rate."""
@@ -930,6 +1072,19 @@ class ExecutionResult(BaseModel):
     step_results: list[StepResult]
     metrics: PipelineMetrics
     success: bool
+
+    def validate(self) -> None:
+        """Validate execution result."""
+        if not isinstance(self.context, ExecutionContext):
+            raise PipelineValidationError(
+                "Context must be an ExecutionContext instance"
+            )
+        if not isinstance(self.step_results, list):
+            raise PipelineValidationError("Step results must be a list")
+        if not isinstance(self.metrics, PipelineMetrics):
+            raise PipelineValidationError("Metrics must be a PipelineMetrics instance")
+        if not isinstance(self.success, bool):
+            raise PipelineValidationError("Success must be a boolean")
 
     @classmethod
     def from_context_and_results(

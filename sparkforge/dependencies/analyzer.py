@@ -308,7 +308,7 @@ class DependencyAnalyzer:
             key_parts.extend(sorted(gold_steps.keys()))
 
         key_string = f"{self.strategy.value}:{':'.join(key_parts)}"
-        return hashlib.md5(key_string.encode()).hexdigest()
+        return hashlib.sha256(key_string.encode()).hexdigest()
 
     def clear_cache(self) -> None:
         """Clear the analysis cache."""

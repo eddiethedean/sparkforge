@@ -8,7 +8,6 @@ execution to the simplified execution engine.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List
 
 from pyspark.sql import DataFrame, SparkSession
 
@@ -21,7 +20,7 @@ from .models import PipelineMode, PipelineReport, PipelineStatus
 class SimplePipelineRunner:
     """
     Simplified pipeline runner that delegates to the execution engine.
-    
+
     This runner focuses on orchestration and reporting, delegating
     actual execution to the simplified ExecutionEngine.
     """
@@ -30,14 +29,14 @@ class SimplePipelineRunner:
         self,
         spark: SparkSession,
         config: PipelineConfig,
-        bronze_steps: Dict[str, BronzeStep] | None = None,
-        silver_steps: Dict[str, SilverStep] | None = None,
-        gold_steps: Dict[str, GoldStep] | None = None,
-        logger: PipelineLogger | None = None
+        bronze_steps: dict[str, BronzeStep] | None = None,
+        silver_steps: dict[str, SilverStep] | None = None,
+        gold_steps: dict[str, GoldStep] | None = None,
+        logger: PipelineLogger | None = None,
     ):
         """
         Initialize the simplified pipeline runner.
-        
+
         Args:
             spark: Active SparkSession instance
             config: Pipeline configuration
@@ -56,30 +55,30 @@ class SimplePipelineRunner:
 
     def run_pipeline(
         self,
-        steps: List[BronzeStep | SilverStep | GoldStep],
+        steps: list[BronzeStep | SilverStep | GoldStep],
         mode: PipelineMode = PipelineMode.INITIAL,
-        bronze_sources: Dict[str, DataFrame] | None = None
+        bronze_sources: dict[str, DataFrame] | None = None,
     ) -> PipelineReport:
         """
         Run a complete pipeline.
-        
+
         Args:
             steps: List of pipeline steps to execute
             mode: Pipeline execution mode
             bronze_sources: Optional bronze source data
-            
+
         Returns:
             PipelineReport with execution results
         """
         start_time = datetime.now()
         pipeline_id = f"pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        
+
         # Convert PipelineMode to ExecutionMode
         execution_mode = self._convert_mode(mode)
-        
+
         try:
             self.logger.info(f"Starting pipeline execution: {pipeline_id}")
-            
+
             # Prepare bronze sources if provided
             if bronze_sources:
                 # Add bronze sources to context for execution
@@ -89,61 +88,62 @@ class SimplePipelineRunner:
                         context[step.name] = bronze_sources[step.name]
             else:
                 context = {}
-            
+
             # Execute pipeline using the execution engine
             result = self.execution_engine.execute_pipeline(steps, execution_mode)
-            
+
             # Convert execution result to pipeline report
             report = self._create_pipeline_report(
                 pipeline_id=pipeline_id,
                 mode=mode,
                 start_time=start_time,
-                execution_result=result
+                execution_result=result,
             )
-            
+
             self.logger.info(f"Completed pipeline execution: {pipeline_id}")
             return report
-            
+
         except Exception as e:
             self.logger.error(f"Pipeline execution failed: {e}")
             return self._create_error_report(
-                pipeline_id=pipeline_id,
-                mode=mode,
-                start_time=start_time,
-                error=str(e)
+                pipeline_id=pipeline_id, mode=mode, start_time=start_time, error=str(e)
             )
 
     def run_initial_load(
         self,
-        steps: List[BronzeStep | SilverStep | GoldStep] | None = None,
-        bronze_sources: Dict[str, DataFrame] | None = None
+        steps: list[BronzeStep | SilverStep | GoldStep] | None = None,
+        bronze_sources: dict[str, DataFrame] | None = None,
     ) -> PipelineReport:
         """Run initial load pipeline."""
         if steps is None:
             # Use stored steps
-            steps = list(self.bronze_steps.values()) + list(self.silver_steps.values()) + list(self.gold_steps.values())
+            steps = (
+                list(self.bronze_steps.values())
+                + list(self.silver_steps.values())
+                + list(self.gold_steps.values())
+            )
         return self.run_pipeline(steps, PipelineMode.INITIAL, bronze_sources)
 
     def run_incremental(
         self,
-        steps: List[BronzeStep | SilverStep | GoldStep],
-        bronze_sources: Dict[str, DataFrame] | None = None
+        steps: list[BronzeStep | SilverStep | GoldStep],
+        bronze_sources: dict[str, DataFrame] | None = None,
     ) -> PipelineReport:
         """Run incremental pipeline."""
         return self.run_pipeline(steps, PipelineMode.INCREMENTAL, bronze_sources)
 
     def run_full_refresh(
         self,
-        steps: List[BronzeStep | SilverStep | GoldStep],
-        bronze_sources: Dict[str, DataFrame] | None = None
+        steps: list[BronzeStep | SilverStep | GoldStep],
+        bronze_sources: dict[str, DataFrame] | None = None,
     ) -> PipelineReport:
         """Run full refresh pipeline."""
         return self.run_pipeline(steps, PipelineMode.FULL_REFRESH, bronze_sources)
 
     def run_validation_only(
         self,
-        steps: List[BronzeStep | SilverStep | GoldStep],
-        bronze_sources: Dict[str, DataFrame] | None = None
+        steps: list[BronzeStep | SilverStep | GoldStep],
+        bronze_sources: dict[str, DataFrame] | None = None,
     ) -> PipelineReport:
         """Run validation-only pipeline."""
         return self.run_pipeline(steps, PipelineMode.VALIDATION_ONLY, bronze_sources)
@@ -163,63 +163,66 @@ class SimplePipelineRunner:
         pipeline_id: str,
         mode: PipelineMode,
         start_time: datetime,
-        execution_result: ExecutionResult
+        execution_result: ExecutionResult,
     ) -> PipelineReport:
         """Create a pipeline report from execution result."""
         end_time = execution_result.end_time or datetime.now()
         duration = (end_time - start_time).total_seconds()
-        
+
         # Count successful and failed steps
-        successful_steps = [s for s in execution_result.steps if s.status.value == "completed"]
-        failed_steps = [s for s in execution_result.steps if s.status.value == "failed"]
-        
+        steps = execution_result.steps or []
+        successful_steps = [s for s in steps if s.status.value == "completed"]
+        failed_steps = [s for s in steps if s.status.value == "failed"]
+
+        from ..models import PipelineMetrics
+
         return PipelineReport(
             pipeline_id=pipeline_id,
-            status=PipelineStatus.COMPLETED if execution_result.status == "completed" else PipelineStatus.FAILED,
+            execution_id=execution_result.execution_id,
+            status=(
+                PipelineStatus.COMPLETED
+                if execution_result.status == "completed"
+                else PipelineStatus.FAILED
+            ),
             mode=mode,
             start_time=start_time,
             end_time=end_time,
             duration_seconds=duration,
-            total_steps=len(execution_result.steps),
-            successful_steps=len(successful_steps),
-            failed_steps=len(failed_steps),
+            metrics=PipelineMetrics(
+                total_steps=len(steps),
+                successful_steps=len(successful_steps),
+                failed_steps=len(failed_steps),
+                total_duration=duration,
+            ),
             errors=[s.error for s in failed_steps if s.error],
             warnings=[],
-            metrics={
-                "total_duration": duration,
-                "steps_executed": len(execution_result.steps),
-                "success_rate": len(successful_steps) / len(execution_result.steps) if execution_result.steps else 0.0,
-            }
         )
 
     def _create_error_report(
-        self,
-        pipeline_id: str,
-        mode: PipelineMode,
-        start_time: datetime,
-        error: str
+        self, pipeline_id: str, mode: PipelineMode, start_time: datetime, error: str
     ) -> PipelineReport:
         """Create an error pipeline report."""
         end_time = datetime.now()
         duration = (end_time - start_time).total_seconds()
-        
+
+        from ..models import PipelineMetrics
+
         return PipelineReport(
             pipeline_id=pipeline_id,
+            execution_id=f"error_{pipeline_id}",
             status=PipelineStatus.FAILED,
             mode=mode,
             start_time=start_time,
             end_time=end_time,
             duration_seconds=duration,
-            total_steps=0,
-            successful_steps=0,
-            failed_steps=0,
+            metrics=PipelineMetrics(
+                total_steps=0,
+                successful_steps=0,
+                failed_steps=0,
+                total_duration=duration,
+            ),
             errors=[error],
             warnings=[],
-            metrics={
-                "total_duration": duration,
-                "steps_executed": 0,
-                "success_rate": 0.0,
-            }
         )
 
 
