@@ -2,10 +2,11 @@
 
 
 """
-Refactored PipelineBuilder for SparkForge.
+Simplified PipelineBuilder for SparkForge.
 
-This module provides a clean, focused PipelineBuilder that handles only
-pipeline construction, delegating execution and monitoring to specialized components.
+This module provides a clean, maintainable PipelineBuilder that handles
+pipeline construction with the Medallion Architecture (Bronze → Silver → Gold).
+The builder creates pipelines that can be executed with the simplified execution engine.
 """
 
 from __future__ import annotations
@@ -16,9 +17,10 @@ from typing import TYPE_CHECKING, Any
 from pyspark.sql import DataFrame, SparkSession
 
 from ..dependencies import DependencyAnalyzer
-from ..errors import PipelineConfigurationError, StepError
-from ..execution import ExecutionConfig, ExecutionEngine, ExecutionMode
-from ..logger import PipelineLogger
+from ..errors import ConfigurationError as PipelineConfigurationError, ExecutionError as StepError
+from ..execution import ExecutionEngine, ExecutionMode
+from ..types import ExecutionConfig
+from ..logging import PipelineLogger
 from ..models import BronzeStep, GoldStep, ParallelConfig, PipelineConfig, SilverStep
 from ..types import (
     ColumnRules,
@@ -29,7 +31,7 @@ from ..types import (
 )
 
 from .runner import PipelineRunner
-from .validator import PipelineValidator
+from ..validation import UnifiedValidator as PipelineValidator
 
 
 class PipelineBuilder:
@@ -95,7 +97,7 @@ class PipelineBuilder:
         verbose: bool = True,
         enable_parallel_silver: bool = True,
         max_parallel_workers: int = 4,
-        execution_mode: ExecutionMode = ExecutionMode.ADAPTIVE,
+        execution_mode: ExecutionMode = ExecutionMode.INITIAL,
         enable_caching: bool = True,
         enable_monitoring: bool = True,
     ) -> None:
@@ -111,7 +113,7 @@ class PipelineBuilder:
             verbose: Enable verbose logging output
             enable_parallel_silver: Allow parallel execution of independent Silver steps
             max_parallel_workers: Maximum number of parallel workers for Silver steps
-            execution_mode: Execution strategy (ADAPTIVE, SEQUENTIAL, PARALLEL)
+            execution_mode: Execution strategy (INITIAL, INCREMENTAL, FULL_REFRESH, VALIDATION_ONLY)
             enable_caching: Enable DataFrame caching for performance optimization
             enable_monitoring: Enable comprehensive execution monitoring
 
@@ -211,9 +213,8 @@ class PipelineBuilder:
         """
         if not name:
             raise StepError(
-                "Bronze step name cannot be empty",
-                step_name=name or "unknown",
-                step_type="bronze",
+                    "Bronze step name cannot be empty",
+                    context={"step_name": name or "unknown", "step_type": "bronze"},
                 suggestions=[
                     "Provide a valid step name",
                     "Check step naming conventions",
@@ -222,9 +223,8 @@ class PipelineBuilder:
 
         if name in self.bronze_steps:
             raise StepError(
-                f"Bronze step '{name}' already exists",
-                step_name=name,
-                step_type="bronze",
+                    f"Bronze step '{name}' already exists",
+                    context={"step_name": name, "step_type": "bronze"},
                 suggestions=[
                     "Use a different step name",
                     "Remove the existing step first",
@@ -284,9 +284,8 @@ class PipelineBuilder:
         """
         if not name:
             raise StepError(
-                "Silver step name cannot be empty",
-                step_name=name or "unknown",
-                step_type="silver",
+                    "Silver step name cannot be empty",
+                    context={"step_name": name or "unknown", "step_type": "silver"},
                 suggestions=[
                     "Provide a valid step name",
                     "Check step naming conventions",
@@ -295,9 +294,8 @@ class PipelineBuilder:
 
         if name in self.silver_steps:
             raise StepError(
-                f"Silver step '{name}' already exists",
-                step_name=name,
-                step_type="silver",
+                    f"Silver step '{name}' already exists",
+                    context={"step_name": name, "step_type": "silver"},
                 suggestions=[
                     "Use a different step name",
                     "Remove the existing step first",
@@ -423,9 +421,8 @@ class PipelineBuilder:
         """
         if not name:
             raise StepError(
-                "Silver step name cannot be empty",
-                step_name=name or "unknown",
-                step_type="silver",
+                    "Silver step name cannot be empty",
+                    context={"step_name": name or "unknown", "step_type": "silver"},
                 suggestions=[
                     "Provide a valid step name",
                     "Check step naming conventions",
@@ -434,9 +431,8 @@ class PipelineBuilder:
 
         if name in self.silver_steps:
             raise StepError(
-                f"Silver step '{name}' already exists",
-                step_name=name,
-                step_type="silver",
+                    f"Silver step '{name}' already exists",
+                    context={"step_name": name, "step_type": "silver"},
                 suggestions=[
                     "Use a different step name",
                     "Remove the existing step first",
@@ -448,8 +444,7 @@ class PipelineBuilder:
             if not self.bronze_steps:
                 raise StepError(
                     "No bronze steps available for auto-inference",
-                    step_name=name,
-                    step_type="silver",
+                    context={"step_name": name, "step_type": "silver"},
                     suggestions=[
                         "Add a bronze step first using with_bronze_rules()",
                         "Explicitly specify source_bronze parameter",
@@ -463,9 +458,8 @@ class PipelineBuilder:
         # Validate that the source_bronze exists
         if source_bronze not in self.bronze_steps:
             raise StepError(
-                f"Bronze step '{source_bronze}' not found",
-                step_name=name,
-                step_type="silver",
+                    f"Bronze step '{source_bronze}' not found",
+                    context={"step_name": name, "step_type": "silver"},
                 suggestions=[
                     f"Available bronze steps: {list(self.bronze_steps.keys())}",
                     "Add the bronze step first using with_bronze_rules()",
@@ -556,9 +550,8 @@ class PipelineBuilder:
         """
         if not name:
             raise StepError(
-                "Gold step name cannot be empty",
-                step_name=name or "unknown",
-                step_type="gold",
+                    "Gold step name cannot be empty",
+                    context={"step_name": name or "unknown", "step_type": "gold"},
                 suggestions=[
                     "Provide a valid step name",
                     "Check step naming conventions",
@@ -567,9 +560,8 @@ class PipelineBuilder:
 
         if name in self.gold_steps:
             raise StepError(
-                f"Gold step '{name}' already exists",
-                step_name=name,
-                step_type="gold",
+                    f"Gold step '{name}' already exists",
+                    context={"step_name": name, "step_type": "gold"},
                 suggestions=[
                     "Use a different step name",
                     "Remove the existing step first",
@@ -581,8 +573,7 @@ class PipelineBuilder:
             if not self.silver_steps:
                 raise StepError(
                     "No silver steps available for auto-inference",
-                    step_name=name,
-                    step_type="gold",
+                    context={"step_name": name, "step_type": "gold"},
                     suggestions=[
                         "Add a silver step first using add_silver_transform()",
                         "Explicitly specify source_silvers parameter",
@@ -597,9 +588,8 @@ class PipelineBuilder:
         invalid_silvers = [s for s in source_silvers if s not in self.silver_steps]
         if invalid_silvers:
             raise StepError(
-                f"Silver steps not found: {invalid_silvers}",
-                step_name=name,
-                step_type="gold",
+                    f"Silver steps not found: {invalid_silvers}",
+                    context={"step_name": name, "step_type": "gold"},
                 suggestions=[
                     f"Available silver steps: {list(self.silver_steps.keys())}",
                     "Add the missing silver steps first using add_silver_transform()",
@@ -911,9 +901,8 @@ class PipelineBuilder:
             self.logger.debug(f"✅ Schema '{schema}' is accessible")
         except Exception as e:
             raise StepError(
-                f"Schema '{schema}' does not exist or is not accessible: {str(e)}",
-                step_name="schema_validation",
-                step_type="validation",
+                    f"Schema '{schema}' does not exist or is not accessible: {str(e)}",
+                    context={"step_name": "schema_validation", "step_type": "validation"},
                 suggestions=[
                     f"Create the schema first: CREATE SCHEMA IF NOT EXISTS {schema}",
                     "Check schema permissions",
@@ -933,9 +922,8 @@ class PipelineBuilder:
             self.logger.info(f"✅ Schema '{schema}' created or already exists")
         except Exception as e:
             raise StepError(
-                f"Failed to create schema '{schema}': {str(e)}",
-                step_name="schema_creation",
-                step_type="validation",
+                    f"Failed to create schema '{schema}': {str(e)}",
+                    context={"step_name": "schema_creation", "step_type": "validation"},
                 suggestions=[
                     "Check schema permissions",
                     "Verify schema name is valid",
@@ -973,22 +961,16 @@ class PipelineBuilder:
             )
 
         # Create execution engine
-        execution_config = ExecutionConfig(
-            mode=ExecutionMode.ADAPTIVE,
-            max_workers=self.config.parallel.max_workers,
-            timeout_seconds=300,
-        )
+        execution_config = {
+            "mode": ExecutionMode.INITIAL,
+            "max_workers": self.config.parallel.max_workers,
+            "timeout_seconds": 300,
+        }
 
         execution_engine = ExecutionEngine(
             spark=self.spark,
+            config=self.config,
             logger=self.logger,
-            config=execution_config,
-            thresholds={
-                "bronze": self.config.thresholds.bronze,
-                "silver": self.config.thresholds.silver,
-                "gold": self.config.thresholds.gold,
-            },
-            schema=self.config.schema,
         )
 
         # Create dependency analyzer
@@ -1002,8 +984,6 @@ class PipelineBuilder:
             silver_steps=self.silver_steps,
             gold_steps=self.gold_steps,
             logger=self.logger,
-            execution_engine=execution_engine,
-            dependency_analyzer=dependency_analyzer,
         )
 
         self.logger.info(

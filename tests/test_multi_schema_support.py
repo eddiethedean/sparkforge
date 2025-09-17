@@ -171,8 +171,7 @@ class TestMultiSchemaSupport:
         with patch.object(self.builder, "_validate_schema") as mock_validate:
             mock_validate.side_effect = StepError(
                 "Schema 'invalid_schema' does not exist",
-                step_name="schema_validation",
-                step_type="validation",
+                context={"step_name": "schema_validation", "step_type": "validation"},
             )
 
             with pytest.raises(

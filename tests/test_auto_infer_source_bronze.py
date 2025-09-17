@@ -118,8 +118,8 @@ class TestAutoInferSourceBronze:
 
         error = context.value
         assert "No bronze steps available for auto-inference" in str(error)
-        assert error.step_name == "clean_events"
-        assert error.step_type == "silver"
+        assert error.context["step_name"] == "clean_events"
+        assert error.context["step_type"] == "silver"
 
     def test_invalid_source_bronze_raises_error(self):
         """Test that error is raised when source_bronze doesn't exist."""
@@ -142,8 +142,8 @@ class TestAutoInferSourceBronze:
 
         error = context.value
         assert "Bronze step 'nonexistent' not found" in str(error)
-        assert error.step_name == "clean_events"
-        assert error.step_type == "silver"
+        assert error.context["step_name"] == "clean_events"
+        assert error.context["step_type"] == "silver"
 
     def test_logging_auto_inference(self):
         """Test that auto-inference is logged."""
@@ -200,7 +200,3 @@ class TestAutoInferSourceBronze:
         # Both should use the same source_bronze
         assert self.builder.silver_steps["clean_events"].source_bronze == "events"
         assert self.builder.silver_steps["enriched_events"].source_bronze == "events"
-
-
-if __name__ == "__main__":
-    unittest.main()

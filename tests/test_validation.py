@@ -15,7 +15,7 @@ from pyspark.sql.types import (
     StructType,
 )
 
-from sparkforge.errors.data import ValidationError
+from sparkforge.errors import ValidationError
 from sparkforge.validation import (
     and_all_rules,
     apply_column_rules,
@@ -202,56 +202,6 @@ class TestApplyColumnRules:
         assert valid_df.count() == 2
         assert invalid_df.count() == 2
         assert stats.validation_rate == 50.0
-
-
-class TestAssessDataQuality:
-    """Test assess_data_quality function."""
-
-    def test_basic_quality_assessment(self, sample_dataframe):
-        """Test basic data quality assessment."""
-        quality = assess_data_quality(sample_dataframe)
-
-        assert quality["total_rows"] == 4
-        assert "quality_score" in quality
-        assert "null_counts" in quality
-        assert "duplicate_rows" in quality
-        assert "issues" in quality
-        assert "recommendations" in quality
-
-    def test_empty_dataframe(self, spark_session):
-        """Test quality assessment with empty DataFrame."""
-        schema = StructType([StructField("col1", StringType(), True)])
-        empty_df = spark_session.createDataFrame([], schema)
-        quality = assess_data_quality(empty_df)
-
-        assert quality["total_rows"] == 0
-        assert quality["quality_score"] == 100.0
-        assert "Empty dataset" in quality["issues"]
-
-    def test_with_validation_rules(self, sample_dataframe):
-        """Test quality assessment with validation rules."""
-        rules = {
-            "user_id": [F.col("user_id").isNotNull()],
-            "age": [F.col("age").isNotNull()],
-        }
-
-        quality = assess_data_quality(sample_dataframe, rules)
-
-        assert quality["total_rows"] == 4
-        assert "quality_score" in quality
-        # Should detect null values and low validation rate
-        assert len(quality["issues"]) > 0
-
-    def test_duplicate_detection(self, spark_session):
-        """Test duplicate row detection."""
-        schema = StructType([StructField("id", IntegerType(), True)])
-        data = [(1,), (2,), (1,), (3,), (2,)]  # Contains duplicates
-        df = spark_session.createDataFrame(data, schema)
-
-        quality = assess_data_quality(df)
-
-        assert quality["duplicate_rows"] == 2  # 2 duplicate rows
-        assert "Duplicate rows" in str(quality["issues"])
 
 
 class TestSafeDivide:

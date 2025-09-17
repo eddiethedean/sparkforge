@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-from ..logger import PipelineLogger
+from ..logging import PipelineLogger
 from ..models import BronzeStep, GoldStep, SilverStep
 from .exceptions import DependencyError
 from .graph import DependencyGraph, StepNode, StepType

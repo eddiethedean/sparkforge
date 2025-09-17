@@ -12,9 +12,8 @@ from sparkforge.dependencies import (
     DependencyAnalysisResult,
     DependencyAnalyzer,
     ExecutionMode,
-    StepComplexity,
 )
-from sparkforge.logger import PipelineLogger
+from sparkforge.logging import PipelineLogger
 from sparkforge.models import BronzeStep, GoldStep, SilverStep
 
 
@@ -35,26 +34,6 @@ class TestExecutionMode(unittest.TestCase):
         """Test execution mode enum values."""
         self.assertEqual(ExecutionMode.INITIAL.value, "initial")
         self.assertEqual(ExecutionMode.INCREMENTAL.value, "incremental")
-
-
-class TestStepComplexity(unittest.TestCase):
-    """Test StepComplexity dataclass."""
-
-    def test_step_complexity_creation(self):
-        """Test step complexity creation."""
-        complexity = StepComplexity(
-            step_name="test_step",
-            complexity_score=0.5,
-            estimated_duration=1.0,
-            dependencies_count=3,
-            fan_out=2,
-            critical_path=True,
-        )
-
-        self.assertEqual(complexity.step_name, "test_step")
-        self.assertEqual(complexity.complexity_score, 0.5)
-        self.assertEqual(complexity.dependencies_count, 3)
-        self.assertTrue(complexity.critical_path)
 
 
 class TestDependencyAnalysisResult(unittest.TestCase):

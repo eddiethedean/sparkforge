@@ -37,7 +37,7 @@ Key Features:
 - Performance analysis
 """
 
-from ..execution.engine import StepComplexity
+# StepComplexity removed - was not used in dependencies module
 from ..models import ExecutionMode
 from .analyzer import AnalysisStrategy, DependencyAnalysisResult, DependencyAnalyzer
 from .exceptions import (
@@ -62,5 +62,4 @@ __all__ = [
     "DependencyConflictError",
     "DependencyAnalysisError",
     "ExecutionMode",
-    "StepComplexity",
 ]

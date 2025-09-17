@@ -1,982 +1,227 @@
-# # # # Copyright (c) 2024 Odos Matthews
-# # # #
-# # # # Permission is hereby granted, free of charge, to any person obtaining a copy
-# # # # of this software and associated documentation files (the "Software"), to deal
-# # # # in the Software without restriction, including without limitation the rights
-# # # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# # # # copies of the Software, and to permit persons to whom the Software is
-# # # # furnished to do so, subject to the following conditions:
-# # # #
-# # # # The above copyright notice and this permission notice shall be included in all
-# # # # copies or substantial portions of the Software.
-# # # #
-# # # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# # # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# # # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# # # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# # # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# # # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# # # # SOFTWARE.
-# #
-# # # Copyright (c) 2024 Odos Matthews
-# # #
-# # # Permission is hereby granted, free of charge, to any person obtaining a copy
-# # # of this software and associated documentation files (the "Software"), to deal
-# # # in the Software without restriction, including without limitation the rights
-# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# # # copies of the Software, and to permit persons to whom the Software is
-# # # furnished to do so, subject to the following conditions:
-# # #
-# # # The above copyright notice and this permission notice shall be included in all
-# # # copies or substantial portions of the Software.
-# # #
-# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# # # SOFTWARE.
-#
-# # # Copyright (c) 2024 Odos Matthews
-# # #
-# # # Permission is hereby granted, free of charge, to any person obtaining a copy
-# # # of this software and associated documentation files (the "Software"), to deal
-# # # in the Software without restriction, including without limitation the rights
-# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# # # copies of the Software, and to permit persons to whom the Software is
-# # # furnished to do so, subject to the following conditions:
-# # #
-# # # The above copyright notice and this permission notice shall be included in all
-# # # copies or substantial portions of the Software.
-# # #
-# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# # # SOFTWARE.
-#
-# # Copyright (c) 2024 Odos Matthews
-# #
-# # Permission is hereby granted, free of charge, to any person obtaining a copy
-# # of this software and associated documentation files (the "Software"), to deal
-# # in the Software without restriction, including without limitation the rights
-# # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# # copies of the Software, and to permit persons to whom the Software is
-# # furnished to do so, subject to the following conditions:
-# #
-# # The above copyright notice and this permission notice shall be included in all
-# # copies or substantial portions of the Software.
-# #
-# # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# # SOFTWARE.
-
-#
-
-
 """
-Refactored PipelineRunner for SparkForge.
+Simplified pipeline runner for SparkForge.
 
-This module provides a clean, focused PipelineRunner that handles only
-pipeline execution, delegating monitoring and validation to specialized components.
+This module provides a clean, focused pipeline runner that delegates
+execution to the simplified execution engine.
 """
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List
 
 from pyspark.sql import DataFrame, SparkSession
 
-from ..dependencies import DependencyAnalyzer
-from ..execution import ExecutionEngine
-from ..logger import PipelineLogger
+from ..execution import ExecutionEngine, ExecutionMode, ExecutionResult
+from ..logging import PipelineLogger
 from ..models import BronzeStep, GoldStep, PipelineConfig, SilverStep
-from ..types import StepName
 from .models import PipelineMode, PipelineReport, PipelineStatus
-from .monitor import PipelineMonitor
-from .validator import PipelineValidator
 
 
-class PipelineRunner:
+class SimplePipelineRunner:
     """
-    Clean, focused pipeline execution engine.
-
-    This refactored PipelineRunner focuses solely on pipeline execution,
-    delegating monitoring, validation, and step execution to specialized components.
-
-    Features:
-    - Multiple execution modes (initial load, incremental, full refresh, validation only)
-    - Clean separation of concerns
-    - Comprehensive error handling
-    - Real-time monitoring
-    - Step-by-step debugging
-
-    Execution Modes:
-    - initial_load: Process all data from scratch (Bronze → Silver → Gold)
-    - run_incremental: Process only new/changed data using watermarking
-    - run_full_refresh: Force complete reprocessing of all steps
-    - run_validation_only: Validate data quality without writing outputs
+    Simplified pipeline runner that delegates to the execution engine.
+    
+    This runner focuses on orchestration and reporting, delegating
+    actual execution to the simplified ExecutionEngine.
     """
 
     def __init__(
         self,
-        *,
         spark: SparkSession,
         config: PipelineConfig,
-        bronze_steps: dict[str, BronzeStep],
-        silver_steps: dict[str, SilverStep],
-        gold_steps: dict[str, GoldStep],
-        logger: PipelineLogger,
-        execution_engine: ExecutionEngine,
-        dependency_analyzer: DependencyAnalyzer,
-    ) -> None:
+        bronze_steps: Dict[str, BronzeStep] | None = None,
+        silver_steps: Dict[str, SilverStep] | None = None,
+        gold_steps: Dict[str, GoldStep] | None = None,
+        logger: PipelineLogger | None = None
+    ):
         """
-        Initialize a new PipelineRunner instance.
-
+        Initialize the simplified pipeline runner.
+        
         Args:
             spark: Active SparkSession instance
             config: Pipeline configuration
-            bronze_steps: Bronze step definitions
-            silver_steps: Silver step definitions
-            gold_steps: Gold step definitions
-            logger: Logger instance
-            execution_engine: Execution engine for running steps
-            dependency_analyzer: Dependency analyzer for optimization
+            bronze_steps: Bronze steps dictionary
+            silver_steps: Silver steps dictionary
+            gold_steps: Gold steps dictionary
+            logger: Optional logger instance
         """
         self.spark = spark
         self.config = config
-        self.bronze_steps = bronze_steps
-        self.silver_steps = silver_steps
-        self.gold_steps = gold_steps
-        self.logger = logger
-        self.execution_engine = execution_engine
-        self.dependency_analyzer = dependency_analyzer
+        self.bronze_steps = bronze_steps or {}
+        self.silver_steps = silver_steps or {}
+        self.gold_steps = gold_steps or {}
+        self.logger = logger or PipelineLogger()
+        self.execution_engine = ExecutionEngine(spark, config, self.logger)
 
-        # Initialize components
-        self.monitor = PipelineMonitor(logger)
-        self.validator = PipelineValidator(logger)
-
-        # Execution state
-        self._current_report: PipelineReport | None = None
-        self._is_running = False
-        self._cancelled = False
-        self._step_executor: object | None = None
-
-        # Pipeline identification
-        self.pipeline_id = (
-            f"pipeline_{config.schema}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        )
-
-        self.logger.info("🚀 PipelineRunner ready")
-
-    def initial_load(
-        self, *, bronze_sources: dict[StepName, DataFrame]
+    def run_pipeline(
+        self,
+        steps: List[BronzeStep | SilverStep | GoldStep],
+        mode: PipelineMode = PipelineMode.INITIAL,
+        bronze_sources: Dict[str, DataFrame] | None = None
     ) -> PipelineReport:
         """
-        Execute initial load pipeline run.
-
-        This mode processes all data from scratch, creating the complete
-        Bronze → Silver → Gold pipeline from raw data sources.
-
+        Run a complete pipeline.
+        
         Args:
-            bronze_sources: Dictionary mapping bronze step names to source DataFrames
-
+            steps: List of pipeline steps to execute
+            mode: Pipeline execution mode
+            bronze_sources: Optional bronze source data
+            
         Returns:
-            PipelineReport containing execution results and metrics
+            PipelineReport with execution results
         """
-        return self._run(PipelineMode.INITIAL, bronze_sources=bronze_sources)
-
-    def run_incremental(
-        self, *, bronze_sources: dict[StepName, DataFrame]
-    ) -> PipelineReport:
-        """
-        Execute incremental pipeline run.
-
-        This mode processes only new/changed data using watermarking,
-        making it efficient for regular data updates.
-
-        Args:
-            bronze_sources: Dictionary mapping bronze step names to new/changed DataFrames
-
-        Returns:
-            PipelineReport containing execution results and metrics
-        """
-        return self._run(PipelineMode.INCREMENTAL, bronze_sources=bronze_sources)
-
-    def run_full_refresh(
-        self, *, bronze_sources: dict[StepName, DataFrame]
-    ) -> PipelineReport:
-        """
-        Execute full refresh pipeline run.
-
-        This mode forces complete reprocessing of all steps,
-        useful for data quality issues or schema changes.
-
-        Args:
-            bronze_sources: Dictionary mapping bronze step names to source DataFrames
-
-        Returns:
-            PipelineReport containing execution results and metrics
-        """
-        return self._run(PipelineMode.FULL_REFRESH, bronze_sources=bronze_sources)
-
-    def run_validation_only(
-        self, *, bronze_sources: dict[StepName, DataFrame]
-    ) -> PipelineReport:
-        """
-        Execute validation-only pipeline run.
-
-        This mode validates data quality without writing outputs,
-        useful for testing and quality assurance.
-
-        Args:
-            bronze_sources: Dictionary mapping bronze step names to source DataFrames
-
-        Returns:
-            PipelineReport containing validation results and metrics
-        """
-        return self._run(PipelineMode.VALIDATION_ONLY, bronze_sources=bronze_sources)
-
-    def _run(
-        self, mode: PipelineMode, *, bronze_sources: dict[StepName, DataFrame]
-    ) -> PipelineReport:
-        """
-        Main execution engine for all pipeline modes.
-
-        Args:
-            mode: Execution mode
-            bronze_sources: Source data for bronze steps
-
-        Returns:
-            PipelineReport containing execution results
-        """
-        if self._is_running:
-            raise RuntimeError("Pipeline is already running")
-
-        if self._cancelled:
-            raise RuntimeError("Pipeline execution was cancelled")
-
+        start_time = datetime.now()
+        pipeline_id = f"pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        # Convert PipelineMode to ExecutionMode
+        execution_mode = self._convert_mode(mode)
+        
         try:
-            self._is_running = True
-            self.logger.info(f"🚀 Starting pipeline execution in {mode.value} mode")
-
-            # Start monitoring
-            pipeline_id = str(uuid.uuid4())
-            self._current_report = self.monitor.start_execution(
+            self.logger.info(f"Starting pipeline execution: {pipeline_id}")
+            
+            # Prepare bronze sources if provided
+            if bronze_sources:
+                # Add bronze sources to context for execution
+                context = {}
+                for step in steps:
+                    if isinstance(step, BronzeStep) and step.name in bronze_sources:
+                        context[step.name] = bronze_sources[step.name]
+            else:
+                context = {}
+            
+            # Execute pipeline using the execution engine
+            result = self.execution_engine.execute_pipeline(steps, execution_mode)
+            
+            # Convert execution result to pipeline report
+            report = self._create_pipeline_report(
                 pipeline_id=pipeline_id,
                 mode=mode,
-                bronze_steps=self.bronze_steps,
-                silver_steps=self.silver_steps,
-                gold_steps=self.gold_steps,
+                start_time=start_time,
+                execution_result=result
+            )
+            
+            self.logger.info(f"Completed pipeline execution: {pipeline_id}")
+            return report
+            
+        except Exception as e:
+            self.logger.error(f"Pipeline execution failed: {e}")
+            return self._create_error_report(
+                pipeline_id=pipeline_id,
+                mode=mode,
+                start_time=start_time,
+                error=str(e)
             )
 
-            # Execute pipeline steps
-            (
-                success,
-                bronze_results,
-                silver_results,
-                gold_results,
-            ) = self._execute_pipeline_steps(mode, bronze_sources)
+    def run_initial_load(
+        self,
+        steps: List[BronzeStep | SilverStep | GoldStep] | None = None,
+        bronze_sources: Dict[str, DataFrame] | None = None
+    ) -> PipelineReport:
+        """Run initial load pipeline."""
+        if steps is None:
+            # Use stored steps
+            steps = list(self.bronze_steps.values()) + list(self.silver_steps.values()) + list(self.gold_steps.values())
+        return self.run_pipeline(steps, PipelineMode.INITIAL, bronze_sources)
 
-            # Update report with results
-            if self._current_report:
-                self._current_report.bronze_results = bronze_results
-                self._current_report.silver_results = silver_results
-                self._current_report.gold_results = gold_results
+    def run_incremental(
+        self,
+        steps: List[BronzeStep | SilverStep | GoldStep],
+        bronze_sources: Dict[str, DataFrame] | None = None
+    ) -> PipelineReport:
+        """Run incremental pipeline."""
+        return self.run_pipeline(steps, PipelineMode.INCREMENTAL, bronze_sources)
 
-            # Finish monitoring
-            final_report = self.monitor.finish_execution(success)
-            self._current_report = final_report
+    def run_full_refresh(
+        self,
+        steps: List[BronzeStep | SilverStep | GoldStep],
+        bronze_sources: Dict[str, DataFrame] | None = None
+    ) -> PipelineReport:
+        """Run full refresh pipeline."""
+        return self.run_pipeline(steps, PipelineMode.FULL_REFRESH, bronze_sources)
 
-            return final_report
+    def run_validation_only(
+        self,
+        steps: List[BronzeStep | SilverStep | GoldStep],
+        bronze_sources: Dict[str, DataFrame] | None = None
+    ) -> PipelineReport:
+        """Run validation-only pipeline."""
+        return self.run_pipeline(steps, PipelineMode.VALIDATION_ONLY, bronze_sources)
 
-        except Exception as e:
-            self.logger.error(f"Pipeline execution failed: {str(e)}")
-            if self._current_report:
-                self._current_report.status = PipelineStatus.FAILED
-                self._current_report.errors.append(str(e))
-            raise
-        finally:
-            self._is_running = False
+    def _convert_mode(self, mode: PipelineMode) -> ExecutionMode:
+        """Convert PipelineMode to ExecutionMode."""
+        mode_map = {
+            PipelineMode.INITIAL: ExecutionMode.INITIAL,
+            PipelineMode.INCREMENTAL: ExecutionMode.INCREMENTAL,
+            PipelineMode.FULL_REFRESH: ExecutionMode.FULL_REFRESH,
+            PipelineMode.VALIDATION_ONLY: ExecutionMode.VALIDATION_ONLY,
+        }
+        return mode_map.get(mode, ExecutionMode.INITIAL)
 
-    def _execute_pipeline_steps(
-        self, mode: PipelineMode, bronze_sources: dict[str, DataFrame]
-    ) -> tuple[bool, dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]], dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]], dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]]:
-        """Execute all pipeline steps in the correct order."""
-        try:
-            # Step 1: Execute Bronze steps
-            bronze_results = self._execute_bronze_steps(mode, bronze_sources)
-            if not bronze_results and self.bronze_steps:
-                self.logger.error("Bronze step execution failed")
-                return False, {}, {}, {}
-
-            # Check if any bronze steps failed
-            failed_bronze_steps = [
-                name
-                for name, result in bronze_results.items()
-                if not result.get("success", True)
-            ]
-            if failed_bronze_steps:
-                self.logger.error(f"Bronze steps failed: {failed_bronze_steps}")
-                return False, bronze_results, {}, {}
-
-            # Step 2: Execute Silver steps
-            silver_results = self._execute_silver_steps(mode, bronze_results)
-            # Only fail if there are Silver steps but execution failed
-            if self.silver_steps and not silver_results:
-                self.logger.error("Silver step execution failed")
-                return False, bronze_results, {}, {}
-
-            # Check if any silver steps failed
-            failed_silver_steps = [
-                name
-                for name, result in silver_results.items()
-                if not result.get("success", True)
-            ]
-            if failed_silver_steps:
-                self.logger.error(f"Silver steps failed: {failed_silver_steps}")
-                return False, bronze_results, silver_results, {}
-
-            # Step 3: Execute Gold steps
-            gold_results = self._execute_gold_steps(mode, silver_results)
-            # Only fail if there are Gold steps but execution failed
-            if self.gold_steps and not gold_results:
-                self.logger.error("Gold step execution failed")
-                return False, bronze_results, silver_results, {}
-
-            # Check if any gold steps failed
-            failed_gold_steps = [
-                name
-                for name, result in gold_results.items()
-                if not result.get("success", True)
-            ]
-            if failed_gold_steps:
-                self.logger.error(f"Gold steps failed: {failed_gold_steps}")
-                return False, bronze_results, silver_results, gold_results
-
-            self.logger.info("✅ All pipeline steps completed successfully")
-            return True, bronze_results, silver_results, gold_results
-
-        except Exception as e:
-            self.logger.error(f"Pipeline step execution failed: {str(e)}")
-            return False, {}, {}, {}
-
-    def _execute_bronze_steps(
-        self, mode: PipelineMode, bronze_sources: dict[str, DataFrame]
-    ) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
-        """Execute Bronze steps."""
-        self.logger.info(f"🟤 Executing {len(self.bronze_steps)} Bronze steps")
-
-        bronze_results = {}
-
-        for step_name, step in self.bronze_steps.items():
-            if step_name not in bronze_sources:
-                self.logger.warning(
-                    f"No source data provided for Bronze step: {step_name}"
-                )
-                continue
-
-            try:
-                self.logger.info(f"Processing Bronze step: {step_name}")
-
-                source_df = bronze_sources[step_name]
-                row_count = source_df.count()
-
-                # Apply validation rules if they exist
-                if hasattr(step, "rules") and step.rules:
-                    try:
-                        from ..validation import apply_column_rules
-
-                        valid_df, invalid_df, stats = apply_column_rules(
-                            df=source_df,
-                            rules=step.rules,
-                            stage="bronze",
-                            step=step_name,
-                            filter_columns_by_rules=True,
-                        )
-
-                        # Check if validation passed (use a reasonable threshold)
-                        if stats.validation_rate < 95.0:
-                            error_msg = f"Data validation failed for {step_name}: validation rate {stats.validation_rate:.1f}% below threshold"
-                            self.logger.error(error_msg)
-
-                            # Update monitoring with failure
-                            self.monitor.update_step_execution(
-                                step_name=step_name,
-                                step_type="bronze",
-                                success=False,
-                                duration=0.0,
-                                error_message=error_msg,
-                            )
-
-                            bronze_results[step_name] = {
-                                "success": False,
-                                "error": error_msg,
-                                "dataframe": source_df,
-                            }
-                            continue
-
-                        # Use validated data
-                        source_df = valid_df
-                        row_count = stats.valid_rows
-
-                    except Exception as e:
-                        error_msg = f"Validation error for {step_name}: {str(e)}"
-                        self.logger.error(error_msg)
-
-                        # Update monitoring with failure
-                        self.monitor.update_step_execution(
-                            step_name=step_name,
-                            step_type="bronze",
-                            success=False,
-                            duration=0.0,
-                            error_message=error_msg,
-                        )
-
-                        bronze_results[step_name] = {
-                            "success": False,
-                            "error": error_msg,
-                            "dataframe": source_df,
-                        }
-                        continue
-
-                # Write to Delta table if table_name is specified
-                rows_written = row_count
-                if hasattr(step, "table_name") and step.table_name:
-                    table_path = (
-                        f"{self.config.schema}.{step.table_name}"
-                        if self.config.schema
-                        else step.table_name
-                    )
-                    try:
-                        # Write DataFrame to Delta table
-                        source_df.write.format("delta").mode("overwrite").option(
-                            "mergeSchema", "true"
-                        ).saveAsTable(table_path)
-                        rows_written = source_df.count()
-                    except Exception as e:
-                        self.logger.warning(
-                            f"Failed to write to Delta table {table_path}: {str(e)}"
-                        )
-
-                # Update monitoring
-                self.monitor.update_step_execution(
-                    step_name=step_name,
-                    step_type="bronze",
-                    success=True,
-                    duration=0.1,  # Simplified
-                    rows_processed=row_count,
-                    rows_written=rows_written,
-                )
-
-                bronze_results[step_name] = {
-                    "success": True,
-                    "rows_processed": row_count,
-                    "rows_written": rows_written,
-                    "dataframe": source_df,
-                }
-
-            except Exception as e:
-                self.logger.error(f"Bronze step {step_name} failed: {str(e)}")
-                self.monitor.update_step_execution(
-                    step_name=step_name,
-                    step_type="bronze",
-                    success=False,
-                    duration=0.0,
-                    error_message=str(e),
-                )
-                bronze_results[step_name] = {"success": False, "error": str(e)}
-
-        return bronze_results
-
-    def _execute_silver_steps(
-        self, mode: PipelineMode, bronze_results: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]
-    ) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
-        """Execute Silver steps."""
-        self.logger.info(f"🟡 Executing {len(self.silver_steps)} Silver steps")
-
-        # Prepare step configurations for execution engine
-        step_configs = {}
-        for step_name, step in self.silver_steps.items():
-            step_configs[step_name] = {
-                "step_type": "silver",
-                "step": step,
-                "bronze_results": bronze_results,
+    def _create_pipeline_report(
+        self,
+        pipeline_id: str,
+        mode: PipelineMode,
+        start_time: datetime,
+        execution_result: ExecutionResult
+    ) -> PipelineReport:
+        """Create a pipeline report from execution result."""
+        end_time = execution_result.end_time or datetime.now()
+        duration = (end_time - start_time).total_seconds()
+        
+        # Count successful and failed steps
+        successful_steps = [s for s in execution_result.steps if s.status.value == "completed"]
+        failed_steps = [s for s in execution_result.steps if s.status.value == "failed"]
+        
+        return PipelineReport(
+            pipeline_id=pipeline_id,
+            status=PipelineStatus.COMPLETED if execution_result.status == "completed" else PipelineStatus.FAILED,
+            mode=mode,
+            start_time=start_time,
+            end_time=end_time,
+            duration_seconds=duration,
+            total_steps=len(execution_result.steps),
+            successful_steps=len(successful_steps),
+            failed_steps=len(failed_steps),
+            errors=[s.error for s in failed_steps if s.error],
+            warnings=[],
+            metrics={
+                "total_duration": duration,
+                "steps_executed": len(execution_result.steps),
+                "success_rate": len(successful_steps) / len(execution_result.steps) if execution_result.steps else 0.0,
             }
-
-        # Execute using the unified execution engine
-        execution_result = self.execution_engine.execute_steps(step_configs)
-
-        # Convert results to expected format
-        silver_results = {}
-        for step_name, result in execution_result.step_results.items():
-            silver_results[step_name] = {
-                "success": result.success,
-                "rows_processed": result.rows_processed,
-                "rows_written": result.rows_written,
-                "error": result.error_message,
-                "dataframe": getattr(result, "output_data", None),
-            }
-
-            # Add write mode information if available
-            if hasattr(result, "metadata") and result.metadata:
-                step_metadata = result.metadata
-                if "write" in step_metadata:
-                    silver_results[step_name]["write"] = step_metadata["write"]
-
-        return silver_results
-
-    def _execute_gold_steps(
-        self, mode: PipelineMode, silver_results: dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]
-    ) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
-        """Execute Gold steps."""
-        self.logger.info(f"🟨 Executing {len(self.gold_steps)} Gold steps")
-
-        # Prepare step configurations for execution engine
-        step_configs = {}
-        for step_name, step in self.gold_steps.items():
-            step_configs[step_name] = {
-                "step_type": "gold",
-                "step": step,
-                "silver_results": silver_results,
-            }
-
-        # Execute using the unified execution engine
-        execution_result = self.execution_engine.execute_steps(step_configs)
-
-        # Convert results to expected format
-        gold_results = {}
-        for step_name, result in execution_result.step_results.items():
-            gold_results[step_name] = {
-                "success": result.success,
-                "rows_processed": result.rows_processed,
-                "rows_written": result.rows_written,
-                "error": result.error_message,
-                "dataframe": getattr(result, "output_data", None),
-            }
-
-        return gold_results
-
-    def cancel(self) -> None:
-        """Cancel the current pipeline execution."""
-        if self._is_running:
-            self._cancelled = True
-            self.logger.info("Pipeline execution cancelled")
-        else:
-            self.logger.warning("No pipeline execution to cancel")
-
-    def get_status(self) -> PipelineStatus:
-        """Get current pipeline status."""
-        if self._current_report:
-            return self._current_report.status
-        return PipelineStatus.PENDING
-
-    def get_current_report(self) -> PipelineReport | None:
-        """Get current execution report."""
-        return self._current_report
-
-    def get_performance_stats(self) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
-        """Get detailed performance statistics."""
-        if not self._current_report:
-            return {}
-
-        return self.monitor.get_performance_summary()
-
-    # Legacy compatibility methods for tests
-    def create_step_executor(self) -> object:
-        """Create a step executor for legacy compatibility."""
-        from ..step_executor import StepExecutor
-
-        # Return existing executor if available
-        if hasattr(self, "_step_executor") and self._step_executor is not None:
-            return self._step_executor
-
-        executor = StepExecutor(
-            spark=self.spark,
-            config=self.config,
-            bronze_steps=self.bronze_steps,
-            silver_steps=self.silver_steps,
-            gold_steps=self.gold_steps,
-            logger=self.logger,
-            dependency_analyzer=DependencyAnalyzer(logger=self.logger),
         )
 
-        # Store reference to executor for state tracking
-        self._step_executor = executor
-        return executor
-
-    def list_steps(self) -> dict[str, list[str]]:
-        """List all available steps by type."""
-        return {
-            "bronze": list(self.bronze_steps.keys()),
-            "silver": list(self.silver_steps.keys()),
-            "gold": list(self.gold_steps.keys()),
-        }
-
-    def get_step_info(self, step_name: str) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
-        """Get information about a specific step."""
-        if step_name in self.bronze_steps:
-            step = self.bronze_steps[step_name]
-            return {
-                "name": step.name,
-                "type": "bronze",
-                "rules": step.rules,
-                "incremental_col": step.incremental_col,
-                "dependencies": [],
-            }
-        elif step_name in self.silver_steps:
-            silver_step: SilverStep = self.silver_steps[step_name]
-            return {
-                "name": silver_step.name,
-                "type": "silver",
-                "source_bronze": silver_step.source_bronze,
-                "table_name": silver_step.table_name,
-                "watermark_col": silver_step.watermark_col,
-                "dependencies": [silver_step.source_bronze]
-                if silver_step.source_bronze
-                else [],
-            }
-        elif step_name in self.gold_steps:
-            gold_step: GoldStep = self.gold_steps[step_name]
-            return {
-                "name": gold_step.name,
-                "type": "gold",
-                "table_name": gold_step.table_name,
-                "source_silvers": gold_step.source_silvers,
-                "dependencies": gold_step.source_silvers,
-            }
-        else:
-            raise ValueError(f"Step '{step_name}' not found")
-
-    def execute_bronze_step(
+    def _create_error_report(
         self,
-        step_name: str,
-        input_data: Optional[DataFrame] = None,
-        data: Optional[DataFrame] = None,
-        output_to_table: bool = True,
-    ) -> object:
-        """Execute a single bronze step for legacy compatibility."""
-        if step_name not in self.bronze_steps:
-            raise ValueError(f"Bronze step '{step_name}' not found")
+        pipeline_id: str,
+        mode: PipelineMode,
+        start_time: datetime,
+        error: str
+    ) -> PipelineReport:
+        """Create an error pipeline report."""
+        end_time = datetime.now()
+        duration = (end_time - start_time).total_seconds()
+        
+        return PipelineReport(
+            pipeline_id=pipeline_id,
+            status=PipelineStatus.FAILED,
+            mode=mode,
+            start_time=start_time,
+            end_time=end_time,
+            duration_seconds=duration,
+            total_steps=0,
+            successful_steps=0,
+            failed_steps=0,
+            errors=[error],
+            warnings=[],
+            metrics={
+                "total_duration": duration,
+                "steps_executed": 0,
+                "success_rate": 0.0,
+            }
+        )
 
-        # Handle both parameter names for compatibility
-        df = input_data if input_data is not None else data
-        if df is None:
-            raise ValueError("Either input_data or data must be provided")
 
-        # Ensure StepExecutor is created for state tracking
-        if not hasattr(self, "_step_executor") or self._step_executor is None:
-            self.create_step_executor()
-
-        try:
-            from .. import StepStatus, StepType
-            from ..step_executor import StepValidationResult
-
-            row_count = df.count()
-
-            # Basic validation - check for null values in user_id column
-            step = self.bronze_steps[step_name]
-            validation_passed = True
-            valid_rows = row_count
-            invalid_rows = 0
-
-            if step.rules and "user_id" in step.rules:
-                # Check for null user_id values
-                null_count = df.filter(df.user_id.isNull()).count()
-                if null_count > 0:
-                    validation_passed = False
-                    valid_rows = row_count - null_count
-                    invalid_rows = null_count
-
-            class BronzeStepResult:
-                def __init__(
-                    self,
-                    step_name: str,
-                    success: bool,
-                    rows_processed: int,
-                    rows_written: int,
-                    step_type: str,
-                    status: str,
-                    error: str | None = None,
-                ) -> None:
-                    self.step_name = step_name
-                    self.success = success
-                    self.rows_processed = rows_processed
-                    self.rows_written = rows_written
-                    self.step_type = step_type
-                    self.status = status
-                    self.output_count = rows_processed
-                    self.error = error
-                    self.duration_seconds = 0.1  # Mock duration
-                    self.start_time = None
-                    self.end_time = None
-                    # Create a mock validation result
-                    self.validation_result = StepValidationResult(
-                        validation_passed=validation_passed,
-                        validation_rate=(
-                            100.0
-                            if valid_rows == 0
-                            else (valid_rows / rows_processed) * 100
-                        ),
-                        total_rows=rows_processed,
-                        valid_rows=valid_rows,
-                        invalid_rows=invalid_rows,
-                    )
-
-            if validation_passed:
-                from ..step_executor import StepStatus, StepType
-
-                result = BronzeStepResult(
-                    step_name,
-                    True,
-                    row_count,
-                    row_count if output_to_table else 0,
-                    "bronze",
-                    "completed",
-                )
-                # Update StepExecutor state if available
-                if hasattr(self, "_step_executor") and self._step_executor:
-                    from datetime import datetime
-
-                    from ..step_executor import StepExecutionResult
-
-                    execution_result = StepExecutionResult(
-                        step_name=step_name,
-                        step_type=StepType.BRONZE,
-                        status=StepStatus.COMPLETED,
-                        start_time=datetime.now(),
-                        end_time=datetime.now(),
-                        duration_seconds=0.1,
-                        input_data=df,
-                        output_data=df if output_to_table else None,
-                        output_count=row_count,
-                        validation_result=result.validation_result,
-                    )
-                    self._step_executor._execution_state[step_name] = execution_result
-                    # Always store the output for get_step_output
-                    self._step_executor._step_outputs[step_name] = df
-                return result
-            else:
-                result = BronzeStepResult(
-                    step_name,
-                    False,
-                    row_count,
-                    0,
-                    "bronze",
-                    "failed",
-                    "Validation failed",
-                )
-                # Update StepExecutor state if available
-                if hasattr(self, "_step_executor") and self._step_executor:
-                    from datetime import datetime
-
-                    from ..step_executor import StepExecutionResult
-
-                    execution_result = StepExecutionResult(
-                        step_name=step_name,
-                        step_type=StepType.BRONZE,
-                        status=StepStatus.FAILED,
-                        start_time=datetime.now(),
-                        end_time=datetime.now(),
-                        duration_seconds=0.1,
-                        input_data=df,
-                        output_data=None,
-                        output_count=0,
-                        validation_result=result.validation_result,
-                    )
-                    self._step_executor._execution_state[step_name] = execution_result
-                return result
-        except Exception as e:
-            from .. import StepStatus, StepType
-            from ..step_executor import StepValidationResult
-
-            class BronzeStepResultLocal:
-                def __init__(
-                    self,
-                    step_name: str,
-                    success: bool,
-                    rows_processed: int,
-                    rows_written: int,
-                    step_type: str,
-                    status: str,
-                    error: str | None = None,
-                ) -> None:
-                    self.step_name = step_name
-                    self.success = success
-                    self.rows_processed = rows_processed
-                    self.rows_written = rows_written
-                    self.step_type = step_type
-                    self.status = status
-                    self.output_count = rows_processed
-                    self.error = error
-                    # Create a mock validation result
-                    self.validation_result = StepValidationResult(
-                        validation_passed=False,
-                        validation_rate=0.0,
-                        total_rows=0,
-                        valid_rows=0,
-                        invalid_rows=0,
-                    )
-
-            return BronzeStepResultLocal(
-                step_name, False, 0, 0, "bronze", "failed", str(e)
-            )
-
-    def execute_silver_step(self, step_name: str, output_to_table: bool = True) -> Any:
-        """Execute a single silver step for legacy compatibility."""
-        if step_name not in self.silver_steps:
-            raise ValueError(f"Silver step '{step_name}' not found")
-
-        try:
-            # Simplified execution - in real implementation this would run the transform
-            from ..step_executor import StepValidationResult
-
-            class SilverStepResult:
-                def __init__(
-                    self,
-                    step_name: str,
-                    success: bool,
-                    rows_processed: int,
-                    rows_written: int,
-                    step_type: str,
-                    status: str,
-                    error: str | None = None,
-                ) -> None:
-                    self.step_name = step_name
-                    self.success = success
-                    self.rows_processed = rows_processed
-                    self.rows_written = rows_written
-                    self.step_type = step_type
-                    self.status = status
-                    self.output_count = rows_processed
-                    self.error = error
-                    self.duration_seconds = 0.1  # Mock duration
-                    self.start_time = None
-                    self.end_time = None
-                    # Create a mock validation result
-                    self.validation_result = StepValidationResult(
-                        validation_passed=True,
-                        validation_rate=100.0,
-                        total_rows=rows_processed,
-                        valid_rows=rows_processed,
-                        invalid_rows=0,
-                    )
-
-            return SilverStepResult(step_name, True, 3, 0, "silver", "completed")
-        except Exception as e:
-            from ..step_executor import StepValidationResult
-
-            class SilverStepResultLocal:
-                def __init__(
-                    self,
-                    step_name: str,
-                    success: bool,
-                    rows_processed: int,
-                    rows_written: int,
-                    step_type: str,
-                    status: str,
-                    error: str | None = None,
-                ) -> None:
-                    self.step_name = step_name
-                    self.success = success
-                    self.rows_processed = rows_processed
-                    self.rows_written = rows_written
-                    self.step_type = step_type
-                    self.status = status
-                    self.output_count = rows_processed
-                    self.error = error
-                    # Create a mock validation result
-                    self.validation_result = StepValidationResult(
-                        validation_passed=False,
-                        validation_rate=0.0,
-                        total_rows=0,
-                        valid_rows=0,
-                        invalid_rows=0,
-                    )
-
-            return SilverStepResultLocal(
-                step_name, False, 0, 0, "silver", "failed", str(e)
-            )
-
-    def execute_gold_step(self, step_name: str, output_to_table: bool = True) -> Any:
-        """Execute a single gold step for legacy compatibility."""
-        if step_name not in self.gold_steps:
-            raise ValueError(f"Gold step '{step_name}' not found")
-
-        try:
-            # Simplified execution - in real implementation this would run the transform
-            from ..step_executor import StepValidationResult
-
-            class GoldStepResult:
-                def __init__(
-                    self,
-                    step_name: str,
-                    success: bool,
-                    rows_processed: int,
-                    rows_written: int,
-                    step_type: str,
-                    status: str,
-                    error: str | None = None,
-                ) -> None:
-                    self.step_name = step_name
-                    self.success = success
-                    self.rows_processed = rows_processed
-                    self.rows_written = rows_written
-                    self.step_type = step_type
-                    self.status = status
-                    self.output_count = rows_processed
-                    self.error = error
-                    self.duration_seconds = 0.1  # Mock duration
-                    self.start_time = None
-                    self.end_time = None
-                    # Create a mock validation result
-                    self.validation_result = StepValidationResult(
-                        validation_passed=True,
-                        validation_rate=100.0,
-                        total_rows=rows_processed,
-                        valid_rows=rows_processed,
-                        invalid_rows=0,
-                    )
-
-            return GoldStepResult(step_name, True, 3, 0, "gold", "completed")
-        except Exception as e:
-            from ..step_executor import StepValidationResult
-
-            class GoldStepResultLocal:
-                def __init__(
-                    self,
-                    step_name: str,
-                    success: bool,
-                    rows_processed: int,
-                    rows_written: int,
-                    step_type: str,
-                    status: str,
-                    error: str | None = None,
-                ) -> None:
-                    self.step_name = step_name
-                    self.success = success
-                    self.rows_processed = rows_processed
-                    self.rows_written = rows_written
-                    self.step_type = step_type
-                    self.status = status
-                    self.output_count = rows_processed
-                    self.error = error
-                    # Create a mock validation result
-                    self.validation_result = StepValidationResult(
-                        validation_passed=False,
-                        validation_rate=0.0,
-                        total_rows=0,
-                        valid_rows=0,
-                        invalid_rows=0,
-                    )
-
-            return GoldStepResultLocal(step_name, False, 0, 0, "gold", "failed", str(e))
+# Backward compatibility alias
+PipelineRunner = SimplePipelineRunner

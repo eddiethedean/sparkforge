@@ -139,12 +139,14 @@ def main():
         runner = pipeline
 
         print("🚀 Running pipeline...")
-        result = runner.initial_load(bronze_sources={"events": source_df})
+        result = runner.run_initial_load(bronze_sources={"events": source_df})
 
         # Display results
         print("\n📊 Pipeline Results:")
         print(f"   Status: {result.status}")
-        print(f"   Total rows processed: {result.metrics.total_rows_processed}")
+        print(f"   Total steps: {result.total_steps}")
+        print(f"   Successful steps: {result.successful_steps}")
+        print(f"   Failed steps: {result.failed_steps}")
         print(f"   Total rows written: {result.metrics.total_rows_written}")
         print(f"   Execution time: {result.metrics.total_duration_secs:.2f}s")
         print(

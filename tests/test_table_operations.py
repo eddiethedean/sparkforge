@@ -8,7 +8,7 @@ This module tests all table read/write/management operations.
 import pytest
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
-from sparkforge.errors.data import TableOperationError
+from sparkforge.errors import TableOperationError
 from sparkforge.table_operations import (
     drop_table,
     fqn,

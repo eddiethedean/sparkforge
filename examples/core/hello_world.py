@@ -61,9 +61,9 @@ def main():
 
         # Run it!
         pipeline = builder.to_pipeline()
-        result = pipeline.initial_load(bronze_sources={"events": df})
+        result = pipeline.run_initial_load(bronze_sources={"events": df})
 
-        print(f"\n✅ Pipeline completed: {result.success}")
+        print(f"\n✅ Pipeline completed: {result.status}")
 
         # Show the results (if Delta Lake is available)
         try:

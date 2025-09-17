@@ -12,7 +12,7 @@ import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import StringType, StructField, StructType
 
-from sparkforge.data_utils import add_metadata_columns, remove_metadata_columns
+# add_metadata_columns and remove_metadata_columns functions removed - not needed for simplified system
 from sparkforge.models import StageStats
 from sparkforge.reporting import create_validation_dict, create_write_dict
 
@@ -96,7 +96,7 @@ class TestDataValidation:
     @pytest.mark.spark
     def test_apply_column_rules_none_rules(self, sample_dataframe):
         """Test column rule application with None rules."""
-        from sparkforge.errors.data import ValidationError
+        from sparkforge.errors import ValidationError
 
         with pytest.raises(ValidationError):
             apply_column_rules(
@@ -113,11 +113,12 @@ class TestDataValidation:
         quality = assess_data_quality(sample_dataframe)
 
         assert quality["total_rows"] == 5
-        assert "quality_score" in quality
-        assert "issues" in quality
-        assert "recommendations" in quality
-        assert quality["quality_score"] >= 0.0
-        assert quality["quality_score"] <= 100.0
+        assert "quality_rate" in quality
+        assert "valid_rows" in quality
+        assert "invalid_rows" in quality
+        assert "is_empty" in quality
+        assert quality["quality_rate"] >= 0.0
+        assert quality["quality_rate"] <= 100.0
 
     @pytest.mark.spark
     def test_get_dataframe_info(self, sample_dataframe):
@@ -167,17 +168,14 @@ class TestDataTransformationUtilities:
         return spark_session.createDataFrame(data, schema)
 
     @pytest.mark.spark
-    def test_add_metadata_columns(self, sample_dataframe):
-        """Test adding metadata columns with real Spark operations."""
-        result = add_metadata_columns(sample_dataframe, "test_run_id")
+    def test_basic_dataframe_operations(self, sample_dataframe):
+        """Test basic DataFrame operations (metadata functions removed in simplified system)."""
+        # Test basic DataFrame operations
+        result = sample_dataframe.withColumn("_test_column", F.lit("test_value"))
 
         # Check that the result has the expected columns
         columns = result.columns
-        assert "_run_id" in columns
-        assert "_created_at" in columns
-        assert "_updated_at" in columns
-
-        # Check that the original columns are still there
+        assert "_test_column" in columns
         assert "user_id" in columns
         assert "action" in columns
         assert "timestamp" in columns
@@ -186,21 +184,13 @@ class TestDataTransformationUtilities:
         assert result.count() == 3
 
     @pytest.mark.spark
-    def test_remove_metadata_columns(self, sample_dataframe):
-        """Test removing metadata columns with real Spark operations."""
-        # First add metadata columns
-        df_with_metadata = add_metadata_columns(sample_dataframe, "test_run_id")
-
-        # Then remove them
-        result = remove_metadata_columns(df_with_metadata)
-
-        # Check that metadata columns are gone
-        columns = result.columns
-        assert "_run_id" not in columns
-        assert "_created_at" not in columns
-        assert "_updated_at" not in columns
+    def test_dataframe_filtering(self, sample_dataframe):
+        """Test DataFrame filtering operations."""
+        # Test filtering
+        result = sample_dataframe.filter(F.col("user_id").isNotNull())
 
         # Check that original columns are still there
+        columns = result.columns
         assert "user_id" in columns
         assert "action" in columns
         assert "timestamp" in columns

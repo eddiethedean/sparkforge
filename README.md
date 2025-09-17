@@ -1,6 +1,6 @@
 # SparkForge
 
-A production-ready PySpark + Delta Lake pipeline engine with the Medallion Architecture (Bronze → Silver → Gold). Build scalable data pipelines with built-in parallel execution, comprehensive validation, and enterprise-grade monitoring.
+A simplified, production-ready PySpark + Delta Lake pipeline engine with the Medallion Architecture (Bronze → Silver → Gold). Build scalable data pipelines with clean, maintainable code and comprehensive validation.
 
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://sparkforge.readthedocs.io/)
 [![PyPI version](https://badge.fury.io/py/sparkforge.svg)](https://badge.fury.io/py/sparkforge)
@@ -17,7 +17,7 @@ pip install sparkforge
 ### Minimal Example (3 lines!)
 ```python
 from sparkforge import PipelineBuilder
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, functions as F
 
 spark = SparkSession.builder.appName("MyPipeline").getOrCreate()
 builder = PipelineBuilder(spark=spark, schema="my_schema")
@@ -34,7 +34,7 @@ pipeline = (builder
     .to_pipeline()
 )
 
-result = pipeline.initial_load(bronze_sources={"events": source_df})
+result = pipeline.run_initial_load(bronze_sources={"events": source_df})
 ```
 
 ## 📚 Feature Examples
@@ -46,7 +46,6 @@ result = pipeline.initial_load(bronze_sources={"events": source_df})
 
 ### Advanced Features
 - **[Multi-Schema Support](examples/advanced/multi_schema_pipeline.py)** - Cross-schema data flows
-- **[Dynamic Parallel Execution](examples/advanced/dynamic_parallel_execution.py)** - Advanced parallel processing
 - **[Auto-Inference](examples/advanced/auto_infer_source_bronze_simple.py)** - Automatic dependency detection
 - **[Column Filtering](examples/specialized/column_filtering_behavior.py)** - Control column preservation
 
@@ -64,14 +63,14 @@ result = pipeline.initial_load(bronze_sources={"events": source_df})
 ## 🎯 Key Features
 
 - **🏗️ Medallion Architecture**: Bronze → Silver → Gold data layering with automatic dependency management
-- **⚡ Advanced Parallel Execution**: Dynamic worker allocation, intelligent task prioritization, and adaptive optimization
+- **⚡ Simplified Execution**: Clean, maintainable execution engine with step-by-step processing
 - **🎯 Auto-Inference**: Automatically infers source dependencies, reducing boilerplate by 70%
 - **🛠️ Preset Configurations**: One-line setup for development, production, and testing environments
 - **🔧 Validation Helpers**: Built-in methods for common validation patterns (not_null, positive_numbers, etc.)
 - **📊 Smart Detection**: Automatic timestamp column detection for watermarking
 - **🏢 Multi-Schema Support**: Cross-schema data flows for multi-tenant, environment separation, and compliance
 - **🔍 Step-by-Step Debugging**: Execute individual pipeline steps independently for troubleshooting
-- **✅ Enhanced Data Validation**: Configurable validation thresholds with automatic security validation and performance caching
+- **✅ Enhanced Data Validation**: Configurable validation thresholds with automatic security validation
 - **🎛️ Column Filtering Control**: Explicit control over which columns are preserved after validation
 - **🔄 Incremental Processing**: Watermarking and incremental updates with Delta Lake
 - **💧 Delta Lake Integration**: Full support for ACID transactions, time travel, and schema evolution
@@ -119,7 +118,7 @@ print(f"SparkForge version: {sparkforge.__version__}")
 
 ## 🧪 Testing
 
-Run the comprehensive test suite with 500+ tests:
+Run the comprehensive test suite with 469+ tests:
 
 ```bash
 # Fast parallel tests (recommended for development)
@@ -149,14 +148,11 @@ from sparkforge import PipelineBuilder
 # Spark session is automatically available
 builder = PipelineBuilder(
     spark=spark,
-    schema="production_schema",
-    min_bronze_rate=99.0,
-    min_silver_rate=95.0,
-    min_gold_rate=90.0,
-    enable_parallel_silver=True,
-    max_parallel_workers=8,
-    verbose=True
+    schema="production_schema"
 )
+
+pipeline = builder.to_pipeline()
+result = pipeline.run_initial_load(bronze_sources={"events": source_df})
 ```
 
 ### AWS EMR / Azure Synapse
@@ -166,7 +162,7 @@ from sparkforge import PipelineBuilder
 # Configure for cloud storage
 builder = PipelineBuilder(spark=spark, schema="my_schema")
 pipeline = builder.to_pipeline()
-result = pipeline.run_incremental(bronze_sources={"events": source_df})
+result = pipeline.run_initial_load(bronze_sources={"events": source_df})
 ```
 
 ## 🤝 Contributing

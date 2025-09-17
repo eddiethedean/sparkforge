@@ -6,11 +6,11 @@ This module tests all custom exceptions used throughout the framework.
 """
 
 
-from sparkforge.errors.data import TableOperationError, ValidationError
-from sparkforge.errors.execution import ExecutionError
-from sparkforge.errors.performance import PerformanceError
-from sparkforge.errors.pipeline import PipelineValidationError
-from sparkforge.errors.system import ConfigurationError
+from sparkforge.errors import TableOperationError, ValidationError
+from sparkforge.errors import ExecutionError
+from sparkforge.errors import PerformanceError
+from sparkforge.errors import PipelineValidationError
+from sparkforge.errors import ConfigurationError
 
 
 class TestValidationError:

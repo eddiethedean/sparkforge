@@ -1,121 +1,22 @@
-# # # # Copyright (c) 2024 Odos Matthews
-# # # #
-# # # # Permission is hereby granted, free of charge, to any person obtaining a copy
-# # # # of this software and associated documentation files (the "Software"), to deal
-# # # # in the Software without restriction, including without limitation the rights
-# # # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# # # # copies of the Software, and to permit persons to whom the Software is
-# # # # furnished to do so, subject to the following conditions:
-# # # #
-# # # # The above copyright notice and this permission notice shall be included in all
-# # # # copies or substantial portions of the Software.
-# # # #
-# # # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# # # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# # # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# # # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# # # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# # # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# # # # SOFTWARE.
-# #
-# # # Copyright (c) 2024 Odos Matthews
-# # #
-# # # Permission is hereby granted, free of charge, to any person obtaining a copy
-# # # of this software and associated documentation files (the "Software"), to deal
-# # # in the Software without restriction, including without limitation the rights
-# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# # # copies of the Software, and to permit persons to whom the Software is
-# # # furnished to do so, subject to the following conditions:
-# # #
-# # # The above copyright notice and this permission notice shall be included in all
-# # # copies or substantial portions of the Software.
-# # #
-# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# # # SOFTWARE.
-#
-# # # Copyright (c) 2024 Odos Matthews
-# # #
-# # # Permission is hereby granted, free of charge, to any person obtaining a copy
-# # # of this software and associated documentation files (the "Software"), to deal
-# # # in the Software without restriction, including without limitation the rights
-# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# # # copies of the Software, and to permit persons to whom the Software is
-# # # furnished to do so, subject to the following conditions:
-# # #
-# # # The above copyright notice and this permission notice shall be included in all
-# # # copies or substantial portions of the Software.
-# # #
-# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# # # SOFTWARE.
-#
-# # Copyright (c) 2024 Odos Matthews
-# #
-# # Permission is hereby granted, free of charge, to any person obtaining a copy
-# # of this software and associated documentation files (the "Software"), to deal
-# # in the Software without restriction, including without limitation the rights
-# # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# # copies of the Software, and to permit persons to whom the Software is
-# # furnished to do so, subject to the following conditions:
-# #
-# # The above copyright notice and this permission notice shall be included in all
-# # copies or substantial portions of the Software.
-# #
-# # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# # SOFTWARE.
-
-# Copyright (c) 2024 Odos Matthews
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
 
 """
-SparkForge - A powerful data pipeline builder for Apache Spark and Databricks.
+SparkForge - A simplified, production-ready data pipeline builder for Apache Spark and Delta Lake.
 
-SparkForge provides a fluent API for building robust data pipelines with
+SparkForge provides a clean, maintainable API for building robust data pipelines with
 Bronze → Silver → Gold architecture, featuring:
 
-- Fluent pipeline building API
-- Advanced parallel execution with dynamic worker allocation
-- Enhanced data validation with security and performance optimization
-- Enterprise security features (input validation, SQL injection protection)
-- Intelligent caching and performance optimization
-- Delta Lake integration
-- Performance monitoring and logging
-- Error handling and recovery
+- Simplified pipeline building API
+- Clean execution engine with step-by-step processing
+- Enhanced data validation with configurable thresholds
+- Delta Lake integration with ACID transactions
+- Multi-schema support for enterprise environments
+- Step-by-step debugging capabilities
+- Comprehensive error handling and logging
+- Auto-inference of dependencies
 
 Example:
-    from sparkforge import PipelineBuilder, PipelineRunner
-    from sparkforge.models import ExecutionMode, ValidationThresholds
+    from sparkforge import PipelineBuilder
+    from pyspark.sql import functions as F
 
     # Create a pipeline
     builder = PipelineBuilder(spark=spark, schema="my_schema")
@@ -126,7 +27,7 @@ Example:
     builder.add_silver_transform(
         name="enriched_events",
         source_bronze="events",
-        transform=lambda spark, df, prior_silvers: df.withColumn("processed_at", F.current_timestamp()),
+        transform=lambda spark, df, silvers: df.withColumn("processed_at", F.current_timestamp()),
         rules={"user_id": [F.col("user_id").isNotNull()]},
         table_name="enriched_events"
     )
@@ -140,50 +41,51 @@ Example:
 
     # Run the pipeline
     pipeline = builder.to_pipeline()
-    result = pipeline.initial_load(bronze_sources={"events": source_df})
+    result = pipeline.run_initial_load(bronze_sources={"events": source_df})
 """
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 __author__ = "Odos Matthews"
 __email__ = "odosmattthewsm@gmail.com"
-__description__ = "A powerful data pipeline builder for Apache Spark and Databricks"
+__description__ = "A simplified, production-ready data pipeline builder for Apache Spark and Delta Lake"
 
 # Import unified dependency analysis
 from .dependencies import DependencyAnalysisResult, DependencyGraph, StepNode
 from .dependencies import DependencyAnalyzer as UnifiedDependencyAnalyzer
 
-# Import standardized error handling
+# Import simplified error handling
 from .errors import (
-    CircularDependencyError,
     ConfigurationError,
-    DataQualityError,
-    DependencyError,
+    DataError,
     ExecutionError,
-    InvalidDependencyError,
-    PipelineConfigurationError,
-    PipelineError,
-    PipelineExecutionError,
-    PipelineValidationError,
+    PerformanceError,
     ResourceError,
     SparkForgeError,
-    StepError,
-    StepExecutionError,
-    StepValidationError,
+    SystemError,
+    ValidationError,
 )
-from .errors import ValidationError as DataValidationError
-from .errors.data import ValidationError
 
-# Import unified execution system
+# Create aliases for backward compatibility
+PipelineError = ExecutionError
+DependencyError = ConfigurationError
+IngestionError = DataError
+StorageError = SystemError
+StrategyError = ConfigurationError
+TableOperationError = DataError
+TimeoutError = SystemError
+
+# Import simplified execution system
 from .execution import (
-    ExecutionConfig,
+    ExecutionEngine,
     ExecutionMode,
     ExecutionResult,
-    ExecutionStats,
-    RetryStrategy,
+    StepExecutionResult,
+    StepStatus,
+    StepType,
+    UnifiedExecutionEngine,
+    UnifiedStepExecutionResult,
 )
-from .execution import ExecutionEngine as UnifiedExecutionEngine
-from .execution import StepExecutionResult as UnifiedStepExecutionResult
-from .log_writer import PIPELINE_LOG_SCHEMA, LogWriter
+from .logging import PipelineLogger, get_logger, create_logger
 from .models import (
     BronzeStep,
     ExecutionContext,
@@ -207,29 +109,21 @@ from .pipeline import PipelineBuilder, PipelineRunner
 from .reporting import create_validation_dict, create_write_dict
 
 # Import security and performance modules
-from .step_executor import (
-    StepExecutionResult,
-    StepExecutor,
-    StepStatus,
-    StepType,
-    StepValidationResult,
-)
+# Step executor functionality moved to execution module
 
-# Import type system
+# Import simplified type system
 from .types import (
     BronzeTransformFunction,
     ColumnRules,
-    ErrorCode,
     ErrorContext,
     ErrorSuggestions,
-    ExecutionId,
+    ExecutionConfig,
     GenericDict,
     GoldTransformFunction,
     MonitoringConfig,
     NumericDict,
     OptionalDict,
     OptionalList,
-    PipelineId,
     PipelineResult,
     QualityThresholds,
     SchemaName,
@@ -239,7 +133,6 @@ from .types import (
     TableName,
     TransformFunction,
     ValidationConfig,
-    ValidationRules,
 )
 
 # Make key classes available at package level
@@ -247,20 +140,17 @@ __all__ = [
     # Main classes
     "PipelineBuilder",
     "PipelineRunner",
-    "LogWriter",
-    # Step execution classes
-    "StepExecutor",
-    "StepExecutionResult",
-    "StepValidationResult",
-    "StepType",
-    "StepStatus",
-    # Unified execution system
-    "UnifiedExecutionEngine",
-    "ExecutionConfig",
+    "PipelineLogger",
+    "get_logger",
+    "create_logger",
+    # Execution system
+    "ExecutionEngine",
     "ExecutionMode",
-    "RetryStrategy",
     "ExecutionResult",
-    "ExecutionStats",
+    "StepExecutionResult",
+    "StepStatus",
+    "StepType",
+    "UnifiedExecutionEngine",
     "UnifiedStepExecutionResult",
     # Unified dependency analysis
     "UnifiedDependencyAnalyzer",
@@ -285,25 +175,23 @@ __all__ = [
     # Utilities
     "create_validation_dict",
     "create_write_dict",
-    "ValidationError",
-    "PIPELINE_LOG_SCHEMA",
     # Error handling
     "SparkForgeError",
     "ConfigurationError",
-    "DataValidationError",
+    "DataError", 
     "ExecutionError",
-    "DataQualityError",
+    "PerformanceError",
     "ResourceError",
+    "SystemError",
+    "ValidationError",
+    # Backward compatibility aliases
     "PipelineError",
-    "PipelineConfigurationError",
-    "PipelineExecutionError",
-    "PipelineValidationError",
-    "StepError",
-    "StepExecutionError",
-    "StepValidationError",
     "DependencyError",
-    "CircularDependencyError",
-    "InvalidDependencyError",
+    "IngestionError",
+    "StorageError",
+    "StrategyError",
+    "TableOperationError",
+    "TimeoutError",
     # Type system
     "StepName",
     "StepType",
@@ -316,7 +204,6 @@ __all__ = [
     "SilverTransformFunction",
     "GoldTransformFunction",
     "ColumnRules",
-    "ValidationRules",
     "QualityThresholds",
     "ExecutionContext",
     "StepResult",

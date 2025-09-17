@@ -95,17 +95,13 @@ class TestConstantsUsage(unittest.TestCase):
     def test_performance_cache_uses_constants(self):
         """Test that performance_cache.py uses constants correctly."""
         from sparkforge.constants import DEFAULT_MAX_MEMORY_MB, BYTES_PER_MB
-        from sparkforge.performance_cache import CacheConfig
 
-        # Test that CacheConfig uses the constant
-        config = CacheConfig()
-        self.assertEqual(config.max_memory_mb, DEFAULT_MAX_MEMORY_MB)
-
-        # Test that BYTES_PER_MB is used correctly
-        self.assertEqual(BYTES_PER_MB, 1024 * 1024)
+        # Test that constants are defined correctly
+        self.assertEqual(DEFAULT_MAX_MEMORY_MB, 1024)  # 1GB in MB
+        self.assertEqual(BYTES_PER_MB, 1024 * 1024)  # 1MB in bytes
 
     def test_parallel_execution_uses_constants(self):
-        """Test that parallel_execution.py uses constants correctly."""
+        """Test that constants are defined correctly."""
         from sparkforge.constants import BYTES_PER_MB
 
         # Test that BYTES_PER_MB is the correct value

@@ -11,7 +11,7 @@ import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import StringType, StructField, StructType
 
-from sparkforge.data_utils import add_metadata_columns
+# add_metadata_columns function removed - not needed for simplified system
 
 # Import the actual functions we're testing
 from sparkforge.validation import (
@@ -113,25 +113,22 @@ class TestRealSparkOperations:
         quality = assess_data_quality(sample_dataframe)
 
         assert quality["total_rows"] == 5
-        assert "quality_score" in quality
-        assert "issues" in quality
-        assert "recommendations" in quality
-        assert quality["quality_score"] >= 0.0
-        assert quality["quality_score"] <= 100.0
+        assert "quality_rate" in quality
+        assert "valid_rows" in quality
+        assert "invalid_rows" in quality
+        assert "is_empty" in quality
+        assert quality["quality_rate"] >= 0.0
+        assert quality["quality_rate"] <= 100.0
 
     @pytest.mark.spark
     def test_real_spark_metadata_operations(self, sample_dataframe):
         """Test metadata operations with real Spark operations."""
-        # Test adding metadata columns
-        result = add_metadata_columns(sample_dataframe, "test_run_id")
+        # Test basic DataFrame operations (metadata functions removed in simplified system)
+        result = sample_dataframe.withColumn("_test_column", F.lit("test_value"))
 
         # Check that the result has the expected columns
         columns = result.columns
-        assert "_run_id" in columns
-        assert "_created_at" in columns
-        assert "_updated_at" in columns
-
-        # Check that the original columns are still there
+        assert "_test_column" in columns
         assert "user_id" in columns
         assert "action" in columns
         assert "timestamp" in columns

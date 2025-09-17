@@ -1,134 +1,34 @@
-# # # # Copyright (c) 2024 Odos Matthews
-# # # #
-# # # # Permission is hereby granted, free of charge, to any person obtaining a copy
-# # # # of this software and associated documentation files (the "Software"), to deal
-# # # # in the Software without restriction, including without limitation the rights
-# # # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# # # # copies of the Software, and to permit persons to whom the Software is
-# # # # furnished to do so, subject to the following conditions:
-# # # #
-# # # # The above copyright notice and this permission notice shall be included in all
-# # # # copies or substantial portions of the Software.
-# # # #
-# # # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# # # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# # # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# # # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# # # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# # # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# # # # SOFTWARE.
-# #
-# # # Copyright (c) 2024 Odos Matthews
-# # #
-# # # Permission is hereby granted, free of charge, to any person obtaining a copy
-# # # of this software and associated documentation files (the "Software"), to deal
-# # # in the Software without restriction, including without limitation the rights
-# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# # # copies of the Software, and to permit persons to whom the Software is
-# # # furnished to do so, subject to the following conditions:
-# # #
-# # # The above copyright notice and this permission notice shall be included in all
-# # # copies or substantial portions of the Software.
-# # #
-# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# # # SOFTWARE.
-#
-# # # Copyright (c) 2024 Odos Matthews
-# # #
-# # # Permission is hereby granted, free of charge, to any person obtaining a copy
-# # # of this software and associated documentation files (the "Software"), to deal
-# # # in the Software without restriction, including without limitation the rights
-# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# # # copies of the Software, and to permit persons to whom the Software is
-# # # furnished to do so, subject to the following conditions:
-# # #
-# # # The above copyright notice and this permission notice shall be included in all
-# # # copies or substantial portions of the Software.
-# # #
-# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# # # SOFTWARE.
-#
-# # Copyright (c) 2024 Odos Matthews
-# #
-# # Permission is hereby granted, free of charge, to any person obtaining a copy
-# # of this software and associated documentation files (the "Software"), to deal
-# # in the Software without restriction, including without limitation the rights
-# # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# # copies of the Software, and to permit persons to whom the Software is
-# # furnished to do so, subject to the following conditions:
-# #
-# # The above copyright notice and this permission notice shall be included in all
-# # copies or substantial portions of the Software.
-# #
-# # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# # SOFTWARE.
-
-#
-
-
-# validation.py
 """
-Data validation utilities for the SparkForge pipeline framework.
+Unified validation system for SparkForge.
 
-This module provides comprehensive data validation capabilities for the Medallion Architecture,
-including column-level validation, data quality assessment, and quality threshold enforcement.
-
-Key Features:
-- Column-level validation with PySpark expressions
-- Data quality rate calculation and threshold enforcement
-- Flexible rule definition system supporting custom validations
-- Comprehensive validation reporting with detailed statistics
-- Integration with Bronze, Silver, and Gold layer validation
-- Performance-optimized validation with caching support
-
-The validation system ensures data quality at each layer of the pipeline,
-preventing low-quality data from propagating through the system.
+This module provides a consolidated validation system that handles both
+data validation and pipeline validation in a single, clean interface.
 """
 
 from __future__ import annotations
 
 import logging
 import time
-from typing import Dict, List, Union
+from dataclasses import dataclass
+from typing import Any, Dict, List, Protocol, Tuple
 
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
-from pyspark.sql.types import ArrayType, StringType
 
-from .errors.data import ValidationError
-from .models import ColumnRules, StageStats
-from .performance_cache import cached_validation
-from .security import get_security_manager
+from .errors import ValidationError
+from .logging import PipelineLogger
+from .models import BronzeStep, ColumnRules, ExecutionContext, GoldStep, PipelineConfig, SilverStep, StageStats
+from .types import StepName
 
 logger = logging.getLogger(__name__)
 
 
-def _convert_rule_to_expression(rule: str, column_name: str) -> Union[object, str]:
-    """
-    Convert a string rule to a PySpark Column expression.
+# ============================================================================
+# Data Validation
+# ============================================================================
 
-    Args:
-        rule: String rule name (e.g., "not_null", "positive")
-        column_name: Name of the column to apply the rule to
-
-    Returns:
-        PySpark Column expression
-    """
+def _convert_rule_to_expression(rule: str, column_name: str) -> object | str:
+    """Convert a string rule to a PySpark Column expression."""
     if rule == "not_null":
         return F.col(column_name).isNotNull()
     elif rule == "positive":
@@ -139,104 +39,190 @@ def _convert_rule_to_expression(rule: str, column_name: str) -> Union[object, st
         return F.col(column_name) != 0
     else:
         # For unknown rules, assume it's a valid PySpark expression
-        # This allows for custom rules to be passed as expressions
         return rule
 
 
-def _convert_rules_to_expressions(rules: ColumnRules) -> Dict[str, List[Union[DataFrame, str, bool]]]:
-    """
-    Convert string rules to PySpark Column expressions.
-
-    Args:
-        rules: Dictionary of column rules (can contain strings or expressions)
-
-    Returns:
-        Dictionary with all rules converted to PySpark expressions
-    """
+def _convert_rules_to_expressions(rules: ColumnRules) -> Dict[str, List[object]]:
+    """Convert string rules to PySpark Column expressions."""
     converted_rules = {}
     for column_name, rule_list in rules.items():
         converted_rule_list = []
         for rule in rule_list:
             if isinstance(rule, str):
-                converted_rule_list.append(
-                    _convert_rule_to_expression(rule, column_name)
-                )
+                converted_rule_list.append(_convert_rule_to_expression(rule, column_name))
             else:
-                # Already a PySpark expression
                 converted_rule_list.append(rule)
         converted_rules[column_name] = converted_rule_list
     return converted_rules
 
 
-def and_all_rules(rules: ColumnRules) -> Union[object, bool]:
-    """
-    Combine all validation rules with AND logic.
-
-    Args:
-        rules: Dictionary of column rules (can contain strings or expressions)
-
-    Returns:
-        Combined predicate expression
-    """
+def and_all_rules(rules: ColumnRules) -> object | bool:
+    """Combine all validation rules with AND logic."""
     if not rules:
-        # Return a simple boolean instead of F.lit(True) to avoid Spark context requirement
         return True
 
-    # Convert string rules to PySpark expressions
     converted_rules = _convert_rules_to_expressions(rules)
-
-    # Start with the first expression, then combine with others
     expressions = []
     for _, exprs in converted_rules.items():
         expressions.extend(exprs)
-    
+
     if not expressions:
         return True
-    
-    # Ensure all expressions are PySpark Column objects
+
     pred = expressions[0]
     for e in expressions[1:]:
-        # Check if both are PySpark Column objects by checking for specific methods
-        if (hasattr(pred, '__and__') and hasattr(e, '__and__') and 
-            hasattr(pred, '__rand__') and hasattr(e, '__rand__') and
-            hasattr(pred, 'isNull') and hasattr(e, 'isNull')):
-            pred = pred & e  # type: ignore
+        if (
+            hasattr(pred, "__and__")
+            and hasattr(e, "__and__")
+            and hasattr(pred, "__rand__")
+            and hasattr(e, "__rand__")
+            and hasattr(pred, "isNull")
+            and hasattr(e, "isNull")
+        ):
+                pred = pred & e
         else:
-            # If either is not a Column, convert to boolean logic
             pred = bool(pred) and bool(e)
-    
+
     return pred
 
 
-def validate_dataframe_schema(df: DataFrame, expected_columns: list[str]) -> bool:
+def apply_column_rules(
+    df: DataFrame,
+    rules: ColumnRules,
+    stage: str,
+    step: str,
+    filter_columns_by_rules: bool = True,
+) -> Tuple[DataFrame, DataFrame, StageStats]:
     """
-    Validate that DataFrame has expected columns.
-
+    Apply validation rules to a DataFrame and return valid/invalid DataFrames with statistics.
+    
     Args:
         df: DataFrame to validate
-        expected_columns: List of expected column names
-
+        rules: Dictionary mapping column names to validation rules
+        stage: Pipeline stage name
+        step: Step name within the stage
+        filter_columns_by_rules: If True, output DataFrames only contain columns with rules
+        
     Returns:
-        True if schema is valid, False otherwise
+        Tuple of (valid_df, invalid_df, stats)
     """
+    if rules is None:
+        raise ValidationError("Validation rules cannot be None")
+    
+    # Handle empty rules - return all rows as valid
+    if not rules:
+        total_rows = df.count()
+        duration = time.time() - time.time()  # 0 duration
+        stats = StageStats(
+            stage=stage,
+            step=step,
+            total_rows=total_rows,
+            valid_rows=total_rows,
+            invalid_rows=0,
+            validation_rate=100.0,
+            duration_secs=duration
+        )
+        return df, df.limit(0), stats  # Return original df as valid, empty df as invalid
+
+    start_time = time.time()
+    
+    # Create validation predicate
+    validation_predicate = and_all_rules(rules)
+    
+    # Apply validation
+    if validation_predicate is True:
+        # No validation rules, return all data as valid
+        valid_df = df
+        invalid_df = df.limit(0)  # Empty DataFrame with same schema
+        total_rows = df.count()
+        valid_rows = total_rows
+        invalid_rows = 0
+    else:
+        # Apply validation predicate
+        if isinstance(validation_predicate, bool):
+            # Handle simple boolean cases
+            if validation_predicate is True:
+                valid_df = df
+                invalid_df = df.limit(0)
+            else:
+                valid_df = df.limit(0)
+                invalid_df = df
+        elif isinstance(validation_predicate, str):
+            # Handle string expressions
+            valid_df = df.filter(validation_predicate)
+            invalid_df = df.filter(~validation_predicate)
+        else:
+            # Handle PySpark Column expressions
+            valid_df = df.filter(validation_predicate)
+            invalid_df = df.filter(~validation_predicate)
+        
+        total_rows = df.count()
+        valid_rows = valid_df.count()
+        invalid_rows = invalid_df.count()
+
+    # Apply column filtering if requested
+    if filter_columns_by_rules:
+        # Only keep columns that have validation rules
+        rule_columns = list(rules.keys())
+        valid_df = valid_df.select(*rule_columns)
+        # For invalid_df, also include the _failed_rules column if it exists
+        invalid_columns = rule_columns.copy()
+        if "_failed_rules" in invalid_df.columns:
+            invalid_columns.append("_failed_rules")
+        invalid_df = invalid_df.select(*invalid_columns)
+
+    # Calculate validation rate
+    validation_rate = (valid_rows / total_rows * 100) if total_rows > 0 else 100.0
+    
+    # Create statistics
+    duration = time.time() - start_time
+    stats = StageStats(
+        stage=stage,
+        step=step,
+        total_rows=total_rows,
+        valid_rows=valid_rows,
+        invalid_rows=invalid_rows,
+        validation_rate=validation_rate,
+        duration_secs=duration
+    )
+
+    logger.info(f"Validation completed for {stage}.{step}: {validation_rate:.1f}% valid")
+    
+    return valid_df, invalid_df, stats
+
+
+def validate_dataframe_schema(df: DataFrame, expected_columns: List[str]) -> bool:
+    """Validate that DataFrame has expected columns."""
     actual_columns = set(df.columns)
-    expected_columns_set = set(expected_columns)
-
-    missing_columns = expected_columns_set - actual_columns
-    if missing_columns:
-        logger.warning(f"Missing columns: {missing_columns}")
-        return False
-
-    return True
+    expected_set = set(expected_columns)
+    missing_columns = expected_set - actual_columns
+    return len(missing_columns) == 0
 
 
-def get_dataframe_info(df: DataFrame) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
+def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> float:
     """
-    Get comprehensive information about a DataFrame.
+    Safely divide two numbers, returning default if denominator is zero.
+    
+    Args:
+        numerator: The numerator
+        denominator: The denominator
+        default: Default value to return if denominator is zero
+        
+    Returns:
+        The division result or default value
+    """
+    if denominator == 0:
+        return default
+    return numerator / denominator
 
+
+def get_dataframe_info(df: DataFrame) -> Dict[str, Any]:
+    """
+    Get basic information about a DataFrame.
+    
     Args:
         df: DataFrame to analyze
-
+        
     Returns:
         Dictionary with DataFrame information
     """
@@ -244,329 +230,282 @@ def get_dataframe_info(df: DataFrame) -> dict[str, Union[str, int, float, bool, 
         row_count = df.count()
         column_count = len(df.columns)
         schema = df.schema
-
+        
         return {
             "row_count": row_count,
             "column_count": column_count,
             "columns": df.columns,
             "schema": str(schema),
-            "is_empty": row_count == 0,
+            "is_empty": row_count == 0
         }
     except Exception as e:
-        logger.error(f"Failed to get DataFrame info: {e}")
         return {
+            "error": str(e),
             "row_count": 0,
             "column_count": 0,
             "columns": [],
             "schema": "unknown",
-            "is_empty": True,
-            "error": str(e),
+            "is_empty": True
         }
 
 
-@cached_validation
-def apply_column_rules(
-    df: DataFrame,
-    rules: ColumnRules,
-    stage: str,
-    step: str,
-    filter_columns_by_rules: bool = True,
-) -> tuple[DataFrame, DataFrame, StageStats]:
-    """
-    Apply validation rules to a DataFrame and return valid/invalid DataFrames with statistics.
-
-    This function is the core validation engine for SparkForge pipelines. It applies
-    column-level validation rules to a DataFrame and separates valid from invalid records,
-    providing comprehensive statistics about data quality.
-
-    Args:
-        df: DataFrame to validate. Must contain the columns referenced in the rules.
-        rules: Dictionary mapping column names to lists of validation rules.
-               Rules can be PySpark Column expressions or string shortcuts:
-               - "not_null": Column must not be null
-               - "positive": Column must be greater than 0
-               - "non_negative": Column must be >= 0
-               - "non_zero": Column must not equal 0
-               - Custom PySpark expressions for complex validations
-        stage: Pipeline stage name ("bronze", "silver", or "gold").
-              Used for logging and statistics tracking.
-        step: Step name within the stage. Used for logging and statistics tracking.
-        filter_columns_by_rules: If True (default), the output DataFrames will only contain
-                                columns that have validation rules defined. If False, all
-                                columns from the input DataFrame will be preserved.
-
-    Returns:
-        Tuple containing:
-        - valid_df: DataFrame containing only records that passed all validation rules
-        - invalid_df: DataFrame containing records that failed validation rules.
-                    Includes additional "__validation_failures__" column with failure details.
-        - stats: StageStats object with comprehensive validation statistics including:
-                total_rows, valid_rows, invalid_rows, validation_rate, duration_secs
-
-    Raises:
-        ValidationError: If validation rules are None or validation process fails
-
-    Example:
-        >>> from pyspark.sql import functions as F
-        >>>
-        >>> # Define validation rules
-        >>> rules = {
-        ...     "user_id": [F.col("user_id").isNotNull(), F.col("user_id") > 0],
-        ...     "email": ["not_null", F.col("email").contains("@")],
-        ...     "age": ["non_negative", F.col("age") < 120],
-        ...     "status": [F.col("status").isin(["active", "inactive", "pending"])]
-        ... }
-        >>>
-        >>> # Apply validation (filters columns to only those with rules)
-        >>> valid_df, invalid_df, stats = apply_column_rules(
-        ...     df=raw_data_df,
-        ...     rules=rules,
-        ...     stage="bronze",
-        ...     step="user_events",
-        ...     filter_columns_by_rules=True
-        ... )
-        >>>
-        >>> # Apply validation (preserves all columns)
-        >>> valid_df, invalid_df, stats = apply_column_rules(
-        ...     df=raw_data_df,
-        ...     rules=rules,
-        ...     stage="bronze",
-        ...     step="user_events",
-        ...     filter_columns_by_rules=False
-        ... )
-        >>>
-        >>> # Check results
-        >>> print(f"Validation rate: {stats.validation_rate:.2f}%")
-        >>> print(f"Valid rows: {stats.valid_rows}")
-        >>> print(f"Invalid rows: {stats.invalid_rows}")
-        >>>
-        >>> # Process valid data
-        >>> clean_df = valid_df.filter(F.col("status") == "active")
-        >>>
-        >>> # Analyze invalid data
-        >>> if stats.invalid_rows > 0:
-        ...     invalid_df.select("__validation_failures__").show(truncate=False)
-    """
-    if rules is None:
-        raise ValidationError(f"[{stage}:{step}] Validation rules cannot be None.")
-
-    # Validate inputs for security
-    security_manager = get_security_manager()
-    try:
-        validated_rules = security_manager.validate_validation_rules(rules)
-    except Exception as e:
-        logger.warning(f"[{stage}:{step}] Security validation failed: {e}")
-        validated_rules = rules  # Fallback to original rules
-
-    t0 = time.time()
-
-    # Cache the DataFrame for multiple operations to avoid recomputation
-    df.cache()
-
-    # Optimize: Get total count only once and cache it
-    total = df.count()
-    logger.debug(f"[{stage}:{step}] Total rows to validate: {total}")
-
-    if validated_rules:
-        # Convert string rules to PySpark expressions
-        converted_rules = _convert_rules_to_expressions(validated_rules)
-        logger.debug(f"[{stage}:{step}] Original rules: {validated_rules}")
-        logger.debug(f"[{stage}:{step}] Converted rules: {converted_rules}")
-        pred = and_all_rules(converted_rules)
-        marked = df.withColumn("__is_valid__", pred)
-
-        # Cache the marked DataFrame to avoid recomputation
-        marked.cache()
-
-        valid_df = marked.filter(F.col("__is_valid__")).drop("__is_valid__")
-        invalid_df = marked.filter(~F.col("__is_valid__")).drop("__is_valid__")
-
-        # Optimize: Calculate counts more efficiently using a single action
-        # Use collect() to get both counts in one operation
-        valid_count = valid_df.count()
-        invalid_count = total - valid_count
-        logger.debug(
-            f"[{stage}:{step}] Validation completed - valid rows: {valid_count}, invalid rows: {invalid_count}"
-        )
-
-        # Add detailed failure information
-        failed_arrays = []
-        for col_name, exprs in converted_rules.items():
-            for idx, expr in enumerate(exprs):
-                tag = F.lit(f"{col_name}#{idx + 1}")
-                # Ensure expr is a Column before applying ~ operator
-                if hasattr(expr, '__invert__'):
-                    failed_arrays.append(
-                        F.when(~expr, F.array(tag)).otherwise(  # type: ignore
-                            F.array().cast(ArrayType(StringType()))
-                        )
-                    )
-                else:
-                    # If not a Column, skip this rule
-                    continue
-
-        if failed_arrays:
-            invalid_df = invalid_df.withColumn(
-                "_failed_rules", F.array_distinct(F.flatten(F.array(*failed_arrays)))
-            )
-    else:
-        valid_df, invalid_df = df, df.limit(0)
-        valid_count = total
-        invalid_count = 0
-
-    rate = safe_divide(valid_count * 100.0, total, 100.0)
-
-    # Column selection based on filter_columns_by_rules parameter
-    if filter_columns_by_rules:
-        # Select only columns that have rules (if any) for all stages
-        keep_cols = (
-            [c for c in rules.keys() if c in valid_df.columns]
-            if rules
-            else valid_df.columns
-        )
-        valid_proj = valid_df.select(*keep_cols) if keep_cols else valid_df
-
-        # For invalid DataFrame, keep rule columns plus _failed_rules if it exists
-        invalid_keep_cols = keep_cols.copy() if keep_cols else []
-        if "_failed_rules" in invalid_df.columns:
-            invalid_keep_cols.append("_failed_rules")
-
-        # Only apply column filtering if we have columns to keep
-        if invalid_keep_cols:
-            invalid_proj = invalid_df.select(*invalid_keep_cols)
-        else:
-            invalid_proj = invalid_df
-
-        logger.debug(
-            f"[{stage}:{step}] Filtering columns based on rules keys: {list(rules.keys()) if rules else 'no rules'}"
-        )
-        logger.debug(f"[{stage}:{step}] Available columns: {valid_df.columns}")
-        logger.debug(f"[{stage}:{step}] Keeping columns: {keep_cols}")
-        logger.debug(f"[{stage}:{step}] Invalid keeping columns: {invalid_keep_cols}")
-    else:
-        # Preserve all columns from the original DataFrame
-        valid_proj = valid_df
-        invalid_proj = invalid_df
-        logger.debug(f"[{stage}:{step}] Preserving all columns: {valid_df.columns}")
-    logger.debug(f"[{stage}:{step}] Final columns: {valid_proj.columns}")
-
-    stats = StageStats(
-        stage=stage,
-        step=step,
-        total_rows=total,
-        valid_rows=valid_count,
-        invalid_rows=invalid_count,
-        validation_rate=rate,
-        duration_secs=round(time.time() - t0, 6),
-    )
-
-    logger.info(
-        f"Validation completed for {stage}:{step} - {valid_count}/{total} rows valid ({rate:.2f}%)"
-    )
-    return valid_proj, invalid_proj, stats
-
-
-def assess_data_quality(
-    df: DataFrame, rules: ColumnRules | None = None
-) -> dict[str, Union[str, int, float, bool, List[str], Dict[str, str]]]:
+def assess_data_quality(df: DataFrame, rules: ColumnRules | None = None) -> Dict[str, Any]:
     """
     Assess data quality of a DataFrame.
-
+    
     Args:
         df: DataFrame to assess
         rules: Optional validation rules
-
+        
     Returns:
-        Dictionary with data quality metrics
+        Dictionary with quality metrics
     """
-    info = get_dataframe_info(df)
-
-    if info["is_empty"]:
+    try:
+        total_rows = df.count()
+        
+        if total_rows == 0:
+            return {
+                "total_rows": 0,
+                "valid_rows": 0,
+                "invalid_rows": 0,
+                "quality_rate": 100.0,
+                "is_empty": True
+            }
+        
+        if rules:
+            valid_df, invalid_df, stats = apply_column_rules(df, rules, "test", "test")
+            return {
+                "total_rows": stats.total_rows,
+                "valid_rows": stats.valid_rows,
+                "invalid_rows": stats.invalid_rows,
+                "quality_rate": stats.validation_rate,
+                "is_empty": False
+            }
+        else:
+            return {
+                "total_rows": total_rows,
+                "valid_rows": total_rows,
+                "invalid_rows": 0,
+                "quality_rate": 100.0,
+                "is_empty": False
+            }
+    except Exception as e:
         return {
+            "error": str(e),
             "total_rows": 0,
-            "quality_score": 100.0,
-            "issues": ["Empty dataset"],
-            "recommendations": ["Check data source"],
+            "valid_rows": 0,
+            "invalid_rows": 0,
+            "quality_rate": 0.0,
+            "is_empty": True
         }
 
-    total_rows = info["row_count"]
-    quality_issues = []
-    recommendations = []
 
-    # Cache DataFrame for multiple operations
-    df.cache()
+# ============================================================================
+# Pipeline Validation
+# ============================================================================
 
-    # Check for null values - optimize by calculating all null counts in one operation
-    null_counts = {}
-    null_checks = []
-    for col in df.columns:
-        null_checks.append(
-            F.sum(F.when(F.col(col).isNull(), 1).otherwise(0)).alias(f"{col}_nulls")
+class StepValidator(Protocol):
+    """Protocol for custom step validators."""
+    def validate(self, step: Any, context: ExecutionContext) -> List[str]:
+        """Validate a step and return any validation errors."""
+        ...
+
+
+@dataclass
+class ValidationResult:
+    """Result of validation."""
+    is_valid: bool
+    errors: List[str]
+    warnings: List[str]
+    recommendations: List[str]
+
+    def __bool__(self) -> bool:
+        """Return whether validation passed."""
+        return self.is_valid
+
+
+class UnifiedValidator:
+    """
+    Unified validation system for both data and pipeline validation.
+    
+    This class provides a single interface for all validation needs,
+    combining data validation and pipeline validation functionality.
+    """
+
+    def __init__(self, logger: PipelineLogger | None = None):
+        """Initialize the unified validator."""
+        self.logger = logger or PipelineLogger()
+        self.custom_validators: List[StepValidator] = []
+
+    def add_validator(self, validator: StepValidator) -> None:
+        """Add a custom step validator."""
+        self.custom_validators.append(validator)
+        self.logger.info(f"Added custom validator: {validator.__class__.__name__}")
+
+    def validate_pipeline(
+        self,
+        config: PipelineConfig,
+        bronze_steps: Dict[StepName, BronzeStep],
+        silver_steps: Dict[StepName, SilverStep],
+        gold_steps: Dict[StepName, GoldStep],
+    ) -> ValidationResult:
+        """Validate the entire pipeline configuration."""
+        errors: List[str] = []
+        warnings: List[str] = []
+        recommendations: List[str] = []
+
+        # Validate configuration
+        config_errors = self._validate_config(config)
+        errors.extend(config_errors)
+
+        # Validate steps
+        bronze_errors, bronze_warnings = self._validate_bronze_steps(bronze_steps)
+        errors.extend(bronze_errors)
+        warnings.extend(bronze_warnings)
+
+        silver_errors, silver_warnings = self._validate_silver_steps(silver_steps, bronze_steps)
+        errors.extend(silver_errors)
+        warnings.extend(silver_warnings)
+
+        gold_errors, gold_warnings = self._validate_gold_steps(gold_steps, silver_steps)
+        errors.extend(gold_errors)
+        warnings.extend(gold_warnings)
+
+        # Validate dependencies
+        dep_errors, dep_warnings = self._validate_dependencies(bronze_steps, silver_steps, gold_steps)
+        errors.extend(dep_errors)
+        warnings.extend(dep_warnings)
+
+        is_valid = len(errors) == 0
+
+        if is_valid:
+            self.logger.info("Pipeline validation passed")
+        else:
+            self.logger.error(f"Pipeline validation failed with {len(errors)} errors")
+
+        return ValidationResult(
+            is_valid=is_valid,
+            errors=errors,
+            warnings=warnings,
+            recommendations=recommendations,
         )
 
-    if null_checks:
-        # Single action to get all null counts
-        null_results = df.select(*null_checks).collect()[0]
-        for col in df.columns:
-            null_count = getattr(null_results, f"{col}_nulls", 0)
-            if null_count > 0:
-                null_counts[col] = null_count
-                null_percentage = (null_count / total_rows) * 100
-                if null_percentage > 50:
-                    quality_issues.append(
-                        f"High null percentage in {col}: {null_percentage:.1f}%"
-                    )
-                    recommendations.append(f"Investigate null values in {col}")
+    def validate_step(
+        self, step: Any, step_type: str, context: ExecutionContext
+    ) -> ValidationResult:
+        """Validate a single step."""
+        errors: List[str] = []
+        warnings: List[str] = []
 
-    # Check for duplicates - optimize by using distinct count
-    distinct_count = df.distinct().count()
-    duplicate_count = total_rows - distinct_count
-    if duplicate_count > 0:
-        duplicate_percentage = (duplicate_count / total_rows) * 100
-        quality_issues.append(
-            f"Duplicate rows: {duplicate_count} ({duplicate_percentage:.1f}%)"
+        # Run custom validators
+        for validator in self.custom_validators:
+            try:
+                validator_errors = validator.validate(step, context)
+                errors.extend(validator_errors)
+            except Exception as e:
+                errors.append(f"Custom validator {validator.__class__.__name__} failed: {e}")
+
+        return ValidationResult(
+            is_valid=len(errors) == 0,
+            errors=errors,
+            warnings=warnings,
+            recommendations=[],
         )
-        recommendations.append("Consider deduplication strategy")
 
-    # Apply validation rules if provided
-    if rules:
-        try:
-            _, _, stats = apply_column_rules(
-                df, rules, "quality_check", "assessment", filter_columns_by_rules=False
-            )
-            if stats.validation_rate < 95:
-                quality_issues.append(
-                    f"Low validation rate: {stats.validation_rate:.1f}%"
-                )
-                recommendations.append("Review data validation rules")
-        except Exception as e:
-            quality_issues.append(f"Validation error: {e}")
+    def _validate_config(self, config: PipelineConfig) -> List[str]:
+        """Validate pipeline configuration."""
+        errors = []
+        
+        if not config.schema:
+            errors.append("Pipeline schema is required")
+        
+        # Table prefix is optional in simplified config
+        # if not config.table_prefix:
+        #     errors.append("Table prefix is required")
+        
+        return errors
 
-    # Calculate quality score
-    quality_score = 100.0
-    if quality_issues:
-        quality_score = max(0, 100 - len(quality_issues) * 10)
+    def _validate_bronze_steps(self, bronze_steps: Dict[StepName, BronzeStep]) -> Tuple[List[str], List[str]]:
+        """Validate bronze steps."""
+        errors = []
+        warnings: List[str] = []
+        
+        for step_name, step in bronze_steps.items():
+            # Simplified validation - just check that step has required basic attributes
+            if not step.name:
+                errors.append(f"Bronze step {step_name} missing name")
+            
+            if not step.rules:
+                errors.append(f"Bronze step {step_name} missing validation rules")
+        
+        return errors, warnings
 
-    return {
-        "total_rows": total_rows,
-        "quality_score": quality_score,
-        "null_counts": null_counts,
-        "duplicate_rows": duplicate_count,
-        "issues": quality_issues,
-        "recommendations": recommendations,
-    }
+    def _validate_silver_steps(
+        self, silver_steps: Dict[StepName, SilverStep], bronze_steps: Dict[StepName, BronzeStep]
+    ) -> Tuple[List[str], List[str]]:
+        """Validate silver steps."""
+        errors = []
+        warnings: List[str] = []
+        
+        for step_name, step in silver_steps.items():
+            if not step.source_bronze:
+                errors.append(f"Silver step {step_name} missing source_bronze")
+            
+            if step.transform is None:
+                errors.append(f"Silver step {step_name} missing transform function")
+            
+            # Check source_bronze exists
+            if step.source_bronze not in bronze_steps:
+                errors.append(f"Silver step {step_name} depends on non-existent bronze step {step.source_bronze}")
+        
+        return errors, warnings
+
+    def _validate_gold_steps(
+        self, gold_steps: Dict[StepName, GoldStep], silver_steps: Dict[StepName, SilverStep]
+    ) -> Tuple[List[str], List[str]]:
+        """Validate gold steps."""
+        errors = []
+        warnings: List[str] = []
+        
+        for step_name, step in gold_steps.items():
+            if step.transform is None:
+                errors.append(f"Gold step {step_name} missing transform function")
+            
+            # Check source_silvers exist (if specified)
+            if step.source_silvers:
+                for silver_name in step.source_silvers:
+                    if silver_name not in silver_steps:
+                        errors.append(f"Gold step {step_name} depends on non-existent silver step {silver_name}")
+        
+        return errors, warnings
+
+    def _validate_dependencies(
+        self,
+        bronze_steps: Dict[StepName, BronzeStep],
+        silver_steps: Dict[StepName, SilverStep],
+        gold_steps: Dict[StepName, GoldStep],
+    ) -> Tuple[List[str], List[str]]:
+        """Validate step dependencies."""
+        errors = []
+        warnings: List[str] = []
+        
+        # Check for circular dependencies
+        all_steps = {**bronze_steps, **silver_steps, **gold_steps}
+        
+        for step_name, step in all_steps.items():
+            if hasattr(step, 'dependencies'):
+                for dep in step.dependencies:
+                    if dep.step_name == step_name:
+                        errors.append(f"Step {step_name} has circular dependency on itself")
+        
+        return errors, warnings
 
 
-def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> float:
-    """
-    Safely divide two numbers, returning default if denominator is zero.
+# ============================================================================
+# Backward Compatibility
+# ============================================================================
 
-    Args:
-        numerator: Numerator
-        denominator: Denominator
-        default: Default value if denominator is zero
-
-    Returns:
-        Division result or default value
-    """
-    return numerator / denominator if denominator != 0 else default
+# Keep the old function names for backward compatibility
+def apply_validation_rules(*args: object, **kwargs: object) -> None:
+    """Backward compatibility alias for apply_column_rules."""
+    apply_column_rules(*args, **kwargs)

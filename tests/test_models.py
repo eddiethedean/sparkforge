@@ -10,7 +10,7 @@ from datetime import datetime
 import pytest
 from pyspark.sql import functions as F
 
-from sparkforge.errors.pipeline import PipelineValidationError
+from sparkforge.errors import PipelineValidationError
 from sparkforge.models import (
     BronzeStep,
     ExecutionContext,
