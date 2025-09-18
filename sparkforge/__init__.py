@@ -19,21 +19,21 @@ Quick Start:
 
     # Initialize Spark
     spark = SparkSession.builder.appName("MyPipeline").getOrCreate()
-    
+
     # Create sample data
     data = [("user1", "click", 100), ("user2", "purchase", 200)]
     df = spark.createDataFrame(data, ["user_id", "action", "value"])
 
     # Build pipeline with validation
     builder = PipelineBuilder(spark=spark, schema="analytics")
-    
+
     # Bronze: Raw data validation (required)
     builder.with_bronze_rules(
         name="events",
         rules={"user_id": [F.col("user_id").isNotNull()]},
         incremental_col="timestamp"
     )
-    
+
     # Silver: Data transformation (required)
     builder.add_silver_transform(
         name="clean_events",
@@ -42,7 +42,7 @@ Quick Start:
         rules={"value": [F.col("value") > 50]},
         table_name="clean_events"
     )
-    
+
     # Gold: Business analytics (required)
     builder.add_gold_transform(
         name="daily_metrics",
@@ -63,20 +63,14 @@ Validation Requirements:
 
     # ✅ Valid - has required validation rules
     BronzeStep(name="events", rules={"id": [F.col("id").isNotNull()]})
-    
+
     # ❌ Invalid - empty rules rejected
     BronzeStep(name="events", rules={})  # ValidationError: Rules must be non-empty
 """
 
-__version__ = "0.7.0"
-__author__ = "Odos Matthews"
-__email__ = "odosmattthewsm@gmail.com"
-__description__ = "A simplified, production-ready data pipeline builder for Apache Spark and Delta Lake"
-
 # Import unified dependency analysis
-from .dependencies import DependencyAnalysisResult
+from .dependencies import DependencyAnalysisResult, DependencyGraph, StepNode
 from .dependencies import DependencyAnalyzer as UnifiedDependencyAnalyzer
-from .dependencies import DependencyGraph, StepNode
 
 # Import simplified error handling
 from .errors import (
@@ -89,15 +83,6 @@ from .errors import (
     SystemError,
     ValidationError,
 )
-
-# Create aliases for backward compatibility
-PipelineError = ExecutionError
-DependencyError = ConfigurationError
-IngestionError = DataError
-StorageError = SystemError
-StrategyError = ConfigurationError
-TableOperationError = DataError
-TimeoutError = SystemError
 
 # Import simplified execution system
 from .execution import (
@@ -156,6 +141,20 @@ from .types import (
     TransformFunction,
     ValidationConfig,
 )
+
+__version__ = "0.7.1"
+__author__ = "Odos Matthews"
+__email__ = "odosmattthewsm@gmail.com"
+__description__ = "A simplified, production-ready data pipeline builder for Apache Spark and Delta Lake"
+
+# Create aliases for backward compatibility
+PipelineError = ExecutionError
+DependencyError = ConfigurationError
+IngestionError = DataError
+StorageError = SystemError
+StrategyError = ConfigurationError
+TableOperationError = DataError
+TimeoutError = SystemError
 
 # Import security and performance modules
 # Step executor functionality moved to execution module
