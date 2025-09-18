@@ -48,7 +48,7 @@ class BronzeStep(BaseModel):
     rules: ColumnRules
     incremental_col: str | None = None
     schema: str | None = None
-    
+
     def __post_init__(self):
         """Validate required fields after initialization."""
         if not self.name or not isinstance(self.name, str):

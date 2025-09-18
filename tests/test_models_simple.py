@@ -6,47 +6,36 @@ This module provides basic tests for the core model classes with proper
 API alignment and error handling.
 """
 
-import pytest
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from unittest.mock import Mock, patch
-from pyspark.sql import functions as F
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 
+import pytest
+from pyspark.sql import functions as F
+
+from sparkforge.errors import ValidationError
 from sparkforge.models import (
-    ModelValue,
-    Validatable,
-    Serializable,
     BaseModel,
-    ValidationThresholds,
+    BronzeStep,
+    ExecutionContext,
+    ExecutionMode,
+    GoldStep,
     ParallelConfig,
     PipelineConfig,
-    BronzeStep,
-    SilverStep,
-    GoldStep,
-    StageStats,
-    ExecutionContext,
     PipelineMetrics,
-    StepResult,
     PipelinePhase,
-    ExecutionMode,
-    WriteMode,
+    SilverStep,
+    StageStats,
+    StepResult,
     ValidationResult,
+    ValidationThresholds,
+    WriteMode,
 )
-from sparkforge.pipeline.models import (
-    PipelineStatus,
-    PipelineMode,
-    PipelineReport,
-)
+from sparkforge.pipeline.models import PipelineMode, PipelineReport, PipelineStatus
 from sparkforge.types import (
     StepStatus,
     StepType,
-    BronzeTransformFunction,
-    SilverTransformFunction,
-    GoldTransformFunction,
 )
-from sparkforge.errors import ValidationError
 
 
 class TestBaseModel:
@@ -54,43 +43,46 @@ class TestBaseModel:
 
     def test_validate_default(self):
         """Test default validate method."""
+
         @dataclass
         class TestModel(BaseModel):
             name: str = "test"
-            
+
             def validate(self) -> None:
                 pass
-        
+
         model = TestModel()
         # Should not raise any exception
         model.validate()
 
     def test_to_dict_simple(self):
         """Test to_dict with simple values."""
+
         @dataclass
         class TestModel(BaseModel):
             name: str
             value: int
             flag: bool
-            
+
             def validate(self) -> None:
                 pass
 
         model = TestModel(name="test", value=42, flag=True)
         result = model.to_dict()
-        
+
         expected = {"name": "test", "value": 42, "flag": True}
         assert result == expected
 
     def test_to_dict_nested_objects(self):
         """Test to_dict with nested objects that have to_dict method."""
+
         @dataclass
         class NestedModel(BaseModel):
             nested_name: str
-            
+
             def validate(self) -> None:
                 pass
-            
+
             def to_dict(self):
                 return {"nested_name": self.nested_name}
 
@@ -98,33 +90,31 @@ class TestBaseModel:
         class TestModel(BaseModel):
             name: str
             nested: NestedModel
-            
+
             def validate(self) -> None:
                 pass
 
         nested = NestedModel(nested_name="nested_test")
         model = TestModel(name="test", nested=nested)
         result = model.to_dict()
-        
-        expected = {
-            "name": "test",
-            "nested": {"nested_name": "nested_test"}
-        }
+
+        expected = {"name": "test", "nested": {"nested_name": "nested_test"}}
         assert result == expected
 
     def test_to_json(self):
         """Test to_json method."""
+
         @dataclass
         class TestModel(BaseModel):
             name: str
             value: int
-            
+
             def validate(self) -> None:
                 pass
 
         model = TestModel(name="test", value=42)
         result = model.to_json()
-        
+
         # Parse back to verify structure
         parsed = json.loads(result)
         assert parsed["name"] == "test"
@@ -132,17 +122,18 @@ class TestBaseModel:
 
     def test_str_representation(self):
         """Test string representation."""
+
         @dataclass
         class TestModel(BaseModel):
             name: str
             value: int
-            
+
             def validate(self) -> None:
                 pass
 
         model = TestModel(name="test", value=42)
         result = str(model)
-        
+
         assert "TestModel" in result
         assert "name=test" in result
         assert "value=42" in result
@@ -154,7 +145,7 @@ class TestValidationThresholds:
     def test_validation_thresholds_creation(self):
         """Test ValidationThresholds creation."""
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
-        
+
         assert thresholds.bronze == 95.0
         assert thresholds.silver == 98.0
         assert thresholds.gold == 99.0
@@ -168,19 +159,25 @@ class TestValidationThresholds:
     def test_validation_thresholds_invalid_bronze(self):
         """Test ValidationThresholds with invalid bronze threshold."""
         thresholds = ValidationThresholds(bronze=150.0, silver=98.0, gold=99.0)
-        with pytest.raises(ValidationError, match="bronze threshold must be between 0 and 100"):
+        with pytest.raises(
+            ValidationError, match="bronze threshold must be between 0 and 100"
+        ):
             thresholds.validate()
 
     def test_validation_thresholds_invalid_silver(self):
         """Test ValidationThresholds with invalid silver threshold."""
         thresholds = ValidationThresholds(bronze=95.0, silver=-10.0, gold=99.0)
-        with pytest.raises(ValidationError, match="silver threshold must be between 0 and 100"):
+        with pytest.raises(
+            ValidationError, match="silver threshold must be between 0 and 100"
+        ):
             thresholds.validate()
 
     def test_validation_thresholds_invalid_gold(self):
         """Test ValidationThresholds with invalid gold threshold."""
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=200.0)
-        with pytest.raises(ValidationError, match="gold threshold must be between 0 and 100"):
+        with pytest.raises(
+            ValidationError, match="gold threshold must be between 0 and 100"
+        ):
             thresholds.validate()
 
     def test_validation_thresholds_hierarchy(self):
@@ -196,7 +193,7 @@ class TestParallelConfig:
     def test_parallel_config_creation(self):
         """Test ParallelConfig creation."""
         config = ParallelConfig(enabled=True, max_workers=4)
-        
+
         assert config.enabled is True
         assert config.max_workers == 4
         assert config.timeout_secs == 300  # Default value
@@ -221,11 +218,9 @@ class TestPipelineConfig:
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
         parallel = ParallelConfig(enabled=True, max_workers=4)
         config = PipelineConfig(
-            schema="test_schema",
-            thresholds=thresholds,
-            parallel=parallel
+            schema="test_schema", thresholds=thresholds, parallel=parallel
         )
-        
+
         assert config.schema == "test_schema"
         assert config.thresholds == thresholds
         assert config.parallel == parallel
@@ -236,11 +231,9 @@ class TestPipelineConfig:
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
         parallel = ParallelConfig(enabled=True, max_workers=4)
         config = PipelineConfig(
-            schema="test_schema",
-            thresholds=thresholds,
-            parallel=parallel
+            schema="test_schema", thresholds=thresholds, parallel=parallel
         )
-        
+
         config.validate()  # Should not raise
 
 
@@ -250,39 +243,30 @@ class TestBronzeStep:
     def test_bronze_step_creation(self):
         """Test BronzeStep creation."""
         rules = {"id": [F.col("id").isNotNull()]}
-        step = BronzeStep(
-            name="test_bronze",
-            rules=rules,
-            incremental_col="timestamp"
-        )
-        
+        step = BronzeStep(name="test_bronze", rules=rules, incremental_col="timestamp")
+
         assert step.name == "test_bronze"
         assert step.incremental_col == "timestamp"
         assert step.rules is rules
 
     def test_bronze_step_validation(self):
         """Test BronzeStep validation."""
-        step = BronzeStep(
-            name="test_bronze",
-            rules={"id": [F.col("id").isNotNull()]}
-        )
+        step = BronzeStep(name="test_bronze", rules={"id": [F.col("id").isNotNull()]})
         step.validate()  # Should not raise
 
     def test_bronze_step_invalid_name(self):
         """Test BronzeStep creation with invalid name should fail."""
-        with pytest.raises(ValidationError, match="Step name must be a non-empty string"):
-            BronzeStep(
-                name="",
-                rules={"id": [F.col("id").isNotNull()]}
-            )
+        with pytest.raises(
+            ValidationError, match="Step name must be a non-empty string"
+        ):
+            BronzeStep(name="", rules={"id": [F.col("id").isNotNull()]})
 
     def test_bronze_step_invalid_rules(self):
         """Test BronzeStep creation with invalid rules should fail."""
-        with pytest.raises(ValidationError, match="Rules must be a non-empty dictionary"):
-            BronzeStep(
-                name="test_bronze",
-                rules={}
-            )
+        with pytest.raises(
+            ValidationError, match="Rules must be a non-empty dictionary"
+        ):
+            BronzeStep(name="test_bronze", rules={})
 
 
 class TestSilverStep:
@@ -290,72 +274,82 @@ class TestSilverStep:
 
     def test_silver_step_creation(self):
         """Test SilverStep creation."""
+
         def transform_func(spark, df, silvers):
             return df
-        
+
         step = SilverStep(
             name="test_silver",
             source_bronze="test_bronze",
             transform=transform_func,
             rules={"id": [F.col("id").isNotNull()]},
-            table_name="test_silver_table"
+            table_name="test_silver_table",
         )
-        
+
         assert step.name == "test_silver"
         assert step.source_bronze == "test_bronze"
         assert step.table_name == "test_silver_table"
 
     def test_silver_step_validation(self):
         """Test SilverStep validation."""
+
         def transform_func(spark, df, silvers):
             return df
-        
+
         step = SilverStep(
             name="test_silver",
             source_bronze="test_bronze",
             transform=transform_func,
             rules={"id": [F.col("id").isNotNull()]},
-            table_name="test_silver_table"
+            table_name="test_silver_table",
         )
         step.validate()  # Should not raise
 
     def test_silver_step_invalid_source_bronze(self):
         """Test SilverStep creation with invalid source_bronze should fail."""
+
         def transform_func(spark, df, silvers):
             return df
-        
-        with pytest.raises(ValidationError, match="Source bronze step name must be a non-empty string"):
+
+        with pytest.raises(
+            ValidationError, match="Source bronze step name must be a non-empty string"
+        ):
             SilverStep(
                 name="test_silver",
                 source_bronze="",
                 transform=transform_func,
                 rules={"id": [F.col("id").isNotNull()]},
-                table_name="test_silver_table"
+                table_name="test_silver_table",
             )
 
     def test_silver_step_invalid_transform(self):
         """Test SilverStep creation with invalid transform should fail."""
-        with pytest.raises(ValidationError, match="Transform function is required and must be callable"):
+        with pytest.raises(
+            ValidationError, match="Transform function is required and must be callable"
+        ):
             SilverStep(
                 name="test_silver",
                 source_bronze="test_bronze",
                 transform=None,  # Invalid transform
                 rules={"id": [F.col("id").isNotNull()]},
-                table_name="test_silver_table"
+                table_name="test_silver_table",
             )
 
     def test_silver_step_invalid_table_name(self):
         """Test SilverStep creation with invalid table_name should fail."""
+
         def transform_func(spark, df, silvers):
             return df
-        
-        with pytest.raises(ValidationError, match="Table name must be a non-empty string"):
+
+        with pytest.raises(
+            ValidationError, match="Table name must be a non-empty string"
+        ):
             SilverStep(
                 name="test_silver",
                 source_bronze="test_bronze",
                 transform=transform_func,
                 rules={"id": [F.col("id").isNotNull()]},
-                table_name=""
+                table_name="",
             )
 
 
@@ -364,72 +358,82 @@ class TestGoldStep:
 
     def test_gold_step_creation(self):
         """Test GoldStep creation."""
+
         def transform_func(spark, silvers):
             return silvers["test_silver"]
-        
+
         step = GoldStep(
             name="test_gold",
             transform=transform_func,
             rules={"id": [F.col("id").isNotNull()]},
             table_name="test_gold_table",
-            source_silvers=["test_silver"]
+            source_silvers=["test_silver"],
         )
-        
+
         assert step.name == "test_gold"
         assert step.table_name == "test_gold_table"
         assert step.source_silvers == ["test_silver"]
 
     def test_gold_step_validation(self):
         """Test GoldStep validation."""
+
         def transform_func(spark, silvers):
             return silvers["test_silver"]
-        
+
         step = GoldStep(
             name="test_gold",
             transform=transform_func,
             rules={"id": [F.col("id").isNotNull()]},
             table_name="test_gold_table",
-            source_silvers=["test_silver"]
+            source_silvers=["test_silver"],
         )
         step.validate()  # Should not raise
 
     def test_gold_step_invalid_transform(self):
         """Test GoldStep creation with invalid transform should fail."""
-        with pytest.raises(ValidationError, match="Transform function is required and must be callable"):
+        with pytest.raises(
+            ValidationError, match="Transform function is required and must be callable"
+        ):
             GoldStep(
                 name="test_gold",
                 transform=None,  # Invalid transform
                 rules={"id": [F.col("id").isNotNull()]},
                 table_name="test_gold_table",
-                source_silvers=["test_silver"]
+                source_silvers=["test_silver"],
             )
 
     def test_gold_step_invalid_table_name(self):
         """Test GoldStep creation with invalid table_name should fail."""
+
         def transform_func(spark, silvers):
             return silvers["test_silver"]
-        
-        with pytest.raises(ValidationError, match="Table name must be a non-empty string"):
+
+        with pytest.raises(
+            ValidationError, match="Table name must be a non-empty string"
+        ):
             GoldStep(
                 name="test_gold",
                 transform=transform_func,
                 rules={"id": [F.col("id").isNotNull()]},
                 table_name="",
-                source_silvers=["test_silver"]
+                source_silvers=["test_silver"],
             )
 
     def test_gold_step_invalid_source_silvers(self):
         """Test GoldStep creation with invalid source_silvers should fail."""
+
         def transform_func(spark, silvers):
             return silvers["test_silver"]
-        
-        with pytest.raises(ValidationError, match="Source silvers must be a non-empty list"):
+
+        with pytest.raises(
+            ValidationError, match="Source silvers must be a non-empty list"
+        ):
             GoldStep(
                 name="test_gold",
                 transform=transform_func,
                 rules={"id": [F.col("id").isNotNull()]},
                 table_name="test_gold_table",
-                source_silvers=[]  # Invalid empty list
+                source_silvers=[],  # Invalid empty list
             )
 
 
@@ -445,9 +449,9 @@ class TestStageStats:
             valid_rows=950,
             invalid_rows=50,
             validation_rate=95.0,
-            duration_secs=10.5
+            duration_secs=10.5,
         )
-        
+
         assert stats.stage == "bronze"
         assert stats.step == "test_step"
         assert stats.total_rows == 1000
@@ -465,7 +469,7 @@ class TestStageStats:
             valid_rows=950,
             invalid_rows=50,
             validation_rate=95.0,
-            duration_secs=10.5
+            duration_secs=10.5,
         )
         stats.validate()  # Should not raise
 
@@ -478,9 +482,11 @@ class TestStageStats:
             valid_rows=950,
             invalid_rows=50,
             validation_rate=150.0,  # Invalid rate
-            duration_secs=10.5
+            duration_secs=10.5,
         )
-        with pytest.raises(ValidationError, match="Validation rate must be between 0 and 100"):
+        with pytest.raises(
+            ValidationError, match="Validation rate must be between 0 and 100"
+        ):
             stats.validate()
 
     def test_stage_stats_negative_values(self):
@@ -492,9 +498,12 @@ class TestStageStats:
             valid_rows=950,
             invalid_rows=50,
             validation_rate=95.0,
-            duration_secs=10.5
+            duration_secs=10.5,
         )
-        with pytest.raises(ValidationError, match="Total rows \\(-1000\\) must equal valid \\(950\\) \\+ invalid \\(50\\)"):
+        with pytest.raises(
+            ValidationError,
+            match="Total rows \\(-1000\\) must equal valid \\(950\\) \\+ invalid \\(50\\)",
+        ):
             stats.validate()
 
 
@@ -504,10 +513,9 @@ class TestExecutionContext:
     def test_execution_context_creation(self):
         """Test ExecutionContext creation."""
         context = ExecutionContext(
-            mode=ExecutionMode.INITIAL,
-            start_time=datetime.now()
+            mode=ExecutionMode.INITIAL, start_time=datetime.now()
         )
-        
+
         assert context.mode == ExecutionMode.INITIAL
         assert context.start_time is not None
         assert context.run_id is not None
@@ -515,17 +523,14 @@ class TestExecutionContext:
     def test_execution_context_validation(self):
         """Test ExecutionContext validation."""
         context = ExecutionContext(
-            mode=ExecutionMode.INITIAL,
-            start_time=datetime.now()
+            mode=ExecutionMode.INITIAL, start_time=datetime.now()
         )
         context.validate()  # Should not raise
 
     def test_execution_context_invalid_execution_id(self):
         """Test ExecutionContext with invalid run_id."""
         context = ExecutionContext(
-            mode=ExecutionMode.INITIAL,
-            start_time=datetime.now(),
-            run_id=""
+            mode=ExecutionMode.INITIAL, start_time=datetime.now(), run_id=""
         )
         with pytest.raises(ValueError, match="Run ID cannot be empty"):
             context.validate()
@@ -537,12 +542,9 @@ class TestPipelineMetrics:
     def test_pipeline_metrics_creation(self):
         """Test PipelineMetrics creation."""
         metrics = PipelineMetrics(
-            total_steps=5,
-            successful_steps=4,
-            failed_steps=1,
-            total_duration=120.5
+            total_steps=5, successful_steps=4, failed_steps=1, total_duration=120.5
         )
-        
+
         assert metrics.total_steps == 5
         assert metrics.successful_steps == 4
         assert metrics.failed_steps == 1
@@ -551,10 +553,7 @@ class TestPipelineMetrics:
     def test_pipeline_metrics_validation(self):
         """Test PipelineMetrics validation."""
         metrics = PipelineMetrics(
-            total_steps=5,
-            successful_steps=4,
-            failed_steps=1,
-            total_duration=120.5
+            total_steps=5, successful_steps=4, failed_steps=1, total_duration=120.5
         )
         metrics.validate()  # Should not raise
 
@@ -564,7 +563,7 @@ class TestPipelineMetrics:
             total_steps=-5,  # Invalid negative
             successful_steps=4,
             failed_steps=1,
-            total_duration=120.5
+            total_duration=120.5,
         )
         with pytest.raises(ValueError, match="Total steps cannot be negative"):
             metrics.validate()
@@ -576,14 +575,11 @@ class TestPipelineReport:
     def test_pipeline_report_creation(self):
         """Test PipelineReport creation."""
         from datetime import datetime
-        
+
         metrics = PipelineMetrics(
-            total_steps=5,
-            successful_steps=4,
-            failed_steps=1,
-            total_duration=120.5
+            total_steps=5, successful_steps=4, failed_steps=1, total_duration=120.5
         )
-        
+
         report = PipelineReport(
             pipeline_id="test_pipeline",
             execution_id="test_execution",
@@ -594,9 +590,9 @@ class TestPipelineReport:
             duration_seconds=120.5,
             metrics=metrics,
             errors=[],
-            warnings=[]
+            warnings=[],
         )
-        
+
         assert report.pipeline_id == "test_pipeline"
         assert report.execution_id == "test_execution"
         assert report.status == PipelineStatus.COMPLETED
@@ -605,14 +601,11 @@ class TestPipelineReport:
     def test_pipeline_report_validation(self):
         """Test PipelineReport validation."""
         from datetime import datetime
-        
+
         metrics = PipelineMetrics(
-            total_steps=5,
-            successful_steps=4,
-            failed_steps=1,
-            total_duration=120.5
+            total_steps=5, successful_steps=4, failed_steps=1, total_duration=120.5
         )
-        
+
         report = PipelineReport(
             pipeline_id="test_pipeline",
             execution_id="test_execution",
@@ -623,9 +616,9 @@ class TestPipelineReport:
             duration_seconds=120.5,
             metrics=metrics,
             errors=[],
-            warnings=[]
+            warnings=[],
         )
-        
+
         # PipelineReport doesn't have a validate method
         # Just check that the report was created successfully
         assert report.pipeline_id == "test_pipeline"
@@ -633,14 +626,11 @@ class TestPipelineReport:
     def test_pipeline_report_invalid_pipeline_id(self):
         """Test PipelineReport with invalid pipeline_id."""
         from datetime import datetime
-        
+
         metrics = PipelineMetrics(
-            total_steps=5,
-            successful_steps=4,
-            failed_steps=1,
-            total_duration=120.5
+            total_steps=5, successful_steps=4, failed_steps=1, total_duration=120.5
         )
-        
+
         # PipelineReport doesn't validate during construction
         # So this should succeed
         report = PipelineReport(
@@ -653,7 +643,7 @@ class TestPipelineReport:
             duration_seconds=120.5,
             metrics=metrics,
             errors=[],
-            warnings=[]
+            warnings=[],
         )
         assert report.pipeline_id == ""
 
@@ -673,9 +663,9 @@ class TestStepResult:
             rows_processed=1000,
             rows_written=950,
             validation_rate=95.0,
-            error_message=None
+            error_message=None,
         )
-        
+
         assert result.step_name == "test_step"
         assert result.phase == PipelinePhase.BRONZE
         assert result.success is True
@@ -697,7 +687,7 @@ class TestStepResult:
             rows_processed=1000,
             rows_written=950,
             validation_rate=95.0,
-            error_message=None
+            error_message=None,
         )
         result.validate()  # Should not raise
 
@@ -713,7 +703,7 @@ class TestStepResult:
             rows_processed=1000,
             rows_written=950,
             validation_rate=95.0,
-            error_message=None
+            error_message=None,
         )
         with pytest.raises(ValueError, match="Step name cannot be empty"):
             result.validate()

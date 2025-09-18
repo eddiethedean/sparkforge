@@ -153,8 +153,10 @@ def table_exists(spark: SparkSession, fqn: str) -> bool:
         spark.table(fqn).count()
         return True
     except AnalysisException:
+        logger.debug(f"Table {fqn} does not exist (AnalysisException)")
         return False
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Error checking if table {fqn} exists: {e}")
         return False
 
 

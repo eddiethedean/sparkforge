@@ -173,10 +173,10 @@ class TestExecutionEngineIntegration:
         valid_bronze.validate()  # Should not raise
 
         # Invalid BronzeStep - empty name should be rejected during construction
-        with pytest.raises(ValidationError, match="Step name must be a non-empty string"):
-            BronzeStep(
-                name="", rules={"id": [F.col("id").isNotNull()]}
-            )
+        with pytest.raises(
+            ValidationError, match="Step name must be a non-empty string"
+        ):
+            BronzeStep(name="", rules={"id": [F.col("id").isNotNull()]})
 
     def test_silver_step_validation(self, spark_session):
         """Test that SilverStep validation works correctly."""
@@ -225,9 +225,7 @@ class TestExecutionEngineIntegration:
         engine = ExecutionEngine(spark=spark_session, config=config)
 
         # Create mock steps
-        BronzeStep(
-            name="mock_bronze", rules={"id": [F.col("id").isNotNull()]}
-        )
+        BronzeStep(name="mock_bronze", rules={"id": [F.col("id").isNotNull()]})
 
         # Test that we can create the engine and it has the expected attributes
         assert hasattr(engine, "spark")

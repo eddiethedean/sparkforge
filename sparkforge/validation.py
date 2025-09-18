@@ -35,7 +35,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
-from typing import Any, Protocol, Union
+from typing import Any, Protocol
 
 from pyspark.sql import Column, DataFrame
 from pyspark.sql import functions as F
@@ -78,11 +78,11 @@ def _convert_rule_to_expression(rule: str, column_name: str) -> Column:
 
 def _convert_rules_to_expressions(
     rules: ColumnRules,
-) -> dict[str, list[Union[str, Column]]]:
+) -> dict[str, list[str | Column]]:
     """Convert string rules to PySpark Column expressions."""
-    converted_rules: dict[str, list[Union[str, Column]]] = {}
+    converted_rules: dict[str, list[str | Column]] = {}
     for column_name, rule_list in rules.items():
-        converted_rule_list: list[Union[str, Column]] = []
+        converted_rule_list: list[str | Column] = []
         for rule in rule_list:
             if isinstance(rule, str):
                 converted_rule_list.append(

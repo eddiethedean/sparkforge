@@ -145,7 +145,7 @@ rules = {
 
 ### 🏗️ **Medallion Architecture Made Simple**
 - **Bronze Layer**: Raw data ingestion with validation
-- **Silver Layer**: Cleaned, enriched, and transformed data  
+- **Silver Layer**: Cleaned, enriched, and transformed data
 - **Gold Layer**: Business-ready analytics and metrics
 - **Automatic dependency management** between layers
 
@@ -226,7 +226,7 @@ pip install -e .
 
 ### 🎯 **Use Case Guides**
 - **[🛒 E-commerce Analytics](https://sparkforge.readthedocs.io/en/latest/usecase_ecommerce.html)** - Order processing, customer analytics
-- **[📡 IoT Data Processing](https://sparkforge.readthedocs.io/en/latest/usecase_iot.html)** - Sensor data, anomaly detection  
+- **[📡 IoT Data Processing](https://sparkforge.readthedocs.io/en/latest/usecase_iot.html)** - Sensor data, anomaly detection
 - **[📊 Business Intelligence](https://sparkforge.readthedocs.io/en/latest/usecase_bi.html)** - Dashboards, KPIs, reporting
 
 ## 🧪 Testing & Quality
@@ -255,7 +255,7 @@ mypy sparkforge/
 bandit -r sparkforge/
 ```
 
-**Quality Metrics**: 
+**Quality Metrics**:
 - ✅ **702 tests passed, 0 failed, 0 errors** in 1.2 minutes
 - ✅ **88% test coverage** across all modules
 - ✅ **100% type safety** with mypy compliance

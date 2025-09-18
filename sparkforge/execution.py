@@ -194,8 +194,6 @@ class ExecutionEngine:
                 output_df = self._execute_silver_step(step, context)
             elif isinstance(step, GoldStep):
                 output_df = self._execute_gold_step(step, context)
-            else:
-                raise ExecutionError(f"Unknown step type: {type(step)}")
 
             # Apply validation if not in validation-only mode
             if mode != ExecutionMode.VALIDATION_ONLY:
@@ -327,8 +325,12 @@ class ExecutionEngine:
             # For testing, try to read from Spark as the test expects
             try:
                 df = self.spark.read.format("parquet").load("dummy_path")
-            except:
-                # Fallback to creating an empty DataFrame
+            except Exception as e:
+                # Log the read failure and provide fallback
+                self.logger.warning(
+                    f"Failed to read data for bronze step '{step.name}': {e}. "
+                    "Creating empty DataFrame as fallback."
+                )
                 df = self.spark.createDataFrame([], "id INT, name STRING")
 
         return df
@@ -337,8 +339,6 @@ class ExecutionEngine:
         self, step: SilverStep, context: dict[str, DataFrame]
     ) -> DataFrame:
         """Execute a silver step."""
-        if step.transform is None:
-            raise ExecutionError("Silver step must have transform function")
 
         # Get source bronze data
         if step.source_bronze not in context:
@@ -353,21 +353,16 @@ class ExecutionEngine:
         self, step: GoldStep, context: dict[str, DataFrame]
     ) -> DataFrame:
         """Execute a gold step."""
-        if step.transform is None:
-            raise ExecutionError("Gold step must have transform function")
-
-        # Get source silver data
-        if not step.source_silvers:
-            raise ExecutionError("Gold step must have source silvers")
 
         # Build silvers dict from source_silvers
         silvers = {}
-        for silver_name in step.source_silvers:
-            if silver_name not in context:
-                raise ExecutionError(
-                    f"Source silver {silver_name} not found in context"
-                )
-            silvers[silver_name] = context[silver_name]
+        if step.source_silvers is not None:
+            for silver_name in step.source_silvers:
+                if silver_name not in context:
+                    raise ExecutionError(
+                        f"Source silver {silver_name} not found in context"
+                    )
+                silvers[silver_name] = context[silver_name]
 
         return step.transform(self.spark, silvers)
 

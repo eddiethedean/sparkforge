@@ -22,7 +22,6 @@ from sparkforge.validation import (
 # add_metadata_columns function removed - not needed for simplified system
 
 
-
 class TestRealSparkOperations:
     """Test core functionality with real Spark operations."""
 

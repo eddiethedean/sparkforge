@@ -37,7 +37,7 @@ SparkForge includes a robust validation system that ensures data quality from th
        name="events",
        rules={"user_id": [F.col("user_id").isNotNull()]}
    )
-   
+
    # ❌ Invalid - empty rules rejected
    BronzeStep(
        name="events",

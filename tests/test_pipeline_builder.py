@@ -197,7 +197,7 @@ class TestPipelineBuilder(unittest.TestCase):
         self.assertIn("id", bronze_step.rules)
         self.assertEqual(len(bronze_step.rules["id"]), 1)
         # Check that it's a PySpark Column object (not a string)
-        self.assertTrue(hasattr(bronze_step.rules["id"][0], 'expr'))
+        self.assertTrue(hasattr(bronze_step.rules["id"][0], "expr"))
         self.assertEqual(bronze_step.incremental_col, "created_at")
 
     def test_with_silver_rules(self):
@@ -222,7 +222,7 @@ class TestPipelineBuilder(unittest.TestCase):
         self.assertIn("id", silver_step.rules)
         self.assertEqual(len(silver_step.rules["id"]), 1)
         # Check that it's a PySpark Column object (not a string)
-        self.assertTrue(hasattr(silver_step.rules["id"][0], 'expr'))
+        self.assertTrue(hasattr(silver_step.rules["id"][0], "expr"))
         self.assertEqual(silver_step.watermark_col, "updated_at")
         self.assertTrue(silver_step.existing)
 

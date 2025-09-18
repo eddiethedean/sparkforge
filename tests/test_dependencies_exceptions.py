@@ -5,14 +5,13 @@ Tests for dependency analysis exceptions.
 This module tests all exception classes in the dependencies.exceptions module.
 """
 
-import pytest
 
 from sparkforge.dependencies.exceptions import (
-    DependencyError,
-    DependencyAnalysisError,
     CircularDependencyError,
-    InvalidDependencyError,
+    DependencyAnalysisError,
     DependencyConflictError,
+    DependencyError,
+    InvalidDependencyError,
 )
 
 
@@ -22,35 +21,35 @@ class TestDependencyError:
     def test_dependency_error_basic(self):
         """Test basic DependencyError creation."""
         error = DependencyError("Test error message")
-        
+
         assert str(error) == "Test error message"
         assert error.step_name is None
 
     def test_dependency_error_with_step_name(self):
         """Test DependencyError with step name."""
         error = DependencyError("Test error message", step_name="test_step")
-        
+
         assert str(error) == "Test error message"
         assert error.step_name == "test_step"
 
     def test_dependency_error_inheritance(self):
         """Test that DependencyError inherits from Exception."""
         error = DependencyError("Test error")
-        
+
         assert isinstance(error, Exception)
         assert isinstance(error, DependencyError)
 
     def test_dependency_error_with_empty_message(self):
         """Test DependencyError with empty message."""
         error = DependencyError("")
-        
+
         assert str(error) == ""
         assert error.step_name is None
 
     def test_dependency_error_with_none_step_name(self):
         """Test DependencyError with None step name."""
         error = DependencyError("Test error", step_name=None)
-        
+
         assert str(error) == "Test error"
         assert error.step_name is None
 
@@ -61,7 +60,7 @@ class TestDependencyAnalysisError:
     def test_dependency_analysis_error_basic(self):
         """Test basic DependencyAnalysisError creation."""
         error = DependencyAnalysisError("Analysis failed")
-        
+
         assert str(error) == "Analysis failed"
         assert error.step_name is None
         assert error.analysis_step is None
@@ -69,15 +68,17 @@ class TestDependencyAnalysisError:
     def test_dependency_analysis_error_with_step_name(self):
         """Test DependencyAnalysisError with step name."""
         error = DependencyAnalysisError("Analysis failed", analysis_step="test_step")
-        
+
         assert str(error) == "Analysis failed"
         assert error.step_name == "test_step"
         assert error.analysis_step == "test_step"
 
     def test_dependency_analysis_error_with_analysis_step(self):
         """Test DependencyAnalysisError with analysis step."""
-        error = DependencyAnalysisError("Analysis failed", analysis_step="analysis_step")
-        
+        error = DependencyAnalysisError(
+            "Analysis failed", analysis_step="analysis_step"
+        )
+
         assert str(error) == "Analysis failed"
         assert error.step_name == "analysis_step"
         assert error.analysis_step == "analysis_step"
@@ -85,10 +86,9 @@ class TestDependencyAnalysisError:
     def test_dependency_analysis_error_with_both_steps(self):
         """Test DependencyAnalysisError with both step names."""
         error = DependencyAnalysisError(
-            "Analysis failed", 
-            analysis_step="analysis_step"
+            "Analysis failed", analysis_step="analysis_step"
         )
-        
+
         assert str(error) == "Analysis failed"
         assert error.step_name == "analysis_step"
         assert error.analysis_step == "analysis_step"
@@ -96,7 +96,7 @@ class TestDependencyAnalysisError:
     def test_dependency_analysis_error_inheritance(self):
         """Test that DependencyAnalysisError inherits from DependencyError."""
         error = DependencyAnalysisError("Test error")
-        
+
         assert isinstance(error, Exception)
         assert isinstance(error, DependencyError)
         assert isinstance(error, DependencyAnalysisError)
@@ -107,7 +107,7 @@ class TestDependencyAnalysisError:
         error1 = DependencyAnalysisError("Message only")
         assert error1.step_name is None
         assert error1.analysis_step is None
-        
+
         # Test with analysis_step only
         error2 = DependencyAnalysisError("Message", analysis_step="analysis")
         assert error2.step_name == "analysis"
@@ -121,7 +121,7 @@ class TestCircularDependencyError:
         """Test basic CircularDependencyError creation."""
         cycle = ["step1", "step2", "step3", "step1"]
         error = CircularDependencyError("Circular dependency detected", cycle)
-        
+
         assert str(error) == "Circular dependency detected"
         assert error.step_name is None
         assert error.cycle == cycle
@@ -129,11 +129,8 @@ class TestCircularDependencyError:
     def test_circular_dependency_error_with_step_name(self):
         """Test CircularDependencyError with step name."""
         cycle = ["step1", "step2", "step1"]
-        error = CircularDependencyError(
-            "Circular dependency detected", 
-            cycle
-        )
-        
+        error = CircularDependencyError("Circular dependency detected", cycle)
+
         assert str(error) == "Circular dependency detected"
         assert error.step_name is None
         assert error.cycle == cycle
@@ -142,7 +139,7 @@ class TestCircularDependencyError:
         """Test CircularDependencyError with empty cycle."""
         cycle = []
         error = CircularDependencyError("No cycle", cycle)
-        
+
         assert str(error) == "No cycle"
         assert error.cycle == cycle
 
@@ -150,14 +147,14 @@ class TestCircularDependencyError:
         """Test CircularDependencyError with single step cycle."""
         cycle = ["step1", "step1"]
         error = CircularDependencyError("Self dependency", cycle)
-        
+
         assert str(error) == "Self dependency"
         assert error.cycle == cycle
 
     def test_circular_dependency_error_inheritance(self):
         """Test that CircularDependencyError inherits from DependencyError."""
         error = CircularDependencyError("Test error", ["step1", "step2"])
-        
+
         assert isinstance(error, Exception)
         assert isinstance(error, DependencyError)
         assert isinstance(error, CircularDependencyError)
@@ -166,10 +163,10 @@ class TestCircularDependencyError:
         """Test that cycle list is stored correctly."""
         original_cycle = ["step1", "step2", "step3"]
         error = CircularDependencyError("Test", original_cycle)
-        
+
         # Modify original list
         original_cycle.append("step4")
-        
+
         # Error's cycle should be affected since it's a reference
         assert error.cycle == ["step1", "step2", "step3", "step4"]
 
@@ -181,7 +178,7 @@ class TestInvalidDependencyError:
         """Test basic InvalidDependencyError creation."""
         invalid_deps = ["dep1", "dep2", "dep3"]
         error = InvalidDependencyError("Invalid dependencies found", invalid_deps)
-        
+
         assert str(error) == "Invalid dependencies found"
         assert error.step_name is None
         assert error.invalid_dependencies == invalid_deps
@@ -189,11 +186,8 @@ class TestInvalidDependencyError:
     def test_invalid_dependency_error_with_step_name(self):
         """Test InvalidDependencyError with step name."""
         invalid_deps = ["dep1", "dep2"]
-        error = InvalidDependencyError(
-            "Invalid dependencies found", 
-            invalid_deps
-        )
-        
+        error = InvalidDependencyError("Invalid dependencies found", invalid_deps)
+
         assert str(error) == "Invalid dependencies found"
         assert error.step_name is None
         assert error.invalid_dependencies == invalid_deps
@@ -202,7 +196,7 @@ class TestInvalidDependencyError:
         """Test InvalidDependencyError with empty invalid dependencies list."""
         invalid_deps = []
         error = InvalidDependencyError("No invalid deps", invalid_deps)
-        
+
         assert str(error) == "No invalid deps"
         assert error.invalid_dependencies == invalid_deps
 
@@ -210,14 +204,14 @@ class TestInvalidDependencyError:
         """Test InvalidDependencyError with single invalid dependency."""
         invalid_deps = ["dep1"]
         error = InvalidDependencyError("Single invalid dep", invalid_deps)
-        
+
         assert str(error) == "Single invalid dep"
         assert error.invalid_dependencies == invalid_deps
 
     def test_invalid_dependency_error_inheritance(self):
         """Test that InvalidDependencyError inherits from DependencyError."""
         error = InvalidDependencyError("Test error", ["dep1"])
-        
+
         assert isinstance(error, Exception)
         assert isinstance(error, DependencyError)
         assert isinstance(error, InvalidDependencyError)
@@ -226,10 +220,10 @@ class TestInvalidDependencyError:
         """Test that invalid dependencies list is stored correctly."""
         original_deps = ["dep1", "dep2"]
         error = InvalidDependencyError("Test", original_deps)
-        
+
         # Modify original list
         original_deps.append("dep3")
-        
+
         # Error's list should be affected since it's a reference
         assert error.invalid_dependencies == ["dep1", "dep2", "dep3"]
 
@@ -240,8 +234,10 @@ class TestDependencyConflictError:
     def test_dependency_conflict_error_basic(self):
         """Test basic DependencyConflictError creation."""
         conflicting_steps = ["step1", "step2", "step3"]
-        error = DependencyConflictError("Dependency conflict detected", conflicting_steps)
-        
+        error = DependencyConflictError(
+            "Dependency conflict detected", conflicting_steps
+        )
+
         assert str(error) == "Dependency conflict detected"
         assert error.step_name is None
         assert error.conflicting_steps == conflicting_steps
@@ -250,10 +246,9 @@ class TestDependencyConflictError:
         """Test DependencyConflictError with step name."""
         conflicting_steps = ["step1", "step2"]
         error = DependencyConflictError(
-            "Dependency conflict detected", 
-            conflicting_steps
+            "Dependency conflict detected", conflicting_steps
         )
-        
+
         assert str(error) == "Dependency conflict detected"
         assert error.step_name is None
         assert error.conflicting_steps == conflicting_steps
@@ -262,7 +257,7 @@ class TestDependencyConflictError:
         """Test DependencyConflictError with empty conflicting steps list."""
         conflicting_steps = []
         error = DependencyConflictError("No conflicts", conflicting_steps)
-        
+
         assert str(error) == "No conflicts"
         assert error.conflicting_steps == conflicting_steps
 
@@ -270,14 +265,14 @@ class TestDependencyConflictError:
         """Test DependencyConflictError with single conflicting step."""
         conflicting_steps = ["step1"]
         error = DependencyConflictError("Single conflict", conflicting_steps)
-        
+
         assert str(error) == "Single conflict"
         assert error.conflicting_steps == conflicting_steps
 
     def test_dependency_conflict_error_inheritance(self):
         """Test that DependencyConflictError inherits from DependencyError."""
         error = DependencyConflictError("Test error", ["step1"])
-        
+
         assert isinstance(error, Exception)
         assert isinstance(error, DependencyError)
         assert isinstance(error, DependencyConflictError)
@@ -286,10 +281,10 @@ class TestDependencyConflictError:
         """Test that conflicting steps list is stored correctly."""
         original_steps = ["step1", "step2"]
         error = DependencyConflictError("Test", original_steps)
-        
+
         # Modify original list
         original_steps.append("step3")
-        
+
         # Error's list should be affected since it's a reference
         assert error.conflicting_steps == ["step1", "step2", "step3"]
 
@@ -311,7 +306,9 @@ class TestExceptionChaining:
         try:
             raise RuntimeError("Original error")
         except RuntimeError as e:
-            circular_error = CircularDependencyError("Circular deps", ["step1", "step2"])
+            circular_error = CircularDependencyError(
+                "Circular deps", ["step1", "step2"]
+            )
             circular_error.__cause__ = e
             assert circular_error.__cause__ is e
 
@@ -319,7 +316,7 @@ class TestExceptionChaining:
         """Test that exception attributes are preserved during chaining."""
         error = CircularDependencyError("Test", ["step1", "step2"])
         error.__cause__ = ValueError("Cause")
-        
+
         assert error.cycle == ["step1", "step2"]
         assert error.step_name is None
         assert error.__cause__ is not None

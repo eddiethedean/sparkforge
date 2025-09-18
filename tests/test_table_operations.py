@@ -7,6 +7,7 @@ This module tests all table read/write/management operations.
 
 import pytest
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+from unittest.mock import patch
 
 from sparkforge.errors import TableOperationError
 from sparkforge.table_operations import (
@@ -187,6 +188,15 @@ class TestReadTable:
         with pytest.raises(TableOperationError):
             read_table(spark_session, table_name)
 
+    def test_read_table_general_exception(self, spark_session):
+        """Test read_table handles general exceptions."""
+        # Mock spark.table to raise a general exception
+        with patch.object(spark_session, 'table') as mock_table:
+            mock_table.side_effect = Exception("General error")
+            
+            with pytest.raises(TableOperationError, match="Failed to read table"):
+                read_table(spark_session, "test_schema.test_table")
+
     def test_read_table_data_integrity(self, spark_session, sample_dataframe):
         """Test that read table preserves data integrity."""
         spark_session.sql("CREATE DATABASE IF NOT EXISTS test_schema")
@@ -240,6 +250,21 @@ class TestTableExists:
         table_name = fqn("nonexistent_schema", "test_table")
         assert table_exists(spark_session, table_name) is False
 
+    def test_table_exists_general_exception(self, spark_session):
+        """Test table_exists handles general exceptions."""
+        # Mock spark.table to raise a general exception
+        with patch.object(spark_session, 'table') as mock_table:
+            mock_table.side_effect = Exception("General error")
+            
+            with patch('sparkforge.table_operations.logger') as mock_logger:
+                result = table_exists(spark_session, "test_schema.test_table")
+                assert result is False
+                
+                # Verify that warning was logged
+                mock_logger.warning.assert_called_once()
+                warning_call = mock_logger.warning.call_args[0][0]
+                assert "Error checking if table test_schema.test_table exists" in warning_call
+
 
 class TestDropTable:
     """Test drop_table function."""
@@ -274,3 +299,13 @@ class TestDropTable:
         table_name = fqn("invalid_schema", "invalid_table")
         result = drop_table(spark_session, table_name)
         assert result is False
+
+    def test_drop_table_general_exception(self, spark_session):
+        """Test drop_table handles general exceptions."""
+        # Mock table_exists to return True, then mock spark.sql to raise exception
+        with patch('sparkforge.table_operations.table_exists', return_value=True):
+            with patch.object(spark_session, 'sql') as mock_sql:
+                mock_sql.side_effect = Exception("General error")
+                
+                result = drop_table(spark_session, "test_schema.test_table")
+                assert result is False

@@ -18,6 +18,7 @@ from sparkforge.errors import (
     ExecutionError,
     PerformanceError,
     PipelineError,
+    ResourceError,
     SparkForgeError,
     StepError,
     SystemError,
@@ -92,6 +93,11 @@ class TestErrorTypeSafety:
         assert error.category == ErrorCategory.CONFIGURATION
         assert error.severity == ErrorSeverity.HIGH
         assert error.context == {"key": "value"}
+        
+        # Test __str__ method includes error_code
+        error_str = str(error)
+        assert "Test error" in error_str
+        assert "[TEST_001]" in error_str
         assert error.suggestions == ["Fix this", "Check that"]
         assert isinstance(error.timestamp, datetime)
         assert isinstance(error.cause, ValueError)
@@ -372,3 +378,19 @@ class TestErrorBackwardCompatibility:
         assert error_dict["error_code"] == "TEST_001"
         assert error_dict["context"] == {"key": "value"}
         assert error_dict["suggestions"] == ["suggestion"]
+
+    def test_resource_error_creation(self):
+        """Test ResourceError creation and initialization."""
+        error = ResourceError(
+            message="Resource not found",
+            error_code="RESOURCE_001",
+            context={"resource": "database"},
+            suggestions=["Check connection", "Verify permissions"]
+        )
+        
+        assert error.message == "Resource not found"
+        assert error.error_code == "RESOURCE_001"
+        assert error.category == ErrorCategory.RESOURCE
+        assert error.severity == ErrorSeverity.HIGH
+        assert error.context == {"resource": "database"}
+        assert error.suggestions == ["Check connection", "Verify permissions"]

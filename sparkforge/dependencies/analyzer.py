@@ -245,10 +245,12 @@ class DependencyAnalyzer:
         conflicts = []
 
         # Check for conflicting step names
-        step_names = set(graph.nodes.keys())
+        step_names = list(graph.nodes.keys())
+        seen_names = set()
         for node_name in step_names:
-            if node_name in step_names and node_name != node_name:
+            if node_name in seen_names:
                 conflicts.append(f"Conflicting step name: {node_name}")
+            seen_names.add(node_name)
 
         # Check for missing dependencies
         for node_name, node in graph.nodes.items():

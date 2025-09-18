@@ -12,11 +12,11 @@ This section provides comprehensive API documentation for all SparkForge classes
 .. important::
 
    **Validation System**: SparkForge now includes a robust validation system that enforces data quality requirements:
-   
+
    - **BronzeStep**: Must have non-empty validation rules
    - **SilverStep**: Must have non-empty validation rules, valid transform function, and valid source_bronze (except for existing tables)
    - **GoldStep**: Must have non-empty validation rules and valid transform function
-   
+
    Invalid configurations are rejected during construction with clear error messages, ensuring data quality from the start.
 
 Core Classes

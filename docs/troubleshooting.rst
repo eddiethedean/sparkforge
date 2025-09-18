@@ -39,10 +39,10 @@ Validation Failures
 
    # ❌ This will raise ValidationError
    BronzeStep(name="events", rules={})
-   
+
    # ✅ This is correct
    BronzeStep(
-       name="events", 
+       name="events",
        rules={"user_id": [F.col("user_id").isNotNull()]}
    )
 
