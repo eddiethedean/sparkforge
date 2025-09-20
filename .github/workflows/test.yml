@@ -65,6 +65,50 @@ jobs:
         name: codecov-umbrella
         fail_ci_if_error: false
 
+    - name: Comment PR with test results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          try {
+            // Read coverage report if available
+            let coverageInfo = '';
+            if (fs.existsSync('coverage.xml')) {
+              const coverageXml = fs.readFileSync('coverage.xml', 'utf8');
+              const lineMatch = coverageXml.match(/line-rate="([0-9.]+)"/);
+              const branchMatch = coverageXml.match(/branch-rate="([0-9.]+)"/);
+              
+              if (lineMatch && branchMatch) {
+                const lineRate = (parseFloat(lineMatch[1]) * 100).toFixed(1);
+                const branchRate = (parseFloat(branchMatch[1]) * 100).toFixed(1);
+                coverageInfo = `\n\n**Coverage Summary (Python ${{ matrix.python-version }}):**\n- Line Coverage: ${lineRate}%\n- Branch Coverage: ${branchRate}%`;
+              }
+            }
+            
+            const comment = `## Test Results (Python ${{ matrix.python-version }})
+            
+            ✅ **Status:** All tests passed successfully
+            
+            **Test Summary:**
+            - Unit tests: ✅ Passed
+            - Integration tests: ✅ Passed  
+            - System tests: ✅ Passed${coverageInfo}
+            
+            **Next Steps:** Ready for review and merge`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+          } catch (error) {
+            console.log('Could not generate test comment:', error.message);
+          }
+
   quality:
     runs-on: ubuntu-latest
 

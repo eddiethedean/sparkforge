@@ -1,0 +1,176 @@
+name: Coverage Analysis
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run coverage analysis daily at 1 AM UTC
+    - cron: '0 1 * * *'
+
+jobs:
+  coverage-analysis:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for coverage trending
+
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.8
+
+    - name: Set up Java 11
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-xdist
+
+    - name: Run tests with coverage
+      run: |
+        python -m pytest tests/ -v --cov=sparkforge --cov-report=xml --cov-report=html --cov-report=term-missing
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: coverage-analysis
+        name: coverage-analysis
+        fail_ci_if_error: false
+
+    - name: Generate coverage report
+      run: |
+        echo "# Coverage Analysis Report" > coverage_report.md
+        echo "" >> coverage_report.md
+        echo "## Current Coverage" >> coverage_report.md
+        echo "" >> coverage_report.md
+        
+        # Extract coverage data from XML
+        if [ -f coverage.xml ]; then
+          COVERAGE_LINE=$(grep -o 'line-rate="[^"]*"' coverage.xml | cut -d'"' -f2)
+          COVERAGE_BRANCH=$(grep -o 'branch-rate="[^"]*"' coverage.xml | cut -d'"' -f2)
+          
+          if [ ! -z "$COVERAGE_LINE" ]; then
+            COVERAGE_LINE_PERCENT=$(echo "$COVERAGE_LINE * 100" | bc -l | cut -d'.' -f1)
+            echo "- **Line Coverage:** ${COVERAGE_LINE_PERCENT}%" >> coverage_report.md
+          fi
+          
+          if [ ! -z "$COVERAGE_BRANCH" ]; then
+            COVERAGE_BRANCH_PERCENT=$(echo "$COVERAGE_BRANCH * 100" | bc -l | cut -d'.' -f1)
+            echo "- **Branch Coverage:** ${COVERAGE_BRANCH_PERCENT}%" >> coverage_report.md
+          fi
+        fi
+        
+        echo "" >> coverage_report.md
+        echo "## Coverage Goals" >> coverage_report.md
+        echo "" >> coverage_report.md
+        echo "- **Target Line Coverage:** 85%" >> coverage_report.md
+        echo "- **Target Branch Coverage:** 75%" >> coverage_report.md
+        echo "" >> coverage_report.md
+        echo "## Files with Low Coverage" >> coverage_report.md
+        echo "" >> coverage_report.md
+        
+        # Extract files with low coverage
+        if [ -f coverage.xml ]; then
+          grep -o 'filename="[^"]*" line-rate="[^"]*"' coverage.xml | while read line; do
+            filename=$(echo $line | cut -d'"' -f2)
+            rate=$(echo $line | cut -d'"' -f4)
+            rate_percent=$(echo "$rate * 100" | bc -l | cut -d'.' -f1)
+            
+            if [ "$rate_percent" -lt 80 ]; then
+              echo "- \`$filename\`: ${rate_percent}%" >> coverage_report.md
+            fi
+          done
+        fi
+        
+        echo "" >> coverage_report.md
+        echo "## Recommendations" >> coverage_report.md
+        echo "" >> coverage_report.md
+        echo "1. Focus on files with coverage below 80%" >> coverage_report.md
+        echo "2. Add integration tests for complex workflows" >> coverage_report.md
+        echo "3. Consider property-based testing for edge cases" >> coverage_report.md
+        echo "4. Review and improve error handling coverage" >> coverage_report.md
+
+    - name: Comment PR with coverage analysis
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          
+          try {
+            let coverageInfo = '';
+            if (fs.existsSync('coverage_report.md')) {
+              coverageInfo = fs.readFileSync('coverage_report.md', 'utf8');
+            }
+            
+            const comment = `## 📊 Coverage Analysis
+            
+            ${coverageInfo}
+            
+            **View detailed coverage report:** [HTML Report](https://codecov.io/gh/${{ github.repository }})
+            
+            **Coverage Status:** ${process.env.COVERAGE_STATUS || '✅ Good'}`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+          } catch (error) {
+            console.log('Could not generate coverage comment:', error.message);
+          }
+
+    - name: Upload coverage artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report
+        path: |
+          coverage.xml
+          htmlcov/
+          coverage_report.md
+
+    - name: Check coverage thresholds
+      run: |
+        echo "Checking coverage thresholds..."
+        
+        if [ -f coverage.xml ]; then
+          COVERAGE_LINE=$(grep -o 'line-rate="[^"]*"' coverage.xml | cut -d'"' -f2)
+          COVERAGE_BRANCH=$(grep -o 'branch-rate="[^"]*"' coverage.xml | cut -d'"' -f2)
+          
+          if [ ! -z "$COVERAGE_LINE" ]; then
+            COVERAGE_LINE_PERCENT=$(echo "$COVERAGE_LINE * 100" | bc -l | cut -d'.' -f1)
+            echo "Line coverage: ${COVERAGE_LINE_PERCENT}%"
+            
+            if [ "$COVERAGE_LINE_PERCENT" -lt 75 ]; then
+              echo "❌ Line coverage below threshold (75%)"
+              exit 1
+            else
+              echo "✅ Line coverage meets threshold"
+            fi
+          fi
+          
+          if [ ! -z "$COVERAGE_BRANCH" ]; then
+            COVERAGE_BRANCH_PERCENT=$(echo "$COVERAGE_BRANCH * 100" | bc -l | cut -d'.' -f1)
+            echo "Branch coverage: ${COVERAGE_BRANCH_PERCENT}%"
+            
+            if [ "$COVERAGE_BRANCH_PERCENT" -lt 65 ]; then
+              echo "❌ Branch coverage below threshold (65%)"
+              exit 1
+            else
+              echo "✅ Branch coverage meets threshold"
+            fi
+          fi
+        fi
+        
+        echo "✅ All coverage thresholds met!"

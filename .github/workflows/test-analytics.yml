@@ -1,0 +1,249 @@
+name: Test Analytics
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run test analytics weekly on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
+
+jobs:
+  test-analytics:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.8
+
+    - name: Set up Java 11
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-xdist pytest-html pytest-metadata
+
+    - name: Run tests with detailed reporting
+      run: |
+        python -m pytest tests/ \
+          --html=test_report.html \
+          --self-contained-html \
+          --metadata=python-version \
+          --metadata=platform \
+          --junitxml=test_results.xml \
+          --cov=sparkforge \
+          --cov-report=xml \
+          --cov-report=term-missing \
+          -v
+
+    - name: Generate test analytics report
+      run: |
+        echo "# Test Analytics Report" > test_analytics.md
+        echo "" >> test_analytics.md
+        echo "## Test Execution Summary" >> test_analytics.md
+        echo "" >> test_analytics.md
+        echo "- **Execution Date:** $(date)" >> test_analytics.md
+        echo "- **Python Version:** $(python --version)" >> test_analytics.md
+        echo "- **Platform:** $(uname -a)" >> test_analytics.md
+        echo "" >> test_analytics.md
+        
+        # Extract test results from XML
+        if [ -f test_results.xml ]; then
+          TOTAL_TESTS=$(grep -o 'tests="[^"]*"' test_results.xml | cut -d'"' -f2)
+          FAILED_TESTS=$(grep -o 'failures="[^"]*"' test_results.xml | cut -d'"' -f2)
+          ERROR_TESTS=$(grep -o 'errors="[^"]*"' test_results.xml | cut -d'"' -f2)
+          SKIPPED_TESTS=$(grep -o 'skipped="[^"]*"' test_results.xml | cut -d'"' -f2)
+          TIME_TOTAL=$(grep -o 'time="[^"]*"' test_results.xml | cut -d'"' -f2)
+          
+          if [ ! -z "$TOTAL_TESTS" ]; then
+            echo "- **Total Tests:** $TOTAL_TESTS" >> test_analytics.md
+          fi
+          if [ ! -z "$FAILED_TESTS" ]; then
+            echo "- **Failed Tests:** $FAILED_TESTS" >> test_analytics.md
+          fi
+          if [ ! -z "$ERROR_TESTS" ]; then
+            echo "- **Error Tests:** $ERROR_TESTS" >> test_analytics.md
+          fi
+          if [ ! -z "$SKIPPED_TESTS" ]; then
+            echo "- **Skipped Tests:** $SKIPPED_TESTS" >> test_analytics.md
+          fi
+          if [ ! -z "$TIME_TOTAL" ]; then
+            echo "- **Total Execution Time:** ${TIME_TOTAL}s" >> test_analytics.md
+          fi
+        fi
+        
+        echo "" >> test_analytics.md
+        echo "## Test Categories" >> test_analytics.md
+        echo "" >> test_analytics.md
+        
+        # Count tests by category
+        UNIT_TESTS=$(find tests/unit/ -name "*.py" -type f | wc -l)
+        INTEGRATION_TESTS=$(find tests/integration/ -name "*.py" -type f | wc -l)
+        SYSTEM_TESTS=$(find tests/system/ -name "*.py" -type f | wc -l)
+        PERFORMANCE_TESTS=$(find tests/performance/ -name "*.py" -type f | wc -l)
+        
+        echo "- **Unit Test Files:** $UNIT_TESTS" >> test_analytics.md
+        echo "- **Integration Test Files:** $INTEGRATION_TESTS" >> test_analytics.md
+        echo "- **System Test Files:** $SYSTEM_TESTS" >> test_analytics.md
+        echo "- **Performance Test Files:** $PERFORMANCE_TESTS" >> test_analytics.md
+        
+        echo "" >> test_analytics.md
+        echo "## Test Performance Metrics" >> test_analytics.md
+        echo "" >> test_analytics.md
+        
+        # Calculate average test execution time
+        if [ ! -z "$TOTAL_TESTS" ] && [ ! -z "$TIME_TOTAL" ] && [ "$TOTAL_TESTS" -gt 0 ]; then
+          AVG_TIME=$(echo "scale=3; $TIME_TOTAL / $TOTAL_TESTS" | bc -l)
+          echo "- **Average Test Time:** ${AVG_TIME}s per test" >> test_analytics.md
+        fi
+        
+        echo "" >> test_analytics.md
+        echo "## Recommendations" >> test_analytics.md
+        echo "" >> test_analytics.md
+        
+        # Generate recommendations based on test results
+        if [ ! -z "$FAILED_TESTS" ] && [ "$FAILED_TESTS" -gt 0 ]; then
+          echo "1. ⚠️  Address $FAILED_TESTS failed test(s)" >> test_analytics.md
+        fi
+        
+        if [ ! -z "$ERROR_TESTS" ] && [ "$ERROR_TESTS" -gt 0 ]; then
+          echo "2. 🚨 Fix $ERROR_TESTS test error(s)" >> test_analytics.md
+        fi
+        
+        if [ ! -z "$SKIPPED_TESTS" ] && [ "$SKIPPED_TESTS" -gt 0 ]; then
+          echo "3. 📋 Review $SKIPPED_TESTS skipped test(s)" >> test_analytics.md
+        fi
+        
+        echo "4. 📈 Consider adding more integration tests" >> test_analytics.md
+        echo "5. 🔄 Implement test retry mechanisms for flaky tests" >> test_analytics.md
+        echo "6. 📊 Monitor test execution trends over time" >> test_analytics.md
+
+    - name: Detect flaky tests
+      run: |
+        echo "# Flaky Test Detection" > flaky_tests.md
+        echo "" >> flaky_tests.md
+        echo "## Potential Flaky Tests" >> flaky_tests.md
+        echo "" >> flaky_tests.md
+        
+        # Look for tests that might be flaky based on common patterns
+        echo "### Tests with Time Dependencies" >> flaky_tests.md
+        echo "" >> flaky_tests.md
+        grep -r "time.sleep\|datetime\|time.time" tests/ --include="*.py" | head -10 >> flaky_tests.md || echo "None found" >> flaky_tests.md
+        
+        echo "" >> flaky_tests.md
+        echo "### Tests with Random Data" >> flaky_tests.md
+        echo "" >> flaky_tests.md
+        grep -r "random\|shuffle\|sample" tests/ --include="*.py" | head -10 >> flaky_tests.md || echo "None found" >> flaky_tests.md
+        
+        echo "" >> flaky_tests.md
+        echo "### Tests with Network Dependencies" >> flaky_tests.md
+        echo "" >> flaky_tests.md
+        grep -r "requests\|urllib\|socket" tests/ --include="*.py" | head -10 >> flaky_tests.md || echo "None found" >> flaky_tests.md
+        
+        echo "" >> flaky_tests.md
+        echo "### Tests with File System Dependencies" >> flaky_tests.md
+        echo "" >> flaky_tests.md
+        grep -r "open\|file\|path" tests/ --include="*.py" | head -10 >> flaky_tests.md || echo "None found" >> flaky_tests.md
+        
+        echo "" >> flaky_tests.md
+        echo "## Recommendations for Flaky Tests" >> flaky_tests.md
+        echo "" >> flaky_tests.md
+        echo "1. **Use deterministic data** instead of random values" >> flaky_tests.md
+        echo "2. **Mock external dependencies** like network calls" >> flaky_tests.md
+        echo "3. **Use test fixtures** for consistent setup" >> flaky_tests.md
+        echo "4. **Implement retry mechanisms** for unavoidable flaky tests" >> flaky_tests.md
+        echo "5. **Add test timeouts** to prevent hanging tests" >> flaky_tests.md
+
+    - name: Generate test optimization suggestions
+      run: |
+        echo "# Test Optimization Suggestions" > test_optimization.md
+        echo "" >> test_optimization.md
+        echo "## Performance Optimizations" >> test_optimization.md
+        echo "" >> test_optimization.md
+        
+        # Analyze test execution time
+        if [ -f test_results.xml ]; then
+          echo "### Slow Tests (> 1 second)" >> test_optimization.md
+          echo "" >> test_optimization.md
+          
+          # Extract slow tests (this is a simplified approach)
+          grep -o 'time="[^"]*"' test_results.xml | while read time_attr; do
+            time_val=$(echo $time_attr | cut -d'"' -f2)
+            if (( $(echo "$time_val > 1.0" | bc -l) )); then
+              echo "- Test execution time: ${time_val}s (consider optimization)" >> test_optimization.md
+            fi
+          done
+        fi
+        
+        echo "" >> test_optimization.md
+        echo "### Parallel Execution Opportunities" >> test_optimization.md
+        echo "" >> test_optimization.md
+        echo "- Consider using pytest-xdist for parallel test execution" >> test_optimization.md
+        echo "- Group related tests to reduce setup/teardown overhead" >> test_optimization.md
+        echo "- Use test fixtures to share common setup across tests" >> test_optimization.md
+        
+        echo "" >> test_optimization.md
+        echo "### Test Coverage Improvements" >> test_optimization.md
+        echo "" >> test_optimization.md
+        echo "- Focus on uncovered branches in complex conditional logic" >> test_optimization.md
+        echo "- Add edge case tests for boundary conditions" >> test_optimization.md
+        echo "- Test error handling paths and exception scenarios" >> test_optimization.md
+        
+        echo "" >> test_optimization.md
+        echo "### Test Organization" >> test_optimization.md
+        echo "" >> test_optimization.md
+        echo "- Group tests by functionality for better organization" >> test_optimization.md
+        echo "- Use descriptive test names that explain the scenario" >> test_optimization.md
+        echo "- Consider test parametrization for similar test cases" >> test_optimization.md
+
+    - name: Upload test analytics artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-analytics
+        path: |
+          test_report.html
+          test_results.xml
+          test_analytics.md
+          flaky_tests.md
+          test_optimization.md
+
+    - name: Comment PR with test analytics
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          
+          try {
+            let analyticsInfo = '';
+            if (fs.existsSync('test_analytics.md')) {
+              analyticsInfo = fs.readFileSync('test_analytics.md', 'utf8');
+            }
+            
+            const comment = `## 📊 Test Analytics Report
+            
+            ${analyticsInfo}
+            
+            **View detailed test report:** [HTML Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            
+            **Test Status:** ✅ All tests passed`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+          } catch (error) {
+            console.log('Could not generate test analytics comment:', error.message);
+          }
