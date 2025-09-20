@@ -150,6 +150,15 @@ ignore-paths = [
 [tool.bandit]
 exclude_dirs = ["tests", "build", "dist", ".venv", "venv"]
 skips = ["B101", "B601"]  # Skip assert_used and shell=True
+severity = "medium"
+confidence = "medium"
+recursive = true
+format = "json"
+output = "bandit-report.json"
+
+[tool.safety]
+output = "json"
+file = "requirements.txt"
 
 [tool.ruff]
 target-version = "py38"
