@@ -780,3 +780,239 @@ class TestParallelConfig:
             PipelineValidationError, match="timeout_secs must be at least 1"
         ):
             config.validate()
+
+    def test_base_model_to_dict_with_nested_objects(self):
+        """Test BaseModel.to_dict() with nested objects that have to_dict method."""
+        from dataclasses import dataclass
+
+        # Create a mock object with to_dict method
+        mock_obj = Mock()
+        mock_obj.to_dict.return_value = {"nested": "value"}
+
+        # Create a test model with the mock object
+        @dataclass
+        class TestModel(BaseModel):
+            field1: str
+            nested_field: Mock
+
+            def validate(self) -> None:
+                pass  # Implement abstract method
+
+        model = TestModel(field1="test", nested_field=mock_obj)
+        result = model.to_dict()
+
+        assert result["field1"] == "test"
+        assert result["nested_field"] == {"nested": "value"}
+        mock_obj.to_dict.assert_called_once()
+
+    def test_base_model_to_dict_without_nested_objects(self):
+        """Test BaseModel.to_dict() with simple values."""
+        from dataclasses import dataclass
+
+        @dataclass
+        class TestModel(BaseModel):
+            field1: str
+            field2: int
+            field3: bool
+
+            def validate(self) -> None:
+                pass  # Implement abstract method
+
+        model = TestModel(field1="test", field2=42, field3=True)
+        result = model.to_dict()
+
+        assert result["field1"] == "test"
+        assert result["field2"] == 42
+        assert result["field3"] is True
+
+    def test_validation_thresholds_validation_edge_cases(self):
+        """Test ValidationThresholds validation with edge cases."""
+        # Test valid edge cases
+        thresholds = ValidationThresholds(bronze=0.0, silver=50.0, gold=100.0)
+        thresholds.validate()  # Should not raise
+
+        # Test invalid bronze threshold
+        with pytest.raises(
+            PipelineValidationError, match="bronze threshold must be between 0 and 100"
+        ):
+            ValidationThresholds(bronze=-1.0, silver=50.0, gold=100.0).validate()
+
+        with pytest.raises(
+            PipelineValidationError, match="bronze threshold must be between 0 and 100"
+        ):
+            ValidationThresholds(bronze=101.0, silver=50.0, gold=100.0).validate()
+
+        # Test invalid silver threshold
+        with pytest.raises(
+            PipelineValidationError, match="silver threshold must be between 0 and 100"
+        ):
+            ValidationThresholds(bronze=50.0, silver=-1.0, gold=100.0).validate()
+
+        with pytest.raises(
+            PipelineValidationError, match="silver threshold must be between 0 and 100"
+        ):
+            ValidationThresholds(bronze=50.0, silver=101.0, gold=100.0).validate()
+
+        # Test invalid gold threshold
+        with pytest.raises(
+            PipelineValidationError, match="gold threshold must be between 0 and 100"
+        ):
+            ValidationThresholds(bronze=50.0, silver=50.0, gold=-1.0).validate()
+
+        with pytest.raises(
+            PipelineValidationError, match="gold threshold must be between 0 and 100"
+        ):
+            ValidationThresholds(bronze=50.0, silver=50.0, gold=101.0).validate()
+
+    def test_validation_thresholds_get_threshold(self):
+        """Test ValidationThresholds.get_threshold method."""
+        thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
+
+        assert thresholds.get_threshold(PipelinePhase.BRONZE) == 95.0
+        assert thresholds.get_threshold(PipelinePhase.SILVER) == 98.0
+        assert thresholds.get_threshold(PipelinePhase.GOLD) == 99.0
+
+    def test_pipeline_config_validation_invalid_schema(self):
+        """Test PipelineConfig validation with invalid schema."""
+        # Test empty schema
+        with pytest.raises(
+            PipelineValidationError, match="Schema name must be a non-empty string"
+        ):
+            PipelineConfig(
+                schema="",
+                thresholds=ValidationThresholds.create_default(),
+                parallel=ParallelConfig.create_default(),
+            ).validate()
+
+        # Test None schema
+        with pytest.raises(
+            PipelineValidationError, match="Schema name must be a non-empty string"
+        ):
+            PipelineConfig(
+                schema=None,
+                thresholds=ValidationThresholds.create_default(),
+                parallel=ParallelConfig.create_default(),
+            ).validate()
+
+        # Test non-string schema
+        with pytest.raises(
+            PipelineValidationError, match="Schema name must be a non-empty string"
+        ):
+            PipelineConfig(
+                schema=123,
+                thresholds=ValidationThresholds.create_default(),
+                parallel=ParallelConfig.create_default(),
+            ).validate()
+
+    def test_pipeline_config_create_default(self):
+        """Test PipelineConfig.create_default method."""
+        config = PipelineConfig.create_default("test_schema")
+
+        assert config.schema == "test_schema"
+        assert config.thresholds.bronze == 95.0
+        assert config.thresholds.silver == 98.0
+        assert config.thresholds.gold == 99.0
+        assert config.parallel.max_workers == 4
+        assert config.verbose is True
+
+    def test_pipeline_config_create_high_performance(self):
+        """Test PipelineConfig.create_high_performance method."""
+        config = PipelineConfig.create_high_performance("test_schema")
+
+        assert config.schema == "test_schema"
+        assert config.thresholds.bronze == 99.0
+        assert config.thresholds.silver == 99.5
+        assert config.thresholds.gold == 99.9
+        assert config.parallel.max_workers == 16
+        assert config.parallel.timeout_secs == 1200
+        assert config.verbose is False
+
+    def test_base_model_to_json(self):
+        """Test BaseModel.to_json method."""
+        from dataclasses import dataclass
+
+        @dataclass
+        class TestModel(BaseModel):
+            field1: str
+            field2: int
+            field3: bool
+
+            def validate(self) -> None:
+                pass  # Implement abstract method
+
+        model = TestModel(field1="test", field2=42, field3=True)
+        json_str = model.to_json()
+
+        # Parse the JSON to verify it's valid
+        import json
+
+        parsed = json.loads(json_str)
+        assert parsed["field1"] == "test"
+        assert parsed["field2"] == 42
+        assert parsed["field3"] is True
+
+    def test_base_model_str_representation(self):
+        """Test BaseModel.__str__ method."""
+        from dataclasses import dataclass
+
+        @dataclass
+        class TestModel(BaseModel):
+            field1: str
+            field2: int
+            field3: bool
+
+            def validate(self) -> None:
+                pass  # Implement abstract method
+
+        model = TestModel(field1="test", field2=42, field3=True)
+        str_repr = str(model)
+
+        assert "TestModel" in str_repr
+        assert "field1=test" in str_repr
+        assert "field2=42" in str_repr
+        assert "field3=True" in str_repr
+
+    def test_validation_thresholds_create_loose(self):
+        """Test ValidationThresholds.create_loose method."""
+        thresholds = ValidationThresholds.create_loose()
+
+        assert thresholds.bronze == 80.0
+        assert thresholds.silver == 85.0
+        assert thresholds.gold == 90.0
+
+    def test_validation_thresholds_create_strict(self):
+        """Test ValidationThresholds.create_strict method."""
+        thresholds = ValidationThresholds.create_strict()
+
+        assert thresholds.bronze == 99.0
+        assert thresholds.silver == 99.5
+        assert thresholds.gold == 99.9
+
+    def test_parallel_config_validation_max_workers_exceeded(self):
+        """Test ParallelConfig validation with max_workers exceeding 32."""
+        config = ParallelConfig(enabled=True, max_workers=50, timeout_secs=600)
+
+        with pytest.raises(
+            PipelineValidationError, match="max_workers should not exceed 32"
+        ):
+            config.validate()
+
+    def test_pipeline_config_properties(self):
+        """Test PipelineConfig property methods."""
+        config = PipelineConfig.create_default("test_schema")
+
+        assert config.min_bronze_rate == 95.0
+        assert config.min_silver_rate == 98.0
+        assert config.min_gold_rate == 99.0
+
+    def test_pipeline_config_create_conservative(self):
+        """Test PipelineConfig.create_conservative method."""
+        config = PipelineConfig.create_conservative("test_schema")
+
+        assert config.schema == "test_schema"
+        assert config.thresholds.bronze == 99.0
+        assert config.thresholds.silver == 99.5
+        assert config.thresholds.gold == 99.9
+        assert config.parallel.max_workers == 1
+        assert config.parallel.timeout_secs == 600
+        assert config.verbose is True

@@ -17,8 +17,12 @@ from pyspark.sql.types import (
 
 from sparkforge.errors import ValidationError
 from sparkforge.validation import (
+    _convert_rule_to_expression,
+    _convert_rules_to_expressions,
     and_all_rules,
     apply_column_rules,
+    apply_validation_rules,
+    assess_data_quality,
     get_dataframe_info,
     safe_divide,
     validate_dataframe_schema,
@@ -235,3 +239,120 @@ class TestSafeDivide:
         """Test with zero numerator."""
         result = safe_divide(0, 5)
         assert result == 0.0
+
+
+class TestConvertRuleToExpression:
+    """Test _convert_rule_to_expression function."""
+
+    def test_not_null_rule(self):
+        """Test not_null rule conversion."""
+        result = _convert_rule_to_expression("not_null", "test_column")
+        # This should return a Column expression
+        assert hasattr(result, "isNotNull")
+
+    def test_positive_rule(self):
+        """Test positive rule conversion."""
+        result = _convert_rule_to_expression("positive", "test_column")
+        # This should return a Column expression
+        assert hasattr(result, "__gt__")
+
+    def test_non_negative_rule(self):
+        """Test non_negative rule conversion."""
+        result = _convert_rule_to_expression("non_negative", "test_column")
+        # This should return a Column expression
+        assert hasattr(result, "__ge__")
+
+    def test_non_zero_rule(self):
+        """Test non_zero rule conversion."""
+        result = _convert_rule_to_expression("non_zero", "test_column")
+        # This should return a Column expression
+        assert hasattr(result, "__ne__")
+
+    def test_custom_expression_rule(self):
+        """Test custom expression rule conversion."""
+        result = _convert_rule_to_expression("col('test_column') > 10", "test_column")
+        # This should return a Column expression
+        assert hasattr(result, "__gt__")
+
+
+class TestConvertRulesToExpressions:
+    """Test _convert_rules_to_expressions function."""
+
+    def test_string_rules_conversion(self):
+        """Test conversion of string rules."""
+        rules = {"col1": ["not_null", "positive"], "col2": ["non_negative"]}
+        result = _convert_rules_to_expressions(rules)
+
+        assert "col1" in result
+        assert "col2" in result
+        assert len(result["col1"]) == 2
+        assert len(result["col2"]) == 1
+
+    def test_mixed_rules_conversion(self):
+        """Test conversion of mixed string and Column rules."""
+        rules = {
+            "col1": ["not_null", F.col("col1") > 0],
+            "col2": [F.col("col2").isNotNull()],
+        }
+        result = _convert_rules_to_expressions(rules)
+
+        assert "col1" in result
+        assert "col2" in result
+        assert len(result["col1"]) == 2
+        assert len(result["col2"]) == 1
+
+
+class TestAssessDataQuality:
+    """Test assess_data_quality function."""
+
+    def test_basic_data_quality_assessment(self, sample_dataframe):
+        """Test basic data quality assessment."""
+        result = assess_data_quality(sample_dataframe)
+
+        assert isinstance(result, dict)
+        assert "total_rows" in result
+        assert "valid_rows" in result
+        assert "invalid_rows" in result
+        assert "quality_rate" in result
+
+    def test_data_quality_with_rules(self, sample_dataframe):
+        """Test data quality assessment with validation rules."""
+        rules = {
+            "user_id": ["not_null"],
+            "age": ["positive"],
+            "score": ["non_negative"],
+        }
+        result = assess_data_quality(sample_dataframe, rules)
+
+        assert isinstance(result, dict)
+        assert "total_rows" in result
+        assert "valid_rows" in result
+        assert "invalid_rows" in result
+        assert "quality_rate" in result
+
+
+class TestApplyValidationRules:
+    """Test apply_validation_rules function."""
+
+    def test_apply_validation_rules_basic(self, sample_dataframe):
+        """Test applying basic validation rules."""
+        rules = {
+            "user_id": ["not_null"],
+            "age": ["positive"],
+            "score": ["non_negative"],
+        }
+        result = apply_validation_rules(sample_dataframe, rules, "bronze", "test_step")
+
+        assert result is not None
+        assert len(result) == 3  # Should return tuple of (df, df, stats)
+        valid_df, invalid_df, stats = result
+        assert valid_df is not None
+        assert invalid_df is not None
+        assert stats is not None
+
+    def test_apply_validation_rules_empty(self, sample_dataframe):
+        """Test applying validation rules with empty rules."""
+        result = apply_validation_rules(sample_dataframe, {}, "bronze", "test_step")
+
+        assert result is not None
+        assert len(result) == 3  # Should return tuple of (df, df, stats)
