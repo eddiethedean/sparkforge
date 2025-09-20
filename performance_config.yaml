@@ -1,0 +1,405 @@
+# SparkForge Performance Configuration
+# This file defines performance optimization settings and thresholds for SparkForge
+
+# Performance profiling configuration
+performance_profiling:
+  enabled: true
+  memory_tracking: true
+  cpu_tracking: true
+  default_iterations: 100
+  warmup_iterations: 10
+  timeout_seconds: 300
+  statistical_analysis: true
+  regression_detection: true
+  
+  # Profiling thresholds
+  thresholds:
+    slow_function_ms: 1000      # Functions slower than 1 second
+    high_memory_mb: 100         # Functions using more than 100MB
+    high_cpu_percent: 80        # Functions using more than 80% CPU
+    frequent_calls: 1000        # Functions called more than 1000 times
+    memory_leak_threshold: 50   # Memory increase threshold in MB
+
+# Caching configuration
+caching:
+  enabled: true
+  
+  memory_cache:
+    max_size_mb: 100
+    default_ttl_seconds: 3600   # 1 hour
+    cleanup_interval_seconds: 300  # 5 minutes
+  
+  persistent_cache:
+    enabled: true
+    cache_dir: ".cache/sparkforge"
+    max_file_size_mb: 50
+    compression_enabled: true
+  
+  hybrid_cache:
+    enabled: true
+    memory_first: true
+    persistent_fallback: true
+  
+  # Cache strategies
+  strategies:
+    function_result_caching:
+      enabled: true
+      default_ttl_seconds: 300  # 5 minutes
+      max_cache_size: 1000
+    
+    dataframe_caching:
+      enabled: true
+      default_ttl_seconds: 1800  # 30 minutes
+      max_cache_size: 100
+    
+    validation_result_caching:
+      enabled: true
+      default_ttl_seconds: 1800  # 30 minutes
+      max_cache_size: 500
+    
+    pipeline_step_caching:
+      enabled: true
+      default_ttl_seconds: 7200  # 2 hours
+      max_cache_size: 200
+
+# Performance monitoring configuration
+performance_monitoring:
+  enabled: true
+  monitoring_interval: 10       # seconds
+  retention_days: 30
+  alert_threshold: 10
+  
+  real_time_monitoring:
+    enabled: true
+    monitor_system_resources: true
+    monitor_network_activity: true
+    monitor_file_system: true
+    monitor_process_activity: true
+  
+  # Monitoring thresholds
+  thresholds:
+    cpu_percent: 80.0
+    memory_percent: 85.0
+    memory_used_mb: 2048.0
+    disk_usage_percent: 90.0
+    response_time_ms: 5000.0
+    throughput_rps: 10.0
+  
+  # Alerting configuration
+  alerting:
+    enabled: true
+    email_notifications: false
+    slack_notifications: false
+    log_alerts: true
+    
+    severity_levels:
+      critical:
+        cpu_percent: 95.0
+        memory_percent: 95.0
+        response_time_ms: 10000.0
+        error_rate_percent: 10.0
+      
+      warning:
+        cpu_percent: 80.0
+        memory_percent: 85.0
+        response_time_ms: 5000.0
+        error_rate_percent: 5.0
+
+# Memory optimization configuration
+memory_optimization:
+  enabled: true
+  
+  # Garbage collection optimization
+  gc_optimization:
+    enabled: true
+    thresholds:
+      generation_0: 700
+      generation_1: 10
+      generation_2: 10
+    auto_collect: true
+    collect_interval_seconds: 60
+  
+  # Memory profiling
+  memory_profiling:
+    enabled: true
+    tracemalloc_enabled: true
+    snapshot_interval_seconds: 30
+    retention_snapshots: 100
+  
+  # Memory leak detection
+  leak_detection:
+    enabled: true
+    analysis_interval_seconds: 60
+    growth_rate_threshold: 10
+    leak_severity_threshold: 50
+  
+  # Memory optimization strategies
+  optimization_strategies:
+    object_pooling:
+      enabled: true
+      pool_size: 100
+      cleanup_interval_seconds: 300
+    
+    lazy_evaluation:
+      enabled: true
+      cache_results: true
+      max_cache_size: 1000
+    
+    memory_mapping:
+      enabled: true
+      max_file_size_mb: 100
+      compression_enabled: true
+    
+    weak_references:
+      enabled: true
+      cache_cleanup_interval_seconds: 600
+
+# Performance benchmarking configuration
+performance_benchmarking:
+  enabled: true
+  default_iterations: 100
+  warmup_iterations: 10
+  timeout_seconds: 300
+  
+  # Regression detection
+  regression_detection:
+    enabled: true
+    threshold_percent: 15.0     # 15% regression threshold
+    confidence_threshold: 80.0
+    baseline_retention_days: 30
+  
+  # Load testing
+  load_testing:
+    enabled: true
+    default_concurrent_users: 10
+    default_total_requests: 100
+    timeout_seconds: 60
+    
+    stress_testing:
+      enabled: true
+      max_concurrent_users: 100
+      duration_seconds: 300
+      error_rate_threshold: 50.0
+      response_time_threshold: 10000.0
+  
+  # Benchmarking strategies
+  benchmarking_strategies:
+    statistical_analysis: true
+    memory_tracking: true
+    cpu_tracking: true
+    custom_metrics: true
+
+# Spark-specific performance configuration
+spark_performance:
+  enabled: true
+  
+  # Spark configuration optimization
+  spark_config:
+    adaptive_query_execution:
+      enabled: true
+      coalesce_partitions: true
+      skew_join: true
+      local_shuffle_reader: true
+    
+    serialization:
+      serializer: "org.apache.spark.serializer.KryoSerializer"
+      kryo_registration_required: true
+    
+    memory_management:
+      driver_memory: "4g"
+      executor_memory: "8g"
+      driver_max_result_size: "2g"
+      executor_memory_fraction: 0.8
+      storage_memory_fraction: 0.6
+    
+    execution:
+      dynamic_allocation: true
+      shuffle_service_enabled: true
+      speculative_execution: true
+      task_max_attempts: 3
+  
+  # DataFrame optimization
+  dataframe_optimization:
+    caching:
+      enabled: true
+      storage_level: "MEMORY_AND_DISK_SER"
+      auto_unpersist: true
+    
+    partitioning:
+      auto_partitioning: true
+      target_partition_size_mb: 128
+      coalesce_threshold: 10
+    
+    columnar_processing:
+      enabled: true
+      arrow_enabled: true
+      vectorized_reader: true
+  
+  # SQL optimization
+  sql_optimization:
+    cost_based_optimizer: true
+    adaptive_query_execution: true
+    broadcast_join_threshold_mb: 10
+    auto_broadcast_join_threshold: 10485760
+
+# Performance reporting configuration
+performance_reporting:
+  enabled: true
+  output_formats:
+    - "json"
+    - "html"
+    - "csv"
+  
+  report_sections:
+    - "executive_summary"
+    - "performance_metrics"
+    - "resource_usage"
+    - "bottlenecks"
+    - "recommendations"
+    - "trends"
+  
+  automated_reports:
+    enabled: true
+    schedule: "daily"
+    retention_days: 90
+    email_notifications: false
+  
+  dashboard:
+    enabled: true
+    refresh_interval_seconds: 30
+    retention_hours: 24
+    metrics_displayed:
+      - "cpu_usage"
+      - "memory_usage"
+      - "response_time"
+      - "throughput"
+      - "error_rate"
+
+# Performance testing configuration
+performance_testing:
+  enabled: true
+  
+  # Test categories
+  test_categories:
+    unit_performance:
+      enabled: true
+      timeout_seconds: 30
+      iterations: 50
+    
+    integration_performance:
+      enabled: true
+      timeout_seconds: 60
+      iterations: 20
+    
+    load_testing:
+      enabled: true
+      timeout_seconds: 300
+      concurrent_users: 50
+      total_requests: 1000
+    
+    stress_testing:
+      enabled: true
+      timeout_seconds: 600
+      max_concurrent_users: 200
+      duration_seconds: 300
+  
+  # Performance test thresholds
+  test_thresholds:
+    max_response_time_ms: 5000
+    min_throughput_rps: 10
+    max_error_rate_percent: 5
+    max_memory_usage_mb: 2048
+    max_cpu_usage_percent: 80
+
+# CI/CD integration configuration
+cicd_integration:
+  enabled: true
+  
+  # Performance gates
+  performance_gates:
+    regression_threshold_percent: 15.0
+    memory_usage_threshold_mb: 2048
+    response_time_threshold_ms: 5000
+    error_rate_threshold_percent: 5.0
+  
+  # Automated performance testing
+  automated_testing:
+    enabled: true
+    run_on_pull_request: true
+    run_on_main_branch: true
+    run_on_release: true
+  
+  # Performance reporting in CI/CD
+  ci_reporting:
+    enabled: true
+    comment_on_pr: true
+    upload_artifacts: true
+    generate_dashboard: true
+
+# Performance optimization recommendations
+optimization_recommendations:
+  enabled: true
+  
+  # Automatic optimization suggestions
+  auto_suggestions:
+    caching_opportunities: true
+    memory_optimization: true
+    algorithm_optimization: true
+    configuration_tuning: true
+  
+  # Performance best practices
+  best_practices:
+    - "Use appropriate data structures for your use case"
+    - "Implement caching for frequently accessed data"
+    - "Optimize database queries and reduce N+1 problems"
+    - "Use lazy evaluation for large datasets"
+    - "Implement proper error handling and logging"
+    - "Monitor performance metrics continuously"
+    - "Use profiling tools to identify bottlenecks"
+    - "Consider parallelization for CPU-intensive tasks"
+    - "Optimize memory usage and prevent memory leaks"
+    - "Implement proper resource cleanup and disposal"
+
+# Environment-specific configurations
+environments:
+  development:
+    performance_profiling:
+      enabled: true
+      detailed_profiling: true
+    
+    performance_monitoring:
+      enabled: true
+      alert_threshold: 5
+    
+    caching:
+      enabled: true
+      memory_cache_size_mb: 50
+  
+  testing:
+    performance_profiling:
+      enabled: true
+      detailed_profiling: false
+    
+    performance_monitoring:
+      enabled: false
+    
+    caching:
+      enabled: true
+      memory_cache_size_mb: 25
+  
+  production:
+    performance_profiling:
+      enabled: false  # Disable detailed profiling in production
+    
+    performance_monitoring:
+      enabled: true
+      alert_threshold: 10
+    
+    caching:
+      enabled: true
+      memory_cache_size_mb: 200
+    
+    alerting:
+      enabled: true
+      email_notifications: true
+      slack_notifications: true
