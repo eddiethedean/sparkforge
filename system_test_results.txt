@@ -1,0 +1,215 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.8.18, pytest-8.3.5, pluggy-1.5.0 -- /Users/odosmatthews/Documents/coding/pipe/sparkforge/venv38/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/odosmatthews/Documents/coding/pipe/sparkforge
+configfile: pytest.ini
+plugins: cov-5.0.0, xdist-3.6.1
+collecting ... collected 111 items
+
+tests/system/test_auto_infer_source_bronze.py::TestAutoInferSourceBronze::test_auto_infer_single_bronze_step PASSED [  0%]
+tests/system/test_auto_infer_source_bronze.py::TestAutoInferSourceBronze::test_auto_infer_multiple_bronze_steps PASSED [  1%]
+tests/system/test_auto_infer_source_bronze.py::TestAutoInferSourceBronze::test_explicit_source_bronze_still_works PASSED [  2%]
+tests/system/test_auto_infer_source_bronze.py::TestAutoInferSourceBronze::test_no_bronze_steps_raises_error PASSED [  3%]
+tests/system/test_auto_infer_source_bronze.py::TestAutoInferSourceBronze::test_invalid_source_bronze_raises_error PASSED [  4%]
+tests/system/test_auto_infer_source_bronze.py::TestAutoInferSourceBronze::test_logging_auto_inference PASSED [  5%]
+tests/system/test_auto_infer_source_bronze.py::TestAutoInferSourceBronze::test_chaining_works_with_auto_inference PASSED [  6%]
+tests/system/test_bronze_no_datetime.py::TestBronzeNoDatetime::test_bronze_step_without_incremental_col PASSED [  7%]
+tests/system/test_bronze_no_datetime.py::TestBronzeNoDatetime::test_bronze_step_with_incremental_col PASSED [  8%]
+tests/system/test_bronze_no_datetime.py::TestBronzeNoDatetime::test_silver_step_creation PASSED [  9%]
+tests/system/test_bronze_no_datetime.py::TestBronzeNoDatetime::test_gold_step_creation PASSED [  9%]
+tests/system/test_bronze_no_datetime.py::TestBronzeNoDatetime::test_pipeline_validation PASSED [ 10%]
+tests/system/test_bronze_no_datetime.py::TestBronzeNoDatetime::test_pipeline_creation PASSED [ 11%]
+tests/system/test_bronze_no_datetime.py::TestBronzeNoDatetime::test_dataframe_operations PASSED [ 12%]
+tests/system/test_bronze_no_datetime.py::TestBronzeNoDatetime::test_execution_engine_initialization PASSED [ 13%]
+tests/system/test_bronze_no_datetime.py::TestBronzeNoDatetime::test_step_type_detection PASSED [ 14%]
+tests/system/test_bronze_no_datetime.py::TestBronzeNoDatetime::test_pipeline_configuration PASSED [ 15%]
+tests/system/test_bronze_no_datetime.py::TestBronzeNoDatetime::test_execution_mode_enum PASSED [ 16%]
+tests/system/test_bronze_no_datetime.py::TestBronzeNoDatetime::test_step_status_enum PASSED [ 17%]
+tests/system/test_bronze_no_datetime.py::TestBronzeNoDatetime::test_step_type_enum PASSED [ 18%]
+tests/system/test_dataframe_access.py::TestDataFrameAccess::test_bronze_step_creation PASSED [ 18%]
+tests/system/test_dataframe_access.py::TestDataFrameAccess::test_silver_step_creation PASSED [ 19%]
+tests/system/test_dataframe_access.py::TestDataFrameAccess::test_gold_step_creation PASSED [ 20%]
+tests/system/test_dataframe_access.py::TestDataFrameAccess::test_pipeline_builder_validation PASSED [ 21%]
+tests/system/test_dataframe_access.py::TestDataFrameAccess::test_pipeline_creation PASSED [ 22%]
+tests/system/test_dataframe_access.py::TestDataFrameAccess::test_dataframe_operations PASSED [ 23%]
+tests/system/test_dataframe_access.py::TestDataFrameAccess::test_execution_engine_initialization PASSED [ 24%]
+tests/system/test_dataframe_access.py::TestDataFrameAccess::test_step_type_detection PASSED [ 25%]
+tests/system/test_dataframe_access.py::TestDataFrameAccess::test_pipeline_configuration PASSED [ 26%]
+tests/system/test_dataframe_access.py::TestDataFrameAccess::test_execution_mode_enum PASSED [ 27%]
+tests/system/test_dataframe_access.py::TestDataFrameAccess::test_step_status_enum PASSED [ 27%]
+tests/system/test_dataframe_access.py::TestDataFrameAccess::test_step_type_enum PASSED [ 28%]
+tests/system/test_delta_lake.py::TestDeltaLakeComprehensive::test_delta_lake_acid_transactions PASSED [ 29%]
+tests/system/test_delta_lake.py::TestDeltaLakeComprehensive::test_delta_lake_schema_evolution PASSED [ 30%]
+tests/system/test_delta_lake.py::TestDeltaLakeComprehensive::test_delta_lake_time_travel PASSED [ 31%]
+tests/system/test_delta_lake.py::TestDeltaLakeComprehensive::test_delta_lake_merge_operations PASSED [ 32%]
+tests/system/test_delta_lake.py::TestDeltaLakeComprehensive::test_delta_lake_optimization PASSED [ 33%]
+tests/system/test_delta_lake.py::TestDeltaLakeComprehensive::test_delta_lake_history_and_metadata PASSED [ 34%]
+tests/system/test_delta_lake.py::TestDeltaLakeComprehensive::test_delta_lake_concurrent_writes PASSED [ 35%]
+tests/system/test_delta_lake.py::TestDeltaLakeComprehensive::test_delta_lake_performance_characteristics PASSED [ 36%]
+tests/system/test_delta_lake.py::TestDeltaLakeComprehensive::test_delta_lake_data_quality_constraints PASSED [ 36%]
+tests/system/test_exceptions.py::TestValidationError::test_validation_error_creation PASSED [ 37%]
+tests/system/test_exceptions.py::TestValidationError::test_validation_error_inheritance PASSED [ 38%]
+tests/system/test_exceptions.py::TestTableOperationError::test_table_operation_error_creation PASSED [ 39%]
+tests/system/test_exceptions.py::TestTableOperationError::test_table_operation_error_inheritance PASSED [ 40%]
+tests/system/test_exceptions.py::TestPerformanceError::test_performance_error_creation PASSED [ 41%]
+tests/system/test_exceptions.py::TestPerformanceError::test_performance_error_inheritance PASSED [ 42%]
+tests/system/test_exceptions.py::TestPipelineValidationError::test_pipeline_validation_error_creation PASSED [ 43%]
+tests/system/test_exceptions.py::TestPipelineValidationError::test_pipeline_validation_error_inheritance PASSED [ 44%]
+tests/system/test_exceptions.py::TestExecutionError::test_execution_error_creation PASSED [ 45%]
+tests/system/test_exceptions.py::TestExecutionError::test_execution_error_inheritance PASSED [ 45%]
+tests/system/test_exceptions.py::TestConfigurationError::test_configuration_error_creation PASSED [ 46%]
+tests/system/test_exceptions.py::TestConfigurationError::test_configuration_error_inheritance PASSED [ 47%]
+tests/system/test_exceptions.py::TestExceptionChaining::test_exception_with_cause PASSED [ 48%]
+tests/system/test_exceptions.py::TestExceptionChaining::test_exception_context PASSED [ 49%]
+tests/system/test_improved_user_experience.py::TestImprovedUserExperience::test_auto_infer_gold_source_silvers PASSED [ 50%]
+tests/system/test_improved_user_experience.py::TestImprovedUserExperience::test_auto_infer_gold_source_silvers_explicit PASSED [ 51%]
+tests/system/test_improved_user_experience.py::TestImprovedUserExperience::test_auto_infer_gold_no_silver_steps_error PASSED [ 52%]
+tests/system/test_improved_user_experience.py::TestImprovedUserExperience::test_preset_configurations_development PASSED [ 53%]
+tests/system/test_improved_user_experience.py::TestImprovedUserExperience::test_preset_configurations_production PASSED [ 54%]
+tests/system/test_improved_user_experience.py::TestImprovedUserExperience::test_preset_configurations_testing PASSED [ 54%]
+tests/system/test_improved_user_experience.py::TestImprovedUserExperience::test_validation_helper_not_null_rules PASSED [ 55%]
+tests/system/test_improved_user_experience.py::TestImprovedUserExperience::test_validation_helper_positive_number_rules PASSED [ 56%]
+tests/system/test_improved_user_experience.py::TestImprovedUserExperience::test_validation_helper_string_not_empty_rules PASSED [ 57%]
+tests/system/test_improved_user_experience.py::TestImprovedUserExperience::test_validation_helper_timestamp_rules PASSED [ 58%]
+tests/system/test_improved_user_experience.py::TestImprovedUserExperience::test_detect_timestamp_columns PASSED [ 59%]
+tests/system/test_improved_user_experience.py::TestImprovedUserExperience::test_detect_timestamp_columns_list PASSED [ 60%]
+tests/system/test_improved_user_experience.py::TestImprovedUserExperience::test_chaining_with_auto_inference PASSED [ 61%]
+tests/system/test_logger.py::TestPipelineLogger::test_basic_logging_methods PASSED [ 62%]
+tests/system/test_logger.py::TestPipelineLogger::test_log_level_management PASSED [ 63%]
+tests/system/test_logger.py::TestPipelineLogger::test_logger_creation PASSED [ 63%]
+tests/system/test_logger.py::TestPipelineLogger::test_logger_with_file PASSED [ 64%]
+tests/system/test_logger.py::TestGlobalLogger::test_get_global_logger PASSED [ 65%]
+tests/system/test_logger.py::TestGlobalLogger::test_reset_global_logger PASSED [ 66%]
+tests/system/test_logger.py::TestGlobalLogger::test_set_global_logger PASSED [ 67%]
+tests/system/test_multi_schema_support.py::TestMultiSchemaSupport::test_bronze_rules_with_schema PASSED [ 68%]
+tests/system/test_multi_schema_support.py::TestMultiSchemaSupport::test_bronze_rules_without_schema PASSED [ 69%]
+tests/system/test_multi_schema_support.py::TestMultiSchemaSupport::test_silver_rules_with_schema PASSED [ 70%]
+tests/system/test_multi_schema_support.py::TestMultiSchemaSupport::test_silver_transform_with_schema PASSED [ 71%]
+tests/system/test_multi_schema_support.py::TestMultiSchemaSupport::test_gold_transform_with_schema PASSED [ 72%]
+tests/system/test_multi_schema_support.py::TestMultiSchemaSupport::test_schema_validation_success PASSED [ 72%]
+tests/system/test_multi_schema_support.py::TestMultiSchemaSupport::test_schema_validation_failure PASSED [ 73%]
+tests/system/test_multi_schema_support.py::TestMultiSchemaSupport::test_get_effective_schema PASSED [ 74%]
+tests/system/test_multi_schema_support.py::TestMultiSchemaSupport::test_schema_creation PASSED [ 75%]
+tests/system/test_multi_schema_support.py::TestMultiSchemaSupport::test_schema_creation_failure PASSED [ 76%]
+tests/system/test_multi_schema_support.py::TestMultiSchemaSupport::test_cross_schema_pipeline PASSED [ 77%]
+tests/system/test_multi_schema_support.py::TestMultiSchemaSupport::test_mixed_schema_usage PASSED [ 78%]
+tests/system/test_multi_schema_support.py::TestMultiSchemaSupport::test_schema_validation_integration PASSED [ 79%]
+tests/system/test_multi_schema_support.py::TestMultiSchemaSupport::test_backward_compatibility PASSED [ 80%]
+tests/system/test_simple_real_spark.py::TestRealSparkOperations::test_real_spark_dataframe_operations PASSED [ 81%]
+tests/system/test_simple_real_spark.py::TestRealSparkOperations::test_real_spark_transformations PASSED [ 81%]
+tests/system/test_simple_real_spark.py::TestRealSparkOperations::test_real_spark_validation_rules PASSED [ 82%]
+tests/system/test_simple_real_spark.py::TestRealSparkOperations::test_real_spark_data_quality PASSED [ 83%]
+tests/system/test_simple_real_spark.py::TestRealSparkOperations::test_real_spark_metadata_operations PASSED [ 84%]
+tests/system/test_simple_real_spark.py::TestRealSparkOperations::test_real_spark_performance PASSED [ 85%]
+tests/system/test_simple_real_spark.py::TestRealSparkOperations::test_real_spark_error_handling PASSED [ 86%]
+tests/system/test_simple_real_spark.py::TestRealSparkOperations::test_real_spark_schema_operations PASSED [ 87%]
+tests/system/test_simple_real_spark.py::TestRealSparkOperations::test_real_spark_joins PASSED [ 88%]
+tests/system/test_utils.py::TestDataValidation::test_and_all_rules PASSED [ 89%]
+tests/system/test_utils.py::TestDataValidation::test_and_all_rules_empty PASSED [ 90%]
+tests/system/test_utils.py::TestDataValidation::test_apply_column_rules PASSED [ 90%]
+tests/system/test_utils.py::TestDataValidation::test_apply_column_rules_none_rules PASSED [ 91%]
+tests/system/test_utils.py::TestDataValidation::test_assess_data_quality PASSED [ 92%]
+tests/system/test_utils.py::TestDataValidation::test_get_dataframe_info PASSED [ 93%]
+tests/system/test_utils.py::TestDataValidation::test_validate_dataframe_schema PASSED [ 94%]
+tests/system/test_utils.py::TestDataTransformationUtilities::test_basic_dataframe_operations PASSED [ 95%]
+tests/system/test_utils.py::TestDataTransformationUtilities::test_dataframe_filtering PASSED [ 96%]
+tests/system/test_utils.py::TestFactoryFunctions::test_create_validation_dict PASSED [ 97%]
+tests/system/test_utils.py::TestFactoryFunctions::test_create_write_dict PASSED [ 98%]
+tests/system/test_utils.py::TestPerformanceWithRealData::test_large_dataset_validation PASSED [ 99%]
+tests/system/test_utils.py::TestPerformanceWithRealData::test_complex_transformations PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/system/test_delta_lake.py:12
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_delta_lake.py:12: PytestUnknownMarkWarning: Unknown pytest.mark.delta - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.delta
+
+tests/system/test_simple_real_spark.py:47
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_simple_real_spark.py:47: PytestUnknownMarkWarning: Unknown pytest.mark.spark - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.spark
+
+tests/system/test_simple_real_spark.py:66
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_simple_real_spark.py:66: PytestUnknownMarkWarning: Unknown pytest.mark.spark - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.spark
+
+tests/system/test_simple_real_spark.py:92
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_simple_real_spark.py:92: PytestUnknownMarkWarning: Unknown pytest.mark.spark - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.spark
+
+tests/system/test_simple_real_spark.py:109
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_simple_real_spark.py:109: PytestUnknownMarkWarning: Unknown pytest.mark.spark - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.spark
+
+tests/system/test_simple_real_spark.py:123
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_simple_real_spark.py:123: PytestUnknownMarkWarning: Unknown pytest.mark.spark - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.spark
+
+tests/system/test_simple_real_spark.py:139
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_simple_real_spark.py:139: PytestUnknownMarkWarning: Unknown pytest.mark.spark - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.spark
+
+tests/system/test_simple_real_spark.py:164
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_simple_real_spark.py:164: PytestUnknownMarkWarning: Unknown pytest.mark.spark - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.spark
+
+tests/system/test_simple_real_spark.py:183
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_simple_real_spark.py:183: PytestUnknownMarkWarning: Unknown pytest.mark.spark - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.spark
+
+tests/system/test_simple_real_spark.py:201
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_simple_real_spark.py:201: PytestUnknownMarkWarning: Unknown pytest.mark.spark - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.spark
+
+tests/system/test_utils.py:51
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_utils.py:51: PytestUnknownMarkWarning: Unknown pytest.mark.spark - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.spark
+
+tests/system/test_utils.py:66
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_utils.py:66: PytestUnknownMarkWarning: Unknown pytest.mark.spark - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.spark
+
+tests/system/test_utils.py:75
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_utils.py:75: PytestUnknownMarkWarning: Unknown pytest.mark.spark - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.spark
+
+tests/system/test_utils.py:96
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_utils.py:96: PytestUnknownMarkWarning: Unknown pytest.mark.spark - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.spark
+
+tests/system/test_utils.py:110
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_utils.py:110: PytestUnknownMarkWarning: Unknown pytest.mark.spark - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.spark
+
+tests/system/test_utils.py:123
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_utils.py:123: PytestUnknownMarkWarning: Unknown pytest.mark.spark - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.spark
+
+tests/system/test_utils.py:133
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_utils.py:133: PytestUnknownMarkWarning: Unknown pytest.mark.spark - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.spark
+
+tests/system/test_utils.py:170
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_utils.py:170: PytestUnknownMarkWarning: Unknown pytest.mark.spark - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.spark
+
+tests/system/test_utils.py:186
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_utils.py:186: PytestUnknownMarkWarning: Unknown pytest.mark.spark - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.spark
+
+tests/system/test_utils.py:205
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_utils.py:205: PytestUnknownMarkWarning: Unknown pytest.mark.spark - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.spark
+
+tests/system/test_utils.py:231
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_utils.py:231: PytestUnknownMarkWarning: Unknown pytest.mark.spark - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.spark
+
+tests/system/test_utils.py:259
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_utils.py:259: PytestUnknownMarkWarning: Unknown pytest.mark.spark - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.spark
+
+tests/system/test_utils.py:284
+  /Users/odosmatthews/Documents/coding/pipe/sparkforge/tests/system/test_utils.py:284: PytestUnknownMarkWarning: Unknown pytest.mark.spark - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.spark
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 111 passed, 23 warnings in 31.98s =======================
