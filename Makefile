@@ -65,20 +65,50 @@ security: ## Run security checks with bandit
 	@echo "✅ Security checks completed"
 
 # Testing
-test: ## Run tests
-	@echo "🧪 Running tests..."
-	python -m pytest tests/ -v
-	@echo "✅ Tests completed"
+test: ## Run all tests
+	@echo "🧪 Running all tests..."
+	python tests/run_all_tests.py
+	@echo "✅ All tests completed"
+
+test-unit: ## Run unit tests
+	@echo "🧪 Running unit tests..."
+	python tests/run_unit_tests.py
+	@echo "✅ Unit tests completed"
+
+test-integration: ## Run integration tests
+	@echo "🧪 Running integration tests..."
+	python tests/run_integration_tests.py
+	@echo "✅ Integration tests completed"
+
+test-system: ## Run system tests
+	@echo "🧪 Running system tests..."
+	python tests/run_system_tests.py
+	@echo "✅ System tests completed"
 
 test-cov: ## Run tests with coverage
 	@echo "🧪 Running tests with coverage..."
 	python -m pytest tests/ --cov=sparkforge --cov-report=html --cov-report=term-missing
 	@echo "✅ Tests with coverage completed"
 
+test-cov-unit: ## Run unit tests with coverage
+	@echo "🧪 Running unit tests with coverage..."
+	python -m pytest tests/unit/ --cov=sparkforge --cov-report=html --cov-report=term-missing
+	@echo "✅ Unit tests with coverage completed"
+
 test-fast: ## Run fast tests only
 	@echo "⚡ Running fast tests..."
 	python -m pytest tests/ -v -m "not slow"
 	@echo "✅ Fast tests completed"
+
+test-parallel: ## Run tests in parallel
+	@echo "⚡ Running tests in parallel..."
+	python tests/run_tests_parallel.py
+	@echo "✅ Parallel tests completed"
+
+test-optimized: ## Run optimized test suite
+	@echo "⚡ Running optimized test suite..."
+	python tests/run_tests_optimized.py
+	@echo "✅ Optimized tests completed"
 
 # Pre-commit
 install-hooks: ## Install pre-commit hooks
@@ -114,8 +144,30 @@ clean: ## Clean up build artifacts and cache files
 	rm -rf quality_report.json
 	@echo "✅ Cleanup completed"
 
+# Environment Setup
+setup-env: ## Set up development environment
+	@echo "🚀 Setting up SparkForge development environment..."
+	@./setup_env.sh
+
+test-env: ## Test environment setup
+	@echo "🧪 Testing environment..."
+	@export JAVA_HOME=/opt/homebrew/Cellar/openjdk@11/11.0.28 && \
+	 export PATH=$$JAVA_HOME/bin:$$PATH && \
+	 source venv38/bin/activate && \
+	 python tests/run_unit_tests.py
+
+clean-env: ## Clean environment
+	@echo "🧹 Cleaning environment..."
+	@rm -rf venv38/
+	@rm -rf __pycache__/
+	@rm -rf .pytest_cache/
+	@rm -rf htmlcov/
+	@rm -rf .coverage
+	@find . -name "*.pyc" -delete
+	@find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+
 # Development workflow
-dev-setup: install-dev install-hooks ## Set up development environment
+dev-setup: setup-env install-dev install-hooks ## Set up development environment
 	@echo "🚀 Development environment ready!"
 	@echo "Run 'make quality' to check code quality"
 	@echo "Run 'make test' to run tests"

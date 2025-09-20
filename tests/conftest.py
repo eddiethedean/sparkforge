@@ -20,9 +20,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Add the tests directory to the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# Import test helpers
+# Import test helpers from system directory
 try:
-    from test_helpers import (
+    from system.test_helpers import (
         TestAssertions,
         TestDataGenerator,
         TestPerformance,
