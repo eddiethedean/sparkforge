@@ -32,10 +32,7 @@ from sparkforge.models import (
     WriteMode,
 )
 from sparkforge.pipeline.models import PipelineMode, PipelineReport, PipelineStatus
-from sparkforge.types import (
-    StepStatus,
-    StepType,
-)
+from sparkforge.types import StepStatus, StepType
 
 
 class TestBaseModel:

@@ -5,7 +5,6 @@ This module provides fixtures and configuration for integration tests,
 which use real Spark sessions but mock external systems.
 """
 
-
 import pytest
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F

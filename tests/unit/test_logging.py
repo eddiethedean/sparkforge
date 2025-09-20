@@ -88,7 +88,9 @@ class TestPipelineLoggerComprehensive:
         logger = PipelineLogger()
 
         # Test with kwargs
-        result = logger._format_message("Test message", {"key1": "value1", "key2": "value2"})
+        result = logger._format_message(
+            "Test message", {"key1": "value1", "key2": "value2"}
+        )
         assert result == "Test message | key1=value1, key2=value2"
 
     def test_format_message_without_kwargs(self):
@@ -141,7 +143,9 @@ class TestPipelineLoggerComprehensive:
 
         with patch.object(logger.logger, "info") as mock_info:
             logger.step_start("silver", "enriched_events")
-            mock_info.assert_called_once_with("🚀 Starting SILVER step: enriched_events")
+            mock_info.assert_called_once_with(
+                "🚀 Starting SILVER step: enriched_events"
+            )
 
     def test_step_complete(self):
         """Test step completion logging."""

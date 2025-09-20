@@ -6,24 +6,20 @@ This module tests remaining edge cases and error paths to improve
 coverage for models.py from 74% to 90%+.
 """
 
-from typing import Any, Dict, List
-from unittest.mock import Mock
+from typing import Dict
 
 import pytest
 
 from sparkforge.errors import PipelineValidationError
 from sparkforge.models import (
-    BaseModel,
     BronzeStep,
-    GoldStep,
     ModelValue,
     ParallelConfig,
     PipelineConfig,
-    SilverDependencyInfo,
-    SilverStep,
-    ValidationThresholds,
-    Validatable,
     Serializable,
+    SilverStep,
+    Validatable,
+    ValidationThresholds,
 )
 
 
@@ -33,13 +29,13 @@ class TestModelsFinalCoverage:
     def test_validatable_protocol_definition(self) -> None:
         """Test Validatable protocol definition."""
         # Test that Validatable protocol is properly defined
-        assert hasattr(Validatable, 'validate')
-        
+        assert hasattr(Validatable, "validate")
+
         # Test implementing the protocol
         class MockValidatable:
             def validate(self) -> None:
                 pass
-        
+
         # Should be able to use as Validatable
         validator: Validatable = MockValidatable()
         validator.validate()
@@ -47,17 +43,17 @@ class TestModelsFinalCoverage:
     def test_serializable_protocol_definition(self) -> None:
         """Test Serializable protocol definition."""
         # Test that Serializable protocol is properly defined
-        assert hasattr(Serializable, 'to_dict')
-        assert hasattr(Serializable, 'to_json')
-        
+        assert hasattr(Serializable, "to_dict")
+        assert hasattr(Serializable, "to_json")
+
         # Test implementing the protocol
         class MockSerializable:
             def to_dict(self) -> Dict[str, ModelValue]:
                 return {"test": "value"}
-            
+
             def to_json(self) -> str:
                 return '{"test": "value"}'
-        
+
         # Should be able to use as Serializable
         serializer: Serializable = MockSerializable()
         assert serializer.to_dict() == {"test": "value"}
@@ -69,114 +65,128 @@ class TestModelsFinalCoverage:
         config = PipelineConfig(
             schema="",
             thresholds=ValidationThresholds(bronze=80.0, silver=85.0, gold=90.0),
-            parallel=ParallelConfig(enabled=True, max_workers=4)
+            parallel=ParallelConfig(enabled=True, max_workers=4),
         )
-        with pytest.raises(PipelineValidationError, match="Schema name must be a non-empty string"):
+        with pytest.raises(
+            PipelineValidationError, match="Schema name must be a non-empty string"
+        ):
             config.validate()
-        
+
         # Test with None schema
         config = PipelineConfig(
             schema=None,  # type: ignore
             thresholds=ValidationThresholds(bronze=80.0, silver=85.0, gold=90.0),
-            parallel=ParallelConfig(enabled=True, max_workers=4)
+            parallel=ParallelConfig(enabled=True, max_workers=4),
         )
-        with pytest.raises(PipelineValidationError, match="Schema name must be a non-empty string"):
+        with pytest.raises(
+            PipelineValidationError, match="Schema name must be a non-empty string"
+        ):
             config.validate()
-        
+
         # Test with non-string schema
         config = PipelineConfig(
             schema=123,  # type: ignore
             thresholds=ValidationThresholds(bronze=80.0, silver=85.0, gold=90.0),
-            parallel=ParallelConfig(enabled=True, max_workers=4)
+            parallel=ParallelConfig(enabled=True, max_workers=4),
         )
-        with pytest.raises(PipelineValidationError, match="Schema name must be a non-empty string"):
+        with pytest.raises(
+            PipelineValidationError, match="Schema name must be a non-empty string"
+        ):
             config.validate()
 
     def test_bronze_step_validation_edge_cases(self) -> None:
         """Test BronzeStep validation edge cases."""
         # Test with empty name
-        with pytest.raises(PipelineValidationError, match="Step name must be a non-empty string"):
+        with pytest.raises(
+            PipelineValidationError, match="Step name must be a non-empty string"
+        ):
             BronzeStep(
-                name="",
-                rules={"col1": ["col1 > 0"]},
-                incremental_col="updated_at"
+                name="", rules={"col1": ["col1 > 0"]}, incremental_col="updated_at"
             )
-        
+
         # Test with None name
-        with pytest.raises(PipelineValidationError, match="Step name must be a non-empty string"):
+        with pytest.raises(
+            PipelineValidationError, match="Step name must be a non-empty string"
+        ):
             BronzeStep(
                 name=None,  # type: ignore
                 rules={"col1": ["col1 > 0"]},
-                incremental_col="updated_at"
+                incremental_col="updated_at",
             )
-        
+
         # Test with non-string name
-        with pytest.raises(PipelineValidationError, match="Step name must be a non-empty string"):
+        with pytest.raises(
+            PipelineValidationError, match="Step name must be a non-empty string"
+        ):
             BronzeStep(
                 name=123,  # type: ignore
                 rules={"col1": ["col1 > 0"]},
-                incremental_col="updated_at"
+                incremental_col="updated_at",
             )
-        
+
         # Test with non-dict rules
-        with pytest.raises(PipelineValidationError, match="Rules must be a non-empty dictionary"):
+        with pytest.raises(
+            PipelineValidationError, match="Rules must be a non-empty dictionary"
+        ):
             BronzeStep(
                 name="test_step",
                 rules="invalid_rules",  # type: ignore
-                incremental_col="updated_at"
+                incremental_col="updated_at",
             )
-        
+
         # Test with non-string incremental_col
-        with pytest.raises(PipelineValidationError, match="Incremental column must be a string"):
+        with pytest.raises(
+            PipelineValidationError, match="Incremental column must be a string"
+        ):
             BronzeStep(
                 name="test_step",
                 rules={"col1": ["col1 > 0"]},
-                incremental_col=123  # type: ignore
+                incremental_col=123,  # type: ignore
             )
 
     def test_bronze_step_incremental_capability(self) -> None:
         """Test BronzeStep incremental capability property."""
         # Test with incremental column
         step = BronzeStep(
-            name="test_step",
-            rules={"col1": ["col1 > 0"]},
-            incremental_col="updated_at"
+            name="test_step", rules={"col1": ["col1 > 0"]}, incremental_col="updated_at"
         )
         assert step.has_incremental_capability is True
-        
+
         # Test without incremental column
         step = BronzeStep(
-            name="test_step",
-            rules={"col1": ["col1 > 0"]},
-            incremental_col=None
+            name="test_step", rules={"col1": ["col1 > 0"]}, incremental_col=None
         )
         assert step.has_incremental_capability is False
 
     def test_silver_step_validation_edge_cases(self) -> None:
         """Test SilverStep validation edge cases."""
+
         def mock_transform(spark, bronze_df, prior_silvers):
             return bronze_df
-        
+
         # Test with empty name
-        with pytest.raises(PipelineValidationError, match="Step name must be a non-empty string"):
+        with pytest.raises(
+            PipelineValidationError, match="Step name must be a non-empty string"
+        ):
             SilverStep(
                 name="",
                 source_bronze="bronze1",
                 transform=mock_transform,
                 rules={"col1": ["col1 > 0"]},
-                table_name="silver_table"
+                table_name="silver_table",
             )
-        
+
         # Test with non-string name
-        with pytest.raises(PipelineValidationError, match="Step name must be a non-empty string"):
+        with pytest.raises(
+            PipelineValidationError, match="Step name must be a non-empty string"
+        ):
             SilverStep(
                 name=123,  # type: ignore
                 source_bronze="bronze1",
                 transform=mock_transform,
                 rules={"col1": ["col1 > 0"]},
-                table_name="silver_table"
+                table_name="silver_table",
             )
-        
 
     def test_validation_thresholds_boundary_values(self) -> None:
         """Test ValidationThresholds with boundary values."""
@@ -191,7 +201,7 @@ class TestModelsFinalCoverage:
         # Test with minimum max_workers
         parallel = ParallelConfig(enabled=True, max_workers=1)
         assert parallel.max_workers == 1
-        
+
         # Test with large max_workers
         parallel = ParallelConfig(enabled=True, max_workers=1000)
         assert parallel.max_workers == 1000
@@ -203,21 +213,21 @@ class TestModelsFinalCoverage:
         assert thresholds.bronze == 99.0
         assert thresholds.silver == 99.5
         assert thresholds.gold == 99.9
-        
+
         # Test ValidationThresholds.create_permissive with actual values (if it exists)
-        if hasattr(ValidationThresholds, 'create_permissive'):
+        if hasattr(ValidationThresholds, "create_permissive"):
             thresholds = ValidationThresholds.create_permissive()
             assert thresholds.bronze == 70.0
             assert thresholds.silver == 75.0
             assert thresholds.gold == 80.0
-        
+
         # Test ParallelConfig factory methods if they exist
-        if hasattr(ParallelConfig, 'create_conservative'):
+        if hasattr(ParallelConfig, "create_conservative"):
             parallel = ParallelConfig.create_conservative()
             assert parallel.enabled is True
             assert parallel.max_workers == 2
-        
-        if hasattr(ParallelConfig, 'create_aggressive'):
+
+        if hasattr(ParallelConfig, "create_aggressive"):
             parallel = ParallelConfig.create_aggressive()
             assert parallel.enabled is True
             assert parallel.max_workers == 8
@@ -236,15 +246,15 @@ class TestModelsFinalCoverage:
         thresholds1 = ValidationThresholds(bronze=80.0, silver=85.0, gold=90.0)
         thresholds2 = ValidationThresholds(bronze=80.0, silver=85.0, gold=90.0)
         thresholds3 = ValidationThresholds(bronze=75.0, silver=85.0, gold=90.0)
-        
+
         assert thresholds1 == thresholds2
         assert thresholds1 != thresholds3
-        
+
         # Test ParallelConfig comparison
         parallel1 = ParallelConfig(enabled=True, max_workers=4)
         parallel2 = ParallelConfig(enabled=True, max_workers=4)
         parallel3 = ParallelConfig(enabled=False, max_workers=4)
-        
+
         assert parallel1 == parallel2
         assert parallel1 != parallel3
 
@@ -256,7 +266,7 @@ class TestModelsFinalCoverage:
         assert "bronze=80.0" in str_repr
         assert "silver=85.0" in str_repr
         assert "gold=90.0" in str_repr
-        
+
         # Test ParallelConfig string representation
         parallel = ParallelConfig(enabled=True, max_workers=4)
         str_repr = str(parallel)
@@ -270,12 +280,12 @@ class TestModelsFinalCoverage:
             BronzeStep(
                 name="",  # Invalid name
                 rules="invalid",  # Invalid rules
-                incremental_col=123  # Invalid incremental_col
+                incremental_col=123,  # Invalid incremental_col
             )
         except PipelineValidationError as e:
             # Should catch the first validation error
             assert "Step name must be a non-empty string" in str(e)
-        
+
         # Test ValidationThresholds with multiple invalid values
         try:
             ValidationThresholds(bronze=-10.0, silver=150.0, gold=-5.0)
@@ -290,11 +300,11 @@ class TestModelsFinalCoverage:
         assert thresholds.bronze == 0.0
         assert thresholds.silver == 50.0
         assert thresholds.gold == 100.0
-        
+
         # Test ParallelConfig boundary values
         parallel = ParallelConfig(enabled=True, max_workers=1)
         assert parallel.max_workers == 1
-        
+
         # Test with very large max_workers
         parallel = ParallelConfig(enabled=True, max_workers=1000)
         assert parallel.max_workers == 1000

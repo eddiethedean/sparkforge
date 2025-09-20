@@ -8,7 +8,7 @@ for better type safety without over-engineering.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Protocol, Union
 
 # Try to import PySpark types, fallback to object if not available
 try:
@@ -125,8 +125,6 @@ ErrorSuggestions = List[str]
 # ============================================================================
 # Protocols (Simplified)
 # ============================================================================
-
-from typing import Protocol
 
 
 class Validatable(Protocol):

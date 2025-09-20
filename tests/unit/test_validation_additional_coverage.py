@@ -6,13 +6,11 @@ This module focuses on covering missing lines and edge cases that are not
 currently covered by the existing test suite.
 """
 
-from typing import Any, Dict, List, Optional
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 import pytest
-from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.functions import Column, col, expr
-from pyspark.sql.types import StructField, StructType, StringType, IntegerType
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import Column, col
 
 from sparkforge.validation import (
     _convert_rule_to_expression,
@@ -57,16 +55,13 @@ class TestValidationEdgeCases:
         mock_df = Mock(spec=DataFrame)
         mock_df.count.return_value = 100
         mock_df.limit.return_value = mock_df
-        
+
         rules = {}  # Empty rules should return all rows as valid
-        
+
         result = apply_column_rules(
-            mock_df, 
-            rules, 
-            stage="test_stage",
-            step="test_step"
+            mock_df, rules, stage="test_stage", step="test_step"
         )
-        
+
         assert result is not None
         mock_df.limit.assert_called_once_with(0)
 
@@ -77,17 +72,17 @@ class TestValidationEdgeCases:
         mock_df.count.return_value = 100
         mock_df.filter.return_value = mock_df
         mock_df.limit.return_value = mock_df
-        
+
         rules = {"col1": ["not_null"]}
-        
+
         result = apply_column_rules(
-            mock_df, 
-            rules, 
+            mock_df,
+            rules,
             stage="test_stage",
             step="test_step",
-            filter_columns_by_rules=False
+            filter_columns_by_rules=False,
         )
-        
+
         assert result is not None
 
     def test_safe_divide_edge_cases(self) -> None:
@@ -95,7 +90,7 @@ class TestValidationEdgeCases:
         # Test with zero denominator
         result = safe_divide(10, 0)
         assert result == 0.0
-        
+
         # Test with zero denominator and custom default
         result = safe_divide(10, 0, default=1.0)
         assert result == 1.0
@@ -105,7 +100,7 @@ class TestValidationEdgeCases:
         # Create mock DataFrame
         mock_df = Mock(spec=DataFrame)
         mock_df.columns = ["col1", "col2"]
-        
+
         # Test with empty expected columns
         result = validate_dataframe_schema(mock_df, [])
         assert result is True
@@ -116,7 +111,7 @@ class TestValidationEdgeCases:
         mock_df = Mock(spec=DataFrame)
         mock_df.count.return_value = 0
         mock_df.columns = []
-        
+
         # Test with empty DataFrame
         result = get_dataframe_info(mock_df)
         assert result["row_count"] == 0
@@ -127,7 +122,7 @@ class TestValidationEdgeCases:
         # Create mock DataFrame that raises exception
         mock_df = Mock(spec=DataFrame)
         mock_df.count.side_effect = Exception("Test error")
-        
+
         # This should handle the exception gracefully
         result = get_dataframe_info(mock_df)
         assert "error" in result
@@ -137,7 +132,7 @@ class TestValidationEdgeCases:
         # Create mock DataFrame
         mock_df = Mock(spec=DataFrame)
         mock_df.count.return_value = 100
-        
+
         # Test with empty rules
         result = assess_data_quality(mock_df, {})
         assert result is not None
@@ -147,7 +142,7 @@ class TestValidationEdgeCases:
         # Create mock DataFrame
         mock_df = Mock(spec=DataFrame)
         mock_df.count.return_value = 100
-        
+
         # Test with empty rules
         result = apply_validation_rules(mock_df, {}, "test_stage", "test_step")
         assert result is not None
@@ -158,9 +153,9 @@ class TestValidationEdgeCases:
         rules = {
             "col1": ["not_null"],
             "col2": [col("col2") > 0],
-            "col3": [None, "invalid"]
+            "col3": [None, "invalid"],
         }
-        
+
         result = _convert_rules_to_expressions(rules)
         assert isinstance(result, dict)
 
@@ -180,10 +175,7 @@ class TestValidationEdgeCases:
     def test_and_all_rules_multiple_expressions(self) -> None:
         """Test and_all_rules with multiple expressions."""
         # Test with multiple expressions
-        rules = {
-            "col1": ["col1 > 0"],
-            "col2": ["col2 IS NOT NULL"]
-        }
+        rules = {"col1": ["col1 > 0"], "col2": ["col2 IS NOT NULL"]}
         result = and_all_rules(rules)
         assert isinstance(result, Column)
 
@@ -194,9 +186,9 @@ class TestValidationEdgeCases:
             "col1 > 0",
             "col1 IS NOT NULL",
             "col1 IN ('a', 'b', 'c')",
-            "LENGTH(col1) > 5"
+            "LENGTH(col1) > 5",
         ]
-        
+
         for rule in test_cases:
             result = _convert_rule_to_expression(rule, "col1")
             assert isinstance(result, Column)
@@ -206,6 +198,6 @@ class TestValidationEdgeCases:
         # Test with invalid DataFrame
         with pytest.raises((AttributeError, TypeError)):
             apply_column_rules(None, {"col1": ["not_null"]})  # type: ignore
-            
+
         with pytest.raises((AttributeError, TypeError)):
             apply_column_rules("invalid", {"col1": ["not_null"]})  # type: ignore

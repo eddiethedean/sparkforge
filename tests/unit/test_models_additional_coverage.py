@@ -6,8 +6,7 @@ This module focuses on covering missing lines and edge cases that are not
 currently covered by the existing test suite.
 """
 
-from typing import Any, Dict, List, Optional
-from unittest.mock import Mock
+from typing import Any, Dict
 
 import pytest
 
@@ -15,14 +14,12 @@ from sparkforge.models import (
     BaseModel,
     BronzeStep,
     GoldStep,
+    ParallelConfig,
     PipelineConfig,
-    PipelinePhase,
     PipelineValidationError,
     SilverDependencyInfo,
     SilverStep,
-    ValidationError,
     ValidationThresholds,
-    ParallelConfig,
 )
 
 
@@ -31,6 +28,7 @@ class TestProtocolImplementations:
 
     def test_validatable_protocol_implementation(self) -> None:
         """Test Validatable protocol implementation."""
+
         # Test that objects implementing Validatable can be validated
         class MockValidatable:
             def validate(self) -> None:
@@ -42,6 +40,7 @@ class TestProtocolImplementations:
 
     def test_serializable_protocol_implementation(self) -> None:
         """Test Serializable protocol implementation."""
+
         # Test that objects implementing Serializable can be serialized
         class MockSerializable:
             def to_dict(self) -> Dict[str, Any]:
@@ -63,7 +62,7 @@ class TestPipelineConfigProperties:
     def test_pipeline_config_properties(self) -> None:
         """Test PipelineConfig property access."""
         config = PipelineConfig.create_default("test_schema")
-        
+
         # Test property access
         assert isinstance(config.min_gold_rate, float)
         assert isinstance(config.enable_parallel_silver, bool)
@@ -78,7 +77,7 @@ class TestValidationThresholdsEdgeCases:
     def test_validation_thresholds_get_threshold_invalid_type(self) -> None:
         """Test get_threshold with invalid phase type."""
         thresholds = ValidationThresholds(bronze=80.0, silver=85.0, gold=90.0)
-        
+
         # This should handle invalid types gracefully
         with pytest.raises(KeyError):
             thresholds.get_threshold("invalid_phase")  # type: ignore
@@ -86,12 +85,8 @@ class TestValidationThresholdsEdgeCases:
     def test_validation_thresholds_edge_values(self) -> None:
         """Test ValidationThresholds with edge values."""
         # Test with minimum and maximum values
-        thresholds = ValidationThresholds(
-            bronze=0.0,
-            silver=50.0,
-            gold=100.0
-        )
-        
+        thresholds = ValidationThresholds(bronze=0.0, silver=50.0, gold=100.0)
+
         assert thresholds.bronze == 0.0
         assert thresholds.silver == 50.0
         assert thresholds.gold == 100.0
@@ -103,12 +98,8 @@ class TestParallelConfigEdgeCases:
     def test_parallel_config_edge_values(self) -> None:
         """Test ParallelConfig with edge values."""
         # Test with minimum values
-        config = ParallelConfig(
-            enabled=True,
-            max_workers=1,
-            timeout_secs=1
-        )
-        
+        config = ParallelConfig(enabled=True, max_workers=1, timeout_secs=1)
+
         assert config.enabled is True
         assert config.max_workers == 1
         assert config.timeout_secs == 1
@@ -116,12 +107,8 @@ class TestParallelConfigEdgeCases:
     def test_parallel_config_max_values(self) -> None:
         """Test ParallelConfig with maximum values."""
         # Test with maximum values
-        config = ParallelConfig(
-            enabled=True,
-            max_workers=32,
-            timeout_secs=3600
-        )
-        
+        config = ParallelConfig(enabled=True, max_workers=32, timeout_secs=3600)
+
         assert config.max_workers == 32
         assert config.timeout_secs == 3600
 
@@ -137,7 +124,7 @@ class TestBronzeStepEdgeCases:
             rules={"id": ["not_null"]},
             incremental_col="",  # Empty string should be valid
         )
-        
+
         assert step.incremental_col == ""
         assert step.has_incremental_capability is True
 
@@ -148,7 +135,7 @@ class TestBronzeStepEdgeCases:
             name="test_step",
             rules={"id": ["not_null"]},
         )
-        
+
         # This should not raise an error
         step.validate()
 
@@ -158,18 +145,19 @@ class TestSilverStepEdgeCases:
 
     def test_silver_step_validation_edge_cases(self) -> None:
         """Test SilverStep validation edge cases."""
+
         # Create a mock transform function
         def mock_transform(spark, df, bronze_dfs):
             return df
-        
+
         step = SilverStep(
             name="test_step",
             source_bronze="test_bronze",
             rules={"id": ["not_null"]},
             transform=mock_transform,
-            table_name="test_table"
+            table_name="test_table",
         )
-        
+
         # This should not raise an error
         step.validate()
 
@@ -179,18 +167,19 @@ class TestGoldStepEdgeCases:
 
     def test_gold_step_validation_edge_cases(self) -> None:
         """Test GoldStep validation edge cases."""
+
         # Create a mock transform function
         def mock_transform(spark, silver_dfs):
             return list(silver_dfs.values())[0] if silver_dfs else None
-        
+
         step = GoldStep(
             name="test_step",
             source_silvers=["test_silver1", "test_silver2"],
             rules={"id": ["not_null"]},
             transform=mock_transform,
-            table_name="test_table"
+            table_name="test_table",
         )
-        
+
         # This should not raise an error
         step.validate()
 
@@ -205,9 +194,9 @@ class TestSilverDependencyInfoEdgeCases:
             source_bronze="test_bronze",
             depends_on_silvers=set(),
             can_run_parallel=True,
-            execution_group=1
+            execution_group=1,
         )
-        
+
         # This should not raise an error
         info.validate()
 
@@ -217,24 +206,25 @@ class TestBaseModelEdgeCases:
 
     def test_base_model_serialization_edge_cases(self) -> None:
         """Test BaseModel serialization edge cases."""
+
         # Create a concrete implementation for testing
         class TestModel(BaseModel):
             def __init__(self, name: str, value: Any):
                 self.name = name
                 self.value = value
-            
+
             def validate(self) -> None:
                 pass
-        
+
         model = TestModel("test", {"nested": {"value": 123}})
-        
+
         # Test serialization
         result_dict = model.to_dict()
         assert isinstance(result_dict, dict)
-        
+
         result_json = model.to_json()
         assert isinstance(result_json, str)
-        
+
         # Test string representation
         str_repr = str(model)
         assert isinstance(str_repr, str)
@@ -283,7 +273,7 @@ class TestModelValidationErrorPaths:
                 source_bronze="",
                 rules={"id": ["not_null"]},
                 transform=lambda x: x,  # type: ignore
-                table_name="test_table"
+                table_name="test_table",
             ).validate()
 
         # Test with None transform
@@ -293,7 +283,7 @@ class TestModelValidationErrorPaths:
                 source_bronze="test_bronze",
                 rules={"id": ["not_null"]},
                 transform=None,  # type: ignore
-                table_name="test_table"
+                table_name="test_table",
             ).validate()
 
     def test_gold_step_validation_error_paths(self) -> None:
@@ -305,7 +295,7 @@ class TestModelValidationErrorPaths:
                 source_silvers=["test_silver"],
                 rules={"id": ["not_null"]},
                 transform=None,  # type: ignore
-                table_name="test_table"
+                table_name="test_table",
             ).validate()
 
         # Test with empty source_silvers
@@ -315,7 +305,7 @@ class TestModelValidationErrorPaths:
                 source_silvers=[],
                 rules={"id": ["not_null"]},
                 transform=lambda x: x,  # type: ignore
-                table_name="test_table"
+                table_name="test_table",
             ).validate()
 
         # Test with None source_silvers (this is actually valid, so we skip this test)
@@ -328,7 +318,7 @@ class TestModelValidationErrorPaths:
                 source_silvers="invalid",  # type: ignore
                 rules={"id": ["not_null"]},
                 transform=lambda x: x,  # type: ignore
-                table_name="test_table"
+                table_name="test_table",
             ).validate()
 
     def test_silver_dependency_info_validation_error_paths(self) -> None:
@@ -340,7 +330,7 @@ class TestModelValidationErrorPaths:
                 source_bronze="test_bronze",
                 depends_on_silvers=set(),
                 can_run_parallel=True,
-                execution_group=1
+                execution_group=1,
             ).validate()
 
         # Test with empty source_bronze
@@ -350,7 +340,7 @@ class TestModelValidationErrorPaths:
                 source_bronze="",
                 depends_on_silvers=set(),
                 can_run_parallel=True,
-                execution_group=1
+                execution_group=1,
             ).validate()
 
 
@@ -364,7 +354,7 @@ class TestPipelineConfigValidation:
             PipelineConfig(
                 schema=None,  # type: ignore
                 thresholds=ValidationThresholds(bronze=80.0, silver=85.0, gold=90.0),
-                parallel=ParallelConfig(enabled=True, max_workers=4)
+                parallel=ParallelConfig(enabled=True, max_workers=4),
             ).validate()
 
         # Test with empty schema
@@ -372,7 +362,7 @@ class TestPipelineConfigValidation:
             PipelineConfig(
                 schema="",
                 thresholds=ValidationThresholds(bronze=80.0, silver=85.0, gold=90.0),
-                parallel=ParallelConfig(enabled=True, max_workers=4)
+                parallel=ParallelConfig(enabled=True, max_workers=4),
             ).validate()
 
         # Test with invalid schema type
@@ -380,7 +370,7 @@ class TestPipelineConfigValidation:
             PipelineConfig(
                 schema=123,  # type: ignore
                 thresholds=ValidationThresholds(bronze=80.0, silver=85.0, gold=90.0),
-                parallel=ParallelConfig(enabled=True, max_workers=4)
+                parallel=ParallelConfig(enabled=True, max_workers=4),
             ).validate()
 
 

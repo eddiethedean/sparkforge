@@ -8,12 +8,8 @@ This module provides comprehensive security testing capabilities including:
 - Compliance testing
 """
 
+from .compliance_checker import ComplianceChecker
 from .security_tests import SecurityTestSuite
 from .vulnerability_scanner import VulnerabilityScanner
-from .compliance_checker import ComplianceChecker
 
-__all__ = [
-    'SecurityTestSuite',
-    'VulnerabilityScanner', 
-    'ComplianceChecker'
-]
+__all__ = ["SecurityTestSuite", "VulnerabilityScanner", "ComplianceChecker"]

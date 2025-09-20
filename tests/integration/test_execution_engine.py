@@ -22,12 +22,7 @@ from sparkforge.execution import (
     StepStatus,
     StepType,
 )
-from sparkforge.models import (
-    BronzeStep,
-    GoldStep,
-    PipelineConfig,
-    SilverStep,
-)
+from sparkforge.models import BronzeStep, GoldStep, PipelineConfig, SilverStep
 
 
 class TestExecutionMode:
@@ -453,21 +448,21 @@ class TestExecutionEngine:
     def test_execute_bronze_step_not_in_context(self, mock_spark, mock_config):
         """Test bronze step execution when step name is not in context."""
         engine = ExecutionEngine(mock_spark, mock_config)
-        
+
         # Create a bronze step
         bronze_step = BronzeStep(
-            name="test_bronze",
-            rules={"id": ["not_null"]},
-            schema="test_schema"
+            name="test_bronze", rules={"id": ["not_null"]}, schema="test_schema"
         )
-        
+
         # Mock the spark.read.format().load() to raise an exception
-        mock_spark.read.format.return_value.load.side_effect = Exception("File not found")
-        
+        mock_spark.read.format.return_value.load.side_effect = Exception(
+            "File not found"
+        )
+
         # Execute bronze step without the step name in context
         # This should trigger the fallback to createDataFrame
         result_df = engine._execute_bronze_step(bronze_step, {})
-        
+
         # Verify that createDataFrame was called as fallback
         mock_spark.createDataFrame.assert_called_once()
         assert result_df is not None
@@ -475,28 +470,27 @@ class TestExecutionEngine:
     def test_execute_bronze_step_fallback_logging(self, mock_spark, mock_config):
         """Test that fallback logging occurs when read fails."""
         engine = ExecutionEngine(mock_spark, mock_config)
-        
+
         # Create a bronze step
         bronze_step = BronzeStep(
-            name="test_bronze",
-            rules={"id": ["not_null"]},
-            schema="test_schema"
+            name="test_bronze", rules={"id": ["not_null"]}, schema="test_schema"
         )
-        
+
         # Mock the spark.read.format().load() to raise an exception
-        mock_spark.read.format.return_value.load.side_effect = Exception("File not found")
-        
+        mock_spark.read.format.return_value.load.side_effect = Exception(
+            "File not found"
+        )
+
         # Mock the logger to capture warning messages
-        with patch.object(engine.logger, 'warning') as mock_warning:
+        with patch.object(engine.logger, "warning") as mock_warning:
             # Execute bronze step without the step name in context
             result_df = engine._execute_bronze_step(bronze_step, {})
-            
+
             # Verify that warning was logged about the read failure
             mock_warning.assert_called_once()
             warning_call = mock_warning.call_args[0][0]
             assert "Failed to read data for bronze step 'test_bronze'" in warning_call
             assert "Creating empty DataFrame as fallback" in warning_call
-
 
     def test_execute_step_silver_without_dependencies(self, mock_spark, mock_config):
         """Test silver step creation without valid dependencies should fail."""

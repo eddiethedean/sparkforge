@@ -5,7 +5,6 @@ This module tests the actual pipeline execution flow with real data,
 including bronze, silver, and gold step execution in sequence.
 """
 
-
 from pyspark.sql import functions as F
 
 from sparkforge.execution import ExecutionEngine

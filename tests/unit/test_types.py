@@ -9,36 +9,22 @@ defined in the types module.
 from typing import Any, Dict, List, Union
 from unittest.mock import Mock
 
-import pytest
-
 from sparkforge.types import (
-    BronzeTransformFunction,
-    ColumnRules,
     Duration,
     ErrorCode,
     ErrorContext,
     ErrorSuggestions,
-    ExecutionConfig,
-    ExecutionContext,
     ExecutionId,
-    ExecutionResult,
-    FilterFunction,
     GenericDict,
-    GoldTransformFunction,
-    MonitoringConfig,
     NumericDict,
     OptionalDict,
     OptionalList,
     PipelineConfig,
     PipelineId,
     PipelineMode,
-    PipelineResult,
     QualityRate,
-    QualityThresholds,
     RowCount,
     SchemaName,
-    Serializable,
-    SilverTransformFunction,
     StepContext,
     StepName,
     StepResult,
@@ -46,10 +32,6 @@ from sparkforge.types import (
     StepType,
     StringDict,
     TableName,
-    TransformFunction,
-    ValidationConfig,
-    ValidationResult,
-    Validatable,
 )
 
 
@@ -92,7 +74,7 @@ class TestEnums:
         assert StepType.BRONZE.value == "bronze"
         assert StepType.SILVER.value == "silver"
         assert StepType.GOLD.value == "gold"
-        
+
         # Test enum iteration
         step_types = list(StepType)
         assert len(step_types) == 3
@@ -107,7 +89,7 @@ class TestEnums:
         assert StepStatus.COMPLETED.value == "completed"
         assert StepStatus.FAILED.value == "failed"
         assert StepStatus.SKIPPED.value == "skipped"
-        
+
         # Test enum iteration
         statuses = list(StepStatus)
         assert len(statuses) == 5
@@ -122,7 +104,7 @@ class TestEnums:
         assert PipelineMode.INITIAL.value == "initial"
         assert PipelineMode.INCREMENTAL.value == "incremental"
         assert PipelineMode.FULL_REFRESH.value == "full_refresh"
-        
+
         # Test enum iteration
         modes = list(PipelineMode)
         assert len(modes) == 3
@@ -136,36 +118,38 @@ class TestFunctionTypes:
 
     def test_transform_function_types(self) -> None:
         """Test transform function types."""
+
         # Test TransformFunction
         def test_transform(spark, df):
             return df
-        
+
         # This should not raise an error
         assert callable(test_transform)
-        
+
         # Test BronzeTransformFunction
         def test_bronze_transform(spark, df):
             return df
-        
+
         assert callable(test_bronze_transform)
-        
+
         # Test SilverTransformFunction
         def test_silver_transform(spark, df, bronze_dfs):
             return df
-        
+
         assert callable(test_silver_transform)
-        
+
         # Test GoldTransformFunction
         def test_gold_transform(spark, silver_dfs):
             return list(silver_dfs.values())[0] if silver_dfs else None
-        
+
         assert callable(test_gold_transform)
 
     def test_filter_function_type(self) -> None:
         """Test filter function type."""
+
         def test_filter(df):
             return df
-        
+
         assert callable(test_filter)
 
 
@@ -176,16 +160,16 @@ class TestDataTypeAliases:
         """Test ColumnRules type alias."""
         # Create mock column
         mock_column = Mock()
-        
+
         # Test with string rules
         rules_str = {"col1": ["not_null", "positive"]}
-        
+
         # Test with column rules
         rules_col = {"col1": [mock_column]}
-        
+
         # Test with mixed rules
         rules_mixed = {"col1": ["not_null", mock_column]}
-        
+
         # These should not raise errors
         assert isinstance(rules_str, dict)
         assert isinstance(rules_col, dict)
@@ -196,15 +180,15 @@ class TestDataTypeAliases:
         # Test StepResult
         step_result = {"status": "completed", "rows": 100}
         assert isinstance(step_result, dict)
-        
+
         # Test PipelineResult
         pipeline_result = {"steps": ["bronze", "silver"], "total_rows": 1000}
         assert isinstance(pipeline_result, dict)
-        
+
         # Test ExecutionResult
         execution_result = {"execution_id": "exec_123", "duration": 30.5}
         assert isinstance(execution_result, dict)
-        
+
         # Test ValidationResult
         validation_result = {"valid_rows": 950, "invalid_rows": 50}
         assert isinstance(validation_result, dict)
@@ -214,7 +198,7 @@ class TestDataTypeAliases:
         # Test StepContext
         step_context = {"step_name": "bronze_step", "config": {}}
         assert isinstance(step_context, dict)
-        
+
         # Test ExecutionContext
         execution_context = {"pipeline_id": "pipeline_123", "start_time": "2023-01-01"}
         assert isinstance(execution_context, dict)
@@ -224,15 +208,15 @@ class TestDataTypeAliases:
         # Test PipelineConfig
         pipeline_config = {"name": "test_pipeline", "steps": []}
         assert isinstance(pipeline_config, dict)
-        
+
         # Test ExecutionConfig
         execution_config = {"parallel": True, "timeout": 300}
         assert isinstance(execution_config, dict)
-        
+
         # Test ValidationConfig
         validation_config = {"thresholds": {"bronze": 80.0}}
         assert isinstance(validation_config, dict)
-        
+
         # Test MonitoringConfig
         monitoring_config = {"metrics": True, "logging": "debug"}
         assert isinstance(monitoring_config, dict)
@@ -248,7 +232,7 @@ class TestDataTypeAliases:
         # Test ErrorContext
         error_context = {"error_code": "VALIDATION_FAILED", "details": {}}
         assert isinstance(error_context, dict)
-        
+
         # Test ErrorSuggestions
         error_suggestions = ["Check data quality", "Verify schema"]
         assert isinstance(error_suggestions, list)
@@ -260,31 +244,33 @@ class TestProtocols:
 
     def test_validatable_protocol(self) -> None:
         """Test Validatable protocol."""
+
         class MockValidatable:
             def validate(self) -> None:
                 pass
-        
+
         obj = MockValidatable()
-        
+
         # Test that the object implements the protocol
         assert hasattr(obj, "validate")
         assert callable(obj.validate)
-        
+
         # Test protocol validation
         obj.validate()  # Should not raise an error
 
     def test_serializable_protocol(self) -> None:
         """Test Serializable protocol."""
+
         class MockSerializable:
             def to_dict(self) -> Dict[str, Any]:
                 return {"test": "value"}
-        
+
         obj = MockSerializable()
-        
+
         # Test that the object implements the protocol
         assert hasattr(obj, "to_dict")
         assert callable(obj.to_dict)
-        
+
         # Test protocol usage
         result = obj.to_dict()
         assert isinstance(result, dict)
@@ -298,10 +284,12 @@ class TestBackwardCompatibility:
         """Test backward compatibility aliases."""
         # Test PipelinePhase alias
         from sparkforge.types import PipelinePhase
+
         assert PipelinePhase == StepType
-        
+
         # Test WriteMode alias
         from sparkforge.types import WriteMode
+
         assert WriteMode == PipelineMode
 
 
@@ -317,15 +305,12 @@ class TestTypeUsage:
                 {
                     "name": "bronze_step",
                     "type": StepType.BRONZE.value,
-                    "status": StepStatus.PENDING.value
+                    "status": StepStatus.PENDING.value,
                 }
             ],
-            "execution": {
-                "mode": PipelineMode.INITIAL.value,
-                "parallel": True
-            }
+            "execution": {"mode": PipelineMode.INITIAL.value, "parallel": True},
         }
-        
+
         assert isinstance(config, dict)
         assert config["name"] == "test_pipeline"
 
@@ -338,9 +323,9 @@ class TestTypeUsage:
             "rows_processed": 1000,
             "quality_rate": 95.5,
             "duration": 30.2,
-            "errors": []
+            "errors": [],
         }
-        
+
         assert isinstance(result, dict)
         assert result["status"] == StepStatus.COMPLETED.value
         assert isinstance(result["rows_processed"], int)
@@ -353,12 +338,9 @@ class TestTypeUsage:
             "pipeline_id": "pipeline_123",
             "step_name": "silver_step",
             "execution_id": "exec_456",
-            "config": {
-                "validation_threshold": 85.0,
-                "error_handling": "strict"
-            }
+            "config": {"validation_threshold": 85.0, "error_handling": "strict"},
         }
-        
+
         assert isinstance(context, dict)
         assert isinstance(context["config"], dict)
         assert context["config"]["validation_threshold"] == 85.0
@@ -369,18 +351,15 @@ class TestTypeUsage:
         error_context: ErrorContext = {
             "error_code": "VALIDATION_FAILED",
             "step_name": "bronze_step",
-            "details": {
-                "failed_columns": ["user_id", "email"],
-                "quality_rate": 75.0
-            }
+            "details": {"failed_columns": ["user_id", "email"], "quality_rate": 75.0},
         }
-        
+
         suggestions: ErrorSuggestions = [
             "Check data quality for user_id column",
             "Verify email format validation",
-            "Consider adjusting validation thresholds"
+            "Consider adjusting validation thresholds",
         ]
-        
+
         assert isinstance(error_context, dict)
         assert isinstance(suggestions, list)
         assert all(isinstance(s, str) for s in suggestions)

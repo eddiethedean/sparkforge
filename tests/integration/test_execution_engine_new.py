@@ -5,7 +5,6 @@ This module tests the step-by-step execution functionality of the simplified
 SparkForge execution system.
 """
 
-
 import pytest
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F

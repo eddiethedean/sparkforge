@@ -169,9 +169,9 @@ class TestDependencyAnalyzer:
     def test_analyze_dependencies_warning_scenarios(self):
         """Test analyze_dependencies warning scenarios."""
         analyzer = DependencyAnalyzer()
-        
+
         # Test with logger to capture warnings
-        with patch.object(analyzer.logger, 'warning') as mock_warning:
+        with patch.object(analyzer.logger, "warning") as mock_warning:
             # Test missing bronze dependency warning
             silver_steps = {
                 "silver1": SilverStep(
@@ -183,7 +183,7 @@ class TestDependencyAnalyzer:
                 )
             }
             result = analyzer.analyze_dependencies(silver_steps=silver_steps)
-            
+
             # Check that warning was logged for missing bronze
             mock_warning.assert_any_call(
                 "Silver step silver1 references non-existent bronze step missing_bronze"
@@ -192,7 +192,7 @@ class TestDependencyAnalyzer:
     def test_analyze_dependencies_silver_depends_on_warning(self):
         """Test analyze_dependencies with silver step depends_on warning."""
         analyzer = DependencyAnalyzer()
-        
+
         # Create a silver step with depends_on that references non-existent step
         silver_step = SilverStep(
             name="silver1",
@@ -203,13 +203,12 @@ class TestDependencyAnalyzer:
         )
         # Manually add depends_on attribute
         silver_step.depends_on = ["missing_dep"]
-        
-        with patch.object(analyzer.logger, 'warning') as mock_warning:
+
+        with patch.object(analyzer.logger, "warning") as mock_warning:
             result = analyzer.analyze_dependencies(
-                bronze_steps={"bronze1": Mock()},
-                silver_steps={"silver1": silver_step}
+                bronze_steps={"bronze1": Mock()}, silver_steps={"silver1": silver_step}
             )
-            
+
             # Check that warning was logged for missing dependency
             mock_warning.assert_any_call(
                 "Silver step silver1 references non-existent dependency missing_dep"
@@ -374,53 +373,67 @@ class TestDependencyAnalyzer:
     def test_analyze_dependencies_cycle_warning(self):
         """Test analyze_dependencies with cycle detection warning."""
         analyzer = DependencyAnalyzer()
-        
+
         # Mock the entire analyze_dependencies method to test warning scenarios
-        with patch.object(analyzer, '_build_dependency_graph') as mock_build_graph:
+        with patch.object(analyzer, "_build_dependency_graph") as mock_build_graph:
             mock_graph = Mock()
             mock_graph.detect_cycles.return_value = [["step1", "step2"]]
             mock_graph.get_execution_groups.return_value = [["step1"], ["step2"]]
-            mock_graph.get_stats.return_value = {"total_steps": 2, "average_dependencies": 1}
+            mock_graph.get_stats.return_value = {
+                "total_steps": 2,
+                "average_dependencies": 1,
+            }
             mock_build_graph.return_value = mock_graph
-            
+
             # Mock _resolve_cycles to return the same graph
-            with patch.object(analyzer, '_resolve_cycles', return_value=mock_graph):
+            with patch.object(analyzer, "_resolve_cycles", return_value=mock_graph):
                 # Mock _detect_conflicts to return no conflicts
-                with patch.object(analyzer, '_detect_conflicts', return_value=[]):
+                with patch.object(analyzer, "_detect_conflicts", return_value=[]):
                     # Mock _generate_recommendations
-                    with patch.object(analyzer, '_generate_recommendations', return_value=[]):
-                        with patch.object(analyzer.logger, 'warning') as mock_warning:
+                    with patch.object(
+                        analyzer, "_generate_recommendations", return_value=[]
+                    ):
+                        with patch.object(analyzer.logger, "warning") as mock_warning:
                             result = analyzer.analyze_dependencies()
-                            
+
                             # Check that warning was logged for cycles
-                            mock_warning.assert_any_call("Detected 1 circular dependencies")
+                            mock_warning.assert_any_call(
+                                "Detected 1 circular dependencies"
+                            )
 
     def test_analyze_dependencies_conflict_warning(self):
         """Test analyze_dependencies with conflict detection warning."""
         analyzer = DependencyAnalyzer()
-        
+
         # Mock the entire analyze_dependencies method to test warning scenarios
-        with patch.object(analyzer, '_build_dependency_graph') as mock_build_graph:
+        with patch.object(analyzer, "_build_dependency_graph") as mock_build_graph:
             mock_graph = Mock()
             mock_graph.detect_cycles.return_value = []
             mock_graph.get_execution_groups.return_value = [["step1"], ["step2"]]
-            mock_graph.get_stats.return_value = {"total_steps": 2, "average_dependencies": 1}
+            mock_graph.get_stats.return_value = {
+                "total_steps": 2,
+                "average_dependencies": 1,
+            }
             mock_build_graph.return_value = mock_graph
-            
+
             # Mock _detect_conflicts to return conflicts
-            with patch.object(analyzer, '_detect_conflicts', return_value=["test conflict"]):
+            with patch.object(
+                analyzer, "_detect_conflicts", return_value=["test conflict"]
+            ):
                 # Mock _generate_recommendations
-                with patch.object(analyzer, '_generate_recommendations', return_value=[]):
-                    with patch.object(analyzer.logger, 'warning') as mock_warning:
+                with patch.object(
+                    analyzer, "_generate_recommendations", return_value=[]
+                ):
+                    with patch.object(analyzer.logger, "warning") as mock_warning:
                         result = analyzer.analyze_dependencies()
-                        
+
             # Check that warning was logged for conflicts
             mock_warning.assert_any_call("Detected 1 dependency conflicts")
 
     def test_analyze_dependencies_silver_valid_dependency(self):
         """Test analyze_dependencies with silver step having valid depends_on."""
         analyzer = DependencyAnalyzer()
-        
+
         # Create a silver step with valid depends_on
         silver_step = SilverStep(
             name="silver1",
@@ -431,17 +444,16 @@ class TestDependencyAnalyzer:
         )
         # Manually add depends_on attribute
         silver_step.depends_on = ["bronze2"]
-        
+
         bronze_steps = {
             "bronze1": Mock(),
             "bronze2": Mock(),
         }
-        
+
         result = analyzer.analyze_dependencies(
-            bronze_steps=bronze_steps,
-            silver_steps={"silver1": silver_step}
+            bronze_steps=bronze_steps, silver_steps={"silver1": silver_step}
         )
-        
+
         # Check that the dependency was added
         assert "silver1" in result.graph.nodes
         assert "bronze2" in result.graph.nodes["silver1"].dependencies
@@ -457,7 +469,7 @@ class TestDependencyAnalyzer:
 
         # Manually modify the step_names list to have duplicates
         # This simulates the scenario where the conflict detection logic would trigger
-        with patch.object(analyzer, '_detect_conflicts') as mock_detect_conflicts:
+        with patch.object(analyzer, "_detect_conflicts") as mock_detect_conflicts:
             # Create a mock that calls the real method but with modified step_names
             def mock_detect_conflicts_impl(graph):
                 conflicts = []
@@ -469,12 +481,14 @@ class TestDependencyAnalyzer:
                         conflicts.append(f"Conflicting step name: {node_name}")
                     seen_names.add(node_name)
                 return conflicts
-            
+
             mock_detect_conflicts.side_effect = mock_detect_conflicts_impl
-            
+
             conflicts = analyzer._detect_conflicts(graph)
             assert len(conflicts) > 0
-            assert any("Conflicting step name: step1" in conflict for conflict in conflicts)
+            assert any(
+                "Conflicting step name: step1" in conflict for conflict in conflicts
+            )
 
     def test_generate_recommendations_no_issues(self):
         """Test _generate_recommendations with no issues."""

@@ -225,9 +225,7 @@ class TestSimplePipelineRunner:
 
         bronze_sources = {"test_bronze": Mock(spec=DataFrame)}
 
-        runner.run_pipeline(
-            [sample_bronze_step], PipelineMode.INITIAL, bronze_sources
-        )
+        runner.run_pipeline([sample_bronze_step], PipelineMode.INITIAL, bronze_sources)
 
         # Verify execution engine was called
         mock_execution_engine.execute_pipeline.assert_called_once()

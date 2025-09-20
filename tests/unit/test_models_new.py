@@ -28,10 +28,7 @@ from sparkforge.models import (
     ValidationThresholds,
 )
 from sparkforge.pipeline.models import PipelineMode, PipelineReport, PipelineStatus
-from sparkforge.types import (
-    StepStatus,
-    StepType,
-)
+from sparkforge.types import StepStatus, StepType
 
 
 class TestBaseModel:
@@ -826,4 +823,3 @@ class TestStepResult:
 
 
 # Import dataclass for test models
-from dataclasses import dataclass

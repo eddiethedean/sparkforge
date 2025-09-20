@@ -173,12 +173,12 @@ class BaseModel(ABC):
     def to_dict(self) -> dict[str, ModelValue]:
         """Convert model to dictionary."""
         result: dict[str, ModelValue] = {}
-        for field in self.__dataclass_fields__.values():
-            value = getattr(self, field.name)
+        for field_info in self.__dataclass_fields__.values():
+            value = getattr(self, field_info.name)
             if hasattr(value, "to_dict"):
-                result[field.name] = value.to_dict()
+                result[field_info.name] = value.to_dict()
             else:
-                result[field.name] = value
+                result[field_info.name] = value
         return result
 
     def to_json(self) -> str:

@@ -93,7 +93,7 @@ class TestErrorTypeSafety:
         assert error.category == ErrorCategory.CONFIGURATION
         assert error.severity == ErrorSeverity.HIGH
         assert error.context == {"key": "value"}
-        
+
         # Test __str__ method includes error_code
         error_str = str(error)
         assert "Test error" in error_str
@@ -385,9 +385,9 @@ class TestErrorBackwardCompatibility:
             message="Resource not found",
             error_code="RESOURCE_001",
             context={"resource": "database"},
-            suggestions=["Check connection", "Verify permissions"]
+            suggestions=["Check connection", "Verify permissions"],
         )
-        
+
         assert error.message == "Resource not found"
         assert error.error_code == "RESOURCE_001"
         assert error.category == ErrorCategory.RESOURCE

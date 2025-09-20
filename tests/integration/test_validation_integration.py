@@ -146,9 +146,13 @@ class TestAndAllRules:
     def test_no_valid_expressions_returns_true(self):
         """Test that when no valid expressions are generated, returns True."""
         # This tests the case where _convert_rules_to_expressions returns empty dict
-        with patch('sparkforge.validation._convert_rules_to_expressions') as mock_convert:
+        with patch(
+            "sparkforge.validation._convert_rules_to_expressions"
+        ) as mock_convert:
             mock_convert.return_value = {}  # No expressions generated
-            rules = {"test": ["invalid_rule"]}  # Invalid rule that generates no expressions
+            rules = {
+                "test": ["invalid_rule"]
+            }  # Invalid rule that generates no expressions
             result = and_all_rules(rules)
             assert result is True
 

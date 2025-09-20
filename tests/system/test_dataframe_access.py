@@ -5,7 +5,6 @@ This module tests that the simplified execution system properly handles
 DataFrame operations and transformations.
 """
 
-
 import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
