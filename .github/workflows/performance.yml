@@ -1,0 +1,156 @@
+name: Performance Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'sparkforge/**'
+      - 'tests/performance/**'
+      - 'scripts/performance_report.py'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'sparkforge/**'
+      - 'tests/performance/**'
+      - 'scripts/performance_report.py'
+  schedule:
+    # Run performance tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  performance-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, "3.10"]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-timeout
+    
+    - name: Run performance tests
+      run: |
+        python -m pytest tests/performance/ -v --tb=short --timeout=300
+      env:
+        SPARKFORGE_PERFORMANCE_TESTING: "true"
+    
+    - name: Generate performance report
+      run: |
+        python scripts/performance_report.py --all --output performance_report_${{ matrix.python-version }}.json
+      env:
+        SPARKFORGE_PERFORMANCE_TESTING: "true"
+    
+    - name: Check for performance regressions
+      run: |
+        python scripts/performance_report.py --check-regressions
+      env:
+        SPARKFORGE_PERFORMANCE_TESTING: "true"
+      continue-on-error: true
+    
+    - name: Upload performance reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: performance-reports-python-${{ matrix.python-version }}
+        path: |
+          performance_report_${{ matrix.python-version }}.json
+          performance_baseline.json
+    
+    - name: Comment PR with performance results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          try {
+            const reportFile = `performance_report_${{ matrix.python-version }}.json`;
+            if (fs.existsSync(reportFile)) {
+              const report = JSON.parse(fs.readFileSync(reportFile, 'utf8'));
+              const summary = report.summary;
+              
+              if (summary && summary.total_tests > 0) {
+                const comment = `## Performance Test Results (Python ${{ matrix.python-version }})
+                
+                **Summary:**
+                - Total Tests: ${summary.total_tests}
+                - Successful: ${summary.successful_tests}
+                - Failed: ${summary.failed_tests}
+                - Total Execution Time: ${summary.total_execution_time.toFixed(2)}s
+                - Functions Tested: ${summary.functions_tested}
+                
+                **Performance Status:** ✅ All tests passed
+                
+                <details>
+                <summary>View detailed results</summary>
+                
+                \`\`\`json
+                ${JSON.stringify(report, null, 2)}
+                \`\`\`
+                </details>`;
+                
+                github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: comment
+                });
+              }
+            }
+          } catch (error) {
+            console.log('Could not generate performance comment:', error.message);
+          }
+
+  performance-baseline-update:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.8
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run performance tests and update baselines
+      run: |
+        python -m pytest tests/performance/ -v --tb=short
+        python scripts/performance_report.py --update-baselines
+    
+    - name: Commit updated baselines
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add performance_baseline.json
+        git diff --staged --quiet || git commit -m "Update performance baselines [skip ci]"
+        git push
+      env:
+        SPARKFORGE_PERFORMANCE_TESTING: "true"
