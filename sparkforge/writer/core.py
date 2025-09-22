@@ -18,10 +18,7 @@ from ..logging import PipelineLogger
 from ..models import ExecutionContext, ExecutionResult, StepResult
 from ..performance import performance_monitor, time_write_operation
 from ..table_operations import table_exists
-from ..validation import (
-    apply_column_rules,
-    get_dataframe_info,
-)
+from ..validation import apply_column_rules, get_dataframe_info
 from .exceptions import (
     WriterConfigurationError,
     WriterDataQualityError,
@@ -1416,8 +1413,8 @@ class LogWriter:
 
                 # Success rate trends
                 total_rows = logs_df.count()
-                success_rows = logs_df.filter(logs_df.success == True).count()  # type: ignore[arg-type]
-                failure_rows = logs_df.filter(logs_df.success == False).count()  # type: ignore[arg-type]
+                success_rows = logs_df.filter(logs_df.success is True).count()  # type: ignore[arg-type]
+                failure_rows = logs_df.filter(logs_df.success is False).count()  # type: ignore[arg-type]
 
                 trends["success_trend"] = {
                     "total_executions": total_rows,

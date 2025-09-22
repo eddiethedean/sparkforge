@@ -710,7 +710,7 @@ class ExecutionContext(BaseModel):
     end_time: datetime | None = None
     duration_secs: float | None = None
     run_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    
+
     # Additional fields for writer compatibility
     execution_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     pipeline_id: str = "unknown"
@@ -719,7 +719,7 @@ class ExecutionContext(BaseModel):
     ended_at: datetime | None = None
     run_mode: str = "initial"
     config: dict[str, Any] = field(default_factory=dict)
-    
+
     def __post_init__(self) -> None:
         """Initialize aliases and defaults."""
         if self.started_at is None:
@@ -728,9 +728,9 @@ class ExecutionContext(BaseModel):
             self.ended_at = self.end_time
         if self.run_mode == "initial":
             # Map mode to run_mode string
-            if hasattr(self.mode, 'value'):
+            if hasattr(self.mode, "value"):
                 self.run_mode = self.mode.value
-            elif hasattr(self.mode, 'name'):
+            elif hasattr(self.mode, "name"):
                 self.run_mode = self.mode.name.lower()
 
     def validate(self) -> None:

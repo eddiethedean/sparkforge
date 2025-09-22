@@ -8,11 +8,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from sparkforge.logging import PipelineLogger
-from sparkforge.models import (
-    ExecutionContext,
-    ExecutionResult,
-    StepResult,
-)
+from sparkforge.models import ExecutionContext, ExecutionResult, StepResult
 from sparkforge.writer.core import LogWriter
 from sparkforge.writer.exceptions import (
     WriterConfigurationError,
