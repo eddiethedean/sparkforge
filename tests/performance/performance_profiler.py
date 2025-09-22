@@ -191,7 +191,7 @@ class PerformanceProfiler:
         try:
             result = pipeline_func(*args, **kwargs)
         finally:
-            profile_result = self.end_profile("pipeline_execution")
+            self.end_profile("pipeline_execution")
 
         # Generate comprehensive report
         report = self.generate_report()
@@ -207,7 +207,7 @@ class PerformanceProfiler:
         try:
             result = spark_func(*args, **kwargs)
         finally:
-            profile_result = self.end_profile("spark_operations")
+            self.end_profile("spark_operations")
 
         # Generate Spark-specific report
         report = self.generate_spark_report()

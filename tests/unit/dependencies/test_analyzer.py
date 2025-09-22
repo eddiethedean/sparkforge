@@ -182,7 +182,7 @@ class TestDependencyAnalyzer:
                     table_name="silver1_table",
                 )
             }
-            result = analyzer.analyze_dependencies(silver_steps=silver_steps)
+            analyzer.analyze_dependencies(silver_steps=silver_steps)
 
             # Check that warning was logged for missing bronze
             mock_warning.assert_any_call(
@@ -205,7 +205,7 @@ class TestDependencyAnalyzer:
         silver_step.depends_on = ["missing_dep"]
 
         with patch.object(analyzer.logger, "warning") as mock_warning:
-            result = analyzer.analyze_dependencies(
+            analyzer.analyze_dependencies(
                 bronze_steps={"bronze1": Mock()}, silver_steps={"silver1": silver_step}
             )
 
@@ -394,7 +394,7 @@ class TestDependencyAnalyzer:
                         analyzer, "_generate_recommendations", return_value=[]
                     ):
                         with patch.object(analyzer.logger, "warning") as mock_warning:
-                            result = analyzer.analyze_dependencies()
+                            analyzer.analyze_dependencies()
 
                             # Check that warning was logged for cycles
                             mock_warning.assert_any_call(
@@ -425,7 +425,7 @@ class TestDependencyAnalyzer:
                     analyzer, "_generate_recommendations", return_value=[]
                 ):
                     with patch.object(analyzer.logger, "warning") as mock_warning:
-                        result = analyzer.analyze_dependencies()
+                        analyzer.analyze_dependencies()
 
             # Check that warning was logged for conflicts
             mock_warning.assert_any_call("Detected 1 dependency conflicts")

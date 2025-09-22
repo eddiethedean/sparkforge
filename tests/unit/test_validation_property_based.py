@@ -12,10 +12,7 @@ from unittest.mock import Mock
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from sparkforge.validation import (
-    safe_divide,
-    validate_dataframe_schema,
-)
+from sparkforge.validation import safe_divide, validate_dataframe_schema
 
 
 class TestValidationPropertyBased:

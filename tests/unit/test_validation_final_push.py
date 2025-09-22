@@ -152,7 +152,6 @@ class TestValidationFinalPush:
             "sparkforge.validation.apply_column_rules",
             return_value=(mock_valid_df, mock_invalid_df, mock_stats),
         ):
-
             # Test with empty rules
             valid_df, invalid_df, stats = apply_validation_rules(
                 mock_df, {}, "gold", "test_step"
@@ -183,7 +182,6 @@ class TestValidationFinalPush:
             "sparkforge.validation.apply_column_rules",
             return_value=(mock_valid_df, mock_invalid_df, mock_stats),
         ):
-
             rules = {"col1": ["col1 > 0"]}
             valid_df, invalid_df, stats = apply_validation_rules(
                 mock_df, rules, "bronze", "fast_test"
@@ -209,7 +207,6 @@ class TestValidationFinalPush:
             "sparkforge.validation.apply_column_rules",
             return_value=(mock_valid_df, mock_invalid_df, mock_stats),
         ):
-
             rules = {
                 "id": ["id IS NOT NULL", "id > 0"],
                 "name": ["name IS NOT NULL", "LENGTH(name) > 0"],
@@ -261,7 +258,6 @@ class TestValidationFinalPush:
             "sparkforge.validation.apply_column_rules",
             return_value=(mock_valid_df, mock_invalid_df, mock_stats),
         ):
-
             rules = {"col1": ["col1 > 1000"]}  # Very strict rule
             valid_df, invalid_df, stats = apply_validation_rules(
                 mock_df, rules, "bronze", "boundary_test"

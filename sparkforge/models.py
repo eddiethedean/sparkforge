@@ -24,7 +24,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Callable, Dict, List, Protocol, TypeVar, Union
+from typing import Any, Callable, Dict, List, Optional, Protocol, TypeVar, Union
 
 from pyspark.sql import Column, DataFrame, SparkSession
 
@@ -1096,6 +1096,49 @@ class ExecutionResult(BaseModel):
         return cls(
             context=context, step_results=step_results, metrics=metrics, success=success
         )
+
+
+# ============================================================================
+# Execution Context
+# ============================================================================
+
+
+@dataclass
+class ExecutionContext(BaseModel):
+    """
+    Execution context for pipeline runs.
+    
+    Provides context information about a pipeline execution including
+    timing, identifiers, and configuration.
+    
+    Attributes:
+        execution_id: Unique identifier for this execution
+        pipeline_id: Identifier for the pipeline being executed
+        schema: Target schema for data storage
+        started_at: When execution started
+        ended_at: When execution ended (None if still running)
+        run_mode: Mode of execution (initial, incremental, etc.)
+        config: Pipeline configuration as dictionary
+    """
+    
+    execution_id: str
+    pipeline_id: str
+    schema: str
+    started_at: datetime
+    ended_at: Optional[datetime] = None
+    run_mode: str = "initial"
+    config: Dict[str, Any] = field(default_factory=dict)
+    
+    def validate(self) -> None:
+        """Validate execution context."""
+        if not self.execution_id:
+            raise PipelineValidationError("Execution ID cannot be empty")
+        if not self.pipeline_id:
+            raise PipelineValidationError("Pipeline ID cannot be empty")
+        if not self.schema:
+            raise PipelineValidationError("Schema cannot be empty")
+        if self.ended_at and self.ended_at < self.started_at:
+            raise PipelineValidationError("End time cannot be before start time")
 
 
 # ============================================================================

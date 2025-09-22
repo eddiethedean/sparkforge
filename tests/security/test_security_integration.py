@@ -26,9 +26,7 @@ from tests.security.security_monitoring import (
 
 # Import security components
 from tests.security.security_tests import SecurityTestSuite
-from tests.security.vulnerability_scanner import (
-    VulnerabilityScanner,
-)
+from tests.security.vulnerability_scanner import VulnerabilityScanner
 
 
 class TestSecurityIntegration:
@@ -80,7 +78,7 @@ class TestSecurityIntegration:
         assert "compliance_check" in results
 
         # Verify scan results structure
-        for component, result in results.items():
+        for _component, result in results.items():
             assert isinstance(result, dict)
             assert "success" in result or "compliant" in result
 
@@ -392,7 +390,7 @@ security_scanning:
   bandit:
     enabled: true
     severity_threshold: "medium"
-  
+
 security_monitoring:
   enabled: true
   monitoring_interval: 60

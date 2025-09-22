@@ -148,7 +148,7 @@ class PerformanceBenchmark:
                 start_memory = self._get_memory_usage()
                 start_cpu = self._get_cpu_usage()
 
-                result = func(*args, **kwargs)
+                func(*args, **kwargs)
 
                 end_time = time.perf_counter()
                 end_memory = self._get_memory_usage()
@@ -430,7 +430,7 @@ class PerformanceBenchmark:
         ) as executor:
             # Submit all requests
             futures = []
-            for i in range(total_requests):
+            for _i in range(total_requests):
                 future = executor.submit(self._execute_request, func, *args, **kwargs)
                 futures.append(future)
 
@@ -666,7 +666,7 @@ if __name__ == "__main__":
         print("\nBenchmark Summary:")
         print(f"Total benchmarks: {len(benchmarker.benchmark_results)}")
         print(
-            f"Functions benchmarked: {len(set(r.function_name for r in benchmarker.benchmark_results))}"
+            f"Functions benchmarked: {len({r.function_name for r in benchmarker.benchmark_results})}"
         )
 
         # Show regressions

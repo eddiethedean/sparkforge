@@ -8,9 +8,7 @@ coverage for validation.py from 59% to 80%+.
 
 from unittest.mock import Mock, patch
 
-from sparkforge.models import (
-    PipelineConfig,
-)
+from sparkforge.models import PipelineConfig
 from sparkforge.validation import (
     UnifiedValidator,
     apply_column_rules,
@@ -160,7 +158,6 @@ class TestValidationComprehensiveCoverage:
         ), patch.object(
             validator, "_validate_dependencies", return_value=([], [])
         ):
-
             config = PipelineConfig.create_default("test_schema")
             result = validator.validate_pipeline(config, {}, {}, {})
 
@@ -187,7 +184,6 @@ class TestValidationComprehensiveCoverage:
         ), patch.object(
             validator, "_validate_dependencies", return_value=([], [])
         ):
-
             config = PipelineConfig.create_default("test_schema")
             result = validator.validate_pipeline(config, {}, {}, {})
 
@@ -217,7 +213,6 @@ class TestValidationComprehensiveCoverage:
             "sparkforge.validation.apply_column_rules",
             return_value=(mock_valid_df, mock_invalid_df, mock_stats),
         ):
-
             rules = {"col1": ["col1 > 0"]}
             valid_df, invalid_df, stats = apply_validation_rules(
                 mock_df, rules, "silver", "test_step"
@@ -301,7 +296,6 @@ class TestValidationComprehensiveCoverage:
             "sparkforge.validation.apply_column_rules",
             return_value=(mock_valid_df, mock_invalid_df, mock_stats),
         ):
-
             rules = {
                 "user_id": ["user_id IS NOT NULL", "user_id > 0"],
                 "email": ["email IS NOT NULL", "email LIKE '%@%'"],
@@ -352,7 +346,6 @@ class TestValidationComprehensiveCoverage:
             "sparkforge.validation.apply_column_rules",
             return_value=(mock_valid_df, mock_invalid_df, mock_stats),
         ):
-
             rules = {"col1": ["col1 > 0"]}
             valid_df, invalid_df, stats = apply_validation_rules(
                 mock_df, rules, "silver", "performance_test"

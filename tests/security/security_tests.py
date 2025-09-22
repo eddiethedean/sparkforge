@@ -151,7 +151,7 @@ class SecurityTestSuite:
 
             for malicious_input in malicious_inputs:
                 # These should not cause SQL injection
-                result = validate_dataframe_schema(None, [malicious_input])
+                validate_dataframe_schema(None, [malicious_input])
                 # Should handle gracefully without executing SQL
 
             return {"success": True, "message": "SQL injection prevention tests passed"}
@@ -176,7 +176,7 @@ class SecurityTestSuite:
             ]
 
             # These operations should not allow path traversal
-            for malicious_path in malicious_paths:
+            for _malicious_path in malicious_paths:
                 # Should not be able to access files outside allowed directories
                 try:
                     # This should not actually access the file system in a dangerous way
@@ -208,7 +208,7 @@ class SecurityTestSuite:
                 "|| echo 'hacked'",
             ]
 
-            for command in malicious_commands:
+            for _command in malicious_commands:
                 # These should not be executed as shell commands
                 # SparkForge should not execute arbitrary shell commands
                 pass
@@ -271,7 +271,7 @@ class SecurityTestSuite:
         """Test configuration security."""
         try:
             # Test that default configurations are secure
-            config = PipelineConfig(
+            PipelineConfig(
                 schema="test_schema",
                 quality_thresholds=ValidationThresholds(80.0, 85.0, 90.0),
                 parallel=ParallelConfig(enabled=True, max_workers=4),
@@ -280,7 +280,7 @@ class SecurityTestSuite:
             # Test that configuration validation prevents insecure settings
             try:
                 # This should fail validation
-                insecure_config = PipelineConfig(
+                PipelineConfig(
                     schema="",  # Empty schema should not be allowed
                     quality_thresholds=ValidationThresholds(
                         -1.0, 150.0, 200.0

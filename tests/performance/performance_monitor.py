@@ -116,7 +116,7 @@ class PerformanceMonitor:
             # Measure final metrics
             end_time = time.time()
             current, peak = tracemalloc.get_traced_memory()
-            final_memory = process.memory_info().rss / 1024 / 1024  # MB
+            process.memory_info().rss / 1024 / 1024  # MB
 
             result.execution_time = end_time - start_time
             result.memory_usage_mb = (current / 1024 / 1024) - initial_memory
@@ -221,7 +221,7 @@ class PerformanceMonitor:
             "total_tests": len(self.results),
             "successful_tests": len(successful_results),
             "failed_tests": len(self.results) - len(successful_results),
-            "functions_tested": len(set(r.function_name for r in self.results)),
+            "functions_tested": len({r.function_name for r in self.results}),
             "total_execution_time": sum(r.execution_time for r in successful_results),
             "avg_execution_time": (
                 sum(r.execution_time for r in successful_results)

@@ -698,7 +698,7 @@ class SecurityMonitor:
         """Get data for security dashboard."""
         try:
             recent_events = self._get_recent_events(minutes=60)  # Last hour
-            recent_alerts = [
+            [
                 a
                 for a in self.alerts
                 if a.timestamp > datetime.now() - timedelta(hours=24)

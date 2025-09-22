@@ -484,7 +484,7 @@ class TestExecutionEngine:
         # Mock the logger to capture warning messages
         with patch.object(engine.logger, "warning") as mock_warning:
             # Execute bronze step without the step name in context
-            result_df = engine._execute_bronze_step(bronze_step, {})
+            engine._execute_bronze_step(bronze_step, {})
 
             # Verify that warning was logged about the read failure
             mock_warning.assert_called_once()

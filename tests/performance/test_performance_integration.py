@@ -28,18 +28,11 @@ from tests.performance.memory_optimization import (
     memory_monitor,
     optimize_spark_memory,
 )
-from tests.performance.performance_benchmarking import (
-    PerformanceBenchmark,
-)
-from tests.performance.performance_monitoring import (
-    PerformanceMonitor,
-)
+from tests.performance.performance_benchmarking import PerformanceBenchmark
+from tests.performance.performance_monitoring import PerformanceMonitor
 
 # Import performance components
-from tests.performance.performance_profiler import (
-    PerformanceProfiler,
-    profile_function,
-)
+from tests.performance.performance_profiler import PerformanceProfiler, profile_function
 
 
 class TestPerformanceIntegration:
@@ -151,7 +144,7 @@ class TestPerformanceIntegration:
         assert initial_snapshot.current_memory_mb >= 0
 
         # Create some objects to test memory tracking
-        test_objects = [f"test_object_{i}" for i in range(1000)]
+        [f"test_object_{i}" for i in range(1000)]
 
         # Take another snapshot
         final_snapshot = memory_profiler.take_snapshot()
@@ -272,7 +265,7 @@ class TestPerformanceIntegration:
         performance_monitor.start_monitoring()
 
         # Step 2: Take memory snapshot
-        memory_snapshot = memory_profiler.take_snapshot()
+        memory_profiler.take_snapshot()
 
         # Step 3: Profile a function
         @performance_profiler.profile_function
@@ -351,7 +344,7 @@ class TestPerformanceIntegration:
         )
 
         # Benchmark function
-        benchmark_stats = performance_benchmark.benchmark_function(
+        performance_benchmark.benchmark_function(
             report_function, 5, iterations=10
         )
 
@@ -361,7 +354,7 @@ class TestPerformanceIntegration:
         time.sleep(1)
 
         # Take memory snapshot
-        memory_snapshot = memory_profiler.take_snapshot()
+        memory_profiler.take_snapshot()
 
         # Generate reports
         profiler_report_file = performance_profiler.export_report(
