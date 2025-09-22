@@ -24,7 +24,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Callable, Dict, List, Protocol, TypeVar, Union
+from typing import Any, Callable, Dict, List, Protocol, TypeVar, Union
 
 from pyspark.sql import Column, DataFrame, SparkSession
 
@@ -720,7 +720,7 @@ class ExecutionContext(BaseModel):
     run_mode: str = "initial"
     config: dict[str, Any] = field(default_factory=dict)
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize aliases and defaults."""
         if self.started_at is None:
             self.started_at = self.start_time

@@ -186,7 +186,6 @@ class WriterConfig:
     min_validation_rate: float = 95.0
     max_invalid_rows_percent: float = 5.0
     enable_anomaly_detection: bool = False
-    batch_size: int = 1000  # Default batch size for large operations
 
     def validate(self) -> None:
         """Validate the configuration."""
@@ -336,7 +335,7 @@ def create_log_row_from_step_result(
     return LogRow(
         # Run-level information
         run_id=run_id,
-        run_mode=run_mode,  # type: ignore[assignment]
+        run_mode=run_mode,  # type: ignore[typeddict-item]
         run_started_at=execution_context.started_at,
         run_ended_at=execution_context.ended_at,
         # Execution context

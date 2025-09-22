@@ -57,5 +57,3 @@ __all__ = [
     "WriterValidationError",
     "WriterConfigurationError",
 ]
-
-__version__ = "1.0.0"
