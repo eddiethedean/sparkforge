@@ -1,6 +1,3 @@
-#
-
-
 """
 Dependency analysis exceptions for SparkForge.
 
