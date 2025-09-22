@@ -1420,9 +1420,9 @@ class LogWriter:
                     "total_executions": total_rows,
                     "successful_executions": success_rows,
                     "failed_executions": failure_rows,
-                    "success_rate_percent": (success_rows / total_rows * 100)
-                    if total_rows > 0
-                    else 0,
+                    "success_rate_percent": (
+                        (success_rows / total_rows * 100) if total_rows > 0 else 0
+                    ),
                 }
 
                 # Validation rate trends

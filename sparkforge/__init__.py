@@ -142,7 +142,7 @@ from .types import (
     ValidationConfig,
 )
 
-__version__ = "0.7.3"
+__version__ = "0.7.4"
 __author__ = "Odos Matthews"
 __email__ = "odosmattthewsm@gmail.com"
 __description__ = "A simplified, production-ready data pipeline builder for Apache Spark and Delta Lake"
