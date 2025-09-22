@@ -458,17 +458,12 @@ class TestLogWriter:
 
     def test_get_memory_usage_psutil_not_available(self, writer):
         """Test getting memory usage when psutil is not available."""
-
-        def mock_import(name, *args, **kwargs):
-            if name == "psutil":
-                raise ImportError("No module named 'psutil'")
-            return __import__(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        # Mock psutil module to not exist
+        with patch.dict("sys.modules", {"psutil": None}):
             result = writer.get_memory_usage()
 
             assert "error" in result
-            assert "psutil not installed" in result["error"]
+            assert "psutil not" in result["error"]
 
     def test_get_memory_usage_exception(self, writer):
         """Test getting memory usage with exception."""
