@@ -28,7 +28,15 @@ class TestLogWriter:
     @pytest.fixture
     def mock_logger(self):
         """Mock pipeline logger."""
-        return Mock(spec=PipelineLogger)
+        logger = Mock(spec=PipelineLogger)
+        # Add context manager support
+        logger.context.return_value.__enter__ = Mock(return_value=None)
+        logger.context.return_value.__exit__ = Mock(return_value=None)
+        # Add timer support
+        logger.timer.return_value.__enter__ = Mock(return_value=None)
+        logger.timer.return_value.__exit__ = Mock(return_value=None)
+        logger.end_timer.return_value = 1.0  # Mock duration
+        return logger
     
     @pytest.fixture
     def valid_config(self):
@@ -38,6 +46,21 @@ class TestLogWriter:
             table_name="pipeline_logs",
             write_mode=WriteMode.APPEND
         )
+    
+    @pytest.fixture
+    def writer(self, mock_spark, valid_config, mock_logger):
+        """LogWriter instance with mocked dependencies."""
+        return LogWriter(mock_spark, valid_config, mock_logger)
+    
+    @pytest.fixture
+    def mock_execution_result(self):
+        """Mock execution result."""
+        mock_result = Mock(spec=ExecutionResult)
+        mock_result.step_results = []  # Add required attribute
+        mock_result.success = True  # Add required attribute
+        mock_result.context = Mock()  # Add required attribute
+        mock_result.context.pipeline_id = "test-pipeline"  # Add required attribute
+        return mock_result
     
     @pytest.fixture
     def invalid_config(self):
@@ -75,18 +98,29 @@ class TestLogWriter:
     
     @patch('sparkforge.writer.core.validate_log_data')
     @patch('sparkforge.writer.core.create_log_rows_from_execution_result')
-    @patch('sparkforge.writer.core.write_append_table')
+    @patch('sparkforge.writer.core.time_write_operation')
     def test_write_execution_result_success(
-        self, mock_write_table, mock_create_rows, mock_validate, 
+        self, mock_time_write, mock_create_rows, mock_validate,
         mock_spark, valid_config, mock_logger
     ):
         """Test successful execution result writing."""
         # Setup mocks
         mock_execution_result = Mock(spec=ExecutionResult)
+        mock_execution_result.step_results = []  # Add required attribute
+        mock_execution_result.success = True  # Add required attribute
+        mock_execution_result.context = Mock()  # Add required attribute
+        mock_execution_result.context.pipeline_id = "test-pipeline"  # Add required attribute
         mock_log_rows = [{"test": "data"}]
         mock_create_rows.return_value = mock_log_rows
         mock_validate.return_value = None
+        # Mock time_write_operation to return numeric values
+        mock_time_write.return_value = (1, 0.5, datetime.now(), datetime.now())
         
+        # Mock DataFrame count method
+        mock_df = Mock()
+        mock_df.count.return_value = 1
+        mock_spark.createDataFrame.return_value = mock_df
+
         # Create writer
         writer = LogWriter(mock_spark, valid_config, mock_logger)
         
@@ -104,9 +138,10 @@ class TestLogWriter:
         # Verify calls
         mock_create_rows.assert_called_once()
         mock_validate.assert_called_once_with(mock_log_rows)
-        mock_write_table.assert_called_once()
+        mock_time_write.assert_called_once()
     
-    def test_write_execution_result_invalid_input(self, mock_spark, valid_config, mock_logger):
+    @patch('sparkforge.writer.core.create_log_rows_from_execution_result')
+    def test_write_execution_result_invalid_input(self, mock_create_rows, mock_spark, valid_config, mock_logger):
         """Test execution result writing with invalid input."""
         writer = LogWriter(mock_spark, valid_config, mock_logger)
         
@@ -121,6 +156,10 @@ class TestLogWriter:
         """Test execution result writing with validation failure."""
         # Setup mocks
         mock_execution_result = Mock(spec=ExecutionResult)
+        mock_execution_result.step_results = []  # Add required attribute
+        mock_execution_result.success = True  # Add required attribute
+        mock_execution_result.context = Mock()  # Add required attribute
+        mock_execution_result.context.pipeline_id = "test-pipeline"  # Add required attribute
         mock_log_rows = [{"test": "data"}]
         mock_create_rows.return_value = mock_log_rows
         mock_validate.side_effect = ValueError("Validation failed")
@@ -160,15 +199,22 @@ class TestLogWriter:
             assert result == {"success": True}
     
     @patch('sparkforge.writer.core.validate_log_data')
-    @patch('sparkforge.writer.core.write_append_table')
+    @patch('sparkforge.writer.core.time_write_operation')
     def test_write_log_rows_success(
-        self, mock_write_table, mock_validate, mock_spark, valid_config, mock_logger
+        self, mock_time_write, mock_validate, mock_spark, valid_config, mock_logger
     ):
         """Test successful log rows writing."""
         # Setup mocks
         mock_log_rows = [{"test": "data"}]
         mock_validate.return_value = None
+        # Mock time_write_operation to return numeric values
+        mock_time_write.return_value = (1, 0.5, datetime.now(), datetime.now())
         
+        # Mock DataFrame count method
+        mock_df = Mock()
+        mock_df.count.return_value = 1
+        mock_spark.createDataFrame.return_value = mock_df
+
         # Create writer
         writer = LogWriter(mock_spark, valid_config, mock_logger)
         
@@ -184,7 +230,7 @@ class TestLogWriter:
         
         # Verify calls
         mock_validate.assert_called_once_with(mock_log_rows)
-        mock_write_table.assert_called_once()
+        mock_time_write.assert_called_once()
     
     @patch('sparkforge.writer.core.validate_log_data')
     def test_write_log_rows_validation_failure(
@@ -288,3 +334,112 @@ class TestLogWriter:
         mock_spark.table.assert_called_once_with("analytics.pipeline_logs")
         mock_df.count.assert_called_once()
         mock_df.schema.json.assert_called_once()
+    
+    def test_write_execution_result_batch_success(self, writer, mock_execution_result):
+        """Test batch write execution results success."""
+        # Setup mock execution results
+        execution_results = [mock_execution_result, mock_execution_result]
+        
+        # Mock the batch write operation
+        with patch.object(writer, '_write_log_rows') as mock_write:
+            with patch('sparkforge.writer.core.create_log_rows_from_execution_result') as mock_create_rows:
+                mock_create_rows.return_value = [{"test": "data"}]
+                
+                result = writer.write_execution_result_batch(
+                    execution_results=execution_results,
+                    run_id="test-batch-run",
+                    batch_size=500
+                )
+                
+                assert result["success"] is True
+                assert result["total_executions"] == 2
+                assert result["successful_writes"] == 2
+                assert result["failed_writes"] == 0
+                assert result["rows_written"] == 2
+                assert mock_write.called
+    
+    def test_write_execution_result_batch_with_failures(self, writer, mock_execution_result):
+        """Test batch write with some failures."""
+        # Setup mock execution results - one will fail
+        execution_results = [mock_execution_result, "invalid_result"]
+        
+        # Mock the batch write operation
+        with patch.object(writer, '_write_log_rows') as mock_write:
+            with patch('sparkforge.writer.core.create_log_rows_from_execution_result') as mock_create_rows:
+                mock_create_rows.return_value = [{"test": "data"}]
+                # Make the second call fail
+                mock_create_rows.side_effect = [{"test": "data"}, Exception("Invalid result")]
+                
+                result = writer.write_execution_result_batch(
+                    execution_results=execution_results,
+                    run_id="test-batch-run-failures"
+                )
+                
+                assert result["success"] is True  # Overall operation succeeds
+                assert result["total_executions"] == 2
+                assert result["successful_writes"] == 1
+                assert result["failed_writes"] == 1
+                assert result["rows_written"] == 1
+    
+    def test_write_log_rows_batch(self, writer):
+        """Test writing log rows in batches."""
+        # Create test log rows
+        log_rows = [{"test": f"data_{i}"} for i in range(5)]
+        
+        with patch.object(writer, '_write_log_rows') as mock_write:
+            writer._write_log_rows_batch(log_rows, "test-run", batch_size=2)
+            
+            # Should be called 3 times (batches of 2, 2, 1)
+            assert mock_write.call_count == 3
+            
+            # Check batch calls
+            calls = mock_write.call_args_list
+            assert calls[0][0][0] == log_rows[0:2]  # First batch
+            assert calls[1][0][0] == log_rows[2:4]  # Second batch
+            assert calls[2][0][0] == log_rows[4:5]  # Third batch
+    
+    def test_get_memory_usage_success(self, writer):
+        """Test getting memory usage successfully."""
+        with patch('psutil.Process') as mock_process, \
+             patch('psutil.virtual_memory') as mock_vm:
+            
+            # Mock memory info
+            mock_memory_info = Mock()
+            mock_memory_info.rss = 1024 * 1024 * 100  # 100 MB
+            mock_memory_info.vms = 1024 * 1024 * 200  # 200 MB
+            
+            mock_process.return_value.memory_info.return_value = mock_memory_info
+            mock_process.return_value.memory_percent.return_value = 10.5
+            mock_vm.return_value.available = 1024 * 1024 * 800  # 800 MB
+            
+            result = writer.get_memory_usage()
+            
+            assert "rss_mb" in result
+            assert "vms_mb" in result
+            assert "percent" in result
+            assert "available_mb" in result
+            assert result["rss_mb"] == 100.0
+            assert result["vms_mb"] == 200.0
+            assert result["percent"] == 10.5
+            assert result["available_mb"] == 800.0
+    
+    def test_get_memory_usage_psutil_not_available(self, writer):
+        """Test getting memory usage when psutil is not available."""
+        def mock_import(name, *args, **kwargs):
+            if name == 'psutil':
+                raise ImportError("No module named 'psutil'")
+            return __import__(name, *args, **kwargs)
+        
+        with patch('builtins.__import__', side_effect=mock_import):
+            result = writer.get_memory_usage()
+            
+            assert "error" in result
+            assert "psutil not installed" in result["error"]
+    
+    def test_get_memory_usage_exception(self, writer):
+        """Test getting memory usage with exception."""
+        with patch('psutil.Process', side_effect=Exception("Process error")):
+            result = writer.get_memory_usage()
+            
+            assert "error" in result
+            assert result["error"] == "Process error"

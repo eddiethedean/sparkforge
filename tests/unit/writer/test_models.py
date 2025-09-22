@@ -11,7 +11,7 @@ from sparkforge.writer.models import (
     create_log_schema, create_log_row_from_step_result,
     create_log_rows_from_execution_result, validate_log_row, validate_log_data
 )
-from sparkforge.models import StepResult, PipelinePhase, ExecutionContext, ExecutionResult, PipelineMetrics
+from sparkforge.models import StepResult, PipelinePhase, ExecutionContext, ExecutionResult, PipelineMetrics, ExecutionMode
 
 
 class TestWriterConfig:
@@ -96,10 +96,11 @@ class TestLogRowCreation:
         """Test creating log row from step result."""
         # Create execution context
         context = ExecutionContext(
+            mode=ExecutionMode.INITIAL,
+            start_time=datetime.now(),
             execution_id="test-exec-123",
             pipeline_id="test-pipeline",
             schema="analytics",
-            started_at=datetime.now(),
             run_mode="initial"
         )
         
@@ -139,10 +140,11 @@ class TestLogRowCreation:
         """Test creating log rows from execution result."""
         # Create execution context
         context = ExecutionContext(
+            mode=ExecutionMode.INITIAL,
+            start_time=datetime.now(),
             execution_id="test-exec-123",
             pipeline_id="test-pipeline",
             schema="analytics",
-            started_at=datetime.now(),
             run_mode="initial"
         )
         

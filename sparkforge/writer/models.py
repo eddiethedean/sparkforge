@@ -140,31 +140,53 @@ class WriterConfig:
     table_schema: str
     table_name: str
     write_mode: WriteMode = WriteMode.APPEND
+    
+    # Custom table naming patterns
+    table_name_pattern: str | None = None  # e.g., "{schema}.{pipeline_id}_{timestamp}"
+    table_suffix_pattern: str | None = None  # e.g., "_{run_mode}_{date}"
 
     # Partitioning and optimization
     partition_columns: list[str] | None = None
     partition_count: int | None = None
     compression: str = "snappy"
+    
+    # Schema options
+    enable_schema_evolution: bool = True
+    schema_validation_mode: str = "strict"  # strict, lenient, ignore
+    auto_optimize_schema: bool = True
 
     # Performance settings
     batch_size: int = 1000
     max_file_size_mb: int = 128
     enable_optimization: bool = True
+    parallel_write_threads: int = 4
+    memory_fraction: float = 0.6
 
     # Feature flags
     enable_performance_monitoring: bool = True
     enable_data_quality_checks: bool = True
     enable_validation: bool = True
     enable_metrics_collection: bool = True
+    enable_audit_trail: bool = True
+    enable_backup_before_write: bool = False
 
     # Logging configuration
     log_level: LogLevel = LogLevel.INFO
     enable_detailed_logging: bool = False
+    log_performance_metrics: bool = True
+    log_data_quality_results: bool = True
 
     # Error handling
     max_retries: int = 3
     retry_delay_secs: float = 1.0
     fail_fast: bool = False
+    retry_exponential_backoff: bool = True
+    
+    # Data quality thresholds
+    min_validation_rate: float = 95.0
+    max_invalid_rows_percent: float = 5.0
+    enable_anomaly_detection: bool = False
+    batch_size: int = 1000  # Default batch size for large operations
 
     def validate(self) -> None:
         """Validate the configuration."""
@@ -180,6 +202,55 @@ class WriterConfig:
             raise ValueError("Max retries cannot be negative")
         if self.retry_delay_secs < 0:
             raise ValueError("Retry delay cannot be negative")
+        if self.parallel_write_threads <= 0:
+            raise ValueError("Parallel write threads must be positive")
+        if not 0 < self.memory_fraction <= 1:
+            raise ValueError("Memory fraction must be between 0 and 1")
+        if self.schema_validation_mode not in ["strict", "lenient", "ignore"]:
+            raise ValueError("Schema validation mode must be 'strict', 'lenient', or 'ignore'")
+        if not 0 <= self.min_validation_rate <= 100:
+            raise ValueError("Min validation rate must be between 0 and 100")
+        if not 0 <= self.max_invalid_rows_percent <= 100:
+            raise ValueError("Max invalid rows percent must be between 0 and 100")
+    
+    def generate_table_name(self, pipeline_id: str | None = None, run_mode: str | None = None, 
+                           timestamp: str | None = None) -> str:
+        """
+        Generate dynamic table name based on patterns.
+        
+        Args:
+            pipeline_id: Pipeline identifier
+            run_mode: Run mode (initial, incremental, etc.)
+            timestamp: Timestamp for naming
+            
+        Returns:
+            Generated table name
+        """
+        table_name = self.table_name
+        
+        # Apply suffix pattern if provided
+        if self.table_suffix_pattern:
+            suffix_vars = {
+                "run_mode": run_mode or "unknown",
+                "date": timestamp or datetime.now().strftime("%Y%m%d"),
+                "timestamp": timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
+            }
+            suffix = self.table_suffix_pattern.format(**suffix_vars)
+            table_name = f"{table_name}{suffix}"
+        
+        # Apply full pattern if provided
+        if self.table_name_pattern:
+            pattern_vars = {
+                "schema": self.table_schema,
+                "table_name": table_name,
+                "pipeline_id": pipeline_id or "unknown",
+                "run_mode": run_mode or "unknown",
+                "date": timestamp or datetime.now().strftime("%Y%m%d"),
+                "timestamp": timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
+            }
+            return self.table_name_pattern.format(**pattern_vars)
+        
+        return table_name
 
 
 # ============================================================================
