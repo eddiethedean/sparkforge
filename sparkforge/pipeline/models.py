@@ -1,6 +1,3 @@
-#
-
-
 """
 Pipeline models and data structures for SparkForge.
 
