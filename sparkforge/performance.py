@@ -1,7 +1,3 @@
-#
-
-
-# performance.py
 """
 Performance monitoring utilities for the SparkForge pipeline framework.
 

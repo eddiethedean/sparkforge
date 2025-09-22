@@ -1,6 +1,3 @@
-#
-
-
 """
 Simplified PipelineBuilder for SparkForge.
 

@@ -1,4 +1,3 @@
-# models.py
 """
 Enhanced data models and type definitions for the Pipeline Builder.
 

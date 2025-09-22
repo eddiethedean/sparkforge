@@ -1,7 +1,3 @@
-#
-
-
-# table_operations.py
 """
 Table operations utilities for the SparkForge pipeline framework.
 
