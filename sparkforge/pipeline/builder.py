@@ -1069,7 +1069,7 @@ class PipelineBuilder:
                     "Check schema permissions",
                     "Verify schema name spelling",
                 ],
-            )
+            ) from e
 
     def _create_schema_if_not_exists(self, schema: str) -> None:
         """
@@ -1090,7 +1090,7 @@ class PipelineBuilder:
                     "Verify schema name is valid",
                     "Check for naming conflicts",
                 ],
-            )
+            ) from e
 
     def _get_effective_schema(self, step_schema: str | None) -> str:
         """

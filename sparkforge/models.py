@@ -1303,7 +1303,7 @@ def validate_pipeline_config(config: PipelineConfig) -> None:
     try:
         config.validate()
     except PipelineValidationError as e:
-        raise PipelineConfigurationError(f"Invalid pipeline configuration: {e}")
+        raise PipelineConfigurationError(f"Invalid pipeline configuration: {e}") from e
 
 
 def validate_step_config(step: BronzeStep | SilverStep | GoldStep) -> None:
@@ -1311,7 +1311,7 @@ def validate_step_config(step: BronzeStep | SilverStep | GoldStep) -> None:
     try:
         step.validate()
     except PipelineValidationError as e:
-        raise PipelineConfigurationError(f"Invalid step configuration: {e}")
+        raise PipelineConfigurationError(f"Invalid step configuration: {e}") from e
 
 
 # ============================================================================

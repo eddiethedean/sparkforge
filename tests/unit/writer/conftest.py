@@ -10,7 +10,7 @@ from __future__ import annotations
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 from unittest.mock import Mock
 
 import pytest
@@ -35,7 +35,7 @@ def spark_session():
         .config("spark.sql.adaptive.enabled", "true") \
         .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
         .getOrCreate()
-    
+
     yield spark
     spark.stop()
 
@@ -55,19 +55,19 @@ def mock_spark():
 def mock_logger():
     """Mock PipelineLogger with context manager support."""
     logger = Mock(spec=PipelineLogger)
-    
+
     # Mock context manager
     context_manager = Mock()
     context_manager.__enter__ = Mock()
     context_manager.__exit__ = Mock()
     logger.context.return_value = context_manager
-    
+
     # Mock timer context manager
     timer_manager = Mock()
     timer_manager.__enter__ = Mock()
     timer_manager.__exit__ = Mock()
     logger.timer.return_value = timer_manager
-    
+
     # Mock other methods
     logger.end_timer.return_value = 1.0
     logger.info.return_value = None
@@ -75,7 +75,7 @@ def mock_logger():
     logger.warning.return_value = None
     logger.error.return_value = None
     logger.performance_metric.return_value = None
-    
+
     return logger
 
 
@@ -403,7 +403,7 @@ def mock_dataframe_info():
 # Test utilities
 class WriterTestUtils:
     """Utility class for writer tests."""
-    
+
     @staticmethod
     def create_log_row(**kwargs) -> Dict[str, Any]:
         """Create a log row with default values."""
@@ -421,7 +421,7 @@ class WriterTestUtils:
         }
         defaults.update(kwargs)
         return defaults
-    
+
     @staticmethod
     def create_execution_result(**kwargs) -> ExecutionResult:
         """Create an ExecutionResult with default values."""
@@ -432,7 +432,7 @@ class WriterTestUtils:
             pipeline_id="test-pipeline",
             schema="test_schema",
         )
-        
+
         step = StepResult(
             step_name="test_step",
             phase="bronze",
@@ -445,7 +445,7 @@ class WriterTestUtils:
             success=True,
             execution_context=context,
         )
-        
+
         defaults = {
             "success": True,
             "context": context,
@@ -453,15 +453,15 @@ class WriterTestUtils:
             "total_duration_secs": 10.0,
         }
         defaults.update(kwargs)
-        
+
         return ExecutionResult(**defaults)
-    
+
     @staticmethod
     def assert_result_structure(result: Dict[str, Any]) -> None:
         """Assert that a result has the expected structure."""
         assert "success" in result
         assert isinstance(result["success"], bool)
-        
+
         if result["success"]:
             assert "rows_written" in result
             assert "duration_secs" in result

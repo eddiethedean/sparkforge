@@ -144,7 +144,7 @@ class DependencyAnalyzer:
 
         except Exception as e:
             self.logger.error(f"Dependency analysis failed: {str(e)}")
-            raise DependencyError(f"Dependency analysis failed: {str(e)}")
+            raise DependencyError(f"Dependency analysis failed: {str(e)}") from e
 
     def _build_dependency_graph(
         self,

@@ -9,12 +9,18 @@
 # -----------------------------------------------------------------------------
 
 from __future__ import annotations
-from typing import Any, Dict, List, Optional, TypedDict, Literal
-from datetime import datetime
 
-from pyspark.sql import SparkSession, DataFrame
+from datetime import datetime
+from typing import Any, Dict, List, Literal, Optional, TypedDict
+
+from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import (
-    StructType, StructField, StringType, IntegerType, FloatType, TimestampType
+    FloatType,
+    IntegerType,
+    StringType,
+    StructField,
+    StructType,
+    TimestampType,
 )
 
 # If you have TypedDicts for the builder's report, you can import them.
@@ -27,21 +33,21 @@ ReportDict = Dict[str, Any]
 
 class MinimalLogRow(TypedDict):
     run_mode: Literal["initial", "incremental"]
-    run_started_at: Optional[datetime]
-    run_ended_at: Optional[datetime]
+    run_started_at: datetime | None
+    run_ended_at: datetime | None
 
     phase: Literal["bronze", "silver", "gold"]
     step: str
 
-    start_time: Optional[datetime]
-    end_time: Optional[datetime]
+    start_time: datetime | None
+    end_time: datetime | None
 
-    table_fqn: Optional[str]
-    write_mode: Optional[Literal["overwrite", "append"]]
+    table_fqn: str | None
+    write_mode: Literal["overwrite", "append"] | None
 
-    input_rows: Optional[int]
-    output_rows: Optional[int]
-    rows_written: Optional[int]
+    input_rows: int | None
+    output_rows: int | None
+    rows_written: int | None
 
     valid_rows: int
     invalid_rows: int
@@ -49,8 +55,8 @@ class MinimalLogRow(TypedDict):
 
     # Kept for forward-compatibility with earlier reports; set to None
     # in the current builder which does not include watermark in the log row.
-    previous_watermark: Optional[datetime]
-    filtered_rows: Optional[int]
+    previous_watermark: datetime | None
+    filtered_rows: int | None
 
 
 # ---------- Strict Spark schema for the minimal logs table ----------
@@ -113,7 +119,7 @@ def _min_row_base(report: ReportDict, phase: Literal["bronze", "silver", "gold"]
     }
 
 
-def _row_from_bronze(phase_name: str, record: Dict[str, Any], report: ReportDict) -> MinimalLogRow:
+def _row_from_bronze(phase_name: str, record: dict[str, Any], report: ReportDict) -> MinimalLogRow:
     row = _min_row_base(report, "bronze", phase_name)
     v = record.get("validation", {})
     row["start_time"] = v.get("start_at")
@@ -124,7 +130,7 @@ def _row_from_bronze(phase_name: str, record: Dict[str, Any], report: ReportDict
     return row
 
 
-def _row_from_silver(phase_name: str, record: Dict[str, Any], report: ReportDict) -> MinimalLogRow:
+def _row_from_silver(phase_name: str, record: dict[str, Any], report: ReportDict) -> MinimalLogRow:
     row = _min_row_base(report, "silver", phase_name)
     t = record.get("transform")  # may be None for with_silver_rules
     w = record.get("write", {})
@@ -151,7 +157,7 @@ def _row_from_silver(phase_name: str, record: Dict[str, Any], report: ReportDict
     return row
 
 
-def _row_from_gold(phase_name: str, record: Dict[str, Any], report: ReportDict) -> MinimalLogRow:
+def _row_from_gold(phase_name: str, record: dict[str, Any], report: ReportDict) -> MinimalLogRow:
     row = _min_row_base(report, "gold", phase_name)
     t = record.get("transform", {})
     w = record.get("write", {})
@@ -176,8 +182,8 @@ def _row_from_gold(phase_name: str, record: Dict[str, Any], report: ReportDict) 
     return row
 
 
-def flatten_report_min(report: ReportDict) -> List[MinimalLogRow]:
-    rows: List[MinimalLogRow] = []
+def flatten_report_min(report: ReportDict) -> list[MinimalLogRow]:
+    rows: list[MinimalLogRow] = []
 
     for bname, brec in report.get("bronze", {}).items():
         rows.append(_row_from_bronze(bname, brec, report))
@@ -237,5 +243,5 @@ class LogWriter:
            .saveAsTable(f"{self.write_schema}.{self.logs_table_name}"))
         return df
 
-    def show(self, n: Optional[int] = None) -> None:
+    def show(self, n: int | None = None) -> None:
         self.spark.table(f"{self.write_schema}.{self.logs_table_name}").show(n)

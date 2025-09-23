@@ -73,7 +73,7 @@ def write_overwrite_table(df: DataFrame, fqn: str, **options: Any) -> int:
         return cnt
 
     except Exception as e:
-        raise TableOperationError(f"Failed to write table {fqn}: {e}")
+        raise TableOperationError(f"Failed to write table {fqn}: {e}") from e
 
 
 @time_operation("table write (append)")
@@ -107,7 +107,7 @@ def write_append_table(df: DataFrame, fqn: str, **options: Any) -> int:
         return cnt
 
     except Exception as e:
-        raise TableOperationError(f"Failed to write table {fqn}: {e}")
+        raise TableOperationError(f"Failed to write table {fqn}: {e}") from e
 
 
 def read_table(spark: SparkSession, fqn: str) -> DataFrame:
@@ -129,9 +129,9 @@ def read_table(spark: SparkSession, fqn: str) -> DataFrame:
         logger.info(f"Successfully read table {fqn}")
         return df
     except AnalysisException as e:
-        raise TableOperationError(f"Table {fqn} does not exist: {e}")
+        raise TableOperationError(f"Table {fqn} does not exist: {e}") from e
     except Exception as e:
-        raise TableOperationError(f"Failed to read table {fqn}: {e}")
+        raise TableOperationError(f"Failed to read table {fqn}: {e}") from e
 
 
 def table_exists(spark: SparkSession, fqn: str) -> bool:
