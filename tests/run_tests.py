@@ -88,7 +88,7 @@ def run_tests():
         try:
             spark.stop()
             print("\n✅ Spark session stopped")
-        except:
+        except Exception:
             pass
 
 

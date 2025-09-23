@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional, TypedDict
+from typing import Any, Dict, Literal, TypedDict
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import (

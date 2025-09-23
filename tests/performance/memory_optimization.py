@@ -243,8 +243,8 @@ class MemoryLeakDetector:
 
                 # Only add if not already detected
                 if not any(
-                    l.object_type == obj_type and not l.resolved
-                    for l in self.detected_leaks
+                    leak_item.object_type == obj_type and not leak_item.resolved
+                    for leak_item in self.detected_leaks
                 ):
                     self.detected_leaks.append(leak)
 
