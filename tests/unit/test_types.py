@@ -41,18 +41,18 @@ class TestTypeAliases:
     def test_string_type_aliases(self) -> None:
         """Test string type aliases."""
         # Test that aliases are properly defined
-        assert StepName == str
-        assert PipelineId == str
-        assert ExecutionId == str
-        assert TableName == str
-        assert SchemaName == str
-        assert ErrorCode == str
+        assert StepName is str
+        assert PipelineId is str
+        assert ExecutionId is str
+        assert TableName is str
+        assert SchemaName is str
+        assert ErrorCode is str
 
     def test_numeric_type_aliases(self) -> None:
         """Test numeric type aliases."""
-        assert QualityRate == float
-        assert Duration == float
-        assert RowCount == int
+        assert QualityRate is float
+        assert Duration is float
+        assert RowCount is int
 
     def test_dictionary_type_aliases(self) -> None:
         """Test dictionary type aliases."""

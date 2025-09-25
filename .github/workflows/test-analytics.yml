@@ -207,7 +207,7 @@ jobs:
         echo "- Consider test parametrization for similar test cases" >> test_optimization.md
 
     - name: Upload test analytics artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: test-analytics
         path: |

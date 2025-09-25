@@ -222,7 +222,7 @@ class TestTimeWriteOperation:
         mock_write.side_effect = Exception("Write failed")
         mock_df = MagicMock()
 
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="Write failed"):
             time_write_operation("overwrite", mock_df, "test.table")
 
 

@@ -294,7 +294,7 @@ class SecurityTestSuite:
                     "error": "Insecure configuration was accepted",
                     "message": "Configuration security test failed",
                 }
-            except (ValidationError, ConfigurationError):
+            except ValidationError:
                 # Expected to fail validation
                 pass
 

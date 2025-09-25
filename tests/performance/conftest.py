@@ -16,7 +16,7 @@ import pytest
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from tests.performance.performance_monitor import performance_monitor
+from tests.performance.performance_monitor import performance_monitor  # noqa: E402
 
 
 @pytest.fixture(scope="session", autouse=True)

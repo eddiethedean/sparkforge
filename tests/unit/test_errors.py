@@ -13,6 +13,7 @@ from sparkforge.errors import (
     DataError,
     ErrorCategory,
     ErrorContext,
+    ErrorContextValue,
     ErrorSeverity,
     ErrorSuggestions,
     ExecutionError,
