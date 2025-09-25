@@ -38,7 +38,7 @@ jobs:
         python -m pytest tests/ \
           --html=test_report.html \
           --self-contained-html \
-          --metadata=python-version=${{ matrix.python-version }} \
+          --metadata=python-version=3.8 \
           --metadata=platform=ubuntu-latest \
           --junitxml=test_results.xml \
           --cov=sparkforge \
