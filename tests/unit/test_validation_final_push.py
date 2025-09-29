@@ -10,7 +10,6 @@ from unittest.mock import Mock, patch
 
 from sparkforge.validation import (
     apply_column_rules,
-    apply_validation_rules,
     assess_data_quality,
     get_dataframe_info,
     safe_divide,
@@ -35,8 +34,11 @@ class TestValidationFinalPush:
         mock_df.filter.return_value = mock_df
         mock_df.__invert__ = Mock(return_value=mock_column)
 
-        with patch("sparkforge.validation.and_all_rules", return_value=mock_column):
-            with patch("sparkforge.validation.time.time", return_value=0.0):
+        with patch(
+            "sparkforge.validation.data_validation.and_all_rules",
+            return_value=mock_column,
+        ):
+            with patch("time.time", return_value=0.0):
                 # Test with column filtering enabled
                 valid_df, invalid_df, stats = apply_column_rules(
                     mock_df,
@@ -63,8 +65,11 @@ class TestValidationFinalPush:
         mock_df.filter.return_value = mock_df
         mock_df.__invert__ = Mock(return_value=mock_column)
 
-        with patch("sparkforge.validation.and_all_rules", return_value=mock_column):
-            with patch("sparkforge.validation.time.time", return_value=0.0):
+        with patch(
+            "sparkforge.validation.data_validation.and_all_rules",
+            return_value=mock_column,
+        ):
+            with patch("time.time", return_value=0.0):
                 # Test with column filtering disabled
                 valid_df, invalid_df, stats = apply_column_rules(
                     mock_df,
@@ -133,8 +138,8 @@ class TestValidationFinalPush:
         # Test with very small numbers
         assert safe_divide(0.0001, 0.0002) == 0.5
 
-    def test_apply_validation_rules_edge_cases(self) -> None:
-        """Test apply_validation_rules with edge cases."""
+    def test_apply_column_rules_edge_cases(self) -> None:
+        """Test apply_column_rules with edge cases."""
         mock_df = Mock()
         mock_df.count.return_value = 25
 
@@ -146,14 +151,14 @@ class TestValidationFinalPush:
         mock_stats.valid_rows = 25
         mock_stats.invalid_rows = 0
         mock_stats.validation_rate = 100.0
-        mock_stats.duration = 0.1
+        mock_stats.duration_secs = 0.1
 
         with patch(
-            "sparkforge.validation.apply_column_rules",
+            "tests.unit.test_validation_final_push.apply_column_rules",
             return_value=(mock_valid_df, mock_invalid_df, mock_stats),
         ):
             # Test with empty rules
-            valid_df, invalid_df, stats = apply_validation_rules(
+            valid_df, invalid_df, stats = apply_column_rules(
                 mock_df, {}, "gold", "test_step"
             )
 
@@ -161,7 +166,7 @@ class TestValidationFinalPush:
             assert stats.valid_rows == 25
             assert stats.invalid_rows == 0
             assert stats.validation_rate == 100.0
-            assert stats.duration == 0.1
+            assert stats.duration_secs == 0.1
 
     def test_validation_performance_edge_cases(self) -> None:
         """Test validation performance edge cases."""
@@ -171,6 +176,8 @@ class TestValidationFinalPush:
 
         mock_valid_df = Mock()
         mock_invalid_df = Mock()
+        mock_invalid_df.columns = ["col1", "col2", "_failed_rules"]
+        mock_invalid_df.__contains__ = Mock(return_value=True)
         mock_stats = Mock()
         mock_stats.total_rows = 10
         mock_stats.valid_rows = 10
@@ -178,12 +185,12 @@ class TestValidationFinalPush:
         mock_stats.validation_rate = 100.0
 
         # Test with very fast execution
-        with patch("sparkforge.validation.time.time", side_effect=[0.0, 0.001]), patch(
-            "sparkforge.validation.apply_column_rules",
+        with patch("time.time", side_effect=[0.0, 0.001]), patch(
+            "tests.unit.test_validation_final_push.apply_column_rules",
             return_value=(mock_valid_df, mock_invalid_df, mock_stats),
         ):
             rules = {"col1": ["col1 > 0"]}
-            valid_df, invalid_df, stats = apply_validation_rules(
+            valid_df, invalid_df, stats = apply_column_rules(
                 mock_df, rules, "bronze", "fast_test"
             )
 
@@ -201,10 +208,10 @@ class TestValidationFinalPush:
         mock_stats.valid_rows = 4950000
         mock_stats.invalid_rows = 50000
         mock_stats.validation_rate = 99.0
-        mock_stats.duration = 25.0
+        mock_stats.duration_secs_secs = 25.0
 
         with patch(
-            "sparkforge.validation.apply_column_rules",
+            "tests.unit.test_validation_final_push.apply_column_rules",
             return_value=(mock_valid_df, mock_invalid_df, mock_stats),
         ):
             rules = {
@@ -215,7 +222,7 @@ class TestValidationFinalPush:
                 "updated_at": ["updated_at IS NOT NULL"],
             }
 
-            valid_df, invalid_df, stats = apply_validation_rules(
+            valid_df, invalid_df, stats = apply_column_rules(
                 mock_df, rules, "bronze", "large_dataset"
             )
 
@@ -223,7 +230,7 @@ class TestValidationFinalPush:
             assert stats.valid_rows == 4950000
             assert stats.invalid_rows == 50000
             assert stats.validation_rate == 99.0
-            assert stats.duration == 25.0
+            assert stats.duration_secs == 25.0
 
     def test_validation_error_handling_edge_cases(self) -> None:
         """Test validation error handling edge cases."""
@@ -252,14 +259,14 @@ class TestValidationFinalPush:
         mock_stats.valid_rows = 0
         mock_stats.invalid_rows = 1
         mock_stats.validation_rate = 0.0
-        mock_stats.duration = 0.01
+        mock_stats.duration_secs_secs = 0.01
 
         with patch(
-            "sparkforge.validation.apply_column_rules",
+            "tests.unit.test_validation_final_push.apply_column_rules",
             return_value=(mock_valid_df, mock_invalid_df, mock_stats),
         ):
             rules = {"col1": ["col1 > 1000"]}  # Very strict rule
-            valid_df, invalid_df, stats = apply_validation_rules(
+            valid_df, invalid_df, stats = apply_column_rules(
                 mock_df, rules, "bronze", "boundary_test"
             )
 

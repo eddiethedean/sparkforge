@@ -11,7 +11,7 @@ import logging
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class StepNode:
     execution_group: int = 0
     can_run_parallel: bool = True
     estimated_duration: float = 0.0
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 class DependencyGraph:
@@ -47,9 +47,9 @@ class DependencyGraph:
     """
 
     def __init__(self) -> None:
-        self.nodes: dict[str, StepNode] = {}
-        self._adjacency_list: dict[str, set[str]] = defaultdict(set)
-        self._reverse_adjacency_list: dict[str, set[str]] = defaultdict(set)
+        self.nodes: Dict[str, StepNode] = {}
+        self._adjacency_list: Dict[str, set[str]] = defaultdict(set)
+        self._reverse_adjacency_list: Dict[str, set[str]] = defaultdict(set)
 
     def add_node(self, node: StepNode) -> None:
         """Add a node to the dependency graph."""
@@ -194,13 +194,13 @@ class DependencyGraph:
 
         return issues
 
-    def get_stats(self) -> dict[str, Any]:
+    def get_stats(self) -> Dict[str, Any]:
         """Get statistics about the dependency graph."""
         total_nodes = len(self.nodes)
         total_edges = sum(len(deps) for deps in self._adjacency_list.values())
 
         # Count by step type
-        type_counts: dict[str, int] = defaultdict(int)
+        type_counts: Dict[str, int] = defaultdict(int)
         for node in self.nodes.values():
             type_counts[node.step_type.value] += 1
 

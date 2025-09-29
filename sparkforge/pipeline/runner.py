@@ -226,5 +226,5 @@ class SimplePipelineRunner:
         )
 
 
-# Backward compatibility alias
+# Alias for backward compatibility
 PipelineRunner = SimplePipelineRunner

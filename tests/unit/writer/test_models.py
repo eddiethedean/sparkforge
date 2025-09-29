@@ -35,7 +35,7 @@ class TestWriterConfig:
             table_name="pipeline_logs",
             write_mode=WriteMode.APPEND,
             batch_size=1000,
-            enable_validation=True
+            enable_validation=True,
         )
 
         assert config.table_schema == "analytics"
@@ -46,36 +46,25 @@ class TestWriterConfig:
 
     def test_config_validation_success(self):
         """Test successful configuration validation."""
-        config = WriterConfig(
-            table_schema="analytics",
-            table_name="pipeline_logs"
-        )
+        config = WriterConfig(table_schema="analytics", table_name="pipeline_logs")
         config.validate()  # Should not raise
 
     def test_config_validation_empty_schema(self):
         """Test configuration validation with empty schema."""
-        config = WriterConfig(
-            table_schema="",
-            table_name="pipeline_logs"
-        )
+        config = WriterConfig(table_schema="", table_name="pipeline_logs")
         with pytest.raises(ValueError, match="Table schema cannot be empty"):
             config.validate()
 
     def test_config_validation_empty_table_name(self):
         """Test configuration validation with empty table name."""
-        config = WriterConfig(
-            table_schema="analytics",
-            table_name=""
-        )
+        config = WriterConfig(table_schema="analytics", table_name="")
         with pytest.raises(ValueError, match="Table name cannot be empty"):
             config.validate()
 
     def test_config_validation_invalid_batch_size(self):
         """Test configuration validation with invalid batch size."""
         config = WriterConfig(
-            table_schema="analytics",
-            table_name="pipeline_logs",
-            batch_size=0
+            table_schema="analytics", table_name="pipeline_logs", batch_size=0
         )
         with pytest.raises(ValueError, match="Batch size must be positive"):
             config.validate()
@@ -112,7 +101,7 @@ class TestLogRowCreation:
             execution_id="test-exec-123",
             pipeline_id="test-pipeline",
             schema="analytics",
-            run_mode="initial"
+            run_mode="initial",
         )
 
         # Create step result
@@ -125,7 +114,7 @@ class TestLogRowCreation:
             duration_secs=10.5,
             rows_processed=1000,
             rows_written=950,
-            validation_rate=95.0
+            validation_rate=95.0,
         )
 
         # Create log row
@@ -133,7 +122,7 @@ class TestLogRowCreation:
             step_result=step_result,
             execution_context=context,
             run_id="test-run-123",
-            run_mode="initial"
+            run_mode="initial",
         )
 
         # Verify log row
@@ -156,7 +145,7 @@ class TestLogRowCreation:
             execution_id="test-exec-123",
             pipeline_id="test-pipeline",
             schema="analytics",
-            run_mode="initial"
+            run_mode="initial",
         )
 
         # Create step results
@@ -170,7 +159,7 @@ class TestLogRowCreation:
                 duration_secs=5.0,
                 rows_processed=500,
                 rows_written=500,
-                validation_rate=100.0
+                validation_rate=100.0,
             ),
             StepResult(
                 step_name="step2",
@@ -181,18 +170,18 @@ class TestLogRowCreation:
                 duration_secs=8.0,
                 rows_processed=500,
                 rows_written=480,
-                validation_rate=96.0
-            )
+                validation_rate=96.0,
+            ),
         ]
 
         # Create execution result
-        execution_result = ExecutionResult.from_context_and_results(context, step_results)
+        execution_result = ExecutionResult.from_context_and_results(
+            context, step_results
+        )
 
         # Create log rows
         log_rows = create_log_rows_from_execution_result(
-            execution_result=execution_result,
-            run_id="test-run-123",
-            run_mode="initial"
+            execution_result=execution_result, run_id="test-run-123", run_mode="initial"
         )
 
         # Verify log rows
@@ -243,7 +232,7 @@ class TestLogRowValidation:
             "error_message": None,
             "memory_usage_mb": None,
             "cpu_usage_percent": None,
-            "metadata": {}
+            "metadata": {},
         }
 
         validate_log_row(log_row)  # Should not raise
@@ -277,7 +266,7 @@ class TestLogRowValidation:
             "error_message": None,
             "memory_usage_mb": None,
             "cpu_usage_percent": None,
-            "metadata": {}
+            "metadata": {},
         }
 
         with pytest.raises(ValueError, match="Run ID cannot be empty"):
@@ -312,7 +301,7 @@ class TestLogRowValidation:
             "error_message": None,
             "memory_usage_mb": None,
             "cpu_usage_percent": None,
-            "metadata": {}
+            "metadata": {},
         }
 
         with pytest.raises(ValueError, match="Duration cannot be negative"):
@@ -348,7 +337,7 @@ class TestLogRowValidation:
                 "error_message": None,
                 "memory_usage_mb": None,
                 "cpu_usage_percent": None,
-                "metadata": {}
+                "metadata": {},
             }
         ]
 
@@ -384,7 +373,7 @@ class TestLogRowValidation:
                 "error_message": None,
                 "memory_usage_mb": None,
                 "cpu_usage_percent": None,
-                "metadata": {}
+                "metadata": {},
             }
         ]
 

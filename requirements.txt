@@ -1,7 +1,0 @@
-# Core dependencies
-pyspark==3.2.4
-delta-spark>=1.2.0,<2.0.0
-
-# Testing dependencies
-psutil>=5.9.0
-hypothesis>=6.0.0

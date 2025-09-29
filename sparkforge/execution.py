@@ -47,6 +47,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import Dict
 
 from pyspark.sql import DataFrame, SparkSession
 
@@ -152,7 +153,7 @@ class ExecutionEngine:
     def execute_step(
         self,
         step: BronzeStep | SilverStep | GoldStep,
-        context: dict[str, DataFrame],
+        context: Dict[str, DataFrame],
         mode: ExecutionMode = ExecutionMode.INITIAL,
     ) -> StepExecutionResult:
         """
@@ -263,7 +264,7 @@ class ExecutionEngine:
             silver_steps = [s for s in steps if isinstance(s, SilverStep)]
             gold_steps = [s for s in steps if isinstance(s, GoldStep)]
 
-            context: dict[str, DataFrame] = {}
+            context: Dict[str, DataFrame] = {}
 
             # Execute bronze steps first
             for step in bronze_steps:

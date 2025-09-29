@@ -129,7 +129,9 @@ class PipelineLogger:
         self, stage: str, step: str, error: str, duration: float = 0
     ) -> None:
         """Log step failure."""
-        self.error(f"❌ Failed {stage.upper()} step: {step} ({duration:.2f}s) - {error}")
+        self.error(
+            f"❌ Failed {stage.upper()} step: {step} ({duration:.2f}s) - {error}"
+        )
 
     def validation_passed(
         self, stage: str, step: str, rate: float, threshold: float

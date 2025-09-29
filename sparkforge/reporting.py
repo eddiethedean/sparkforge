@@ -8,7 +8,7 @@ for pipeline execution.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict
 
 from .models import StageStats
 from .performance import format_duration
@@ -17,7 +17,7 @@ from .validation import safe_divide
 
 def create_validation_dict(
     stats: StageStats | None, *, start_at: datetime, end_at: datetime
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """
     Create validation dictionary for reporting.
 
@@ -63,7 +63,7 @@ def create_transform_dict(
     *,
     start_at: datetime,
     end_at: datetime,
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """
     Create transform dictionary for reporting.
 
@@ -97,7 +97,7 @@ def create_write_dict(
     *,
     start_at: datetime,
     end_at: datetime,
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """
     Create write dictionary for reporting.
 
@@ -132,7 +132,7 @@ def create_summary_report(
     total_rows_processed: int,
     total_rows_written: int,
     avg_validation_rate: float,
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """
     Create a summary report for pipeline execution.
 

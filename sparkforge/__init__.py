@@ -68,93 +68,13 @@ Validation Requirements:
     BronzeStep(name="events", rules={})  # ValidationError: Rules must be non-empty
 """
 
-# Import unified dependency analysis
-from .dependencies import DependencyAnalysisResult, DependencyGraph, StepNode
-from .dependencies import DependencyAnalyzer as UnifiedDependencyAnalyzer
-
-# Import simplified error handling
-from .errors import (
-    ConfigurationError,
-    DataError,
-    ExecutionError,
-    PerformanceError,
-    ResourceError,
-    SparkForgeError,
-    SystemError,
-    ValidationError,
-)
-
-# Import simplified execution system
-from .execution import (
-    ExecutionEngine,
-    ExecutionMode,
-    ExecutionResult,
-    StepExecutionResult,
-    StepStatus,
-    StepType,
-    UnifiedExecutionEngine,
-    UnifiedStepExecutionResult,
-)
-from .logging import PipelineLogger, create_logger, get_logger
-from .models import (
-    BronzeStep,
-    ExecutionContext,
-    GoldStep,
-    ParallelConfig,
-    PipelineConfig,
-    PipelineMetrics,
-    PipelinePhase,
-    SilverDependencyInfo,
-    SilverStep,
-    StageStats,
-    StepResult,
-    ValidationResult,
-    ValidationThresholds,
-    WriteMode,
-)
-
-# Import parallel execution modules
 # Import main classes for easy access
 from .pipeline import PipelineBuilder, PipelineRunner
-from .reporting import create_validation_dict, create_write_dict
-
-# Import simplified type system
-from .types import (
-    BronzeTransformFunction,
-    ColumnRules,
-    ErrorContext,
-    ErrorSuggestions,
-    ExecutionConfig,
-    GenericDict,
-    GoldTransformFunction,
-    MonitoringConfig,
-    NumericDict,
-    OptionalDict,
-    OptionalList,
-    PipelineResult,
-    QualityThresholds,
-    SchemaName,
-    SilverTransformFunction,
-    StepName,
-    StringDict,
-    TableName,
-    TransformFunction,
-    ValidationConfig,
-)
 
 __version__ = "0.7.4"
 __author__ = "Odos Matthews"
 __email__ = "odosmattthewsm@gmail.com"
 __description__ = "A simplified, production-ready data pipeline builder for Apache Spark and Delta Lake"
-
-# Create aliases for backward compatibility
-PipelineError = ExecutionError
-DependencyError = ConfigurationError
-IngestionError = DataError
-StorageError = SystemError
-StrategyError = ConfigurationError
-TableOperationError = DataError
-TimeoutError = SystemError
 
 # Import security and performance modules
 # Step executor functionality moved to execution module
@@ -162,94 +82,6 @@ TimeoutError = SystemError
 
 # Make key classes available at package level
 __all__ = [
-    # Main classes
     "PipelineBuilder",
     "PipelineRunner",
-    "PipelineLogger",
-    "get_logger",
-    "create_logger",
-    # Execution system
-    "ExecutionEngine",
-    "ExecutionMode",
-    "ExecutionResult",
-    "StepExecutionResult",
-    "StepStatus",
-    "StepType",
-    "UnifiedExecutionEngine",
-    "UnifiedStepExecutionResult",
-    # Unified dependency analysis
-    "UnifiedDependencyAnalyzer",
-    "DependencyAnalysisResult",
-    "DependencyGraph",
-    "StepNode",
-    # Models
-    "PipelinePhase",
-    "ValidationResult",
-    "WriteMode",
-    "ValidationThresholds",
-    "ParallelConfig",
-    "PipelineConfig",
-    "BronzeStep",
-    "SilverStep",
-    "GoldStep",
-    "ExecutionContext",
-    "StageStats",
-    "StepResult",
-    "PipelineMetrics",
-    "SilverDependencyInfo",
-    # Utilities
-    "create_validation_dict",
-    "create_write_dict",
-    # Error handling
-    "SparkForgeError",
-    "ConfigurationError",
-    "DataError",
-    "ExecutionError",
-    "PerformanceError",
-    "ResourceError",
-    "SystemError",
-    "ValidationError",
-    # Backward compatibility aliases
-    "PipelineError",
-    "DependencyError",
-    "IngestionError",
-    "StorageError",
-    "StrategyError",
-    "TableOperationError",
-    "TimeoutError",
-    # Type system
-    "StepName",
-    "StepType",
-    "PipelineId",
-    "ExecutionId",
-    "TableName",
-    "SchemaName",
-    "TransformFunction",
-    "BronzeTransformFunction",
-    "SilverTransformFunction",
-    "GoldTransformFunction",
-    "ColumnRules",
-    "QualityThresholds",
-    "ExecutionContext",
-    "StepResult",
-    "PipelineResult",
-    "ValidationResult",
-    "ExecutionResult",
-    "PipelineConfig",
-    "ExecutionConfig",
-    "ValidationConfig",
-    "MonitoringConfig",
-    "ErrorCode",
-    "ErrorContext",
-    "ErrorSuggestions",
-    "OptionalDict",
-    "OptionalList",
-    "StringDict",
-    "GenericDict",
-    "NumericDict",
-    # Package info
-    "__version__",
-    "__author__",
-    "__email__",
-    "__description__",
 ]

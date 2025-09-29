@@ -17,7 +17,6 @@ from sparkforge.validation import (
     _convert_rules_to_expressions,
     and_all_rules,
     apply_column_rules,
-    apply_validation_rules,
     assess_data_quality,
     get_dataframe_info,
     safe_divide,
@@ -137,14 +136,14 @@ class TestValidationEdgeCases:
         result = assess_data_quality(mock_df, {})
         assert result is not None
 
-    def test_apply_validation_rules_edge_cases(self) -> None:
-        """Test apply_validation_rules with edge cases."""
+    def test_apply_column_rules_edge_cases(self) -> None:
+        """Test apply_column_rules with edge cases."""
         # Create mock DataFrame
         mock_df = Mock(spec=DataFrame)
         mock_df.count.return_value = 100
 
         # Test with empty rules
-        result = apply_validation_rules(mock_df, {}, "test_stage", "test_step")
+        result = apply_column_rules(mock_df, {}, "test_stage", "test_step")
         assert result is not None
 
     def test_convert_rules_to_expressions_complex_cases(self) -> None:

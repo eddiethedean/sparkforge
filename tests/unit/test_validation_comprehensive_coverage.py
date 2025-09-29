@@ -12,7 +12,6 @@ from sparkforge.models import PipelineConfig
 from sparkforge.validation import (
     UnifiedValidator,
     apply_column_rules,
-    apply_validation_rules,
     assess_data_quality,
     get_dataframe_info,
     safe_divide,
@@ -28,7 +27,7 @@ class TestValidationComprehensiveCoverage:
         from sparkforge.validation import and_all_rules
 
         # Mock F.expr to avoid Spark context issues
-        with patch("sparkforge.validation.F") as mock_f:
+        with patch("sparkforge.validation.data_validation.F") as mock_f:
             mock_expr = Mock()
             mock_f.expr.return_value = mock_expr
 
@@ -53,8 +52,10 @@ class TestValidationComprehensiveCoverage:
         mock_df.limit.return_value = mock_df
 
         # Mock and_all_rules to return True (no rules)
-        with patch("sparkforge.validation.and_all_rules", return_value=True):
-            with patch("sparkforge.validation.time.time", return_value=0.0):
+        with patch(
+            "sparkforge.validation.data_validation.and_all_rules", return_value=True
+        ):
+            with patch("time.time", return_value=0.0):
                 valid_df, invalid_df, stats = apply_column_rules(
                     mock_df, {}, "bronze", "test_step"
                 )
@@ -86,6 +87,8 @@ class TestValidationComprehensiveCoverage:
 
         mock_valid_df = Mock()
         mock_invalid_df = Mock()
+        mock_invalid_df.columns = ["col1", "col2", "_failed_rules"]
+        mock_invalid_df.__contains__ = Mock(return_value=True)
         mock_stats = Mock()
         mock_stats.total_rows = 100
         mock_stats.valid_rows = 95
@@ -194,27 +197,29 @@ class TestValidationComprehensiveCoverage:
             assert len(result.warnings) == 1
             assert "Bronze warning" in result.warnings
 
-    def test_apply_validation_rules_comprehensive(self) -> None:
-        """Test apply_validation_rules with comprehensive scenarios."""
+    def test_apply_column_rules_comprehensive(self) -> None:
+        """Test apply_column_rules with comprehensive scenarios."""
         mock_df = Mock()
         mock_df.count.return_value = 200
 
         # Mock apply_column_rules
         mock_valid_df = Mock()
         mock_invalid_df = Mock()
+        mock_invalid_df.columns = ["col1", "col2", "_failed_rules"]
+        mock_invalid_df.__contains__ = Mock(return_value=True)
         mock_stats = Mock()
         mock_stats.total_rows = 200
         mock_stats.valid_rows = 180
         mock_stats.invalid_rows = 20
         mock_stats.validation_rate = 90.0
-        mock_stats.duration = 1.5
+        mock_stats.duration_secs = 1.5
 
         with patch(
             "sparkforge.validation.apply_column_rules",
             return_value=(mock_valid_df, mock_invalid_df, mock_stats),
         ):
             rules = {"col1": ["col1 > 0"]}
-            valid_df, invalid_df, stats = apply_validation_rules(
+            valid_df, invalid_df, stats = apply_column_rules(
                 mock_df, rules, "silver", "test_step"
             )
 
@@ -222,7 +227,7 @@ class TestValidationComprehensiveCoverage:
             assert stats.valid_rows == 180
             assert stats.invalid_rows == 20
             assert stats.validation_rate == 90.0
-            assert stats.duration == 1.5
+            assert stats.duration_secs == 1.5
 
     def test_get_dataframe_info_comprehensive(self) -> None:
         """Test get_dataframe_info with comprehensive scenarios."""
@@ -285,12 +290,14 @@ class TestValidationComprehensiveCoverage:
 
         mock_valid_df = Mock()
         mock_invalid_df = Mock()
+        mock_invalid_df.columns = ["user_id", "email", "created_at", "_failed_rules"]
+        mock_invalid_df.__contains__ = Mock(return_value=True)
         mock_stats = Mock()
         mock_stats.total_rows = 1000000
         mock_stats.valid_rows = 950000
         mock_stats.invalid_rows = 50000
         mock_stats.validation_rate = 95.0
-        mock_stats.duration = 10.5
+        mock_stats.duration_secs = 10.5
 
         with patch(
             "sparkforge.validation.apply_column_rules",
@@ -302,7 +309,7 @@ class TestValidationComprehensiveCoverage:
                 "created_at": ["created_at IS NOT NULL"],
             }
 
-            valid_df, invalid_df, stats = apply_validation_rules(
+            valid_df, invalid_df, stats = apply_column_rules(
                 mock_df, rules, "bronze", "users"
             )
 
@@ -310,7 +317,7 @@ class TestValidationComprehensiveCoverage:
             assert stats.valid_rows == 950000
             assert stats.invalid_rows == 50000
             assert stats.validation_rate == 95.0
-            assert stats.duration == 10.5
+            assert stats.duration_secs == 10.5
 
     def test_validation_error_handling_comprehensive(self) -> None:
         """Test comprehensive validation error handling scenarios."""
@@ -335,6 +342,8 @@ class TestValidationComprehensiveCoverage:
 
         mock_valid_df = Mock()
         mock_invalid_df = Mock()
+        mock_invalid_df.columns = ["col1", "col2", "_failed_rules"]
+        mock_invalid_df.__contains__ = Mock(return_value=True)
         mock_stats = Mock()
         mock_stats.total_rows = 50000
         mock_stats.valid_rows = 48000
@@ -342,12 +351,12 @@ class TestValidationComprehensiveCoverage:
         mock_stats.validation_rate = 96.0
 
         # Mock time to simulate performance timing
-        with patch("sparkforge.validation.time.time", side_effect=[0.0, 2.5]), patch(
+        with patch("time.time", side_effect=[0.0, 2.5]), patch(
             "sparkforge.validation.apply_column_rules",
             return_value=(mock_valid_df, mock_invalid_df, mock_stats),
         ):
             rules = {"col1": ["col1 > 0"]}
-            valid_df, invalid_df, stats = apply_validation_rules(
+            valid_df, invalid_df, stats = apply_column_rules(
                 mock_df, rules, "silver", "performance_test"
             )
 

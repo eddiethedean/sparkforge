@@ -5,22 +5,10 @@ This module provides essential type definitions and aliases
 for better type safety without over-engineering.
 """
 
-from __future__ import annotations
-
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Protocol, Union
 
-# Try to import PySpark types, fallback to object if not available
-try:
-    from pyspark.sql import Column, DataFrame, SparkSession
-    from pyspark.sql.types import DataType, StructType
-except ImportError:
-    # Fallback types for when PySpark is not available
-    DataFrame = object  # type: ignore
-    SparkSession = object  # type: ignore
-    Column = object  # type: ignore
-    StructType = object  # type: ignore
-    DataType = object  # type: ignore
+from pyspark.sql import Column, DataFrame, SparkSession
 
 # ============================================================================
 # Basic Type Aliases
@@ -69,12 +57,7 @@ class StepStatus(Enum):
     SKIPPED = "skipped"
 
 
-class PipelineMode(Enum):
-    """Pipeline execution modes."""
-
-    INITIAL = "initial"
-    INCREMENTAL = "incremental"
-    FULL_REFRESH = "full_refresh"
+# PipelineMode moved to pipeline/models.py to avoid duplication
 
 
 # ============================================================================
@@ -102,15 +85,15 @@ ColumnRules = Dict[str, List[Union[str, Column]]]
 # Result types
 StepResult = Dict[str, Any]
 PipelineResult = Dict[str, Any]
-ExecutionResult = Dict[str, Any]
-ValidationResult = Dict[str, Any]
+ExecutionResultDict = Dict[str, Any]
+ValidationResultDict = Dict[str, Any]
 
 # Context types
 StepContext = Dict[str, Any]
 ExecutionContext = Dict[str, Any]
 
 # Configuration types
-PipelineConfig = Dict[str, Any]
+PipelineConfigDict = Dict[str, Any]
 ExecutionConfig = Dict[str, Any]
 ValidationConfig = Dict[str, Any]
 MonitoringConfig = Dict[str, Any]
@@ -138,15 +121,6 @@ class Validatable(Protocol):
 class Serializable(Protocol):
     """Protocol for objects that can be serialized."""
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> Dict[str, Any]:
         """Convert object to dictionary."""
         ...
-
-
-# ============================================================================
-# Backward Compatibility Aliases
-# ============================================================================
-
-# Keep some aliases for backward compatibility
-PipelinePhase = StepType
-WriteMode = PipelineMode

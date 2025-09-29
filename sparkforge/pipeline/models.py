@@ -10,9 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Dict
 
-# Import from main models to avoid duplication
 from ..models import PipelineMetrics
 
 
@@ -51,9 +50,9 @@ class PipelineReport:
     end_time: datetime | None = None
     duration_seconds: float = 0.0
     metrics: PipelineMetrics = field(default_factory=PipelineMetrics)
-    bronze_results: dict[str, Any] = field(default_factory=dict)
-    silver_results: dict[str, Any] = field(default_factory=dict)
-    gold_results: dict[str, Any] = field(default_factory=dict)
+    bronze_results: Dict[str, Any] = field(default_factory=dict)
+    silver_results: Dict[str, Any] = field(default_factory=dict)
+    gold_results: Dict[str, Any] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     recommendations: list[str] = field(default_factory=list)
@@ -63,7 +62,7 @@ class PipelineReport:
         """Whether the pipeline executed successfully."""
         return self.status == PipelineStatus.COMPLETED and len(self.errors) == 0
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> Dict[str, Any]:
         """Convert report to dictionary."""
         return {
             "pipeline_id": self.pipeline_id,
@@ -110,7 +109,7 @@ class StepExecutionContext:
     mode: PipelineMode
     start_time: datetime
     dependencies: list[str] = field(default_factory=list)
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
     @property
     def duration(self) -> float:

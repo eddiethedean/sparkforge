@@ -9,6 +9,7 @@ defined in the types module.
 from typing import Any, Dict, List, Union
 from unittest.mock import Mock
 
+from sparkforge.pipeline.models import PipelineMode
 from sparkforge.types import (
     Duration,
     ErrorCode,
@@ -19,9 +20,8 @@ from sparkforge.types import (
     NumericDict,
     OptionalDict,
     OptionalList,
-    PipelineConfig,
+    PipelineConfigDict,
     PipelineId,
-    PipelineMode,
     QualityRate,
     RowCount,
     SchemaName,
@@ -107,7 +107,7 @@ class TestEnums:
 
         # Test enum iteration
         modes = list(PipelineMode)
-        assert len(modes) == 3
+        assert len(modes) == 4  # Now includes VALIDATION_ONLY
         assert PipelineMode.INITIAL in modes
         assert PipelineMode.INCREMENTAL in modes
         assert PipelineMode.FULL_REFRESH in modes
@@ -205,7 +205,7 @@ class TestDataTypeAliases:
 
     def test_config_type_aliases(self) -> None:
         """Test configuration type aliases."""
-        # Test PipelineConfig
+        # Test PipelineConfigDict
         pipeline_config = {"name": "test_pipeline", "steps": []}
         assert isinstance(pipeline_config, dict)
 
@@ -282,15 +282,15 @@ class TestBackwardCompatibility:
 
     def test_backward_compatibility_aliases(self) -> None:
         """Test backward compatibility aliases."""
-        # Test PipelinePhase alias
-        from sparkforge.types import PipelinePhase
+        # All backward compatibility aliases have been removed
+        # PipelinePhase is now directly StepType
+        assert StepType is not None
 
-        assert PipelinePhase == StepType
+        # WriteMode is now only available from writer.models
+        from sparkforge.writer.models import WriteMode
 
-        # Test WriteMode alias
-        from sparkforge.types import WriteMode
-
-        assert WriteMode == PipelineMode
+        # WriteMode is a separate enum, not an alias
+        assert WriteMode is not None
 
 
 class TestTypeUsage:
@@ -299,7 +299,7 @@ class TestTypeUsage:
     def test_pipeline_configuration_usage(self) -> None:
         """Test type usage in pipeline configuration."""
         # Create a realistic pipeline configuration
-        config: PipelineConfig = {
+        config: PipelineConfigDict = {
             "name": "test_pipeline",
             "steps": [
                 {

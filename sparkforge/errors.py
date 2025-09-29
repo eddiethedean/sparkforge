@@ -100,7 +100,7 @@ class SparkForgeError(Exception):
 
     def to_dict(
         self,
-    ) -> dict[
+    ) -> Dict[
         str,
         str
         | int
@@ -410,25 +410,11 @@ class ResourceError(SparkForgeError):
         )
 
 
-# Convenience aliases for backward compatibility
-DataQualityError = DataError
-PipelineError = ExecutionError
+# Backward compatibility aliases
+PipelineValidationError = ValidationError
 PipelineConfigurationError = ConfigurationError
 PipelineExecutionError = ExecutionError
-PipelineValidationError = ValidationError
-StepError = ExecutionError
-StepExecutionError = ExecutionError
-StepValidationError = ValidationError
-DependencyError = ExecutionError
-CircularDependencyError = ExecutionError
-InvalidDependencyError = ExecutionError
-ExecutionEngineError = ExecutionError
-RetryError = ExecutionError
-StrategyError = ExecutionError
-TimeoutError = ExecutionError
-SchemaError = DataError
 TableOperationError = DataError
-NetworkError = SystemError
-StorageError = SystemError
-PerformanceMonitoringError = PerformanceError
-PerformanceThresholdError = PerformanceError
+DependencyError = ValidationError
+StepError = ExecutionError
+PipelineError = ExecutionError

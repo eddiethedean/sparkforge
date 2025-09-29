@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Literal, TypedDict
+from typing import Any, Dict, Literal, TypedDict
 
 from pyspark.sql.types import (
     BooleanType,
@@ -107,7 +107,7 @@ class LogRow(TypedDict):
     cpu_usage_percent: float | None
 
     # Metadata
-    metadata: dict[str, Any]
+    metadata: Dict[str, Any]
 
 
 class WriterMetrics(TypedDict):
@@ -323,7 +323,7 @@ def create_log_row_from_step_result(
     execution_context: ExecutionContext,
     run_id: str,
     run_mode: str,
-    metadata: dict[str, Any] | None = None,
+    metadata: Dict[str, Any] | None = None,
 ) -> LogRow:
     """
     Create a LogRow from a StepResult and ExecutionContext.
@@ -385,7 +385,7 @@ def create_log_rows_from_execution_result(
     execution_result: ExecutionResult,
     run_id: str,
     run_mode: str,
-    metadata: dict[str, Any] | None = None,
+    metadata: Dict[str, Any] | None = None,
 ) -> list[LogRow]:
     """
     Create multiple LogRows from an ExecutionResult.
@@ -455,18 +455,21 @@ def validate_log_row(row: LogRow) -> None:
         raise ValueError("Valid + invalid rows must equal rows processed")
 
 
-def validate_log_data(rows: list[LogRow]) -> None:
+def validate_log_data(rows: list[LogRow]) -> Dict[str, Any]:
     """
     Validate a list of log rows.
 
     Args:
         rows: List of log rows to validate
 
-    Raises:
-        ValueError: If any log row is invalid
+    Returns:
+        Dictionary with validation results
     """
+    errors = []
     for i, row in enumerate(rows):
         try:
             validate_log_row(row)
         except ValueError as e:
-            raise ValueError(f"Invalid log row at index {i}: {e}") from e
+            errors.append(f"Invalid log row at index {i}: {e}")
+
+    return {"is_valid": len(errors) == 0, "errors": errors}

@@ -1,10 +1,16 @@
 """
-SparkForge Writer Module
+SparkForge Writer Module - Refactored with Modular Architecture
 
 Enhanced log writer for PipelineBuilder reports with full SparkForge integration.
-
 This module provides a comprehensive logging and reporting system for pipeline
 execution results, integrating seamlessly with the existing SparkForge ecosystem.
+
+Architecture:
+- Core: Main LogWriter class that orchestrates all components
+- Operations: Data processing and transformation operations
+- Storage: Delta Lake and table management operations
+- Monitoring: Performance tracking and metrics collection
+- Analytics: Data quality analysis and trend detection
 
 Key Features:
 - Full integration with SparkForge models (StepResult, ExecutionResult, PipelineMetrics)
@@ -13,11 +19,16 @@ Key Features:
 - Performance monitoring and optimization
 - Flexible configuration system
 - Delta Lake integration for persistent logging
+- Modular architecture for better maintainability
 
 Classes:
     LogWriter: Main writer class for pipeline log operations
-    WriterConfig: Configuration class for writer settings
-    LogRow: Enhanced log row model with full type safety
+    DataProcessor: Handles data processing and transformations
+    StorageManager: Manages Delta Lake storage operations
+    PerformanceMonitor: Tracks performance metrics
+    AnalyticsEngine: Provides analytics and trend analysis
+    DataQualityAnalyzer: Analyzes data quality metrics
+    TrendAnalyzer: Analyzes execution trends
 
 Functions:
     flatten_execution_result: Convert ExecutionResult to log rows
@@ -42,18 +53,66 @@ Example:
     result = writer.write_execution_result(execution_result)
 """
 
-from __future__ import annotations
+from .analytics import DataQualityAnalyzer, TrendAnalyzer
 
+# Core writer class
 from .core import LogWriter
-from .exceptions import WriterConfigurationError, WriterError, WriterValidationError
-from .models import LogRow, WriteMode, WriterConfig
+
+# Models and exceptions
+from .exceptions import (
+    WriterConfigurationError,
+    WriterDataQualityError,
+    WriterError,
+    WriterPerformanceError,
+    WriterTableError,
+    WriterValidationError,
+)
+from .models import (
+    LogRow,
+    WriteMode,
+    WriterConfig,
+    WriterMetrics,
+    create_log_rows_from_execution_result,
+    create_log_schema,
+    validate_log_data,
+)
+from .monitoring import AnalyticsEngine, PerformanceMonitor
+
+# Component classes
+from .operations import DataProcessor
+from .query_builder import QueryBuilder
+from .storage import StorageManager
 
 __all__ = [
+    # Core writer
     "LogWriter",
+    # Component classes
+    "DataProcessor",
+    "StorageManager",
+    "PerformanceMonitor",
+    "AnalyticsEngine",
+    "DataQualityAnalyzer",
+    "TrendAnalyzer",
+    "QueryBuilder",
+    # Models and configuration
     "WriterConfig",
     "LogRow",
     "WriteMode",
+    "WriterMetrics",
+    # Utility functions
+    "create_log_rows_from_execution_result",
+    "create_log_schema",
+    "validate_log_data",
+    # Exceptions
     "WriterError",
-    "WriterValidationError",
     "WriterConfigurationError",
+    "WriterValidationError",
+    "WriterTableError",
+    "WriterDataQualityError",
+    "WriterPerformanceError",
 ]
+
+# Version information
+__version__ = "2.0.0"
+__author__ = "SparkForge Team"
+__description__ = "Modular log writer for SparkForge pipeline execution results"

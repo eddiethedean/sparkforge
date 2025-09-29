@@ -11,7 +11,11 @@ from dataclasses import dataclass
 import pytest
 from pyspark.sql import functions as F
 
-from sparkforge.errors import PipelineValidationError, ValidationError
+from sparkforge.errors import (
+    PipelineConfigurationError,
+    PipelineValidationError,
+    ValidationError,
+)
 from sparkforge.models import (
     BaseModel,
     BronzeStep,
@@ -553,7 +557,8 @@ class TestStageStats:
         )
 
         with pytest.raises(
-            PipelineValidationError, match="Validation rate must be between 0 and 100"
+            PipelineConfigurationError,
+            match="Validation rate must be between 0 and 100",
         ):
             stats.validate()
 
@@ -570,7 +575,7 @@ class TestStageStats:
         )
 
         with pytest.raises(
-            PipelineValidationError,
+            PipelineConfigurationError,
             match="Total rows \\(-100\\) must equal valid \\(950\\) \\+ invalid \\(50\\)",
         ):
             stats.validate()

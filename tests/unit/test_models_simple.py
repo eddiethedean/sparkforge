@@ -13,7 +13,7 @@ from datetime import datetime
 import pytest
 from pyspark.sql import functions as F
 
-from sparkforge.errors import ValidationError
+from sparkforge.errors import PipelineConfigurationError, ValidationError
 from sparkforge.models import (
     BaseModel,
     BronzeStep,
@@ -482,7 +482,8 @@ class TestStageStats:
             duration_secs=10.5,
         )
         with pytest.raises(
-            ValidationError, match="Validation rate must be between 0 and 100"
+            PipelineConfigurationError,
+            match="Validation rate must be between 0 and 100",
         ):
             stats.validate()
 
@@ -498,7 +499,7 @@ class TestStageStats:
             duration_secs=10.5,
         )
         with pytest.raises(
-            ValidationError,
+            PipelineConfigurationError,
             match="Total rows \\(-1000\\) must equal valid \\(950\\) \\+ invalid \\(50\\)",
         ):
             stats.validate()

@@ -21,7 +21,6 @@ from sparkforge.validation import (
     _convert_rules_to_expressions,
     and_all_rules,
     apply_column_rules,
-    apply_validation_rules,
     assess_data_quality,
     get_dataframe_info,
     safe_divide,
@@ -332,16 +331,16 @@ class TestAssessDataQuality:
 
 
 class TestApplyValidationRules:
-    """Test apply_validation_rules function."""
+    """Test apply_column_rules function."""
 
-    def test_apply_validation_rules_basic(self, sample_dataframe):
+    def test_apply_column_rules_basic(self, sample_dataframe):
         """Test applying basic validation rules."""
         rules = {
             "user_id": ["not_null"],
             "age": ["positive"],
             "score": ["non_negative"],
         }
-        result = apply_validation_rules(sample_dataframe, rules, "bronze", "test_step")
+        result = apply_column_rules(sample_dataframe, rules, "bronze", "test_step")
 
         assert result is not None
         assert len(result) == 3  # Should return tuple of (df, df, stats)
@@ -350,9 +349,9 @@ class TestApplyValidationRules:
         assert invalid_df is not None
         assert stats is not None
 
-    def test_apply_validation_rules_empty(self, sample_dataframe):
+    def test_apply_column_rules_empty(self, sample_dataframe):
         """Test applying validation rules with empty rules."""
-        result = apply_validation_rules(sample_dataframe, {}, "bronze", "test_step")
+        result = apply_column_rules(sample_dataframe, {}, "bronze", "test_step")
 
         assert result is not None
         assert len(result) == 3  # Should return tuple of (df, df, stats)

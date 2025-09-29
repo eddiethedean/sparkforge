@@ -1,6 +1,3 @@
-#
-
-
 """
 Unified dependency analyzer for SparkForge pipelines.
 
@@ -12,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import Any, Dict
 
 from ..logging import PipelineLogger
 from ..models import BronzeStep, GoldStep, SilverStep
@@ -37,7 +34,7 @@ class DependencyAnalysisResult:
     cycles: list[list[str]]
     conflicts: list[str]
     recommendations: list[str]
-    stats: dict[str, Any]
+    stats: Dict[str, Any]
     analysis_duration: float
 
 
@@ -63,7 +60,7 @@ class DependencyAnalyzer:
     ):
         self.strategy = strategy
         self.logger = logger or PipelineLogger()
-        self._analysis_cache: dict[str, DependencyAnalysisResult] = {}
+        self._analysis_cache: Dict[str, DependencyAnalysisResult] = {}
 
     def analyze_dependencies(
         self,

@@ -143,7 +143,9 @@ class TestPipelineLoggerComprehensive:
 
         with patch.object(logger.logger, "info") as mock_info:
             logger.step_start("silver", "enriched_events")
-            mock_info.assert_called_once_with("🚀 Starting SILVER step: enriched_events")
+            mock_info.assert_called_once_with(
+                "🚀 Starting SILVER step: enriched_events"
+            )
 
     def test_step_complete(self):
         """Test step completion logging."""

@@ -1,0 +1,33 @@
+# BDD Testing Requirements for SparkForge
+# Install with: pip install -r features/requirements.txt
+
+# Core BDD framework
+behave>=1.2.6
+
+# Testing utilities
+pytest>=7.0.0
+pytest-bdd>=6.0.0
+
+# Data validation and testing
+pandas>=1.5.0
+numpy>=1.24.0
+
+# Spark and data processing
+pyspark>=3.4.0
+delta-spark>=2.4.0
+
+# Performance monitoring
+psutil>=5.9.0
+memory-profiler>=0.60.0
+
+# Logging and reporting
+structlog>=23.0.0
+rich>=13.0.0
+
+# Type checking and validation
+pydantic>=2.0.0
+typing-extensions>=4.5.0
+
+# Development and debugging
+ipython>=8.0.0
+jupyter>=1.0.0

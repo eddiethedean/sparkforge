@@ -29,12 +29,13 @@ from sparkforge.writer.models import LogRow, WriteMode, WriterConfig
 @pytest.fixture(scope="session")
 def spark_session():
     """Create a SparkSession for testing."""
-    spark = SparkSession.builder \
-        .appName("WriterTests") \
-        .master("local[2]") \
-        .config("spark.sql.adaptive.enabled", "true") \
-        .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
+    spark = (
+        SparkSession.builder.appName("WriterTests")
+        .master("local[2]")
+        .config("spark.sql.adaptive.enabled", "true")
+        .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
         .getOrCreate()
+    )
 
     yield spark
     spark.stop()
@@ -477,15 +478,7 @@ def writer_test_utils():
 # Performance test markers
 def pytest_configure(config):
     """Configure pytest with custom markers."""
-    config.addinivalue_line(
-        "markers", "performance: mark test as a performance test"
-    )
-    config.addinivalue_line(
-        "markers", "benchmark: mark test as a benchmark test"
-    )
-    config.addinivalue_line(
-        "markers", "integration: mark test as an integration test"
-    )
-    config.addinivalue_line(
-        "markers", "slow: mark test as slow running"
-    )
+    config.addinivalue_line("markers", "performance: mark test as a performance test")
+    config.addinivalue_line("markers", "benchmark: mark test as a benchmark test")
+    config.addinivalue_line("markers", "integration: mark test as an integration test")
+    config.addinivalue_line("markers", "slow: mark test as slow running")

@@ -25,7 +25,7 @@ from sparkforge.validation import (
     _convert_rule_to_expression,
     _convert_rules_to_expressions,
     and_all_rules,
-    apply_validation_rules,
+    apply_column_rules,
     assess_data_quality,
     get_dataframe_info,
     safe_divide,
@@ -147,7 +147,7 @@ class TestAndAllRules:
         """Test that when no valid expressions are generated, returns True."""
         # This tests the case where _convert_rules_to_expressions returns empty dict
         with patch(
-            "sparkforge.validation._convert_rules_to_expressions"
+            "sparkforge.validation.data_validation._convert_rules_to_expressions"
         ) as mock_convert:
             mock_convert.return_value = {}  # No expressions generated
             rules = {
@@ -587,14 +587,14 @@ class TestUnifiedValidator:
 
 
 class TestApplyValidationRules:
-    """Test cases for apply_validation_rules function."""
+    """Test cases for apply_column_rules function."""
 
-    def test_apply_validation_rules_deprecated(self):
-        """Test that apply_validation_rules is a backward compatibility alias."""
+    def test_apply_column_rules_deprecated(self):
+        """Test that apply_column_rules is a backward compatibility alias."""
         # The function doesn't show deprecation warning, it's just an alias
         # Test that it calls apply_column_rules with the right arguments
         with pytest.raises(TypeError, match="missing 4 required positional arguments"):
-            apply_validation_rules()
+            apply_column_rules()
 
 
 # Fixtures

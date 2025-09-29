@@ -106,5 +106,5 @@ class SimplePipelineMonitor:
         return self._current_report
 
 
-# Backward compatibility alias
+# Alias for backward compatibility
 PipelineMonitor = SimplePipelineMonitor
