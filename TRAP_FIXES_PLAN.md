@@ -184,16 +184,19 @@ git checkout -b fix/trap-7-silent-test-fallback
 ---
 
 ### **Trap 8: Generic Error Handling in Performance Monitoring**
-**Location**: `sparkforge/writer/core.py:192-196`
-**Status**: ⏳ Pending
+**Location**: `sparkforge/writer/monitoring.py`
+**Status**: ✅ Completed
 **Priority**: MEDIUM
-**Description**: Catches all exceptions and continues execution.
+**Description**: Performance monitoring methods use broad exception handling that masks real issues.
 
 **Fix Plan**:
-- [ ] Replace broad exception handling with specific types
-- [ ] Add proper error propagation
-- [ ] Create specific error types for performance failures
-- [ ] Add logging for debugging
+- [x] Replace broad exception handling with specific types
+- [x] Add proper error propagation
+- [x] Create specific error types for performance failures
+- [x] Add logging for debugging
+- [x] Add comprehensive tests for error handling
+
+**Results**: ✅ All 9 tests passed. Successfully replaced generic error handling with specific `WriterError` exceptions and proper error chaining.
 - [ ] Add tests for error scenarios
 
 **Git Commands**:
