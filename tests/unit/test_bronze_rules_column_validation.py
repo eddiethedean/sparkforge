@@ -92,10 +92,19 @@ class TestBronzeRulesColumnValidation:
         assert stats.valid_rows == 1
         assert stats.invalid_rows == 0
 
-    def test_bronze_step_fallback_schema_matching(self, spark_session):
-        """Test that bronze step creates fallback DataFrame with matching schema."""
+    def test_bronze_step_with_provided_data(self, spark_session):
+        """Test that bronze step works correctly with provided data."""
         from sparkforge.models import BronzeStep, PipelineConfig
         from sparkforge.execution import ExecutionEngine
+        
+        # Create sample data with the expected columns
+        sample_data = [("user1", 100, "2024-01-01 10:00:00"), ("user2", 200, "2024-01-01 11:00:00")]
+        schema = StructType([
+            StructField("user_id", StringType(), True),
+            StructField("value", IntegerType(), True),
+            StructField("timestamp", StringType(), True),
+        ])
+        df = spark_session.createDataFrame(sample_data, schema)
         
         # Create a bronze step with rules for specific columns
         bronze_step = BronzeStep(
@@ -112,30 +121,30 @@ class TestBronzeRulesColumnValidation:
         config = PipelineConfig.create_default("test_schema")
         engine = ExecutionEngine(spark_session, config)
         
-        # Execute bronze step without providing data in context
-        # This should trigger the fallback DataFrame creation
-        result_df = engine._execute_bronze_step(bronze_step, {})
+        # Execute bronze step with provided data in context
+        context = {"test_bronze": df}
+        result_df = engine._execute_bronze_step(bronze_step, context)
         
-        # Verify the fallback DataFrame has the expected columns
+        # Verify the DataFrame has the expected columns
         expected_columns = {"user_id", "value", "timestamp"}
         actual_columns = set(result_df.columns)
         
         assert expected_columns.issubset(actual_columns), (
-            f"Expected columns {expected_columns} not found in fallback DataFrame. "
+            f"Expected columns {expected_columns} not found in DataFrame. "
             f"Actual columns: {actual_columns}"
         )
         
-        # Verify the DataFrame is empty but has the right schema
-        assert result_df.count() == 0
+        # Verify the DataFrame has data
+        assert result_df.count() == 2
         
         # Verify we can apply the rules without column errors
         valid_df, invalid_df, stats = apply_column_rules(
             result_df, bronze_step.rules, "bronze", "test_bronze"
         )
         
-        # Should not raise an exception
-        assert stats.total_rows == 0
-        assert stats.valid_rows == 0
+        # Should not raise an exception and should validate data
+        assert stats.total_rows == 2
+        assert stats.valid_rows == 2
         assert stats.invalid_rows == 0
 
     def test_pipeline_builder_with_missing_columns(self, spark_session):
@@ -175,45 +184,31 @@ class TestBronzeRulesColumnValidation:
             assert "value" in error_msg
             assert "timestamp" in error_msg
 
-    def test_column_type_inference_in_fallback(self, spark_session):
-        """Test that fallback DataFrame uses appropriate column types."""
+    def test_bronze_step_missing_data_error(self, spark_session):
+        """Test that bronze step raises clear error when no data is provided."""
         from sparkforge.models import BronzeStep, PipelineConfig
         from sparkforge.execution import ExecutionEngine
+        from sparkforge.errors import ExecutionError
         
         # Create bronze step with various column types
         bronze_step = BronzeStep(
             name="test_types",
             rules={
-                "user_id": [F.col("user_id").isNotNull()],  # Should be STRING
-                "customer_id": [F.col("customer_id").isNotNull()],  # Should be STRING
-                "value": [F.col("value") > 0],  # Should be INT
-                "amount": [F.col("amount") > 0],  # Should be INT
-                "timestamp": [F.col("timestamp").isNotNull()],  # Should be TIMESTAMP
-                "created_at": [F.col("created_at").isNotNull()],  # Should be TIMESTAMP
-                "action": [F.col("action").isNotNull()],  # Should be STRING
-                "status": [F.col("status").isNotNull()],  # Should be STRING
-                "unknown_col": [F.col("unknown_col").isNotNull()],  # Should be STRING (default)
+                "user_id": [F.col("user_id").isNotNull()],
+                "value": [F.col("value") > 0],
+                "timestamp": [F.col("timestamp").isNotNull()],
             },
         )
         
         config = PipelineConfig.create_default("test_schema")
         engine = ExecutionEngine(spark_session, config)
-        result_df = engine._execute_bronze_step(bronze_step, {})
         
-        # Check that columns exist
-        expected_columns = {
-            "user_id", "customer_id", "value", "amount", 
-            "timestamp", "created_at", "action", "status", "unknown_col"
-        }
-        actual_columns = set(result_df.columns)
-        assert expected_columns.issubset(actual_columns)
+        # Execute bronze step without providing data in context
+        # This should raise a clear error
+        with pytest.raises(ExecutionError) as excinfo:
+            engine._execute_bronze_step(bronze_step, {})
         
-        # Check that we can apply rules without errors
-        valid_df, invalid_df, stats = apply_column_rules(
-            result_df, bronze_step.rules, "bronze", "test_types"
-        )
-        
-        # Should not raise an exception
-        assert stats.total_rows == 0
-        assert stats.valid_rows == 0
-        assert stats.invalid_rows == 0
+        error_msg = str(excinfo.value)
+        assert "Bronze step 'test_types' requires data to be provided in context" in error_msg
+        assert "Bronze steps are for validating existing data, not creating it" in error_msg
+        assert "Please provide data using bronze_sources parameter" in error_msg

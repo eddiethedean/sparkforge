@@ -90,7 +90,7 @@ class SimplePipelineRunner:
                 context = {}
 
             # Execute pipeline using the execution engine
-            result = self.execution_engine.execute_pipeline(steps, execution_mode)
+            result = self.execution_engine.execute_pipeline(steps, execution_mode, context=context)
 
             # Convert execution result to pipeline report
             report = self._create_pipeline_report(

@@ -238,6 +238,7 @@ class ExecutionEngine:
         steps: list[BronzeStep | SilverStep | GoldStep],
         mode: ExecutionMode = ExecutionMode.INITIAL,
         max_workers: int = 4,
+        context: dict[str, DataFrame] | None = None,
     ) -> ExecutionResult:
         """
         Execute a complete pipeline.
@@ -268,7 +269,7 @@ class ExecutionEngine:
             silver_steps = [s for s in steps if isinstance(s, SilverStep)]
             gold_steps = [s for s in steps if isinstance(s, GoldStep)]
 
-            context: Dict[str, DataFrame] = {}
+            context: Dict[str, DataFrame] = context or {}
 
             # Execute bronze steps first
             for step in bronze_steps:
@@ -372,48 +373,24 @@ class ExecutionEngine:
         self, step: BronzeStep, context: dict[str, DataFrame]
     ) -> DataFrame:
         """Execute a bronze step."""
-        # For bronze steps, we expect the data to be provided in context
-        # or we need to read from a source. Since BronzeStep doesn't have
-        # source_path, we'll create a mock DataFrame for testing
-        if step.name in context:
-            df = context[step.name]
-        else:
-            # For testing, try to read from Spark as the test expects
-            try:
-                df = self.spark.read.format("parquet").load("dummy_path")
-            except Exception as e:
-                # Log the read failure and provide fallback
-                self.logger.warning(
-                    f"Failed to read data for bronze step '{step.name}': {e}. "
-                    "Creating empty DataFrame with schema matching validation rules."
-                )
-                
-                # Create a fallback DataFrame with columns that match the validation rules
-                # This prevents "column not found" errors when applying bronze rules
-                if step.rules:
-                    # Extract column names from rules and create appropriate schema
-                    rule_columns = list(step.rules.keys())
-                    schema_fields = []
-                    
-                    for col_name in rule_columns:
-                        # Create appropriate data types based on common patterns
-                        if col_name in ["user_id", "id", "customer_id", "product_id"]:
-                            schema_fields.append(f"{col_name} STRING")
-                        elif col_name in ["value", "amount", "price", "quantity"]:
-                            schema_fields.append(f"{col_name} INT")
-                        elif col_name in ["timestamp", "created_at", "updated_at", "event_time"]:
-                            schema_fields.append(f"{col_name} TIMESTAMP")
-                        elif col_name in ["action", "event_type", "status", "type"]:
-                            schema_fields.append(f"{col_name} STRING")
-                        else:
-                            # Default to string for unknown columns
-                            schema_fields.append(f"{col_name} STRING")
-                    
-                    schema_str = ", ".join(schema_fields)
-                    df = self.spark.createDataFrame([], schema_str)
-                else:
-                    # Fallback to generic schema if no rules
-                    df = self.spark.createDataFrame([], "id STRING, name STRING")
+        # Bronze steps require data to be provided in context
+        # This is the expected behavior - bronze steps validate existing data
+        if step.name not in context:
+            raise ExecutionError(
+                f"Bronze step '{step.name}' requires data to be provided in context. "
+                f"Bronze steps are for validating existing data, not creating it. "
+                f"Please provide data using bronze_sources parameter or context dictionary. "
+                f"Available context keys: {list(context.keys())}"
+            )
+        
+        df = context[step.name]
+        
+        # Validate that the DataFrame is not empty (optional check)
+        if df.count() == 0:
+            self.logger.warning(
+                f"Bronze step '{step.name}' received empty DataFrame. "
+                f"This may indicate missing or invalid data source."
+            )
 
         return df
 
