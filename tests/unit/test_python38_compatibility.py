@@ -11,7 +11,7 @@ import ast
 import sys
 import unittest
 from pathlib import Path
-from typing import Any, List, Set, Tuple
+from typing import Any, Dict, List, Set, Tuple, get_type_hints
 
 import pytest
 
@@ -309,8 +309,6 @@ class DictTypeAnnotationTest(unittest.TestCase):
 
     def test_dict_vs_Dict_compatibility(self):
         """Test that Dict from typing works in Python 3.8 (dict[...] syntax doesn't)."""
-        from typing import Dict, get_type_hints
-
         # Test function with Dict annotation (correct for Python 3.8)
         def func_with_Dict() -> Dict[str, int]:
             return {"test": 1}

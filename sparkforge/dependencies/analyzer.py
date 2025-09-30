@@ -7,6 +7,8 @@ both DependencyAnalyzer and UnifiedDependencyAnalyzer with a cleaner design.
 
 from __future__ import annotations
 
+import hashlib
+import time
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict
@@ -81,8 +83,6 @@ class DependencyAnalyzer:
         Returns:
             DependencyAnalysisResult containing analysis results
         """
-        import time
-
         start_time = time.time()
 
         # Create cache key
@@ -294,8 +294,6 @@ class DependencyAnalyzer:
         gold_steps: dict[str, GoldStep] | None,
     ) -> str:
         """Create a cache key for the analysis."""
-        import hashlib
-
         # Create a simple hash of the step configurations
         key_parts = []
 

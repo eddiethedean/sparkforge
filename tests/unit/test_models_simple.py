@@ -572,8 +572,6 @@ class TestPipelineReport:
 
     def test_pipeline_report_creation(self):
         """Test PipelineReport creation."""
-        from datetime import datetime
-
         metrics = PipelineMetrics(
             total_steps=5, successful_steps=4, failed_steps=1, total_duration=120.5
         )
@@ -598,8 +596,6 @@ class TestPipelineReport:
 
     def test_pipeline_report_validation(self):
         """Test PipelineReport validation."""
-        from datetime import datetime
-
         metrics = PipelineMetrics(
             total_steps=5, successful_steps=4, failed_steps=1, total_duration=120.5
         )
@@ -623,8 +619,6 @@ class TestPipelineReport:
 
     def test_pipeline_report_invalid_pipeline_id(self):
         """Test PipelineReport with invalid pipeline_id."""
-        from datetime import datetime
-
         metrics = PipelineMetrics(
             total_steps=5, successful_steps=4, failed_steps=1, total_duration=120.5
         )

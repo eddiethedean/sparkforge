@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List
 
+from delta.tables import DeltaTable
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import col, current_timestamp, desc, lit
 
@@ -227,8 +228,6 @@ class StorageManager:
             )
 
             # Run VACUUM command using Delta Lake API
-            from delta.tables import DeltaTable
-
             delta_table = DeltaTable.forName(self.spark, self.table_fqn)
             delta_table.vacuum(retentionHours=retention_hours)
 
@@ -266,8 +265,6 @@ class StorageManager:
             self.logger.info(f"Getting table info for: {self.table_fqn}")
 
             # Get table details using Delta Lake API
-            from delta.tables import DeltaTable
-
             delta_table = DeltaTable.forName(self.spark, self.table_fqn)
 
             # Get table details using SQL

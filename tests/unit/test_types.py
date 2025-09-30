@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Union
 from unittest.mock import Mock
 
 from sparkforge.pipeline.models import PipelineMode
+from sparkforge.writer.models import WriteMode
 from sparkforge.types import (
     Duration,
     ErrorCode,
@@ -287,8 +288,6 @@ class TestBackwardCompatibility:
         assert StepType is not None
 
         # WriteMode is now only available from writer.models
-        from sparkforge.writer.models import WriteMode
-
         # WriteMode is a separate enum, not an alias
         assert WriteMode is not None
 

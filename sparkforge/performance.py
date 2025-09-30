@@ -113,7 +113,7 @@ def time_write_operation(
         TableOperationError: If write operation fails
     """
     from .table_operations import write_append_table, write_overwrite_table
-
+    
     start = now_dt()
     t0 = time.time()
 

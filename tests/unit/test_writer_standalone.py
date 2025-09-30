@@ -10,14 +10,36 @@ from typing import Any, Dict
 
 import pytest
 
+from sparkforge.writer import (
+    AnalyticsEngine,
+    DataProcessor,
+    LogRow,
+    LogWriter,
+    PerformanceMonitor,
+    QueryBuilder,
+    StorageManager,
+    WriterConfig,
+    WriterError,
+    WriterMetrics,
+    WriteMode,
+    __author__,
+    __description__,
+    __version__,
+)
+from sparkforge.writer.exceptions import (
+    WriterConfigurationError,
+    WriterDataQualityError,
+    WriterPerformanceError,
+    WriterTableError,
+    WriterValidationError,
+)
+
 
 class TestWriterModelsStandalone:
     """Test cases for writer models without Spark dependencies."""
 
     def test_writer_config_creation(self):
         """Test WriterConfig creation."""
-        from sparkforge.writer import WriteMode, WriterConfig
-
         config = WriterConfig(
             table_schema="test_schema",
             table_name="test_table",
@@ -30,8 +52,6 @@ class TestWriterModelsStandalone:
 
     def test_writer_config_validation_success(self):
         """Test successful WriterConfig validation."""
-        from sparkforge.writer import WriteMode, WriterConfig
-
         config = WriterConfig(
             table_schema="test_schema",
             table_name="test_table",
@@ -43,8 +63,6 @@ class TestWriterModelsStandalone:
 
     def test_writer_config_validation_failure(self):
         """Test WriterConfig validation failure."""
-        from sparkforge.writer import WriteMode, WriterConfig
-
         with pytest.raises(ValueError):
             WriterConfig(
                 table_schema="",  # Empty schema should fail
@@ -54,8 +72,6 @@ class TestWriterModelsStandalone:
 
     def test_log_row_creation(self):
         """Test LogRow creation."""
-        from sparkforge.writer import LogRow
-
         log_row = LogRow(
             run_id="test_run",
             run_mode="initial",
@@ -86,8 +102,6 @@ class TestWriterModelsStandalone:
 
     def test_writer_metrics_creation(self):
         """Test WriterMetrics creation."""
-        from sparkforge.writer import WriterMetrics
-
         metrics = WriterMetrics(
             total_writes=10,
             successful_writes=9,
@@ -112,8 +126,6 @@ class TestWriterExceptionsStandalone:
 
     def test_writer_error_basic(self):
         """Test basic WriterError creation."""
-        from sparkforge.writer import WriterError
-
         error = WriterError("Test error message")
 
         assert str(error) == "Test error message"
@@ -124,8 +136,6 @@ class TestWriterExceptionsStandalone:
 
     def test_writer_error_with_context(self):
         """Test WriterError with context and suggestions."""
-        from sparkforge.writer import WriterError
-
         context = {"key": "value", "operation": "test"}
         suggestions = ["suggestion1", "suggestion2"]
         cause = Exception("root cause")
@@ -141,8 +151,6 @@ class TestWriterExceptionsStandalone:
 
     def test_writer_configuration_error(self):
         """Test WriterConfigurationError."""
-        from sparkforge.writer import WriterConfigurationError
-
         config_errors = ["error1", "error2"]
         context = {"config": {"table_schema": ""}}
         suggestions = ["fix schema", "check config"]
@@ -161,8 +169,6 @@ class TestWriterExceptionsStandalone:
 
     def test_writer_validation_error(self):
         """Test WriterValidationError."""
-        from sparkforge.writer import WriterValidationError
-
         validation_errors = ["validation1", "validation2"]
         context = {"data": "invalid"}
         suggestions = ["fix data", "check format"]
@@ -181,8 +187,6 @@ class TestWriterExceptionsStandalone:
 
     def test_writer_table_error(self):
         """Test WriterTableError."""
-        from sparkforge.writer import WriterTableError
-
         table_name = "test.table"
         operation = "write"
         context = {"mode": "append"}
@@ -204,8 +208,6 @@ class TestWriterExceptionsStandalone:
 
     def test_writer_data_quality_error(self):
         """Test WriterDataQualityError."""
-        from sparkforge.writer import WriterDataQualityError
-
         quality_issues = ["issue1", "issue2"]
         context = {"validation_rate": 85.0}
         suggestions = ["improve data quality", "check sources"]
@@ -224,8 +226,6 @@ class TestWriterExceptionsStandalone:
 
     def test_writer_performance_error(self):
         """Test WriterPerformanceError."""
-        from sparkforge.writer import WriterPerformanceError
-
         performance_issues = ["slow", "memory_high"]
         context = {"execution_time": 300.0, "memory_usage": 8192.0}
         suggestions = ["optimize code", "increase resources"]
@@ -248,8 +248,6 @@ class TestWriterComponentsStandalone:
 
     def test_write_mode_enum(self):
         """Test WriteMode enum values."""
-        from sparkforge.writer import WriteMode
-
         assert WriteMode.OVERWRITE.value == "overwrite"
         assert WriteMode.APPEND.value == "append"
         assert WriteMode.MERGE.value == "merge"
@@ -257,8 +255,6 @@ class TestWriterComponentsStandalone:
 
     def test_log_row_attributes(self):
         """Test LogRow has all required attributes."""
-        from sparkforge.writer import LogRow
-
         log_row = LogRow(
             run_id="test",
             run_mode="initial",
@@ -311,8 +307,6 @@ class TestWriterComponentsStandalone:
 
     def test_writer_metrics_structure(self):
         """Test WriterMetrics has all required fields."""
-        from sparkforge.writer import WriterMetrics
-
         metrics = WriterMetrics(
             total_writes=0,
             successful_writes=0,
@@ -339,8 +333,6 @@ class TestWriterComponentsStandalone:
 
     def test_writer_config_defaults(self):
         """Test WriterConfig default values."""
-        from sparkforge.writer import WriteMode, WriterConfig
-
         config = WriterConfig(table_schema="test_schema", table_name="test_table")
 
         # Test default values
@@ -350,8 +342,6 @@ class TestWriterComponentsStandalone:
 
     def test_writer_config_equality(self):
         """Test WriterConfig equality."""
-        from sparkforge.writer import WriteMode, WriterConfig
-
         config1 = WriterConfig(
             table_schema="test_schema",
             table_name="test_table",
@@ -368,8 +358,6 @@ class TestWriterComponentsStandalone:
 
     def test_writer_config_inequality(self):
         """Test WriterConfig inequality."""
-        from sparkforge.writer import WriteMode, WriterConfig
-
         config1 = WriterConfig(
             table_schema="test_schema",
             table_name="test_table",
@@ -390,26 +378,6 @@ class TestWriterModuleStructureStandalone:
 
     def test_writer_module_imports(self):
         """Test that all writer module components can be imported."""
-        from sparkforge.writer import (
-            AnalyticsEngine,
-            DataProcessor,
-            DataQualityAnalyzer,
-            LogRow,
-            LogWriter,
-            PerformanceMonitor,
-            StorageManager,
-            TrendAnalyzer,
-            WriteMode,
-            WriterConfig,
-            WriterConfigurationError,
-            WriterDataQualityError,
-            WriterError,
-            WriterMetrics,
-            WriterPerformanceError,
-            WriterTableError,
-            WriterValidationError,
-        )
-
         # Test that all imports are successful
         assert LogWriter is not None
         assert DataProcessor is not None
@@ -431,8 +399,6 @@ class TestWriterModuleStructureStandalone:
 
     def test_writer_module_version(self):
         """Test writer module version information."""
-        from sparkforge.writer import __author__, __description__, __version__
-
         assert __version__ is not None
         assert __author__ is not None
         assert __description__ is not None

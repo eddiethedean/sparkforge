@@ -12,7 +12,15 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 from sparkforge.writer import (
+    AnalyticsEngine,
+    DataProcessor,
+    DataQualityAnalyzer,
     LogRow,
+    LogWriter,
+    PerformanceMonitor,
+    QueryBuilder,
+    StorageManager,
+    TrendAnalyzer,
     WriteMode,
     WriterConfig,
     WriterConfigurationError,
@@ -22,6 +30,9 @@ from sparkforge.writer import (
     WriterPerformanceError,
     WriterTableError,
     WriterValidationError,
+    __author__,
+    __description__,
+    __version__,
 )
 
 
@@ -368,26 +379,6 @@ class TestWriterModuleStructure:
 
     def test_writer_module_imports(self):
         """Test that all writer module components can be imported."""
-        from sparkforge.writer import (
-            AnalyticsEngine,
-            DataProcessor,
-            DataQualityAnalyzer,
-            LogRow,
-            LogWriter,
-            PerformanceMonitor,
-            StorageManager,
-            TrendAnalyzer,
-            WriteMode,
-            WriterConfig,
-            WriterConfigurationError,
-            WriterDataQualityError,
-            WriterError,
-            WriterMetrics,
-            WriterPerformanceError,
-            WriterTableError,
-            WriterValidationError,
-        )
-
         # Test that all imports are successful
         assert LogWriter is not None
         assert DataProcessor is not None
@@ -409,8 +400,6 @@ class TestWriterModuleStructure:
 
     def test_writer_module_version(self):
         """Test writer module version information."""
-        from sparkforge.writer import __author__, __description__, __version__
-
         assert __version__ is not None
         assert __author__ is not None
         assert __description__ is not None

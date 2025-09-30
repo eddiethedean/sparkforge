@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 import pytest
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
+from pyspark.sql.types import StringType, StructField, StructType
 
 from sparkforge.models import (
     BronzeStep,
@@ -201,8 +202,6 @@ class TestValidateDataframeSchema:
 
     def test_empty_dataframe(self, spark_session):
         """Test validation with empty DataFrame."""
-        from pyspark.sql.types import StringType, StructField, StructType
-
         schema = StructType(
             [
                 StructField("id", StringType(), True),
@@ -271,8 +270,6 @@ class TestGetDataframeInfo:
 
     def test_empty_dataframe(self, spark_session):
         """Test info extraction from empty DataFrame."""
-        from pyspark.sql.types import StringType, StructField, StructType
-
         schema = StructType(
             [
                 StructField("id", StringType(), True),
@@ -288,8 +285,6 @@ class TestGetDataframeInfo:
 
     def test_error_handling(self, spark_session):
         """Test error handling in get_dataframe_info."""
-        from pyspark.sql.types import StringType, StructField, StructType
-
         schema = StructType([StructField("id", StringType(), True)])
         df = spark_session.createDataFrame([], schema)
 
@@ -306,8 +301,6 @@ class TestAssessDataQuality:
 
     def test_empty_dataframe(self, spark_session):
         """Test quality assessment of empty DataFrame."""
-        from pyspark.sql.types import StringType, StructField, StructType
-
         schema = StructType(
             [
                 StructField("id", StringType(), True),
@@ -356,8 +349,6 @@ class TestAssessDataQuality:
 
     def test_error_handling(self, spark_session):
         """Test error handling in assess_data_quality."""
-        from pyspark.sql.types import StringType, StructField, StructType
-
         schema = StructType([StructField("id", StringType(), True)])
         df = spark_session.createDataFrame([], schema)
 

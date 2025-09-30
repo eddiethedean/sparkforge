@@ -13,7 +13,7 @@ from pyspark.sql import DataFrame, SparkSession
 
 from ..execution import ExecutionEngine, ExecutionMode, ExecutionResult
 from ..logging import PipelineLogger
-from ..models import BronzeStep, GoldStep, PipelineConfig, SilverStep
+from ..models import BronzeStep, GoldStep, PipelineConfig, PipelineMetrics, SilverStep
 from .models import PipelineMode, PipelineReport, PipelineStatus
 
 
@@ -174,8 +174,6 @@ class SimplePipelineRunner:
         successful_steps = [s for s in steps if s.status.value == "completed"]
         failed_steps = [s for s in steps if s.status.value == "failed"]
 
-        from ..models import PipelineMetrics
-
         return PipelineReport(
             pipeline_id=pipeline_id,
             execution_id=execution_result.execution_id,
@@ -204,8 +202,6 @@ class SimplePipelineRunner:
         """Create an error pipeline report."""
         end_time = datetime.now()
         duration = (end_time - start_time).total_seconds()
-
-        from ..models import PipelineMetrics
 
         return PipelineReport(
             pipeline_id=pipeline_id,

@@ -11,6 +11,7 @@ from unittest.mock import Mock, patch
 from sparkforge.models import PipelineConfig
 from sparkforge.validation import (
     UnifiedValidator,
+    and_all_rules,
     apply_column_rules,
     assess_data_quality,
     get_dataframe_info,
@@ -24,8 +25,6 @@ class TestValidationComprehensiveCoverage:
 
     def test_and_all_rules_with_string_expressions(self) -> None:
         """Test and_all_rules with string expressions that need conversion."""
-        from sparkforge.validation import and_all_rules
-
         # Mock F.expr to avoid Spark context issues
         with patch("sparkforge.validation.data_validation.F") as mock_f:
             mock_expr = Mock()

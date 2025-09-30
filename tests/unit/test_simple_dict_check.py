@@ -8,6 +8,7 @@ without requiring Spark or other heavy dependencies.
 import sys
 import unittest
 from pathlib import Path
+from typing import Dict, Union, get_type_hints, TypedDict
 
 
 class SimpleDictCheckTest(unittest.TestCase):
@@ -23,8 +24,6 @@ class SimpleDictCheckTest(unittest.TestCase):
 
     def test_dict_vs_Dict_equivalence(self):
         """Test that dict and Dict are equivalent in Python 3.8+."""
-        from typing import Dict, get_type_hints
-
         # Test function with Dict annotation (works in Python 3.8)
         def func_with_Dict() -> Dict[str, int]:
             return {"test": 1}
@@ -47,8 +46,6 @@ class SimpleDictCheckTest(unittest.TestCase):
 
     def test_typeddict_compatibility(self):
         """Test TypedDict compatibility."""
-        from typing import TypedDict
-
         class TestDict(TypedDict):
             name: str
             value: int
@@ -68,14 +65,10 @@ class SimpleDictCheckTest(unittest.TestCase):
 
         # This should fail in Python 3.8
         with self.assertRaises(TypeError):
-            from typing import Dict
-
             d3 = Dict()  # This should raise TypeError
 
     def test_dict_type_annotation_works(self):
         """Test that dict type annotations work in Python 3.8+."""
-        from typing import Dict
-
         def func_with_dict_annotation(data: Dict[str, int]) -> Dict[str, str]:
             return {k: str(v) for k, v in data.items()}
 
@@ -84,8 +77,6 @@ class SimpleDictCheckTest(unittest.TestCase):
 
     def test_union_with_dict_works(self):
         """Test that Union with dict works."""
-        from typing import Dict, Union
-
         def func_with_union_dict(
             value: Union[Dict[str, int], str]
         ) -> Union[Dict[str, int], str]:

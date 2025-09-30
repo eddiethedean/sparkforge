@@ -586,8 +586,6 @@ class TestExecutionContext:
 
     def test_execution_context_creation(self):
         """Test ExecutionContext creation."""
-        from datetime import datetime
-
         context = ExecutionContext(
             mode=ExecutionMode.INITIAL, start_time=datetime.now()
         )
@@ -598,8 +596,6 @@ class TestExecutionContext:
 
     def test_execution_context_validation(self):
         """Test ExecutionContext validation."""
-        from datetime import datetime
-
         context = ExecutionContext(
             mode=ExecutionMode.INITIAL, start_time=datetime.now()
         )
@@ -608,8 +604,6 @@ class TestExecutionContext:
 
     def test_execution_context_invalid_pipeline_id(self):
         """Test ExecutionContext with invalid run_id."""
-        from datetime import datetime
-
         context = ExecutionContext(
             mode=ExecutionMode.INITIAL, start_time=datetime.now(), run_id=""
         )
@@ -654,8 +648,6 @@ class TestPipelineReport:
 
     def test_pipeline_report_creation(self):
         """Test PipelineReport creation."""
-        from datetime import datetime
-
         metrics = PipelineMetrics(
             total_steps=5, successful_steps=4, failed_steps=1, total_duration=120.5
         )
@@ -681,8 +673,6 @@ class TestPipelineReport:
 
     def test_pipeline_report_validation(self):
         """Test PipelineReport validation."""
-        from datetime import datetime
-
         metrics = PipelineMetrics(
             total_steps=5, successful_steps=4, failed_steps=1, total_duration=120.5
         )
@@ -706,8 +696,6 @@ class TestPipelineReport:
 
     def test_pipeline_report_invalid_pipeline_id(self):
         """Test PipelineReport with invalid pipeline_id."""
-        from datetime import datetime
-
         metrics = PipelineMetrics(
             total_steps=5, successful_steps=4, failed_steps=1, total_duration=120.5
         )
@@ -764,8 +752,6 @@ class TestStepResult:
 
     def test_step_result_creation(self):
         """Test StepResult creation."""
-        from datetime import datetime
-
         result = StepResult(
             step_name="test_step",
             phase=PipelinePhase.BRONZE,
@@ -790,8 +776,6 @@ class TestStepResult:
 
     def test_step_result_validation(self):
         """Test StepResult validation."""
-        from datetime import datetime
-
         result = StepResult(
             step_name="test_step",
             phase=PipelinePhase.BRONZE,
@@ -809,8 +793,6 @@ class TestStepResult:
 
     def test_step_result_invalid_step_name(self):
         """Test StepResult with invalid step_name."""
-        from datetime import datetime
-
         result = StepResult(
             step_name="",
             phase=PipelinePhase.BRONZE,

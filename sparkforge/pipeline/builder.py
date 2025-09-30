@@ -11,14 +11,14 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import DataFrame, SparkSession, functions as F
 
 from ..dependencies import DependencyAnalyzer
 from ..errors import ConfigurationError as PipelineConfigurationError
 from ..errors import ExecutionError as StepError
 from ..execution import ExecutionEngine, ExecutionMode
 from ..logging import PipelineLogger
-from ..models import BronzeStep, GoldStep, ParallelConfig, PipelineConfig, SilverStep
+from ..models import BronzeStep, GoldStep, ParallelConfig, PipelineConfig, SilverStep, ValidationThresholds
 from ..types import (
     ColumnRules,
     GoldTransformFunction,
@@ -200,8 +200,6 @@ class PipelineBuilder:
             )
 
         # Store configuration
-        from ..models import ValidationThresholds
-
         thresholds = ValidationThresholds(
             bronze=min_bronze_rate, silver=min_silver_rate, gold=min_gold_rate
         )
@@ -926,8 +924,6 @@ class PipelineBuilder:
             >>> #     "value": [F.col("value").isNotNull()]
             >>> # }
         """
-        from pyspark.sql import functions as F
-
         return {col: [F.col(col).isNotNull()] for col in columns}
 
     @staticmethod
@@ -949,8 +945,6 @@ class PipelineBuilder:
             >>> #     "count": [F.col("count").isNotNull(), F.col("count") > 0]
             >>> # }
         """
-        from pyspark.sql import functions as F
-
         return {col: [F.col(col).isNotNull(), F.col(col) > 0] for col in columns}
 
     @staticmethod
@@ -972,8 +966,6 @@ class PipelineBuilder:
             >>> #     "category": [F.col("category").isNotNull(), F.length(F.col("category")) > 0]
             >>> # }
         """
-        from pyspark.sql import functions as F
-
         return {
             col: [F.col(col).isNotNull(), F.length(F.col(col)) > 0] for col in columns
         }
@@ -997,8 +989,6 @@ class PipelineBuilder:
             >>> #     "updated_at": [F.col("updated_at").isNotNull(), F.col("updated_at").isNotNull()]
             >>> # }
         """
-        from pyspark.sql import functions as F
-
         return {
             col: [F.col(col).isNotNull(), F.col(col).isNotNull()] for col in columns
         }
