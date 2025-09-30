@@ -32,7 +32,10 @@ class StorageManager:
         """Initialize the storage manager."""
         self.spark = spark
         self.config = config
-        self.logger = logger or PipelineLogger("StorageManager")
+        if logger is None:
+            self.logger = PipelineLogger("StorageManager")
+        else:
+            self.logger = logger
         self.table_fqn = f"{config.table_schema}.{config.table_name}"
 
     def create_table_if_not_exists(self, schema: Any) -> None:

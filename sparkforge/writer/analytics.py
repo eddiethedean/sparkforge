@@ -24,7 +24,10 @@ class DataQualityAnalyzer:
     def __init__(self, spark: SparkSession, logger: PipelineLogger | None = None):
         """Initialize the data quality analyzer."""
         self.spark = spark
-        self.logger = logger or PipelineLogger("DataQualityAnalyzer")
+        if logger is None:
+            self.logger = PipelineLogger("DataQualityAnalyzer")
+        else:
+            self.logger = logger
 
     def analyze_quality_trends(self, df: DataFrame, days: int = 30) -> Dict[str, Any]:
         """
@@ -290,7 +293,10 @@ class TrendAnalyzer:
     def __init__(self, spark: SparkSession, logger: PipelineLogger | None = None):
         """Initialize the trend analyzer."""
         self.spark = spark
-        self.logger = logger or PipelineLogger("TrendAnalyzer")
+        if logger is None:
+            self.logger = PipelineLogger("TrendAnalyzer")
+        else:
+            self.logger = logger
 
     def analyze_execution_trends(self, df: DataFrame, days: int = 30) -> Dict[str, Any]:
         """

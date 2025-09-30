@@ -26,7 +26,10 @@ class PerformanceMonitor:
     def __init__(self, spark: SparkSession, logger: PipelineLogger | None = None):
         """Initialize the performance monitor."""
         self.spark = spark
-        self.logger = logger or PipelineLogger("PerformanceMonitor")
+        if logger is None:
+            self.logger = PipelineLogger("PerformanceMonitor")
+        else:
+            self.logger = logger
         self.metrics: WriterMetrics = {
             "total_writes": 0,
             "successful_writes": 0,
@@ -231,7 +234,10 @@ class AnalyticsEngine:
     def __init__(self, spark: SparkSession, logger: PipelineLogger | None = None):
         """Initialize the analytics engine."""
         self.spark = spark
-        self.logger = logger or PipelineLogger("AnalyticsEngine")
+        if logger is None:
+            self.logger = PipelineLogger("AnalyticsEngine")
+        else:
+            self.logger = logger
 
     def analyze_execution_trends(self, df: DataFrame) -> Dict[str, Any]:
         """

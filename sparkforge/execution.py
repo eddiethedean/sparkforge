@@ -148,7 +148,10 @@ class ExecutionEngine:
         """
         self.spark = spark
         self.config = config
-        self.logger = logger or PipelineLogger()
+        if logger is None:
+            self.logger = PipelineLogger()
+        else:
+            self.logger = logger
 
     def execute_step(
         self,
@@ -279,7 +282,11 @@ class ExecutionEngine:
             silver_steps = [s for s in steps if isinstance(s, SilverStep)]
             gold_steps = [s for s in steps if isinstance(s, GoldStep)]
 
-            context: Dict[str, DataFrame] = context or {}
+            # Validate context parameter
+            if context is None:
+                context = {}
+            elif not isinstance(context, dict):
+                raise TypeError(f"context must be a dictionary, got {type(context)}")
 
             # Execute bronze steps first
             for step in bronze_steps:
@@ -374,7 +381,9 @@ class ExecutionEngine:
                         context[gold_step.name] = self.spark.table(fqn(schema, table_name))
 
             # Determine overall pipeline status based on step results
-            steps = result.steps or []
+            if result.steps is None:
+                result.steps = []
+            steps = result.steps
             failed_steps = [s for s in steps if s.status == StepStatus.FAILED]
             
             if failed_steps:

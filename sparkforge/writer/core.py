@@ -57,7 +57,10 @@ class LogWriter:
         """
         self.spark = spark
         self.config = config
-        self.logger = logger or PipelineLogger("LogWriter")
+        if logger is None:
+            self.logger = PipelineLogger("LogWriter")
+        else:
+            self.logger = logger
 
         # Validate configuration
         try:
@@ -136,7 +139,8 @@ class LogWriter:
             WriterPerformanceError: If performance thresholds exceeded
         """
         operation_id = str(uuid.uuid4())
-        run_id = run_id or str(uuid.uuid4())
+        if run_id is None:
+            run_id = str(uuid.uuid4())
 
         try:
             # Start performance monitoring
@@ -218,7 +222,8 @@ class LogWriter:
             Dict containing write results and metrics
         """
         operation_id = str(uuid.uuid4())
-        run_id = run_id or str(uuid.uuid4())
+        if run_id is None:
+            run_id = str(uuid.uuid4())
 
         try:
             # Start performance monitoring
@@ -286,7 +291,8 @@ class LogWriter:
             Dict containing write results and metrics
         """
         operation_id = str(uuid.uuid4())
-        run_id = run_id or str(uuid.uuid4())
+        if run_id is None:
+            run_id = str(uuid.uuid4())
 
         try:
             # Start performance monitoring
@@ -351,7 +357,8 @@ class LogWriter:
             Dict containing batch write results and metrics
         """
         operation_id = str(uuid.uuid4())
-        run_ids = run_ids or [str(uuid.uuid4()) for _ in execution_results]
+        if run_ids is None:
+            run_ids = [str(uuid.uuid4()) for _ in execution_results]
 
         try:
             # Start performance monitoring
@@ -427,7 +434,8 @@ class LogWriter:
             df = self.storage_manager.query_logs(limit=limit)
 
             # Show DataFrame
-            df.show(limit or 20, truncate=False)
+            display_limit = limit if limit is not None else 20
+            df.show(display_limit, truncate=False)
 
             self.logger.info("Logs displayed successfully")
 

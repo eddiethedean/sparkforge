@@ -61,7 +61,10 @@ class DependencyAnalyzer:
         logger: PipelineLogger | None = None,
     ):
         self.strategy = strategy
-        self.logger = logger or PipelineLogger()
+        if logger is None:
+            self.logger = PipelineLogger()
+        else:
+            self.logger = logger
         self._analysis_cache: Dict[str, DependencyAnalysisResult] = {}
 
     def analyze_dependencies(

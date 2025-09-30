@@ -235,23 +235,37 @@ class WriterConfig:
 
         # Apply suffix pattern if provided
         if self.table_suffix_pattern:
+            # Use explicit None checking instead of 'or' to avoid masking None values
+            if run_mode is None:
+                raise ValueError("run_mode cannot be None when using table_suffix_pattern")
+            if timestamp is None:
+                raise ValueError("timestamp cannot be None when using table_suffix_pattern")
+                
             suffix_vars = {
-                "run_mode": run_mode or "unknown",
-                "date": timestamp or datetime.now().strftime("%Y%m%d"),
-                "timestamp": timestamp or datetime.now().strftime("%Y%m%d_%H%M%S"),
+                "run_mode": run_mode,
+                "date": timestamp,
+                "timestamp": timestamp,
             }
             suffix = self.table_suffix_pattern.format(**suffix_vars)
             table_name = f"{table_name}{suffix}"
 
         # Apply full pattern if provided
         if self.table_name_pattern:
+            # Use explicit None checking instead of 'or' to avoid masking None values
+            if pipeline_id is None:
+                raise ValueError("pipeline_id cannot be None when using table_name_pattern")
+            if run_mode is None:
+                raise ValueError("run_mode cannot be None when using table_name_pattern")
+            if timestamp is None:
+                raise ValueError("timestamp cannot be None when using table_name_pattern")
+                
             pattern_vars = {
                 "schema": self.table_schema,
                 "table_name": table_name,
-                "pipeline_id": pipeline_id or "unknown",
-                "run_mode": run_mode or "unknown",
-                "date": timestamp or datetime.now().strftime("%Y%m%d"),
-                "timestamp": timestamp or datetime.now().strftime("%Y%m%d_%H%M%S"),
+                "pipeline_id": pipeline_id,
+                "run_mode": run_mode,
+                "date": timestamp,
+                "timestamp": timestamp,
             }
             return self.table_name_pattern.format(**pattern_vars)
 
@@ -351,7 +365,7 @@ def create_log_row_from_step_result(
         # Step-level information
         phase=step_result.phase.value,
         step_name=step_result.step_name,
-        step_type=step_result.step_type or "unknown",
+        step_type=step_result.step_type if step_result.step_type is not None else "unknown",
         # Timing information
         start_time=step_result.start_time,
         end_time=step_result.end_time,

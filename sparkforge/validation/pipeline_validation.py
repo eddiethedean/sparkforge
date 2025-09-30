@@ -49,7 +49,10 @@ class UnifiedValidator:
 
     def __init__(self, logger: PipelineLogger | None = None):
         """Initialize the unified validator."""
-        self.logger = logger or PipelineLogger()
+        if logger is None:
+            self.logger = PipelineLogger()
+        else:
+            self.logger = logger
         self.custom_validators: list[StepValidator] = []
 
     def add_validator(self, validator: StepValidator) -> None:
