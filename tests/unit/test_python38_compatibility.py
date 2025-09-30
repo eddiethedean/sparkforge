@@ -156,8 +156,12 @@ class Python38CompatibilityTest(unittest.TestCase):
                                 )
 
             except Exception as e:
-                # Skip files that can't be parsed
-                continue
+                # Log parsing errors instead of silently skipping
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to parse file {py_file} for Dict type annotations: {e}")
+                # Add to violations to track parsing failures
+                violations.append((str(py_file), 0, f"Parse error: {e}"))
 
         return violations
 
@@ -198,7 +202,12 @@ class Python38CompatibilityTest(unittest.TestCase):
                                 )
 
             except Exception as e:
-                print(f"Error parsing {py_file}: {e}")
+                # Log parsing errors instead of printing
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to parse file {py_file} for dict syntax annotations: {e}")
+                # Add to violations to track parsing failures
+                violations.append((str(py_file), 0, f"Parse error: {e}"))
 
         return violations
 
@@ -233,8 +242,13 @@ class Python38CompatibilityTest(unittest.TestCase):
                     if "typing.Dict" in line:
                         violations.append((str(py_file), i, line))
 
-            except Exception:
-                continue
+            except Exception as e:
+                # Log parsing errors instead of silently skipping
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to parse file {py_file} for dict syntax annotations: {e}")
+                # Add to violations to track parsing failures
+                violations.append((str(py_file), 0, f"Parse error: {e}"))
 
         return violations
 
