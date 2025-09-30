@@ -12,10 +12,10 @@ import pytest
 from pyspark.sql import functions as F
 
 from sparkforge.errors import (
-    PipelineConfigurationError,
     PipelineValidationError,
     ValidationError,
 )
+from sparkforge.models.exceptions import PipelineConfigurationError
 from sparkforge.models import (
     BaseModel,
     BronzeStep,

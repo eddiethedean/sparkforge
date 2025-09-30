@@ -88,7 +88,7 @@ class TestTrap9DefaultValueFallbacks:
         
         step = BronzeStep(
             name="test_bronze",
-            rules=ColumnRules({"col1": "col1 IS NOT NULL"}),
+            rules={"col1": "col1 IS NOT NULL"},
         )
         
         # This should not raise an error as context is properly handled
@@ -114,14 +114,15 @@ class TestTrap9DefaultValueFallbacks:
         
         from sparkforge.models.steps import BronzeStep
         from sparkforge.validation import ColumnRules
+        from sparkforge.errors import ExecutionError
         
         step = BronzeStep(
             name="test_bronze",
-            rules=ColumnRules({"col1": "col1 IS NOT NULL"}),
+            rules={"col1": "col1 IS NOT NULL"},
         )
         
-        # Should raise TypeError for invalid context type
-        with pytest.raises(TypeError, match="context must be a dictionary, got <class 'str'>"):
+        # Should raise ExecutionError for invalid context type
+        with pytest.raises(ExecutionError, match="context must be a dictionary, got <class 'str'>"):
             engine.execute_pipeline([step], context="invalid_context")
 
     def test_log_writer_run_id_handling(self, spark_session):
@@ -148,10 +149,11 @@ class TestTrap9DefaultValueFallbacks:
         step_result = StepResult.create_success(
             step_name="test_step",
             phase="bronze",
-            duration_secs=1.0,
-            output_rows=100,
-            valid_rows=100,
-            invalid_rows=0,
+            start_time=datetime.now(),
+            end_time=datetime.now(),
+            rows_processed=100,
+            rows_written=100,
+            validation_rate=100.0,
         )
         
         # This should work without raising an error
@@ -185,16 +187,17 @@ class TestTrap9DefaultValueFallbacks:
         step_result = StepResult.create_success(
             step_name="test_step",
             phase="bronze",
-            duration_secs=1.0,
-            output_rows=100,
-            valid_rows=100,
-            invalid_rows=0,
+            start_time=datetime.now(),
+            end_time=datetime.now(),
+            rows_processed=100,
+            rows_written=100,
+            validation_rate=100.0,
         )
         
         # This should work without raising an error
         # The run_ids will be generated if None is provided
         try:
-            writer.write_execution_result_batch([step_result], context, run_ids=None)
+            writer.write_execution_result_batch([step_result], run_ids=None)
         except Exception as e:
             # We expect some errors due to missing table, but not due to run_ids handling
             assert "run_ids" not in str(e).lower()

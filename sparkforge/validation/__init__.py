@@ -41,6 +41,7 @@ from .data_validation import (
 )
 from .pipeline_validation import StepValidator, UnifiedValidator, ValidationResult
 from .utils import get_dataframe_info, safe_divide
+from ..types import ColumnRules
 
 # Make all validation components available at package level
 __all__ = [
@@ -58,4 +59,6 @@ __all__ = [
     # Utility functions
     "safe_divide",
     "get_dataframe_info",
+    # Types
+    "ColumnRules",
 ]

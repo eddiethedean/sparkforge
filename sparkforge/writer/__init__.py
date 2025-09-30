@@ -113,6 +113,6 @@ __all__ = [
 ]
 
 # Version information
-__version__ = "2.0.0"
+__version__ = "0.8.0"
 __author__ = "SparkForge Team"
 __description__ = "Modular log writer for SparkForge pipeline execution results"

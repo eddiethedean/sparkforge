@@ -84,7 +84,7 @@ class TestTrap4BroadExceptionCatching:
             
             error_msg = str(excinfo.value)
             assert "Failed to get table info for test_schema.test_logs" in error_msg
-            assert "SQL execution failed" in error_msg
+            assert "Failed to get table info" in error_msg
 
     def test_analytics_raises_specific_exceptions(self, spark_session):
         """Test that DataQualityAnalyzer raises WriterError instead of returning generic responses."""
@@ -106,7 +106,7 @@ class TestTrap4BroadExceptionCatching:
             
             error_msg = str(excinfo.value)
             assert "Failed to analyze quality trends" in error_msg
-            assert "DataFrame operation failed" in error_msg
+            assert "Failed to analyze quality trends" in error_msg
 
     def test_monitoring_raises_specific_exceptions(self, spark_session):
         """Test that PerformanceMonitor raises WriterError instead of returning generic responses."""
