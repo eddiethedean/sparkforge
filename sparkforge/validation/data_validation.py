@@ -126,6 +126,21 @@ def apply_column_rules(
             stats,
         )  # Return original df as valid, empty df as invalid
 
+    # Validate that all columns referenced in rules exist in the DataFrame
+    df_columns = set(df.columns)
+    rule_columns = set(rules.keys())
+    missing_columns = rule_columns - df_columns
+    
+    if missing_columns:
+        available_columns = sorted(df_columns)
+        missing_columns_list = sorted(missing_columns)
+        raise ValidationError(
+            f"Columns referenced in validation rules do not exist in DataFrame. "
+            f"Missing columns: {missing_columns_list}. "
+            f"Available columns: {available_columns}. "
+            f"Stage: {stage}, Step: {step}"
+        )
+
     start_time = time.time()
 
     # Create validation predicate
