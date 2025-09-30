@@ -15,6 +15,7 @@ import psutil  # type: ignore[import-untyped]
 from pyspark.sql import DataFrame, SparkSession
 
 from ..logging import PipelineLogger
+from .exceptions import WriterError
 from .models import WriterMetrics
 from .query_builder import QueryBuilder
 
@@ -183,7 +184,7 @@ class PerformanceMonitor:
 
         except Exception as e:
             self.logger.error(f"Failed to get memory usage: {e}")
-            return {"error": str(e)}
+            raise WriterError(f"Failed to get memory usage: {e}") from e
 
     def check_performance_thresholds(
         self, operation_metrics: Dict[str, Any]
@@ -297,7 +298,7 @@ class AnalyticsEngine:
 
         except Exception as e:
             self.logger.error(f"Failed to analyze execution trends: {e}")
-            return {"error": str(e)}
+            raise WriterError(f"Failed to analyze execution trends: {e}") from e
 
     def detect_anomalies(self, df: DataFrame) -> Dict[str, Any]:
         """
@@ -374,7 +375,7 @@ class AnalyticsEngine:
 
         except Exception as e:
             self.logger.error(f"Failed to detect anomalies: {e}")
-            return {"error": str(e)}
+            raise WriterError(f"Failed to detect anomalies: {e}") from e
 
     def generate_performance_report(self, df: DataFrame) -> Dict[str, Any]:
         """
@@ -445,4 +446,4 @@ class AnalyticsEngine:
 
         except Exception as e:
             self.logger.error(f"Failed to generate performance report: {e}")
-            return {"error": str(e)}
+            raise WriterError(f"Failed to generate performance report: {e}") from e

@@ -15,7 +15,7 @@ from pyspark.sql import SparkSession
 from ..logging import PipelineLogger
 from ..models import ExecutionResult, StepResult
 from .analytics import DataQualityAnalyzer, TrendAnalyzer
-from .exceptions import WriterConfigurationError
+from .exceptions import WriterConfigurationError, WriterError
 from .models import LogRow, WriterConfig, WriterMetrics, create_log_schema
 from .monitoring import AnalyticsEngine, PerformanceMonitor
 from .operations import DataProcessor
@@ -446,7 +446,7 @@ class LogWriter:
             return self.storage_manager.get_table_info()
         except Exception as e:
             self.logger.error(f"Failed to get table info: {e}")
-            return {"error": str(e)}
+            raise WriterError(f"Failed to get table info: {e}") from e
 
     def optimize_table(self) -> Dict[str, Any]:
         """
@@ -500,7 +500,7 @@ class LogWriter:
 
         except Exception as e:
             self.logger.error(f"Failed to analyze quality trends: {e}")
-            return {"error": str(e)}
+            raise WriterError(f"Failed to analyze quality trends: {e}") from e
 
     def analyze_execution_trends(self, days: int = 30) -> Dict[str, Any]:
         """
@@ -523,7 +523,7 @@ class LogWriter:
 
         except Exception as e:
             self.logger.error(f"Failed to analyze execution trends: {e}")
-            return {"error": str(e)}
+            raise WriterError(f"Failed to analyze execution trends: {e}") from e
 
     def detect_quality_anomalies(self) -> Dict[str, Any]:
         """
@@ -543,7 +543,7 @@ class LogWriter:
 
         except Exception as e:
             self.logger.error(f"Failed to detect quality anomalies: {e}")
-            return {"error": str(e)}
+            raise WriterError(f"Failed to detect quality anomalies: {e}") from e
 
     def generate_performance_report(self) -> Dict[str, Any]:
         """
@@ -563,7 +563,7 @@ class LogWriter:
 
         except Exception as e:
             self.logger.error(f"Failed to generate performance report: {e}")
-            return {"error": str(e)}
+            raise WriterError(f"Failed to generate performance report: {e}") from e
 
     def get_metrics(self) -> WriterMetrics:
         """Get current writer metrics."""

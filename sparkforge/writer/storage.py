@@ -293,7 +293,11 @@ class StorageManager:
 
         except Exception as e:
             self.logger.error(f"Failed to get table info for {self.table_fqn}: {e}")
-            return {"error": str(e)}
+            raise WriterTableError(
+                f"Failed to get table info for {self.table_fqn}: {e}",
+                table_name=self.table_fqn,
+                operation="get_table_info",
+            ) from e
 
     def query_logs(
         self, limit: int | None = None, filters: Dict[str, Any] | None = None

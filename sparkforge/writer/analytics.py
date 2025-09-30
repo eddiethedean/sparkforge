@@ -14,6 +14,7 @@ from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import col
 
 from ..logging import PipelineLogger
+from .exceptions import WriterError
 from .query_builder import QueryBuilder
 
 
@@ -120,7 +121,7 @@ class DataQualityAnalyzer:
 
         except Exception as e:
             self.logger.error(f"Failed to analyze quality trends: {e}")
-            return {"error": str(e)}
+            raise WriterError(f"Failed to analyze quality trends: {e}") from e
 
     def detect_quality_anomalies(self, df: DataFrame) -> Dict[str, Any]:
         """
@@ -231,7 +232,7 @@ class DataQualityAnalyzer:
 
         except Exception as e:
             self.logger.error(f"Failed to detect quality anomalies: {e}")
-            return {"error": str(e)}
+            raise WriterError(f"Failed to detect quality anomalies: {e}") from e
 
     def _calculate_quality_score(self, row: Dict[str, Any]) -> str:
         """Calculate quality score for a row."""
@@ -388,7 +389,7 @@ class TrendAnalyzer:
 
         except Exception as e:
             self.logger.error(f"Failed to analyze execution trends: {e}")
-            return {"error": str(e)}
+            raise WriterError(f"Failed to analyze execution trends: {e}") from e
 
     def _calculate_trend_indicators(
         self, volume_trends: List[Dict[str, Any]]

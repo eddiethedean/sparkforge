@@ -70,21 +70,30 @@ git push origin main
 
 ### **Trap 3: Hardcoded Fallback Values in LogRow Creation**
 **Location**: `sparkforge/writer/models.py:354-363`
-**Status**: ⏳ Pending
+**Status**: ✅ COMPLETED
 **Priority**: MEDIUM
 **Description**: Multiple hardcoded `None` values and "unknown" strings mask missing data.
 
 **Fix Plan**:
-- [ ] Replace hardcoded values with proper data extraction
-- [ ] Add validation for required fields
-- [ ] Create specific error types for missing data
-- [ ] Update StepResult model to include missing fields
-- [ ] Add tests for LogRow creation with missing data
+- [x] Replace hardcoded values with proper data extraction
+- [x] Add validation for required fields
+- [x] Create specific error types for missing data
+- [x] Update StepResult model to include missing fields
+- [x] Add tests for LogRow creation with missing data
 
 **Git Commands**:
 ```bash
 git checkout -b fix/trap-3-hardcoded-fallback-values
+git merge fix/trap-3-hardcoded-fallback-values
+git push origin main
 ```
+
+**Results**:
+- Added missing fields to StepResult model (step_type, table_fqn, write_mode, input_rows)
+- Updated factory methods to accept new fields
+- Replaced hardcoded fallbacks with actual data extraction
+- Only "unknown" fallback remains for step_type when data is missing
+- Clear data visibility for debugging and monitoring
 
 ---
 
@@ -245,10 +254,10 @@ git checkout -b fix/trap-10-silent-test-skip
 
 ## 📊 Progress Tracking
 
-**Overall Progress**: 2/10 traps fixed (20%)
+**Overall Progress**: 3/10 traps fixed (30%)
 
 **Phase 1**: 2/2 traps fixed (100%) - Trap 1 & 2 completed ✅
-**Phase 2**: 0/2 traps fixed (0%)
+**Phase 2**: 1/2 traps fixed (50%) - Trap 3 completed ✅
 **Phase 3**: 0/4 traps fixed (0%)
 **Phase 4**: 0/2 traps fixed (0%)
 
