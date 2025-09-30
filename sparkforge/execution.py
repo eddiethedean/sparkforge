@@ -272,9 +272,23 @@ class ExecutionEngine:
 
             # Execute bronze steps first
             for step in bronze_steps:
-                step_result = self.execute_step(step, context, mode)
+                try:
+                    step_result = self.execute_step(step, context, mode)
+                except Exception as e:
+                    # Create a failed step result for tracking
+                    step_result = StepExecutionResult(
+                        step_name=step.name,
+                        step_type=StepType.BRONZE,
+                        status=StepStatus.FAILED,
+                        error=str(e),
+                        start_time=datetime.now(),
+                        end_time=datetime.now(),
+                        duration=0.0,
+                    )
+                
                 if result.steps is not None:
                     result.steps.append(step_result)
+                    
                 if step_result.status == StepStatus.COMPLETED:
                     # Bronze steps don't write to tables, they only validate data
                     # The validated data is available in the step result's output_df
@@ -284,9 +298,23 @@ class ExecutionEngine:
 
             # Execute silver steps
             for silver_step in silver_steps:
-                step_result = self.execute_step(silver_step, context, mode)
+                try:
+                    step_result = self.execute_step(silver_step, context, mode)
+                except Exception as e:
+                    # Create a failed step result for tracking
+                    step_result = StepExecutionResult(
+                        step_name=silver_step.name,
+                        step_type=StepType.SILVER,
+                        status=StepStatus.FAILED,
+                        error=str(e),
+                        start_time=datetime.now(),
+                        end_time=datetime.now(),
+                        duration=0.0,
+                    )
+                
                 if result.steps is not None:
                     result.steps.append(step_result)
+                    
                 if step_result.status == StepStatus.COMPLETED:
                     table_name = getattr(silver_step, "table_name", silver_step.name)
                     schema = getattr(silver_step, "schema", "default")
@@ -296,18 +324,40 @@ class ExecutionEngine:
 
             # Execute gold steps
             for gold_step in gold_steps:
-                step_result = self.execute_step(gold_step, context, mode)
+                try:
+                    step_result = self.execute_step(gold_step, context, mode)
+                except Exception as e:
+                    # Create a failed step result for tracking
+                    step_result = StepExecutionResult(
+                        step_name=gold_step.name,
+                        step_type=StepType.GOLD,
+                        status=StepStatus.FAILED,
+                        error=str(e),
+                        start_time=datetime.now(),
+                        end_time=datetime.now(),
+                        duration=0.0,
+                    )
+                
                 if result.steps is not None:
                     result.steps.append(step_result)
+                    
                 if step_result.status == StepStatus.COMPLETED:
                     table_name = getattr(gold_step, "table_name", gold_step.name)
                     schema = getattr(gold_step, "schema", "default")
                     context[gold_step.name] = self.spark.table(fqn(schema, table_name))
 
-            result.status = "completed"
+            # Determine overall pipeline status based on step results
+            steps = result.steps or []
+            failed_steps = [s for s in steps if s.status == StepStatus.FAILED]
+            
+            if failed_steps:
+                result.status = "failed"
+                self.logger.error(f"Pipeline execution failed: {len(failed_steps)} steps failed")
+            else:
+                result.status = "completed"
+                self.logger.info(f"Completed pipeline execution: {execution_id}")
+            
             result.end_time = datetime.now()
-
-            self.logger.info(f"Completed pipeline execution: {execution_id}")
 
         except Exception as e:
             result.status = "failed"
