@@ -198,7 +198,8 @@ class ExecutionEngine:
 
             # Apply validation if not in validation-only mode
             if mode != ExecutionMode.VALIDATION_ONLY:
-                if hasattr(step, "rules") and step.rules:
+                # All step types (Bronze, Silver, Gold) have rules attribute
+                if step.rules:
                     output_df, _, _ = apply_column_rules(
                         output_df, step.rules, "pipeline", step.name
                     )

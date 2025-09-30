@@ -169,7 +169,8 @@ class DependencyAnalyzer:
                 graph.add_node(node)
 
                 # Add dependencies
-                if hasattr(silver_step, "source_bronze") and silver_step.source_bronze:
+                # SilverStep always has source_bronze attribute
+                if silver_step.source_bronze:
                     # Check if the source bronze step exists
                     if silver_step.source_bronze in graph.nodes:
                         graph.add_dependency(name, silver_step.source_bronze)
@@ -179,6 +180,7 @@ class DependencyAnalyzer:
                             f"Silver step {name} references non-existent bronze step {silver_step.source_bronze}"
                         )
 
+                # Check for additional dependencies (depends_on is not a standard attribute)
                 if hasattr(silver_step, "depends_on") and silver_step.depends_on:
                     for dep in silver_step.depends_on:
                         if dep in graph.nodes:
@@ -197,7 +199,8 @@ class DependencyAnalyzer:
                 graph.add_node(node)
 
                 # Add dependencies
-                if hasattr(gold_step, "source_silvers") and gold_step.source_silvers:
+                # GoldStep always has source_silvers attribute (can be None)
+                if gold_step.source_silvers:
                     for dep in gold_step.source_silvers:
                         if dep in graph.nodes:
                             graph.add_dependency(name, dep)
