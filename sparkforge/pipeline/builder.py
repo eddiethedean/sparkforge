@@ -1112,15 +1112,14 @@ class PipelineBuilder:
             )
 
         # Create execution engine
-
-        ExecutionEngine(
+        execution_engine = ExecutionEngine(
             spark=self.spark,
             config=self.config,
             logger=self.logger,
         )
 
         # Create dependency analyzer
-        DependencyAnalyzer(logger=self.logger)
+        dependency_analyzer = DependencyAnalyzer(logger=self.logger)
 
         # Create pipeline runner
         runner = PipelineRunner(
