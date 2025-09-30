@@ -252,12 +252,15 @@ def assess_data_quality(
                 "quality_rate": 100.0,
                 "is_empty": False,
             }
+    except ValidationError as e:
+        # Re-raise validation errors as they are specific and actionable
+        raise e
     except Exception as e:
-        return {
-            "error": str(e),
-            "total_rows": 0,
-            "valid_rows": 0,
-            "invalid_rows": 0,
-            "quality_rate": 0.0,
-            "is_empty": True,
-        }
+        # Log the unexpected error and re-raise with context
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Unexpected error in assess_data_quality: {e}")
+        raise ValidationError(
+            f"Data quality assessment failed: {e}",
+            context={"function": "assess_data_quality", "original_error": str(e)}
+        ) from e
