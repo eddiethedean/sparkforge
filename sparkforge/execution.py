@@ -208,7 +208,16 @@ class ExecutionEngine:
             if mode != ExecutionMode.VALIDATION_ONLY and not isinstance(step, BronzeStep):
                 # Use table_name attribute for SilverStep and GoldStep
                 table_name = getattr(step, "table_name", step.name)
-                schema = getattr(step, "schema", "default")
+                schema = getattr(step, "schema", None)
+                
+                # Validate schema is provided
+                if schema is None:
+                    raise ExecutionError(
+                        f"Step '{step.name}' requires a schema to be specified. "
+                        f"Silver and Gold steps must have a valid schema for table operations. "
+                        f"Please provide a schema when creating the step."
+                    )
+                
                 output_table = fqn(schema, table_name)
                 output_df.write.mode("overwrite").saveAsTable(output_table)
                 result.output_table = output_table
@@ -318,10 +327,18 @@ class ExecutionEngine:
                     
                 if step_result.status == StepStatus.COMPLETED:
                     table_name = getattr(silver_step, "table_name", silver_step.name)
-                    schema = getattr(silver_step, "schema", "default")
-                    context[silver_step.name] = self.spark.table(
-                        fqn(schema, table_name)
-                    )
+                    schema = getattr(silver_step, "schema", None)
+                    
+                    # Validate schema is provided
+                    if schema is None:
+                        self.logger.error(
+                            f"Silver step '{silver_step.name}' completed but has no schema. "
+                            f"Cannot read from table. Skipping context update."
+                        )
+                    else:
+                        context[silver_step.name] = self.spark.table(
+                            fqn(schema, table_name)
+                        )
 
             # Execute gold steps
             for gold_step in gold_steps:
@@ -344,8 +361,16 @@ class ExecutionEngine:
                     
                 if step_result.status == StepStatus.COMPLETED:
                     table_name = getattr(gold_step, "table_name", gold_step.name)
-                    schema = getattr(gold_step, "schema", "default")
-                    context[gold_step.name] = self.spark.table(fqn(schema, table_name))
+                    schema = getattr(gold_step, "schema", None)
+                    
+                    # Validate schema is provided
+                    if schema is None:
+                        self.logger.error(
+                            f"Gold step '{gold_step.name}' completed but has no schema. "
+                            f"Cannot read from table. Skipping context update."
+                        )
+                    else:
+                        context[gold_step.name] = self.spark.table(fqn(schema, table_name))
 
             # Determine overall pipeline status based on step results
             steps = result.steps or []

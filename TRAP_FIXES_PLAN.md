@@ -99,21 +99,30 @@ git push origin main
 
 ### **Trap 4: Broad Exception Catching in Writer Components**
 **Location**: Multiple locations in `sparkforge/writer/`
-**Status**: ⏳ Pending
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Description**: Catches all exceptions and returns generic error responses.
 
 **Fix Plan**:
-- [ ] Replace broad exception handling with specific types
-- [ ] Add proper error propagation
-- [ ] Create specific error types for writer failures
-- [ ] Add logging for debugging
-- [ ] Add tests for error scenarios
+- [x] Replace broad exception handling with specific types
+- [x] Add proper error propagation
+- [x] Create specific error types for writer failures
+- [x] Add logging for debugging
+- [x] Add tests for error scenarios
 
 **Git Commands**:
 ```bash
 git checkout -b fix/trap-4-broad-exception-catching
+git merge fix/trap-4-broad-exception-catching
+git push origin main
 ```
+
+**Results**:
+- WriterError and WriterTableError are now raised instead of generic responses
+- Proper error propagation with exception chaining preserves original errors
+- No more generic error responses that mask real issues
+- Clear error messages make debugging much easier
+- All writer components now have consistent error handling
 
 ---
 
@@ -254,10 +263,10 @@ git checkout -b fix/trap-10-silent-test-skip
 
 ## 📊 Progress Tracking
 
-**Overall Progress**: 3/10 traps fixed (30%)
+**Overall Progress**: 4/10 traps fixed (40%)
 
 **Phase 1**: 2/2 traps fixed (100%) - Trap 1 & 2 completed ✅
-**Phase 2**: 1/2 traps fixed (50%) - Trap 3 completed ✅
+**Phase 2**: 2/2 traps fixed (100%) - Trap 3 & 4 completed ✅
 **Phase 3**: 0/4 traps fixed (0%)
 **Phase 4**: 0/2 traps fixed (0%)
 
