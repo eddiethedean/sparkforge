@@ -92,29 +92,45 @@ def spark_session():
         spark = configure_spark_with_delta_pip(builder).getOrCreate()
 
     except Exception as e:
-        print(f"⚠️ Delta Lake configuration failed: {e}")
-        # Fall back to basic Spark if Delta Lake is not available
-        print("🔧 Falling back to basic Spark configuration")
-        try:
-            builder = (
-                SparkSession.builder.appName(f"SparkForgeTests-{os.getpid()}")
-                .master("local[1]")
-                .config("spark.sql.warehouse.dir", warehouse_dir)
-                .config("spark.sql.adaptive.enabled", "true")
-                .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
-                .config("spark.driver.host", "127.0.0.1")
-                .config("spark.driver.bindAddress", "127.0.0.1")
-                .config(
-                    "spark.serializer", "org.apache.spark.serializer.KryoSerializer"
+        print(f"❌ Delta Lake configuration failed: {e}")
+        print("💡 To fix this issue:")
+        print("   1. Install Delta Lake: pip install delta-spark")
+        print("   2. Or set SPARKFORGE_SKIP_DELTA=1 to skip Delta Lake tests")
+        print("   3. Or set SPARKFORGE_BASIC_SPARK=1 to use basic Spark without Delta Lake")
+        
+        # Check if user explicitly wants to skip Delta Lake or use basic Spark
+        skip_delta = os.environ.get("SPARKFORGE_SKIP_DELTA", "0") == "1"
+        basic_spark = os.environ.get("SPARKFORGE_BASIC_SPARK", "0") == "1"
+        
+        if skip_delta or basic_spark:
+            print("🔧 Using basic Spark configuration as requested")
+            try:
+                builder = (
+                    SparkSession.builder.appName(f"SparkForgeTests-{os.getpid()}")
+                    .master("local[1]")
+                    .config("spark.sql.warehouse.dir", warehouse_dir)
+                    .config("spark.sql.adaptive.enabled", "true")
+                    .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
+                    .config("spark.driver.host", "127.0.0.1")
+                    .config("spark.driver.bindAddress", "127.0.0.1")
+                    .config(
+                        "spark.serializer", "org.apache.spark.serializer.KryoSerializer"
+                    )
+                    .config("spark.driver.memory", "1g")
+                    .config("spark.executor.memory", "1g")
                 )
-                .config("spark.driver.memory", "1g")
-                .config("spark.executor.memory", "1g")
-            )
 
-            spark = builder.getOrCreate()
-        except Exception as e2:
-            print(f"❌ Failed to create Spark session: {e2}")
-            raise
+                spark = builder.getOrCreate()
+            except Exception as e2:
+                print(f"❌ Failed to create basic Spark session: {e2}")
+                raise
+        else:
+            # Fail fast with clear error message
+            raise RuntimeError(
+                f"Delta Lake configuration failed: {e}\n"
+                "This is required for SparkForge tests. Please install Delta Lake or "
+                "set environment variables to skip Delta Lake requirements."
+            )
 
     # Ensure Spark session was created successfully
     if spark is None:
@@ -211,31 +227,47 @@ def isolated_spark_session():
         spark = configure_spark_with_delta_pip(builder).getOrCreate()
 
     except Exception as e:
-        print(f"⚠️ Delta Lake configuration failed: {e}")
-        # Fall back to basic Spark if Delta Lake is not available
-        print("🔧 Falling back to basic Spark configuration")
-        try:
-            builder = (
-                SparkSession.builder.appName(
-                    f"SparkForgeIsolatedTests-{os.getpid()}-{unique_id}"
+        print(f"❌ Delta Lake configuration failed for isolated session: {e}")
+        print("💡 To fix this issue:")
+        print("   1. Install Delta Lake: pip install delta-spark")
+        print("   2. Or set SPARKFORGE_SKIP_DELTA=1 to skip Delta Lake tests")
+        print("   3. Or set SPARKFORGE_BASIC_SPARK=1 to use basic Spark without Delta Lake")
+        
+        # Check if user explicitly wants to skip Delta Lake or use basic Spark
+        skip_delta = os.environ.get("SPARKFORGE_SKIP_DELTA", "0") == "1"
+        basic_spark = os.environ.get("SPARKFORGE_BASIC_SPARK", "0") == "1"
+        
+        if skip_delta or basic_spark:
+            print("🔧 Using basic Spark configuration for isolated session as requested")
+            try:
+                builder = (
+                    SparkSession.builder.appName(
+                        f"SparkForgeIsolatedTests-{os.getpid()}-{unique_id}"
+                    )
+                    .master("local[1]")
+                    .config("spark.sql.warehouse.dir", warehouse_dir)
+                    .config("spark.sql.adaptive.enabled", "true")
+                    .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
+                    .config("spark.driver.host", "127.0.0.1")
+                    .config("spark.driver.bindAddress", "127.0.0.1")
+                    .config(
+                        "spark.serializer", "org.apache.spark.serializer.KryoSerializer"
+                    )
+                    .config("spark.driver.memory", "512m")
+                    .config("spark.executor.memory", "512m")
                 )
-                .master("local[1]")
-                .config("spark.sql.warehouse.dir", warehouse_dir)
-                .config("spark.sql.adaptive.enabled", "true")
-                .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
-                .config("spark.driver.host", "127.0.0.1")
-                .config("spark.driver.bindAddress", "127.0.0.1")
-                .config(
-                    "spark.serializer", "org.apache.spark.serializer.KryoSerializer"
-                )
-                .config("spark.driver.memory", "512m")
-                .config("spark.executor.memory", "512m")
-            )
 
-            spark = builder.getOrCreate()
-        except Exception as e2:
-            print(f"❌ Failed to create isolated Spark session: {e2}")
-            raise
+                spark = builder.getOrCreate()
+            except Exception as e2:
+                print(f"❌ Failed to create basic isolated Spark session: {e2}")
+                raise
+        else:
+            # Fail fast with clear error message
+            raise RuntimeError(
+                f"Delta Lake configuration failed for isolated session: {e}\n"
+                "This is required for SparkForge tests. Please install Delta Lake or "
+                "set environment variables to skip Delta Lake requirements."
+            )
 
     # Ensure Spark session was created successfully
     if spark is None:
