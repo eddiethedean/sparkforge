@@ -351,16 +351,16 @@ def create_log_row_from_step_result(
         # Step-level information
         phase=step_result.phase.value,
         step_name=step_result.step_name,
-        step_type="unknown",  # TODO: Add step type to StepResult
+        step_type=step_result.step_type or "unknown",
         # Timing information
         start_time=step_result.start_time,
         end_time=step_result.end_time,
         duration_secs=step_result.duration_secs,
         # Table information
-        table_fqn=None,  # TODO: Add table info to StepResult
-        write_mode=None,  # TODO: Add write mode to StepResult
+        table_fqn=step_result.table_fqn,
+        write_mode=step_result.write_mode,
         # Data metrics
-        input_rows=None,  # TODO: Add input rows to StepResult
+        input_rows=step_result.input_rows,
         output_rows=step_result.rows_processed,
         rows_written=step_result.rows_written,
         rows_processed=step_result.rows_processed,

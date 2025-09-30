@@ -165,6 +165,10 @@ class StepResult(BaseModel):
         rows_written: Number of rows written
         validation_rate: Validation success rate
         error_message: Error message if failed
+        step_type: Type of step (bronze, silver, gold)
+        table_fqn: Fully qualified table name if step writes to table
+        write_mode: Write mode used (overwrite, append)
+        input_rows: Number of input rows processed
     """
 
     step_name: str
@@ -177,6 +181,10 @@ class StepResult(BaseModel):
     rows_written: int
     validation_rate: float
     error_message: str | None = None
+    step_type: str | None = None
+    table_fqn: str | None = None
+    write_mode: str | None = None
+    input_rows: int | None = None
 
     def validate(self) -> None:
         """Validate the step result."""
@@ -218,6 +226,10 @@ class StepResult(BaseModel):
         rows_processed: int,
         rows_written: int,
         validation_rate: float,
+        step_type: str | None = None,
+        table_fqn: str | None = None,
+        write_mode: str | None = None,
+        input_rows: int | None = None,
     ) -> "StepResult":
         """Create a successful step result."""
         duration_secs = (end_time - start_time).total_seconds()
@@ -232,6 +244,10 @@ class StepResult(BaseModel):
             rows_written=rows_written,
             validation_rate=validation_rate,
             error_message=None,
+            step_type=step_type,
+            table_fqn=table_fqn,
+            write_mode=write_mode,
+            input_rows=input_rows,
         )
 
     @classmethod
@@ -242,6 +258,10 @@ class StepResult(BaseModel):
         start_time: datetime,
         end_time: datetime,
         error_message: str,
+        step_type: str | None = None,
+        table_fqn: str | None = None,
+        write_mode: str | None = None,
+        input_rows: int | None = None,
     ) -> "StepResult":
         """Create a failed step result."""
         duration_secs = (end_time - start_time).total_seconds()
@@ -256,6 +276,10 @@ class StepResult(BaseModel):
             rows_written=0,
             validation_rate=0.0,
             error_message=error_message,
+            step_type=step_type,
+            table_fqn=table_fqn,
+            write_mode=write_mode,
+            input_rows=input_rows,
         )
 
     @property
