@@ -5,7 +5,7 @@ This module provides mock implementations of PySpark functions that behave
 identically to the real PySpark functions, particularly F.col expressions.
 """
 
-from typing import Any, List, Union, Optional
+from typing import Any, List, Union, Optional, Callable
 from dataclasses import dataclass
 from .types import MockDataType, StringType
 
@@ -19,91 +19,91 @@ class MockColumn:
         self.column_type = column_type or StringType()
         self.operation = None
         self.operand = None
-        self._operations = []
+        self._operations: List[MockColumnOperation] = []
         # Add expr attribute for PySpark compatibility
         self.expr = f"MockColumn('{name}')"
     
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> "MockColumnOperation":
         """Equality comparison."""
         if isinstance(other, MockColumn):
             return MockColumnOperation(self, "eq", other)
         return MockColumnOperation(self, "eq", other)
     
-    def __ne__(self, other):
+    def __ne__(self, other: Any) -> "MockColumnOperation":
         """Inequality comparison."""
         if isinstance(other, MockColumn):
             return MockColumnOperation(self, "ne", other)
         return MockColumnOperation(self, "ne", other)
     
-    def __lt__(self, other):
+    def __lt__(self, other: Any) -> "MockColumnOperation":
         """Less than comparison."""
         return MockColumnOperation(self, "lt", other)
     
-    def __le__(self, other):
+    def __le__(self, other: Any) -> "MockColumnOperation":
         """Less than or equal comparison."""
         return MockColumnOperation(self, "le", other)
     
-    def __gt__(self, other):
+    def __gt__(self, other: Any) -> "MockColumnOperation":
         """Greater than comparison."""
         return MockColumnOperation(self, "gt", other)
     
-    def __ge__(self, other):
+    def __ge__(self, other: Any) -> "MockColumnOperation":
         """Greater than or equal comparison."""
         return MockColumnOperation(self, "ge", other)
     
-    def __and__(self, other):
+    def __and__(self, other: Any) -> "MockColumnOperation":
         """Logical AND."""
         return MockColumnOperation(self, "and", other)
     
-    def __or__(self, other):
+    def __or__(self, other: Any) -> "MockColumnOperation":
         """Logical OR."""
         return MockColumnOperation(self, "or", other)
     
-    def __invert__(self):
+    def __invert__(self) -> "MockColumnOperation":
         """Logical NOT."""
         return MockColumnOperation(self, "not", None)
     
-    def isNull(self):
+    def isNull(self) -> "MockColumnOperation":
         """Check if column is null."""
         return MockColumnOperation(self, "isNull", None)
     
-    def isNotNull(self):
+    def isNotNull(self) -> "MockColumnOperation":
         """Check if column is not null."""
         return MockColumnOperation(self, "isNotNull", None)
     
-    def like(self, pattern: str):
+    def like(self, pattern: str) -> "MockColumnOperation":
         """SQL LIKE pattern matching."""
         return MockColumnOperation(self, "like", pattern)
     
-    def rlike(self, pattern: str):
+    def rlike(self, pattern: str) -> "MockColumnOperation":
         """Regex pattern matching."""
         return MockColumnOperation(self, "rlike", pattern)
     
-    def isin(self, values: List[Any]):
+    def isin(self, values: List[Any]) -> "MockColumnOperation":
         """Check if column value is in list."""
         return MockColumnOperation(self, "isin", values)
     
-    def between(self, lower: Any, upper: Any):
+    def between(self, lower: Any, upper: Any) -> "MockColumnOperation":
         """Check if column value is between bounds."""
         return MockColumnOperation(self, "between", (lower, upper))
     
-    def alias(self, name: str):
+    def alias(self, name: str) -> "MockColumnOperation":
         """Create column alias."""
         return MockColumnOperation(self, "alias", name)
     
-    def cast(self, data_type):
+    def cast(self, data_type: Any) -> "MockColumnOperation":
         """Cast column to data type."""
         return MockColumnOperation(self, "cast", data_type)
     
-    def when(self, condition, value):
+    def when(self, condition: Any, value: Any) -> "MockColumnOperation":
         """CASE WHEN condition."""
         return MockColumnOperation(self, "when", (condition, value))
     
-    def otherwise(self, value):
+    def otherwise(self, value: Any) -> "MockColumnOperation":
         """CASE WHEN ... ELSE."""
         return MockColumnOperation(self, "otherwise", value)
     
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"MockColumn('{self.name}')"
 
 
@@ -115,26 +115,26 @@ class MockColumnOperation:
     operation: str
     value: Any = None
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize expr attribute for PySpark compatibility."""
         if self.value is None:
             self.expr = f"MockColumnOperation({self.column}, '{self.operation}')"
         else:
             self.expr = f"MockColumnOperation({self.column}, '{self.operation}', {self.value})"
     
-    def __and__(self, other):
+    def __and__(self, other: Any) -> "MockColumnOperation":
         """Logical AND."""
         return MockColumnOperation(self, "and", other)
     
-    def __or__(self, other):
+    def __or__(self, other: Any) -> "MockColumnOperation":
         """Logical OR."""
         return MockColumnOperation(self, "or", other)
     
-    def __invert__(self):
+    def __invert__(self) -> "MockColumnOperation":
         """Logical NOT."""
         return MockColumnOperation(self, "not", None)
     
-    def __repr__(self):
+    def __repr__(self) -> str:
         if self.value is None:
             return f"MockColumnOperation({self.column}, '{self.operation}')"
         return f"MockColumnOperation({self.column}, '{self.operation}', {self.value})"
@@ -152,12 +152,13 @@ class MockFunctions:
     def lit(value: Any) -> MockColumn:
         """Create a literal value."""
         col = MockColumn(f"lit({value})")
-        col._is_literal = True
-        col._literal_value = value
+        # Add literal attributes for compatibility
+        setattr(col, '_is_literal', True)
+        setattr(col, '_literal_value', value)
         return col
     
     @staticmethod
-    def count(column: Union[str, MockColumn] = None) -> MockColumn:
+    def count(column: Optional[Union[str, MockColumn]] = None) -> MockColumn:
         """Count function."""
         if column is None:
             return MockColumn("count(*)")
@@ -216,7 +217,7 @@ class MockFunctions:
         return MockColumn("current_date()")
     
     @staticmethod
-    def to_date(column: Union[str, MockColumn], format: str = None) -> MockColumn:
+    def to_date(column: Union[str, MockColumn], format: Optional[str] = None) -> MockColumn:
         """Convert to date function."""
         if isinstance(column, str):
             column = MockColumn(column)
@@ -225,7 +226,7 @@ class MockFunctions:
         return MockColumn(f"to_date({column.name})")
     
     @staticmethod
-    def to_timestamp(column: Union[str, MockColumn], format: str = None) -> MockColumn:
+    def to_timestamp(column: Union[str, MockColumn], format: Optional[str] = None) -> MockColumn:
         """Convert to timestamp function."""
         if isinstance(column, str):
             column = MockColumn(column)
