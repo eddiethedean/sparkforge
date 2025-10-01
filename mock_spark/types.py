@@ -5,7 +5,7 @@ This module provides mock implementations of PySpark data types and schema
 structures that behave identically to the real PySpark types.
 """
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Iterator, KeysView, ValuesView, ItemsView
 from dataclasses import dataclass
 
 
@@ -15,10 +15,10 @@ class MockDataType:
     def __init__(self, nullable: bool = True):
         self.nullable = nullable
     
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return isinstance(other, self.__class__) and self.nullable == other.nullable
     
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}(nullable={self.nullable})"
 
 
@@ -107,11 +107,11 @@ class MockStructField:
     nullable: bool = True
     metadata: Optional[Dict[str, Any]] = None
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.metadata is None:
             self.metadata = {}
     
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return (
             isinstance(other, MockStructField) and
             self.name == other.name and
@@ -119,14 +119,14 @@ class MockStructField:
             self.nullable == other.nullable
         )
     
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"MockStructField(name='{self.name}', dataType={self.dataType}, nullable={self.nullable})"
 
 
 class StructType(MockDataType):
     """Mock struct type."""
     
-    def __init__(self, fields: List[MockStructField] = None, nullable: bool = True):
+    def __init__(self, fields: Optional[List[MockStructField]] = None, nullable: bool = True):
         """Initialize StructType."""
         super().__init__(nullable)
         self.fields = fields or []
@@ -149,13 +149,13 @@ class MockStructType:
     def __len__(self) -> int:
         return len(self.fields)
     
-    def __iter__(self):
+    def __iter__(self) -> Iterator[MockStructField]:
         return iter(self.fields)
     
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return isinstance(other, MockStructType) and self.fields == other.fields
     
-    def __repr__(self):
+    def __repr__(self) -> str:
         fields_str = ", ".join(repr(field) for field in self.fields)
         return f"MockStructType([{fields_str}])"
     
@@ -182,7 +182,7 @@ class MockDatabase:
     description: Optional[str] = None
     locationUri: Optional[str] = None
     
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"MockDatabase(name='{self.name}')"
 
 
@@ -195,7 +195,7 @@ class MockTable:
     tableType: str = "MANAGED"
     isTemporary: bool = False
     
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"MockTable(name='{self.name}', database='{self.database}')"
 
 
@@ -223,7 +223,7 @@ def infer_schema_from_data(data: List[Dict[str, Any]]) -> MockStructType:
     
     for name, value in first_row.items():
         if value is None:
-            data_type = StringType()
+            data_type: MockDataType = StringType()
         else:
             data_type = convert_python_type_to_mock_type(type(value))
         
@@ -255,15 +255,15 @@ class MockRow:
         """Check if key exists."""
         return key in self.data
     
-    def keys(self):
+    def keys(self) -> KeysView[str]:
         """Get keys."""
         return self.data.keys()
     
-    def values(self):
+    def values(self) -> ValuesView[Any]:
         """Get values."""
         return self.data.values()
     
-    def items(self):
+    def items(self) -> ItemsView[str, Any]:
         """Get items."""
         return self.data.items()
     
