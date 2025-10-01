@@ -103,6 +103,13 @@ class MockStorageManager:
         """Check if schema exists."""
         return schema in self._databases
     
+    def drop_schema(self, schema: str) -> None:
+        """Drop a schema."""
+        if schema in self._databases:
+            # Close the connection
+            self._databases[schema].close()
+            del self._databases[schema]
+    
     def list_schemas(self) -> List[str]:
         """List all schemas."""
         return list(self._databases.keys())

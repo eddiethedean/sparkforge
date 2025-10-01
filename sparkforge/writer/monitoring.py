@@ -11,7 +11,7 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List
 
-import psutil  # type: ignore[import-untyped]
+import psutil
 from pyspark.sql import DataFrame, SparkSession
 
 from ..logging import PipelineLogger

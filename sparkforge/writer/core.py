@@ -35,7 +35,14 @@ def table_exists(spark: SparkSession, database: str, table: str) -> bool:
         True if table exists, False otherwise
     """
     try:
+        # Use the correct method name for checking table existence
         return spark.catalog.tableExists(database, table)
+    except AttributeError:
+        # Fallback for different Spark versions
+        try:
+            return spark.sql(f"SHOW TABLES IN {database}").filter(f"tableName = '{table}'").count() > 0
+        except Exception:
+            return False
     except Exception:
         return False
 

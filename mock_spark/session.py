@@ -109,7 +109,7 @@ class MockSparkSession:
         
         # Convert tuples to dictionaries if schema is provided
         if data and isinstance(data[0], tuple) and schema:
-            converted_data = []
+            converted_data: List[Dict[str, Any]] = []
             field_names = [field.name for field in schema.fields]
             for row in data:
                 if len(row) != len(field_names):
@@ -136,6 +136,8 @@ class MockSparkSession:
         if table is None:
             raise_table_not_found(f"{schema_name}.{table_name}")
         
+        # At this point, table is guaranteed to be not None
+        assert table is not None
         return MockDataFrame(table.data, table.schema, self.storage)
     
     def sql(self, query: str) -> MockDataFrame:
@@ -175,7 +177,7 @@ class MockSparkSession:
             from .types import MockStructType
             return MockDataFrame([], MockStructType([]), self.storage)
     
-    def stop(self):
+    def stop(self) -> None:
         """Stop the Spark session."""
         self.storage.clear_all()
 
@@ -200,7 +202,7 @@ class MockCatalog:
             raise_value_error("Database name cannot be empty")
         
         if not ignoreIfExists and self.storage.schema_exists(name):
-            raise AnalysisException(f"Database '{name}' already exists")
+            raise AnalysisException(f"Database '{name}' already exists", None)
         
         self.storage.create_schema(name)
     

@@ -7,7 +7,7 @@ into SparkForge components, allowing for better testability and flexibility.
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Protocol, Any
 from pyspark.sql import Column
 
 

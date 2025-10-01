@@ -194,7 +194,12 @@ class StorageManager:
 
             # Run OPTIMIZE command using Delta Lake Python API
             delta_table = DeltaTable.forName(self.spark, self.table_fqn)
-            delta_table.optimize()
+            # Note: optimize() method may not be available in all Delta Lake versions
+            if hasattr(delta_table, 'optimize'):
+                delta_table.optimize()
+            else:
+                # Fallback: use SQL command
+                self.spark.sql(f"OPTIMIZE {self.table_fqn}")
 
             # Get table statistics
             table_info = self.get_table_info()
@@ -278,7 +283,12 @@ class StorageManager:
             delta_table = DeltaTable.forName(self.spark, self.table_fqn)
 
             # Get table details using Delta Lake Python API
-            table_details = delta_table.detail().collect()
+            # Note: detail() method may not be available in all Delta Lake versions
+            if hasattr(delta_table, 'detail'):
+                table_details = delta_table.detail().collect()
+            else:
+                # Fallback: use SQL command
+                table_details = self.spark.sql(f"DESCRIBE DETAIL {self.table_fqn}").collect()
 
             # Get table history
             table_history = delta_table.history().collect()
