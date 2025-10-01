@@ -8,7 +8,13 @@ in SparkForge pipelines, enabling cross-schema data flows.
 from unittest.mock import patch
 
 import pytest
-from pyspark.sql import functions as F
+import os
+
+# Use mock functions when in mock mode
+if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+    from mock_spark import functions as F
+else:
+    from pyspark.sql import functions as F
 from pyspark.sql.types import StringType, StructField, StructType
 
 from sparkforge.errors import StepError
@@ -201,8 +207,8 @@ class TestMultiSchemaSupport:
 
     def test_schema_creation_failure(self):
         """Test schema creation failure handling."""
-        with patch.object(self.builder.spark, "sql") as mock_sql:
-            mock_sql.side_effect = Exception("Permission denied")
+        with patch.object(self.builder.spark.catalog, "createDatabase") as mock_create_db:
+            mock_create_db.side_effect = Exception("Permission denied")
 
             with pytest.raises(StepError, match="Failed to create schema 'new_schema'"):
                 self.builder._create_schema_if_not_exists("new_schema")

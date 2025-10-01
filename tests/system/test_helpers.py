@@ -10,7 +10,15 @@ from typing import Any, Dict, List, Tuple
 
 import pytest
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql import functions as F
+import os
+
+# Use mock functions when in mock mode
+if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+    from mock_spark import functions as F
+    from mock_spark import MockDataFrame as DataFrame
+else:
+    from pyspark.sql import functions as F
+    from pyspark.sql import DataFrame
 
 from sparkforge import PipelineBuilder
 
@@ -89,8 +97,6 @@ class TestPipelineBuilder:
             spark=spark,
             schema=schema,
             verbose=False,
-            enable_parallel_silver=True,
-            max_parallel_workers=2,
             **kwargs,
         )
 
@@ -103,8 +109,6 @@ class TestPipelineBuilder:
             spark=spark,
             schema=schema,
             verbose=False,
-            enable_parallel_silver=False,
-            max_parallel_workers=1,
             **kwargs,
         )
 

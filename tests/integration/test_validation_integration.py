@@ -9,7 +9,13 @@ from unittest.mock import Mock, patch
 
 import pytest
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
+import os
+
+# Use mock functions when in mock mode
+if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+    from mock_spark import functions as F
+else:
+    from pyspark.sql import functions as F
 from pyspark.sql.types import StringType, StructField, StructType
 
 from sparkforge.models import (
@@ -354,15 +360,9 @@ class TestAssessDataQuality:
 
         # Mock count to raise an exception
         with patch.object(df, "count", side_effect=Exception("Assessment failed")):
-            result = assess_data_quality(df)
-
-            assert "error" in result
-            assert result["error"] == "Assessment failed"
-            assert result["total_rows"] == 0
-            assert result["valid_rows"] == 0
-            assert result["invalid_rows"] == 0
-            assert result["quality_rate"] == 0.0
-            assert result["is_empty"] is True
+            from sparkforge.errors import ValidationError
+            with pytest.raises(ValidationError, match="Data quality assessment failed"):
+                assess_data_quality(df)
 
 
 class TestValidationResult:
@@ -588,10 +588,4 @@ class TestApplyValidationRules:
             apply_column_rules()
 
 
-# Fixtures
-@pytest.fixture
-def spark_session():
-    """Create a Spark session for testing."""
-    spark = SparkSession.builder.appName("ValidationTests").getOrCreate()
-    yield spark
-    spark.stop()
+# Fixtures - using the shared spark_session from conftest.py

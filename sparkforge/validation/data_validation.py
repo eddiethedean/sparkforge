@@ -8,44 +8,51 @@ including string rule conversion, column validation, and data quality assessment
 from __future__ import annotations
 
 import time
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from pyspark.sql import Column, DataFrame
-from pyspark.sql import functions as F
 
 from ..errors import ValidationError
+from ..functions import FunctionsProtocol, get_default_functions
 from ..logging import PipelineLogger
 from ..models import ColumnRules, StageStats
 
 logger = PipelineLogger("DataValidation")
 
 
-def _convert_rule_to_expression(rule: str, column_name: str) -> Column:
+def _convert_rule_to_expression(rule: str, column_name: str, functions: Optional[FunctionsProtocol] = None) -> Column:
     """Convert a string rule to a PySpark Column expression."""
+    if functions is None:
+        functions = get_default_functions()
+    
     if rule == "not_null":
-        return F.col(column_name).isNotNull()
+        return functions.col(column_name).isNotNull()
     elif rule == "positive":
-        return F.col(column_name) > 0
+        return functions.col(column_name) > 0
     elif rule == "non_negative":
-        return F.col(column_name) >= 0
+        return functions.col(column_name) >= 0
     elif rule == "non_zero":
-        return F.col(column_name) != 0
+        return functions.col(column_name) != 0
     else:
         # For unknown rules, assume it's a valid PySpark expression
-        return F.expr(rule)
+        return functions.expr(rule)
 
 
 def _convert_rules_to_expressions(
     rules: ColumnRules,
+    functions: Optional[FunctionsProtocol] = None,
 ) -> Dict[str, list[str | Column]]:
     """Convert string rules to PySpark Column expressions."""
+    if functions is None:
+        functions = get_default_functions()
+    
     converted_rules: Dict[str, list[str | Column]] = {}
     for column_name, rule_list in rules.items():
         converted_rule_list: list[str | Column] = []
         for rule in rule_list:
             if isinstance(rule, str):
                 converted_rule_list.append(
-                    _convert_rule_to_expression(rule, column_name)
+                    _convert_rule_to_expression(rule, column_name, functions)
                 )
             else:
                 converted_rule_list.append(rule)
@@ -53,12 +60,15 @@ def _convert_rules_to_expressions(
     return converted_rules
 
 
-def and_all_rules(rules: ColumnRules) -> Column | bool:
+def and_all_rules(rules: ColumnRules, functions: Optional[FunctionsProtocol] = None) -> Column | bool:
     """Combine all validation rules with AND logic."""
     if not rules:
         return True
 
-    converted_rules = _convert_rules_to_expressions(rules)
+    if functions is None:
+        functions = get_default_functions()
+
+    converted_rules = _convert_rules_to_expressions(rules, functions)
     expressions = []
     for _, exprs in converted_rules.items():
         expressions.extend(exprs)
@@ -72,7 +82,7 @@ def and_all_rules(rules: ColumnRules) -> Column | bool:
         if isinstance(expr, Column):
             column_expressions.append(expr)
         elif isinstance(expr, str):
-            column_expressions.append(F.expr(expr))
+            column_expressions.append(functions.expr(expr))
 
     if not column_expressions:
         return True
@@ -90,6 +100,7 @@ def apply_column_rules(
     stage: str,
     step: str,
     filter_columns_by_rules: bool = True,
+    functions: Optional[FunctionsProtocol] = None,
 ) -> tuple[DataFrame, DataFrame, StageStats]:
     """
     Apply validation rules to a DataFrame and return valid/invalid DataFrames with statistics.
@@ -144,7 +155,7 @@ def apply_column_rules(
     start_time = time.time()
 
     # Create validation predicate
-    validation_predicate = and_all_rules(rules)
+    validation_predicate = and_all_rules(rules, functions)
 
     # Apply validation
     if validation_predicate is True:
@@ -172,10 +183,10 @@ def apply_column_rules(
     # Apply column filtering if requested
     if filter_columns_by_rules:
         # Only keep columns that have validation rules
-        rule_columns = list(rules.keys())
-        valid_df = valid_df.select(*rule_columns)
+        rule_columns_list: list[str] = list(rules.keys())
+        valid_df = valid_df.select(*rule_columns_list)
         # For invalid_df, also include the _failed_rules column if it exists
-        invalid_columns = rule_columns.copy()
+        invalid_columns: list[str] = rule_columns_list.copy()
         if "_failed_rules" in invalid_df.columns:
             invalid_columns.append("_failed_rules")
         invalid_df = invalid_df.select(*invalid_columns)
@@ -211,7 +222,7 @@ def validate_dataframe_schema(df: DataFrame, expected_columns: list[str]) -> boo
 
 
 def assess_data_quality(
-    df: DataFrame, rules: ColumnRules | None = None
+    df: DataFrame, rules: ColumnRules | None = None, functions: Optional[FunctionsProtocol] = None
 ) -> Dict[str, Any]:
     """
     Assess data quality of a DataFrame.
@@ -236,7 +247,7 @@ def assess_data_quality(
             }
 
         if rules:
-            valid_df, invalid_df, stats = apply_column_rules(df, rules, "test", "test")
+            valid_df, invalid_df, stats = apply_column_rules(df, rules, "test", "test", functions=functions)
             return {
                 "total_rows": stats.total_rows,
                 "valid_rows": stats.valid_rows,

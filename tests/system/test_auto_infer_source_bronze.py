@@ -9,7 +9,13 @@ automatically infer the source_bronze from the most recent with_bronze_rules cal
 from unittest.mock import patch
 
 import pytest
-from pyspark.sql import functions as F
+import os
+
+# Use mock functions when in mock mode
+if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+    from mock_spark import functions as F
+else:
+    from pyspark.sql import functions as F
 
 from sparkforge import PipelineBuilder
 from sparkforge.errors import StepError

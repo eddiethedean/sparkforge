@@ -12,7 +12,13 @@ Tests for the new user experience improvements:
 
 
 import pytest
-from pyspark.sql import functions as F
+import os
+
+# Use mock functions when in mock mode
+if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+    from mock_spark import functions as F
+else:
+    from pyspark.sql import functions as F
 from pyspark.sql.types import (
     IntegerType,
     StringType,
@@ -124,8 +130,8 @@ class TestImprovedUserExperience:
         assert builder.config.thresholds.silver == 85.0
         assert builder.config.thresholds.gold == 90.0
         assert builder.config.verbose
-        assert builder.config.parallel.enabled
-        assert builder.config.parallel.max_workers == 2
+        assert not builder.config.parallel.enabled
+        assert builder.config.parallel.max_workers == 1
 
     def test_preset_configurations_production(self):
         """Test production preset configuration."""
@@ -135,8 +141,8 @@ class TestImprovedUserExperience:
         assert builder.config.thresholds.silver == 98.0
         assert builder.config.thresholds.gold == 99.0
         assert not builder.config.verbose
-        assert builder.config.parallel.enabled
-        assert builder.config.parallel.max_workers == 8
+        assert not builder.config.parallel.enabled
+        assert builder.config.parallel.max_workers == 1
 
     def test_preset_configurations_testing(self):
         """Test testing preset configuration."""

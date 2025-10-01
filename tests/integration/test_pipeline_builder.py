@@ -166,16 +166,12 @@ class TestPipelineBuilder(unittest.TestCase):
             min_silver_rate=95.0,
             min_gold_rate=99.5,
             verbose=True,
-            enable_parallel_silver=False,
-            max_parallel_workers=8,
         )
 
         self.assertEqual(builder.config.thresholds.bronze, 90.0)
         self.assertEqual(builder.config.thresholds.silver, 95.0)
         self.assertEqual(builder.config.thresholds.gold, 99.5)
         self.assertTrue(builder.config.verbose)
-        self.assertFalse(builder.config.parallel.enabled)
-        self.assertEqual(builder.config.parallel.max_workers, 8)
 
     def test_with_bronze_rules(self):
         """Test adding bronze rules."""

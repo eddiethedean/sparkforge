@@ -7,7 +7,13 @@ and explicit validation where appropriate.
 
 import pytest
 from unittest.mock import Mock, patch
-from pyspark.sql import functions as F
+import os
+
+# Use mock functions when in mock mode
+if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+    from mock_spark import functions as F
+else:
+    from pyspark.sql import functions as F
 
 from sparkforge.execution import ExecutionEngine
 from sparkforge.execution import ExecutionMode

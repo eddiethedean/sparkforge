@@ -52,8 +52,6 @@ def main():
             min_bronze_rate=90.0,  # 90% of Bronze data must pass validation
             min_silver_rate=95.0,  # 95% of Silver data must pass validation
             min_gold_rate=98.0,  # 98% of Gold data must pass validation
-            enable_parallel_silver=True,
-            max_parallel_workers=2,
             verbose=True,
         )
 

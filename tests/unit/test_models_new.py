@@ -7,9 +7,16 @@ This module tests all model classes and methods with extensive coverage.
 
 import json
 from dataclasses import dataclass
+from datetime import datetime
 
 import pytest
-from pyspark.sql import functions as F
+import os
+
+# Use mock functions when in mock mode
+if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+    from mock_spark import functions as F
+else:
+    from pyspark.sql import functions as F
 
 from sparkforge.errors import (
     PipelineValidationError,

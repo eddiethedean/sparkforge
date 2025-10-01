@@ -90,8 +90,6 @@ def main():
             min_bronze_rate=90.0,  # Lower threshold for sensor data
             min_silver_rate=95.0,
             min_gold_rate=98.0,
-            enable_parallel_silver=True,
-            max_parallel_workers=4,
             verbose=True,
         )
 

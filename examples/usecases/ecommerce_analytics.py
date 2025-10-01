@@ -77,8 +77,6 @@ def main():
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
             min_gold_rate=99.0,
-            enable_parallel_silver=True,
-            max_parallel_workers=4,
             verbose=True,
         )
 

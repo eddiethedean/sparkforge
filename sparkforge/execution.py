@@ -383,8 +383,8 @@ class ExecutionEngine:
             # Determine overall pipeline status based on step results
             if result.steps is None:
                 result.steps = []
-            steps = result.steps
-            failed_steps = [s for s in steps if s.status == StepStatus.FAILED]
+            step_results: list[StepExecutionResult] = result.steps
+            failed_steps = [s for s in step_results if s.status == StepStatus.FAILED]
             
             if failed_steps:
                 result.status = "failed"

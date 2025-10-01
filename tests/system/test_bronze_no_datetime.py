@@ -6,7 +6,13 @@ and therefore force full refresh of downstream Silver steps.
 """
 
 import pytest
-from pyspark.sql import functions as F
+import os
+
+# Use mock functions when in mock mode
+if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+    from mock_spark import functions as F
+else:
+    from pyspark.sql import functions as F
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
 from sparkforge import PipelineBuilder

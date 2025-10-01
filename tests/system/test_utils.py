@@ -9,7 +9,13 @@ with actual Spark DataFrames and Delta Lake operations.
 from datetime import datetime
 
 import pytest
-from pyspark.sql import functions as F
+import os
+
+# Use mock functions when in mock mode
+if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+    from mock_spark import functions as F
+else:
+    from pyspark.sql import functions as F
 from pyspark.sql.types import StringType, StructField, StructType
 
 # add_metadata_columns and remove_metadata_columns functions removed - not needed for simplified system

@@ -4,6 +4,8 @@ Enhanced pytest configuration and shared fixtures for pipeline tests.
 This module provides comprehensive test configuration, shared fixtures,
 and utilities to support the entire test suite with better organization
 and reduced duplication.
+
+Supports both mock_spark and real Spark environments via SPARK_MODE environment variable.
 """
 
 import os
@@ -12,7 +14,6 @@ import sys
 import time
 
 import pytest
-from pyspark.sql import SparkSession
 
 # Add the project root to the Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -48,15 +49,47 @@ def get_test_schema():
     return "test_schema"
 
 
-@pytest.fixture(scope="session")
-def spark_session():
-    """
-    Create a shared Spark session with Delta Lake support for testing.
+def get_unique_test_schema():
+    """Get a unique test schema name for isolated tests."""
+    unique_id = int(time.time() * 1000000) % 1000000
+    return f"test_schema_{unique_id}"
 
-    This fixture creates a shared Spark session for all tests in the session,
-    with Delta Lake support and optimized configuration for testing.
-    This is more efficient for most tests that don't need isolation.
-    """
+
+def _create_mock_spark_session():
+    """Create a mock Spark session."""
+    from mock_spark import MockSparkSession, MockFunctions
+    
+    print("🔧 Creating Mock Spark session for all tests")
+    
+    # Create mock Spark session
+    spark = MockSparkSession(f"SparkForgeTests-{os.getpid()}")
+    
+    # Create test database
+    try:
+        spark.catalog.createDatabase("test_schema")
+        print("✅ Test database created successfully")
+    except Exception as e:
+        print(f"❌ Could not create test_schema database: {e}")
+
+    return spark
+
+
+def _create_real_spark_session():
+    """Create a real Spark session with Delta Lake support."""
+    from pyspark.sql import SparkSession
+    
+    # Set Java environment
+    java_home = os.environ.get("JAVA_HOME", "/opt/homebrew/opt/java11")
+    if not os.path.exists(java_home):
+        # Try alternative Java paths
+        for alt_path in ["/opt/homebrew/opt/openjdk@11", "/usr/lib/jvm/java-11-openjdk"]:
+            if os.path.exists(alt_path):
+                java_home = alt_path
+                break
+    
+    os.environ["JAVA_HOME"] = java_home
+    print(f"🔧 Using Java at: {java_home}")
+
     # Clean up any existing test data
     warehouse_dir = f"/tmp/spark-warehouse-{os.getpid()}"
     if os.path.exists(warehouse_dir):
@@ -67,7 +100,7 @@ def spark_session():
     try:
         from delta import configure_spark_with_delta_pip
 
-        print("🔧 Configuring Spark with Delta Lake support for all tests")
+        print("🔧 Configuring real Spark with Delta Lake support for all tests")
 
         builder = (
             SparkSession.builder.appName(f"SparkForgeTests-{os.getpid()}")
@@ -153,31 +186,55 @@ def spark_session():
     except Exception as e:
         print(f"❌ Could not create test_schema database: {e}")
 
-    yield spark
+    return spark
 
+
+@pytest.fixture(scope="session")
+def spark_session():
+    """
+    Create a shared Spark session for testing.
+
+    This fixture creates either a mock Spark session or a real Spark session
+    based on the SPARK_MODE environment variable:
+    - SPARK_MODE=mock (default): Uses mock_spark
+    - SPARK_MODE=real: Uses real Spark with Delta Lake
+    """
+    # Set mock as default if SPARK_MODE is not explicitly set
+    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+    
+    if spark_mode == "real":
+        spark = _create_real_spark_session()
+    else:
+        spark = _create_mock_spark_session()
+    
+    yield spark
+    
     # Cleanup
     try:
-        if (
-            spark
-            and hasattr(spark, "sparkContext")
-            and spark.sparkContext._jsc is not None
-        ):
-            spark.sql("DROP DATABASE IF EXISTS test_schema CASCADE")
+        if spark_mode == "real":
+            # Real Spark cleanup
+            if spark and hasattr(spark, "sparkContext") and spark.sparkContext._jsc is not None:
+                # Clear all cached tables and temp views
+                spark.catalog.clearCache()
+                
+                # Drop all tables in test schema
+                try:
+                    tables = spark.catalog.listTables("test_schema")
+                    for table in tables:
+                        spark.sql(f"DROP TABLE IF EXISTS test_schema.{table.name}")
+                except Exception:
+                    pass  # Ignore errors when dropping tables
+                    
+                # Drop test schema
+                spark.sql("DROP DATABASE IF EXISTS test_schema CASCADE")
+            
+            if spark:
+                spark.stop()
+        else:
+            # Mock Spark cleanup (no explicit cleanup needed)
+            print("🧹 Mock Spark session cleanup completed")
     except Exception as e:
-        print(f"Warning: Could not drop test_schema database: {e}")
-
-    try:
-        if spark:
-            spark.stop()
-    except Exception as e:
-        print(f"Warning: Could not stop Spark session: {e}")
-
-    # Clean up warehouse directory
-    try:
-        if os.path.exists(warehouse_dir):
-            shutil.rmtree(warehouse_dir, ignore_errors=True)
-    except Exception as e:
-        print(f"Warning: Could not clean up warehouse directory: {e}")
+        print(f"Warning: Could not clean up test database: {e}")
 
 
 @pytest.fixture(scope="function")
@@ -185,325 +242,288 @@ def isolated_spark_session():
     """
     Create an isolated Spark session for tests that need complete isolation.
 
-    This fixture creates a new Spark session for each test function,
-    with Delta Lake support and optimized configuration for testing.
-    Use this for tests that modify global state or need complete isolation.
+    This fixture creates a new Spark session for each test function.
     """
-    # Clean up any existing test data
-    unique_id = int(time.time() * 1000000) % 1000000  # Microsecond timestamp
-    warehouse_dir = f"/tmp/spark-warehouse-isolated-{os.getpid()}-{unique_id}"
-    if os.path.exists(warehouse_dir):
-        shutil.rmtree(warehouse_dir, ignore_errors=True)
-
-    # Configure Spark with Delta Lake support
-    spark = None
-    try:
-        from delta import configure_spark_with_delta_pip
-
-        print("🔧 Configuring isolated Spark with Delta Lake support")
-
-        builder = (
-            SparkSession.builder.appName(
-                f"SparkForgeIsolatedTests-{os.getpid()}-{unique_id}"
-            )
-            .master("local[1]")
-            .config("spark.sql.warehouse.dir", warehouse_dir)
-            .config("spark.sql.adaptive.enabled", "true")
-            .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
-            .config("spark.driver.host", "127.0.0.1")
-            .config("spark.driver.bindAddress", "127.0.0.1")
-            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-            .config(
-                "spark.sql.catalog.spark_catalog",
-                "org.apache.spark.sql.delta.catalog.DeltaCatalog",
-            )
-            .config("spark.sql.adaptive.skewJoin.enabled", "true")
-            .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-            .config("spark.driver.memory", "512m")
-            .config("spark.executor.memory", "512m")
-        )
-
-        # Configure Delta Lake with explicit version
-        spark = configure_spark_with_delta_pip(builder).getOrCreate()
-
-    except Exception as e:
-        print(f"❌ Delta Lake configuration failed for isolated session: {e}")
-        print("💡 To fix this issue:")
-        print("   1. Install Delta Lake: pip install delta-spark")
-        print("   2. Or set SPARKFORGE_SKIP_DELTA=1 to skip Delta Lake tests")
-        print("   3. Or set SPARKFORGE_BASIC_SPARK=1 to use basic Spark without Delta Lake")
+    # Set mock as default if SPARK_MODE is not explicitly set
+    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+    
+    if spark_mode == "real":
+        # For real Spark, create a new session
+        unique_id = int(time.time() * 1000000) % 1000000
+        schema_name = f"test_schema_{unique_id}"
         
-        # Check if user explicitly wants to skip Delta Lake or use basic Spark
-        skip_delta = os.environ.get("SPARKFORGE_SKIP_DELTA", "0") == "1"
-        basic_spark = os.environ.get("SPARKFORGE_BASIC_SPARK", "0") == "1"
+        print(f"🔧 Creating isolated real Spark session for {schema_name}")
         
-        if skip_delta or basic_spark:
-            print("🔧 Using basic Spark configuration for isolated session as requested")
-            try:
-                builder = (
-                    SparkSession.builder.appName(
-                        f"SparkForgeIsolatedTests-{os.getpid()}-{unique_id}"
-                    )
-                    .master("local[1]")
-                    .config("spark.sql.warehouse.dir", warehouse_dir)
-                    .config("spark.sql.adaptive.enabled", "true")
-                    .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
-                    .config("spark.driver.host", "127.0.0.1")
-                    .config("spark.driver.bindAddress", "127.0.0.1")
-                    .config(
-                        "spark.serializer", "org.apache.spark.serializer.KryoSerializer"
-                    )
-                    .config("spark.driver.memory", "512m")
-                    .config("spark.executor.memory", "512m")
-                )
+        # Create isolated test database
+        try:
+            spark.sql(f"CREATE DATABASE IF NOT EXISTS {schema_name}")
+            print(f"✅ Isolated test database {schema_name} created successfully")
+        except Exception as e:
+            print(f"❌ Could not create isolated test database {schema_name}: {e}")
 
-                spark = builder.getOrCreate()
-            except Exception as e2:
-                print(f"❌ Failed to create basic isolated Spark session: {e2}")
-                raise
-        else:
-            # Fail fast with clear error message
-            raise RuntimeError(
-                f"Delta Lake configuration failed for isolated session: {e}\n"
-                "This is required for SparkForge tests. Please install Delta Lake or "
-                "set environment variables to skip Delta Lake requirements."
-            )
+        yield spark
+        
+        # Cleanup
+        try:
+            spark.sql(f"DROP DATABASE IF EXISTS {schema_name} CASCADE")
+        except Exception:
+            pass
+    else:
+        # For mock Spark, create a new session
+        unique_id = int(time.time() * 1000000) % 1000000
+        schema_name = f"test_schema_{unique_id}"
+        
+        print(f"🔧 Creating isolated Mock Spark session for {schema_name}")
+        
+        from mock_spark import MockSparkSession
+        spark = MockSparkSession(f"SparkForgeTests-{os.getpid()}-{unique_id}")
+        
+        # Create isolated test database
+        try:
+            spark.catalog.createDatabase(schema_name)
+            print(f"✅ Isolated test database {schema_name} created successfully")
+        except Exception as e:
+            print(f"❌ Could not create isolated test database {schema_name}: {e}")
 
-    # Ensure Spark session was created successfully
-    if spark is None:
-        raise RuntimeError("Failed to create isolated Spark session")
-
-    # Verify Spark context is properly initialized
-    if not hasattr(spark, "sparkContext") or spark.sparkContext is None:
-        raise RuntimeError("Isolated Spark context is not properly initialized")
-
-    if not hasattr(spark.sparkContext, "_jsc") or spark.sparkContext._jsc is None:
-        raise RuntimeError("Isolated Spark JVM context is not properly initialized")
-
-    # Set log level to WARN to reduce noise
-    spark.sparkContext.setLogLevel("WARN")
-
-    # Create test database
-    try:
-        spark.sql("CREATE DATABASE IF NOT EXISTS test_schema")
-        print("✅ Isolated test database created successfully")
-    except Exception as e:
-        print(f"❌ Could not create isolated test_schema database: {e}")
-
-    yield spark
-
-    # Cleanup
-    try:
-        if (
-            spark
-            and hasattr(spark, "sparkContext")
-            and spark.sparkContext._jsc is not None
-        ):
-            spark.sql("DROP DATABASE IF EXISTS test_schema CASCADE")
-    except Exception as e:
-        print(f"Warning: Could not drop isolated test_schema database: {e}")
-
-    try:
-        if spark:
-            spark.stop()
-    except Exception as e:
-        print(f"Warning: Could not stop isolated Spark session: {e}")
-
-    # Clean up warehouse directory
-    try:
-        if os.path.exists(warehouse_dir):
-            shutil.rmtree(warehouse_dir, ignore_errors=True)
-    except Exception as e:
-        print(f"Warning: Could not clean up isolated warehouse directory: {e}")
+        yield spark
+        
+        # Cleanup
+        print(f"🧹 Isolated Mock Spark session cleanup completed for {schema_name}")
 
 
-@pytest.fixture(autouse=True, scope="function")
-def cleanup_test_tables(spark_session):
-    """Clean up test tables after each test."""
-    yield
-    # Cleanup after each test
-    try:
-        # Check if SparkContext is still valid
-        if (
-            hasattr(spark_session, "sparkContext")
-            and spark_session.sparkContext._jsc is not None
-        ):
-            # Drop any tables that might have been created
-            tables = spark_session.sql("SHOW TABLES IN test_schema").collect()
-            for table in tables:
-                table_name = table.tableName
-                spark_session.sql(f"DROP TABLE IF EXISTS test_schema.{table_name}")
-    except Exception:
-        # Ignore cleanup errors
-        pass
+@pytest.fixture(scope="function")
+def mock_functions():
+    """
+    Create a Mock Functions instance for testing.
+
+    This fixture provides mock PySpark functions for testing.
+    Only available when using mock Spark mode.
+    """
+    # Set mock as default if SPARK_MODE is not explicitly set
+    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+    
+    if spark_mode == "real":
+        # For real Spark, return None or skip this fixture
+        pytest.skip("Mock functions not available in real Spark mode")
+    
+    from mock_spark import MockFunctions
+    return MockFunctions()
 
 
-@pytest.fixture
-def sample_bronze_data(spark_session):
-    """Create sample bronze data for testing."""
-    data = [
-        ("user1", "click", "2024-01-01 10:00:00"),
-        ("user2", "view", "2024-01-01 11:00:00"),
-        ("user3", "purchase", "2024-01-01 12:00:00"),
-    ]
-    return spark_session.createDataFrame(data, ["user_id", "action", "timestamp"])
-
-
-@pytest.fixture
-def sample_bronze_rules():
-    """Create sample bronze validation rules."""
-    from pyspark.sql import functions as F
-
-    return {
-        "user_id": [F.col("user_id").isNotNull()],
-        "action": [F.col("action").isNotNull()],
-        "timestamp": [F.col("timestamp").isNotNull()],
-    }
-
-
-@pytest.fixture
-def sample_silver_rules():
-    """Create sample silver validation rules."""
-    from pyspark.sql import functions as F
-
-    return {
-        "user_id": [F.col("user_id").isNotNull()],
-        "action": [F.col("action").isNotNull()],
-        "event_date": [F.col("event_date").isNotNull()],
-    }
-
-
-@pytest.fixture
-def sample_gold_rules():
-    """Create sample gold validation rules."""
-    from pyspark.sql import functions as F
-
-    return {
-        "action": [F.col("action").isNotNull()],
-        "event_date": [F.col("event_date").isNotNull()],
-    }
-
-
-@pytest.fixture
-def pipeline_builder(spark_session):
-    """Create a PipelineBuilder instance for testing."""
-    from sparkforge import PipelineBuilder
-
-    return PipelineBuilder(
-        spark=spark_session,
-        schema="test_schema",
-        verbose=False,
-        enable_parallel_silver=True,
-        max_parallel_workers=4,
-    )
-
-
-@pytest.fixture
-def pipeline_builder_sequential(spark_session):
-    """Create a PipelineBuilder instance with sequential execution for testing."""
-    from sparkforge import PipelineBuilder
-
-    return PipelineBuilder(
-        spark=spark_session,
-        schema="test_schema",
-        verbose=False,
-        enable_parallel_silver=False,
-        max_parallel_workers=1,
-    )
-
-
-# Enhanced fixtures using test helpers
-@pytest.fixture
+@pytest.fixture(scope="function")
 def test_data_generator():
-    """Provide TestDataGenerator instance."""
+    """
+    Create a test data generator instance.
+
+    This fixture provides utilities for generating test data.
+    """
     return TestDataGenerator()
 
 
-@pytest.fixture
-def test_pipeline_builder():
-    """Provide TestPipelineBuilder instance."""
-    return TestPipelineBuilder()
-
-
-@pytest.fixture
+@pytest.fixture(scope="function")
 def test_assertions():
-    """Provide TestAssertions instance."""
+    """
+    Create a test assertions instance.
+
+    This fixture provides custom assertion utilities.
+    """
     return TestAssertions()
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def test_performance():
-    """Provide TestPerformance instance."""
+    """
+    Create a test performance instance.
+
+    This fixture provides performance testing utilities.
+    """
     return TestPerformance()
 
 
-# Enhanced data fixtures
-@pytest.fixture
-def small_events_data(spark_session):
-    """Create small events dataset for fast tests."""
-    return TestDataGenerator.create_events_data(spark_session, num_records=10)
+@pytest.fixture(scope="function")
+def test_pipeline_builder():
+    """
+    Create a test pipeline builder instance.
+
+    This fixture provides pipeline building utilities.
+    """
+    return TestPipelineBuilder()
 
 
-@pytest.fixture
-def medium_events_data(spark_session):
-    """Create medium events dataset for integration tests."""
-    return TestDataGenerator.create_events_data(spark_session, num_records=100)
+@pytest.fixture(scope="function")
+def sample_dataframe(spark_session):
+    """
+    Create a sample DataFrame for testing.
+
+    This fixture creates a sample DataFrame with common test data.
+    """
+    # Set mock as default if SPARK_MODE is not explicitly set
+    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+    
+    if spark_mode == "real":
+        from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType
+        
+        schema = StructType([
+            StructField("user_id", StringType(), True),
+            StructField("age", IntegerType(), True),
+            StructField("score", DoubleType(), True),
+            StructField("category", StringType(), True),
+        ])
+        
+        data = [
+            ("user1", 25, 85.5, "A"),
+            ("user2", 30, 92.0, "B"),
+            ("user3", None, 78.5, "A"),
+            ("user4", 35, None, "C"),
+            ("user5", 28, 88.0, "B"),
+        ]
+        
+        return spark_session.createDataFrame(data, schema)
+    else:
+        from mock_spark import MockStructType, MockStructField, StringType, IntegerType, DoubleType
+        
+        schema = MockStructType([
+            MockStructField("user_id", StringType(), True),
+            MockStructField("age", IntegerType(), True),
+            MockStructField("score", DoubleType(), True),
+            MockStructField("category", StringType(), True),
+        ])
+        
+        data = [
+            ("user1", 25, 85.5, "A"),
+            ("user2", 30, 92.0, "B"),
+            ("user3", None, 78.5, "A"),
+            ("user4", 35, None, "C"),
+            ("user5", 28, 88.0, "B"),
+        ]
+        
+        return spark_session.createDataFrame(data, schema)
 
 
-@pytest.fixture
-def large_events_data(spark_session):
-    """Create large events dataset for performance tests."""
-    return TestDataGenerator.create_events_data(spark_session, num_records=1000)
+@pytest.fixture(scope="function")
+def empty_dataframe(spark_session):
+    """
+    Create an empty DataFrame for testing.
+
+    This fixture creates an empty DataFrame with a defined schema.
+    """
+    # Set mock as default if SPARK_MODE is not explicitly set
+    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+    
+    if spark_mode == "real":
+        from pyspark.sql.types import StructType, StructField, StringType
+        
+        schema = StructType([
+            StructField("col1", StringType(), True),
+            StructField("col2", StringType(), True),
+        ])
+        
+        return spark_session.createDataFrame([], schema)
+    else:
+        from mock_spark import MockStructType, MockStructField, StringType
+        
+        schema = MockStructType([
+            MockStructField("col1", StringType(), True),
+            MockStructField("col2", StringType(), True),
+        ])
+        
+        return spark_session.createDataFrame([], schema)
 
 
-@pytest.fixture
-def user_data(spark_session):
-    """Create user profile data."""
-    return TestDataGenerator.create_user_data(spark_session)
+@pytest.fixture(scope="function")
+def test_warehouse_dir():
+    """
+    Create a temporary warehouse directory for testing.
+
+    This fixture creates a temporary directory for warehouse operations.
+    """
+    warehouse_dir = f"/tmp/spark-warehouse-{os.getpid()}"
+    os.makedirs(warehouse_dir, exist_ok=True)
+    
+    yield warehouse_dir
+    
+    # Cleanup
+    if os.path.exists(warehouse_dir):
+        shutil.rmtree(warehouse_dir, ignore_errors=True)
 
 
-@pytest.fixture
-def validation_rules():
-    """Create standard validation rules."""
-    return TestDataGenerator.create_validation_rules()
+@pytest.fixture(scope="function", autouse=True)
+def mock_pyspark_functions():
+    """
+    Automatically mock PySpark functions when in mock mode.
+    
+    This fixture replaces PySpark functions with mock functions
+    when SPARK_MODE=mock to prevent JVM-related errors.
+    """
+    # Set mock as default if SPARK_MODE is not explicitly set
+    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+    
+    if spark_mode == "mock":
+        import sys
+        from mock_spark import functions as mock_functions
+        
+        # Store original module
+        original_pyspark_functions = sys.modules.get('pyspark.sql.functions')
+        
+        # Replace with mock functions
+        sys.modules['pyspark.sql.functions'] = mock_functions
+        
+        yield
+        
+        # Restore original module
+        if original_pyspark_functions:
+            sys.modules['pyspark.sql.functions'] = original_pyspark_functions
+        else:
+            # Remove the mock if it wasn't there originally
+            if 'pyspark.sql.functions' in sys.modules:
+                del sys.modules['pyspark.sql.functions']
+    else:
+        yield
 
 
-# Enhanced pipeline fixtures
-@pytest.fixture
-def simple_pipeline(spark_session):
-    """Create a simple test pipeline."""
-    return TestPipelineBuilder.create_simple_pipeline(spark_session)
-
-
-@pytest.fixture
-def complete_pipeline(spark_session, medium_events_data):
-    """Create a complete Bronze → Silver → Gold pipeline."""
-    return TestPipelineBuilder.create_bronze_silver_gold_pipeline(
-        spark_session, bronze_data=medium_events_data
+# Test configuration
+def pytest_configure(config):
+    """Configure pytest with custom settings."""
+    config.addinivalue_line(
+        "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
+    )
+    config.addinivalue_line(
+        "markers", "integration: marks tests as integration tests"
+    )
+    config.addinivalue_line(
+        "markers", "unit: marks tests as unit tests"
+    )
+    config.addinivalue_line(
+        "markers", "system: marks tests as system tests"
+    )
+    config.addinivalue_line(
+        "markers", "mock_only: marks tests that only work with mock Spark"
+    )
+    config.addinivalue_line(
+        "markers", "real_spark_only: marks tests that only work with real Spark"
     )
 
 
-# Performance testing fixtures
-@pytest.fixture
-def performance_thresholds():
-    """Define performance thresholds for tests."""
-    return {
-        "max_execution_time": 30.0,  # seconds
-        "max_memory_usage": 1024,  # MB
-        "min_throughput": 100,  # records/second
-    }
-
-
-# Test configuration fixtures
-@pytest.fixture
-def test_config():
-    """Provide test configuration."""
-    return {
-        "schema": "test_schema",
-        "verbose": False,
-        "enable_parallel_silver": True,
-        "max_parallel_workers": 2,
-        "min_bronze_rate": 95.0,
-        "min_silver_rate": 98.0,
-        "min_gold_rate": 99.0,
-    }
+def pytest_collection_modifyitems(config, items):
+    """Modify test collection to add markers based on file location and environment."""
+    # Set mock as default if SPARK_MODE is not explicitly set
+    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+    
+    for item in items:
+        # Add markers based on file location
+        if "integration" in str(item.fspath):
+            item.add_marker(pytest.mark.integration)
+        elif "system" in str(item.fspath):
+            item.add_marker(pytest.mark.system)
+        else:
+            item.add_marker(pytest.mark.unit)
+        
+        # Add slow marker for tests that take longer than 1 second
+        if "performance" in str(item.fspath) or "load" in str(item.fspath):
+            item.add_marker(pytest.mark.slow)
+        
+        # Skip tests based on Spark mode
+        if spark_mode == "real" and "mock_only" in item.keywords:
+            item.add_marker(pytest.mark.skip(reason="Test requires mock Spark mode"))
+        elif spark_mode == "mock" and "real_spark_only" in item.keywords:
+            item.add_marker(pytest.mark.skip(reason="Test requires real Spark mode"))

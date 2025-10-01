@@ -11,9 +11,16 @@ from dataclasses import dataclass
 from datetime import datetime
 
 import pytest
-from pyspark.sql import functions as F
+import os
 
-from sparkforge.errors import PipelineConfigurationError, ValidationError
+# Use mock functions when in mock mode
+if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+    from mock_spark import functions as F
+else:
+    from pyspark.sql import functions as F
+
+from sparkforge.errors import ValidationError
+from sparkforge.models.exceptions import PipelineConfigurationError
 from sparkforge.models import (
     BaseModel,
     BronzeStep,

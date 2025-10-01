@@ -9,7 +9,7 @@ The builder creates pipelines that can be executed with the simplified execution
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from pyspark.sql import DataFrame, SparkSession, functions as F
 
@@ -17,6 +17,7 @@ from ..dependencies import DependencyAnalyzer
 from ..errors import ConfigurationError as PipelineConfigurationError
 from ..errors import ExecutionError as StepError
 from ..execution import ExecutionEngine, ExecutionMode
+from ..functions import FunctionsProtocol, get_default_functions
 from ..logging import PipelineLogger
 from ..models import BronzeStep, GoldStep, ParallelConfig, PipelineConfig, SilverStep, ValidationThresholds
 from ..types import (
@@ -155,11 +156,7 @@ class PipelineBuilder:
         min_silver_rate: float = 98.0,
         min_gold_rate: float = 99.0,
         verbose: bool = True,
-        enable_parallel_silver: bool = True,
-        max_parallel_workers: int = 4,
-        execution_mode: ExecutionMode = ExecutionMode.INITIAL,
-        enable_caching: bool = True,
-        enable_monitoring: bool = True,
+        functions: Optional[FunctionsProtocol] = None,
     ) -> None:
         """
         Initialize a new PipelineBuilder instance.
@@ -171,11 +168,6 @@ class PipelineBuilder:
             min_silver_rate: Minimum data quality rate for Silver layer (0-100)
             min_gold_rate: Minimum data quality rate for Gold layer (0-100)
             verbose: Enable verbose logging output
-            enable_parallel_silver: Allow parallel execution of independent Silver steps
-            max_parallel_workers: Maximum number of parallel workers for Silver steps
-            execution_mode: Execution strategy (INITIAL, INCREMENTAL, FULL_REFRESH, VALIDATION_ONLY)
-            enable_caching: Enable DataFrame caching for performance optimization
-            enable_monitoring: Enable comprehensive execution monitoring
 
         Raises:
             ValueError: If quality rates are not between 0 and 100
@@ -203,9 +195,8 @@ class PipelineBuilder:
         thresholds = ValidationThresholds(
             bronze=min_bronze_rate, silver=min_silver_rate, gold=min_gold_rate
         )
-        parallel_config = ParallelConfig(
-            enabled=enable_parallel_silver, max_workers=max_parallel_workers
-        )
+        # ParallelConfig kept for future implementation, but not exposed to users
+        parallel_config = ParallelConfig.create_sequential()
         self.config = PipelineConfig(
             schema=schema,
             thresholds=thresholds,
@@ -217,6 +208,7 @@ class PipelineBuilder:
         self.spark = spark
         self.logger = PipelineLogger(verbose=verbose)
         self.validator = PipelineValidator(self.logger)
+        self.functions = functions if functions is not None else get_default_functions()
 
         # Expose schema for backward compatibility
         self.schema = schema
@@ -321,7 +313,7 @@ class PipelineBuilder:
             self._validate_schema(schema)
 
         # Convert string rules to PySpark Column objects
-        converted_rules = _convert_rules_to_expressions(rules)
+        converted_rules = _convert_rules_to_expressions(rules, self.functions)
 
         # Create bronze step
         bronze_step = BronzeStep(
@@ -410,7 +402,7 @@ class PipelineBuilder:
         dummy_transform: SilverTransformFunction = dummy_transform_func
 
         # Convert string rules to PySpark Column objects
-        converted_rules = _convert_rules_to_expressions(rules)
+        converted_rules = _convert_rules_to_expressions(rules, self.functions)
 
         silver_step = SilverStep(
             name=name,
@@ -601,7 +593,7 @@ class PipelineBuilder:
             self._validate_schema(schema)
 
         # Convert string rules to PySpark Column objects
-        converted_rules = _convert_rules_to_expressions(rules)
+        converted_rules = _convert_rules_to_expressions(rules, self.functions)
 
         # Create silver step
         silver_step = SilverStep(
@@ -758,7 +750,7 @@ class PipelineBuilder:
             self._validate_schema(schema)
 
         # Convert string rules to PySpark Column objects
-        converted_rules = _convert_rules_to_expressions(rules)
+        converted_rules = _convert_rules_to_expressions(rules, self.functions)
 
         # Create gold step
         gold_step = GoldStep(
@@ -803,7 +795,7 @@ class PipelineBuilder:
 
     @classmethod
     def for_development(
-        cls, spark: SparkSession, schema: str, **kwargs: Any
+        cls, spark: SparkSession, schema: str, functions: Optional[FunctionsProtocol] = None, **kwargs: Any
     ) -> PipelineBuilder:
         """
         Create a PipelineBuilder optimized for development with relaxed validation.
@@ -829,14 +821,13 @@ class PipelineBuilder:
             min_silver_rate=85.0,
             min_gold_rate=90.0,
             verbose=True,
-            enable_parallel_silver=True,
-            max_parallel_workers=2,
+            functions=functions,
             **kwargs,
         )
 
     @classmethod
     def for_production(
-        cls, spark: SparkSession, schema: str, **kwargs: Any
+        cls, spark: SparkSession, schema: str, functions: Optional[FunctionsProtocol] = None, **kwargs: Any
     ) -> PipelineBuilder:
         """
         Create a PipelineBuilder optimized for production with strict validation.
@@ -862,14 +853,13 @@ class PipelineBuilder:
             min_silver_rate=98.0,
             min_gold_rate=99.0,
             verbose=False,
-            enable_parallel_silver=True,
-            max_parallel_workers=8,
+            functions=functions,
             **kwargs,
         )
 
     @classmethod
     def for_testing(
-        cls, spark: SparkSession, schema: str, **kwargs: Any
+        cls, spark: SparkSession, schema: str, functions: Optional[FunctionsProtocol] = None, **kwargs: Any
     ) -> PipelineBuilder:
         """
         Create a PipelineBuilder optimized for testing with minimal validation.
@@ -895,8 +885,7 @@ class PipelineBuilder:
             min_silver_rate=75.0,
             min_gold_rate=80.0,
             verbose=True,
-            enable_parallel_silver=False,  # Sequential for predictable testing
-            max_parallel_workers=1,
+            functions=functions,
             **kwargs,
         )
 
@@ -905,12 +894,13 @@ class PipelineBuilder:
     # ============================================================================
 
     @staticmethod
-    def not_null_rules(columns: list[str]) -> ColumnRules:
+    def not_null_rules(columns: list[str], functions: Optional[FunctionsProtocol] = None) -> ColumnRules:
         """
         Create validation rules for non-null constraints on multiple columns.
 
         Args:
             columns: List of column names to validate for non-null
+            functions: Optional functions object for column operations
 
         Returns:
             Dictionary of validation rules
@@ -924,15 +914,18 @@ class PipelineBuilder:
             >>> #     "value": [F.col("value").isNotNull()]
             >>> # }
         """
-        return {col: [F.col(col).isNotNull()] for col in columns}
+        if functions is None:
+            functions = get_default_functions()
+        return {col: [functions.col(col).isNotNull()] for col in columns}
 
     @staticmethod
-    def positive_number_rules(columns: list[str]) -> ColumnRules:
+    def positive_number_rules(columns: list[str], functions: Optional[FunctionsProtocol] = None) -> ColumnRules:
         """
         Create validation rules for positive number constraints on multiple columns.
 
         Args:
             columns: List of column names to validate for positive numbers
+            functions: Optional functions object for column operations
 
         Returns:
             Dictionary of validation rules
@@ -945,15 +938,18 @@ class PipelineBuilder:
             >>> #     "count": [F.col("count").isNotNull(), F.col("count") > 0]
             >>> # }
         """
-        return {col: [F.col(col).isNotNull(), F.col(col) > 0] for col in columns}
+        if functions is None:
+            functions = get_default_functions()
+        return {col: [functions.col(col).isNotNull(), functions.col(col) > 0] for col in columns}
 
     @staticmethod
-    def string_not_empty_rules(columns: list[str]) -> ColumnRules:
+    def string_not_empty_rules(columns: list[str], functions: Optional[FunctionsProtocol] = None) -> ColumnRules:
         """
         Create validation rules for non-empty string constraints on multiple columns.
 
         Args:
             columns: List of column names to validate for non-empty strings
+            functions: Optional functions object for column operations
 
         Returns:
             Dictionary of validation rules
@@ -966,17 +962,20 @@ class PipelineBuilder:
             >>> #     "category": [F.col("category").isNotNull(), F.length(F.col("category")) > 0]
             >>> # }
         """
+        if functions is None:
+            functions = get_default_functions()
         return {
-            col: [F.col(col).isNotNull(), F.length(F.col(col)) > 0] for col in columns
+            col: [functions.col(col).isNotNull(), functions.length(functions.col(col)) > 0] for col in columns
         }
 
     @staticmethod
-    def timestamp_rules(columns: list[str]) -> ColumnRules:
+    def timestamp_rules(columns: list[str], functions: Optional[FunctionsProtocol] = None) -> ColumnRules:
         """
         Create validation rules for timestamp constraints on multiple columns.
 
         Args:
             columns: List of column names to validate as timestamps
+            functions: Optional functions object for column operations
 
         Returns:
             Dictionary of validation rules
@@ -989,8 +988,10 @@ class PipelineBuilder:
             >>> #     "updated_at": [F.col("updated_at").isNotNull(), F.col("updated_at").isNotNull()]
             >>> # }
         """
+        if functions is None:
+            functions = get_default_functions()
         return {
-            col: [F.col(col).isNotNull(), F.col(col).isNotNull()] for col in columns
+            col: [functions.col(col).isNotNull(), functions.col(col).isNotNull()] for col in columns
         }
 
     @staticmethod
@@ -1047,12 +1048,25 @@ class PipelineBuilder:
             StepError: If schema doesn't exist or is not accessible
         """
         try:
-            # Check if schema exists
-            self.spark.sql(f"DESCRIBE SCHEMA {schema}")
+            # Check if schema exists using catalog API
+            databases = [db.name for db in self.spark.catalog.listDatabases()]
+            if schema not in databases:
+                raise StepError(
+                    f"Schema '{schema}' does not exist",
+                    context={"step_name": "schema_validation", "step_type": "validation"},
+                    suggestions=[
+                        f"Create the schema first: CREATE SCHEMA IF NOT EXISTS {schema}",
+                        "Check schema permissions",
+                        "Verify schema name spelling",
+                    ],
+                )
             self.logger.debug(f"✅ Schema '{schema}' is accessible")
+        except StepError:
+            # Re-raise StepError as-is
+            raise
         except Exception as e:
             raise StepError(
-                f"Schema '{schema}' does not exist or is not accessible: {str(e)}",
+                f"Schema '{schema}' is not accessible: {str(e)}",
                 context={"step_name": "schema_validation", "step_type": "validation"},
                 suggestions=[
                     f"Create the schema first: CREATE SCHEMA IF NOT EXISTS {schema}",

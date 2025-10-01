@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Literal, TypedDict
+from typing import Any, Dict, Literal, TypedDict, cast
 
 from pyspark.sql.types import (
     BooleanType,
@@ -372,7 +372,7 @@ def create_log_row_from_step_result(
         duration_secs=step_result.duration_secs,
         # Table information
         table_fqn=step_result.table_fqn,
-        write_mode=step_result.write_mode,
+        write_mode=step_result.write_mode,  # type: ignore[typeddict-item]
         # Data metrics
         input_rows=step_result.input_rows,
         output_rows=step_result.rows_processed,

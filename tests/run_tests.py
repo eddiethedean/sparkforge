@@ -1,97 +1,72 @@
 #!/usr/bin/env python3
 """
-Test runner for Pipeline Builder with proper Spark setup.
+Test runner script that allows easy switching between mock and real Spark modes.
 
-This script sets up Spark and runs the pipeline tests.
+Usage:
+    python run_tests.py                    # Run with mock Spark (default)
+    python run_tests.py --real             # Run with real Spark
+    python run_tests.py --mock             # Run with mock Spark (explicit)
+    python run_tests.py --real unit/test_validation_standalone.py  # Run specific test with real Spark
+    python run_tests.py --mock unit/test_validation_standalone.py  # Run specific test with mock Spark
 """
 
 import os
 import sys
-
-from pyspark.sql import SparkSession
-
-
-def setup_spark():
-    """Set up Spark session with Delta Lake for testing."""
-    print("🔧 Setting up Spark session with Delta Lake...")
-
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(current_dir)
-    jars_dir = os.path.join(project_root, "jars")
-    delta_core_jar = os.path.join(jars_dir, "delta-core_2.12-2.0.2.jar")
-    delta_storage_jar = os.path.join(jars_dir, "delta-storage-2.0.2.jar")
-
-    spark = (
-        SparkSession.builder.appName("PipelineBuilderTests")
-        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-        .config(
-            "spark.sql.catalog.spark_catalog",
-            "org.apache.spark.sql.delta.catalog.DeltaCatalog",
-        )
-        .config("spark.jars", f"{delta_core_jar},{delta_storage_jar}")
-        .config("spark.sql.adaptive.enabled", "true")
-        .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
-        .getOrCreate()
-    )
-
-    print(f"✅ Spark session created with Delta Lake: {spark.version}")
-    return spark
+import subprocess
+import argparse
 
 
-def run_tests():
-    """Run the pipeline tests."""
-    print("🚀 Running Pipeline Builder Tests")
-    print("=" * 50)
-
-    # Set up Spark
-    spark = setup_spark()
-
-    # Create test database
-    spark.sql("CREATE DATABASE IF NOT EXISTS test_schema")
-
-    # Clean up any existing test tables
-    test_tables = [
-        "test_schema.test_silver",
-        "test_schema.test_gold",
-        "test_schema.silver_events",
-        "test_schema.silver_users",
-    ]
-
-    for table in test_tables:
-        try:
-            spark.sql(f"DROP TABLE IF EXISTS {table}")
-        except Exception:
-            pass
-
-    # Make spark available globally for the test module
-    import builtins
-
-    builtins.spark = spark
-
-    # Import and run the test functions
+def main():
+    parser = argparse.ArgumentParser(description="Run tests with mock or real Spark")
+    parser.add_argument("--real", action="store_true", help="Use real Spark instead of mock")
+    parser.add_argument("--mock", action="store_true", help="Use mock Spark (default)")
+    parser.add_argument("test_path", nargs="*", help="Specific test file or directory to run")
+    
+    # Parse known args to separate pytest arguments
+    args, pytest_args = parser.parse_known_args()
+    
+    # Determine Spark mode
+    if args.real:
+        spark_mode = "real"
+        print("🔧 Running tests with REAL Spark")
+    else:
+        spark_mode = "mock"
+        print("🔧 Running tests with MOCK Spark")
+    
+    # Set environment variable
+    os.environ["SPARK_MODE"] = spark_mode
+    
+    # Build pytest command
+    cmd = [sys.executable, "-m", "pytest"]
+    
+    # Add test path if specified
+    if args.test_path:
+        cmd.extend(args.test_path)
+    else:
+        cmd.append("unit/")  # Default to unit tests
+    
+    # Add additional pytest arguments
+    if pytest_args:
+        cmd.extend(pytest_args)
+    else:
+        # Default pytest arguments
+        cmd.extend(["-v", "--tb=short"])
+    
+    print(f"Running command: {' '.join(cmd)}")
+    print(f"SPARK_MODE={spark_mode}")
+    print("-" * 50)
+    
+    # Run the tests
     try:
-        from pipeline_tests import run_all_tests
-
-        # Run all tests
-        passed, failed = run_all_tests()
-        return failed == 0
-
+        result = subprocess.run(cmd, check=False)
+        sys.exit(result.returncode)
+    except KeyboardInterrupt:
+        print("\n❌ Tests interrupted by user")
+        sys.exit(1)
     except Exception as e:
-        print(f"❌ Test setup failed: {e}")
-        import traceback
-
-        traceback.print_exc()
-        return False
-
-    finally:
-        # Clean up Spark
-        try:
-            spark.stop()
-            print("\n✅ Spark session stopped")
-        except Exception:
-            pass
+        print(f"❌ Error running tests: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    success = run_tests()
-    sys.exit(0 if success else 1)
+    main()

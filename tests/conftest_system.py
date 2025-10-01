@@ -13,7 +13,7 @@ import pytest
 from pyspark.sql import SparkSession
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def system_spark_session():
     """
     Create a full Spark session with Delta Lake for system tests.
@@ -82,16 +82,24 @@ def system_spark_session():
 
     yield spark
 
-    # Cleanup
+    # Cleanup - stop Spark session and clean up data
     try:
-        if (
-            spark
-            and hasattr(spark, "sparkContext")
-            and spark.sparkContext._jsc is not None
-        ):
+        if spark and hasattr(spark, "sparkContext") and spark.sparkContext._jsc is not None:
+            # Clear all cached tables and temp views
+            spark.catalog.clearCache()
+            
+            # Drop all tables in test schema
+            try:
+                tables = spark.catalog.listTables("test_schema")
+                for table in tables:
+                    spark.sql(f"DROP TABLE IF EXISTS test_schema.{table.name}")
+            except Exception:
+                pass  # Ignore errors when dropping tables
+                
+            # Drop test schema
             spark.sql("DROP DATABASE IF EXISTS test_schema CASCADE")
     except Exception as e:
-        print(f"Warning: Could not drop test_schema database: {e}")
+        print(f"Warning: Could not clean up test database: {e}")
 
     try:
         if spark:

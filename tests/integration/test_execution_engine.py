@@ -11,7 +11,15 @@ from unittest.mock import Mock, patch
 
 import pytest
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql import functions as F
+import os
+
+# Use mock functions when in mock mode
+if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+    from mock_spark import functions as F
+    from mock_spark import MockDataFrame as DataFrame
+else:
+    from pyspark.sql import functions as F
+    from pyspark.sql import DataFrame
 
 from sparkforge.errors import ExecutionError, ValidationError
 from sparkforge.execution import (
@@ -271,7 +279,7 @@ class TestExecutionEngine:
         return logger
 
     @pytest.fixture
-    def sample_bronze_step(self):
+    def sample_bronze_step(self, spark_session):
         """Create a sample BronzeStep."""
         return BronzeStep(
             name="test_bronze",
@@ -281,7 +289,7 @@ class TestExecutionEngine:
         )
 
     @pytest.fixture
-    def sample_silver_step(self):
+    def sample_silver_step(self, spark_session):
         """Create a sample SilverStep."""
         return SilverStep(
             name="test_silver",
@@ -293,7 +301,7 @@ class TestExecutionEngine:
         )
 
     @pytest.fixture
-    def sample_gold_step(self):
+    def sample_gold_step(self, spark_session):
         """Create a sample GoldStep."""
         return GoldStep(
             name="test_gold",
@@ -347,7 +355,9 @@ class TestExecutionEngine:
             mock_fqn.return_value = "test_schema.test_table"
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
 
-            result = engine.execute_step(sample_bronze_step, {}, ExecutionMode.INITIAL)
+            # Provide data in context for bronze step
+            context = {"test_bronze": mock_df}
+            result = engine.execute_step(sample_bronze_step, context, ExecutionMode.INITIAL)
 
             assert result.step_name == "test_bronze"
             assert result.step_type == StepType.BRONZE
@@ -357,7 +367,8 @@ class TestExecutionEngine:
             assert result.duration is not None
             assert result.error is None
             assert result.rows_processed == 100
-            assert result.output_table == "test_schema.test_table"
+            # Bronze steps don't write to tables, so output_table should be None
+            assert result.output_table is None
 
     def test_execute_step_silver_success(
         self, mock_spark, mock_config, sample_silver_step
@@ -575,7 +586,12 @@ class TestExecutionEngine:
         """Test step execution in validation-only mode."""
         # Mock DataFrame
         mock_df = Mock(spec=DataFrame)
+        mock_df.count.return_value = 100
         mock_spark.read.format.return_value.load.return_value = mock_df
+
+        # Mock StageStats
+        mock_stats = Mock()
+        mock_stats.validation_rate = 100.0
 
         engine = ExecutionEngine(mock_spark, mock_config)
 
@@ -583,16 +599,19 @@ class TestExecutionEngine:
             "sparkforge.execution.apply_column_rules"
         ) as mock_apply_rules:
             mock_fqn.return_value = "test_schema.test_table"
+            mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
 
+            # Provide data in context for bronze step
+            context = {"test_bronze": mock_df}
             result = engine.execute_step(
-                sample_bronze_step, {}, ExecutionMode.VALIDATION_ONLY
+                sample_bronze_step, context, ExecutionMode.VALIDATION_ONLY
             )
 
-            # In validation-only mode, should not write to table or apply validation
+            # In validation-only mode, should not apply validation or write to table
             mock_apply_rules.assert_not_called()
             mock_df.write.mode.assert_not_called()
             assert result.output_table is None
-            assert result.rows_processed is None
+            assert result.rows_processed == 100  # Data is still processed in validation-only mode
 
     def test_execute_step_exception_handling(
         self, mock_spark, mock_config, sample_bronze_step
@@ -634,8 +653,10 @@ class TestExecutionEngine:
             mock_fqn.return_value = "test_schema.test_table"
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
 
+            # Provide data in context for bronze step
+            context = {"test_bronze": mock_df}
             steps = [sample_bronze_step, sample_silver_step, sample_gold_step]
-            result = engine.execute_pipeline(steps, ExecutionMode.INITIAL)
+            result = engine.execute_pipeline(steps, ExecutionMode.INITIAL, context=context)
 
             assert result.execution_id is not None
             assert result.mode == ExecutionMode.INITIAL
@@ -649,16 +670,31 @@ class TestExecutionEngine:
         self, mock_spark, mock_config, sample_bronze_step
     ):
         """Test pipeline execution failure."""
-        # Mock Spark to raise exception on both read and createDataFrame
-        mock_spark.read.format.return_value.load.side_effect = Exception(
-            "Pipeline failed"
-        )
-        mock_spark.createDataFrame.side_effect = Exception("CreateDataFrame failed")
-
         engine = ExecutionEngine(mock_spark, mock_config)
 
-        with pytest.raises(ExecutionError, match="Pipeline execution failed"):
-            engine.execute_pipeline([sample_bronze_step], ExecutionMode.INITIAL)
+        # Create a step that will fail by having invalid rules
+        failing_step = BronzeStep(
+            name="failing_step",
+            rules={"invalid_column": ["not_null"]},  # Column that doesn't exist
+            incremental_col="timestamp",
+            schema="test_schema"
+        )
+
+        # Provide data in context for bronze step
+        mock_df = Mock(spec=DataFrame)
+        mock_df.columns = ["id", "timestamp"]  # Add columns attribute
+        mock_df.count.return_value = 100  # Add count method
+        mock_df.filter.return_value = mock_df  # Add filter method
+        context = {"failing_step": mock_df}
+        
+        result = engine.execute_pipeline([failing_step], ExecutionMode.INITIAL, context=context)
+        
+        # Check that the pipeline failed
+        assert result.status == "failed"
+        assert len(result.steps) == 1
+        assert result.steps[0].status.value == "failed"
+        assert result.steps[0].error is not None
+        assert "Columns referenced in validation rules do not exist" in result.steps[0].error
 
     def test_execute_pipeline_with_different_step_types(self, mock_spark, mock_config):
         """Test pipeline execution with different step types."""
@@ -735,8 +771,10 @@ class TestExecutionEngine:
             mock_fqn.return_value = "test_schema.test_table"
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
 
+            # Provide data in context for bronze step
+            context = {"test_bronze": mock_df}
             result = engine.execute_pipeline(
-                [sample_bronze_step], ExecutionMode.INITIAL, max_workers=8
+                [sample_bronze_step], ExecutionMode.INITIAL, max_workers=8, context=context
             )
 
             assert result.status == "completed"
@@ -783,9 +821,19 @@ class TestExecutionEngine:
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
 
             steps = [sample_bronze_step, silver_step]
+            
+            # Provide data in context for bronze step
+            context = {"test_bronze": mock_df}
 
-            with pytest.raises(ExecutionError):
-                engine.execute_pipeline(steps, ExecutionMode.INITIAL)
+            result = engine.execute_pipeline(steps, ExecutionMode.INITIAL, context=context)
+            
+            # Check that the pipeline failed
+            assert result.status == "failed"
+            assert len(result.steps) == 2
+            assert result.steps[0].status.value == "completed"  # Bronze step succeeded
+            assert result.steps[1].status.value == "failed"     # Silver step failed
+            assert result.steps[1].error is not None
+            assert "Source bronze step nonexistent not found in context" in result.steps[1].error
 
     def test_backward_compatibility_aliases(self):
         """Test that backward compatibility aliases work."""

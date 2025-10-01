@@ -377,5 +377,7 @@ class TestLogRowValidation:
             }
         ]
 
-        with pytest.raises(ValueError, match="Invalid log row at index 0"):
-            validate_log_data(log_rows)
+        result = validate_log_data(log_rows)
+        assert result["is_valid"] is False
+        assert len(result["errors"]) > 0
+        assert "Invalid log row at index 0" in result["errors"][0]

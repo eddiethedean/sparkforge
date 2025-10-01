@@ -137,11 +137,17 @@ class StorageManager:
             return write_result
 
         except Exception as e:
+            # Safely get row count for error context
+            try:
+                row_count = df.count() if hasattr(df, 'count') else 0
+            except Exception:
+                row_count = 0
+                
             raise WriterTableError(
                 f"Failed to write DataFrame to {self.table_fqn}: {e}",
                 table_name=self.table_fqn,
                 operation="write_dataframe",
-                context={"write_mode": write_mode.value, "row_count": df.count()},
+                context={"write_mode": write_mode.value, "row_count": row_count},
                 suggestions=[
                     "Check table permissions",
                     "Verify DataFrame schema matches table schema",
@@ -186,8 +192,9 @@ class StorageManager:
         try:
             self.logger.info(f"Optimizing table: {self.table_fqn}")
 
-            # Run OPTIMIZE command using SQL
-            self.spark.sql(f"OPTIMIZE {self.table_fqn}")
+            # Run OPTIMIZE command using Delta Lake Python API
+            delta_table = DeltaTable.forName(self.spark, self.table_fqn)
+            delta_table.optimize()
 
             # Get table statistics
             table_info = self.get_table_info()
@@ -270,10 +277,8 @@ class StorageManager:
             # Get table details using Delta Lake API
             delta_table = DeltaTable.forName(self.spark, self.table_fqn)
 
-            # Get table details using SQL
-            table_details = self.spark.sql(
-                f"DESCRIBE DETAIL {self.table_fqn}"
-            ).collect()
+            # Get table details using Delta Lake Python API
+            table_details = delta_table.detail().collect()
 
             # Get table history
             table_history = delta_table.history().collect()

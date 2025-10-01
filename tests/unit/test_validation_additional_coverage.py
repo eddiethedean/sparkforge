@@ -9,7 +9,15 @@ currently covered by the existing test suite.
 from unittest.mock import Mock
 
 import pytest
-from pyspark.sql import DataFrame
+import os
+
+# Use mock functions when in mock mode
+if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+    from mock_spark import functions as F
+    from mock_spark import MockDataFrame as DataFrame
+else:
+    from pyspark.sql import functions as F
+    from pyspark.sql import DataFrame
 from pyspark.sql.functions import Column, col
 
 from sparkforge.validation import (
@@ -71,6 +79,7 @@ class TestValidationEdgeCases:
         mock_df.count.return_value = 100
         mock_df.filter.return_value = mock_df
         mock_df.limit.return_value = mock_df
+        mock_df.columns = ["col1", "col2", "col3"]
 
         rules = {"col1": ["not_null"]}
 

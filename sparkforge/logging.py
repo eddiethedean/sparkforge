@@ -164,11 +164,11 @@ class PipelineLogger:
         """Add context to all log messages within this block."""
         # Store context in logger's extra data
         old_extra = getattr(self.logger, "extra", {})
-        self.logger.extra = {**old_extra, **context_data}
+        self.logger.extra = {**old_extra, **context_data}  # type: ignore[attr-defined]
         try:
             yield
         finally:
-            self.logger.extra = old_extra
+            self.logger.extra = old_extra  # type: ignore[attr-defined]
 
     # Performance timing
     def start_timer(self, operation: str) -> None:

@@ -9,7 +9,13 @@ raises exceptions instead of silently returning fallback responses.
 import pytest
 from unittest.mock import Mock, patch
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
+import os
+
+# Use mock functions when in mock mode
+if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+    from mock_spark import functions as F
+else:
+    from pyspark.sql import functions as F
 
 from sparkforge.validation.data_validation import assess_data_quality
 from sparkforge.errors import ValidationError

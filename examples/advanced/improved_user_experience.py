@@ -251,9 +251,7 @@ def main():
         min_bronze_rate=80.0,
         min_silver_rate=85.0,
         min_gold_rate=90.0,
-        verbose=True,
-        enable_parallel_silver=True,
-        max_parallel_workers=2
+        verbose=True
     )
 
     builder.with_bronze_rules(

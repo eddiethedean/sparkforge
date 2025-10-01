@@ -10,10 +10,17 @@ This module contains security-focused tests that validate:
 """
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict
+
+# Use mock functions when in mock mode
+if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+    from mock_spark import functions as F
+else:
+    from pyspark.sql import functions as F
 
 from sparkforge.errors import ValidationError
 from sparkforge.models import ParallelConfig, PipelineConfig, ValidationThresholds
@@ -311,8 +318,6 @@ class SecurityTestSuite:
         """Test data security features."""
         try:
             # Test data validation prevents malicious input
-            from pyspark.sql import functions as F
-
             from sparkforge.models import BronzeStep
 
             # Test validation rules prevent malicious data
