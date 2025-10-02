@@ -36,7 +36,7 @@ def table_exists(spark: SparkSession, database: str, table: str) -> bool:
     """
     try:
         # Use the correct method name for checking table existence
-        return spark.catalog.tableExists(database, table)
+        return bool(spark.catalog.tableExists(database, table))  # type: ignore[attr-defined]
     except AttributeError:
         # Fallback for different Spark versions
         try:

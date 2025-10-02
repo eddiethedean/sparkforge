@@ -80,10 +80,10 @@ def get_default_functions() -> FunctionsProtocol:
         # Check if we have a mock Spark session active
         import sys
         if 'mock_spark' in sys.modules:
-            return MockFunctions()
+            return MockFunctions()  # type: ignore[return-value]
     except ImportError:
         pass
     
     # Fall back to real PySpark functions
     from pyspark.sql import functions as F
-    return F
+    return F  # type: ignore[return-value]

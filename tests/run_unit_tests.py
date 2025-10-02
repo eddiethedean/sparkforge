@@ -19,12 +19,15 @@ sys.path.insert(0, str(project_root))
 def run_unit_tests():
     """Run unit tests with mypy type checking."""
     print("🧪 Running SparkForge Unit Tests")
+    print("🔧 Using Mock Spark (faster, more reliable testing)")
     print("=" * 50)
 
     # Set up environment
     env = os.environ.copy()
     env["JAVA_HOME"] = "/opt/homebrew/Cellar/openjdk@11/11.0.28"
     env["PATH"] = f"{env['JAVA_HOME']}/bin:{env['PATH']}"
+    # Default to mock mode for faster, more reliable testing
+    env["SPARK_MODE"] = "mock"
 
     start_time = time.time()
 

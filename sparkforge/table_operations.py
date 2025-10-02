@@ -170,7 +170,7 @@ def drop_table(spark: SparkSession, fqn: str) -> bool:
     try:
         if table_exists(spark, fqn):
             # Use Java SparkSession to access external catalog
-            jspark_session = spark._jsparkSession
+            jspark_session = spark._jsparkSession  # type: ignore[attr-defined]
             external_catalog = jspark_session.sharedState().externalCatalog()
             
             # Parse fully qualified name

@@ -41,6 +41,7 @@ dependencies = [
     "delta-spark>=1.2.0,<2.0.0",
     "pandas>=1.3.0",
     "psutil>=5.8.0",
+    "mock-spark>=1.0.0",
 ]
 
 [project.optional-dependencies]

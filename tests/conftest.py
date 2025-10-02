@@ -292,6 +292,25 @@ def isolated_spark_session():
 
 
 @pytest.fixture(scope="function")
+def mock_spark_session():
+    """
+    Create a mock Spark session for testing.
+    
+    This fixture provides a mock Spark session for individual test functions.
+    Only available when using mock Spark mode.
+    """
+    # Set mock as default if SPARK_MODE is not explicitly set
+    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+    
+    if spark_mode == "real":
+        # For real Spark, return None or skip this fixture
+        pytest.skip("Mock Spark session not available in real Spark mode")
+    
+    from mock_spark import MockSparkSession
+    return MockSparkSession(f"TestApp-{os.getpid()}")
+
+
+@pytest.fixture(scope="function")
 def mock_functions():
     """
     Create a Mock Functions instance for testing.
