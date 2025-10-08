@@ -24,6 +24,7 @@ class SimpleDictCheckTest(unittest.TestCase):
 
     def test_dict_vs_Dict_equivalence(self):
         """Test that dict and Dict are equivalent in Python 3.8+."""
+
         # Test function with Dict annotation (works in Python 3.8)
         def func_with_Dict() -> Dict[str, int]:
             return {"test": 1}
@@ -46,6 +47,7 @@ class SimpleDictCheckTest(unittest.TestCase):
 
     def test_typeddict_compatibility(self):
         """Test TypedDict compatibility."""
+
         class TestDict(TypedDict):
             name: str
             value: int
@@ -69,6 +71,7 @@ class SimpleDictCheckTest(unittest.TestCase):
 
     def test_dict_type_annotation_works(self):
         """Test that dict type annotations work in Python 3.8+."""
+
         def func_with_dict_annotation(data: Dict[str, int]) -> Dict[str, str]:
             return {k: str(v) for k, v in data.items()}
 
@@ -77,6 +80,7 @@ class SimpleDictCheckTest(unittest.TestCase):
 
     def test_union_with_dict_works(self):
         """Test that Union with dict works."""
+
         def func_with_union_dict(
             value: Union[Dict[str, int], str]
         ) -> Union[Dict[str, int], str]:

@@ -259,6 +259,7 @@ def test_python_version():
 
 def test_dict_vs_Dict_equivalence():
     """Test that Dict from typing works in Python 3.8 (dict[...] syntax doesn't)."""
+
     # Test function with Dict annotation (works in Python 3.8)
     def func_with_Dict() -> Dict[str, int]:
         return {"test": 1}

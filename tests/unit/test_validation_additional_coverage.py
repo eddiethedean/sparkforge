@@ -41,7 +41,7 @@ class TestValidationEdgeCases:
         # Test with string rule
         result = _convert_rule_to_expression("col1 > 0", "col1")
         # Check for Column-like object (works with both PySpark and mock-spark)
-        assert hasattr(result, '__and__') and hasattr(result, '__invert__')
+        assert hasattr(result, "__and__") and hasattr(result, "__invert__")
 
     def test_and_all_rules_empty_expressions(self) -> None:
         """Test and_all_rules with empty expressions."""
@@ -174,7 +174,7 @@ class TestValidationEdgeCases:
         # Test with valid string expressions
         result = _convert_rule_to_expression("col1 > 0", "col1")
         # Check for Column-like object (works with both PySpark and mock-spark)
-        assert hasattr(result, '__and__') and hasattr(result, '__invert__')
+        assert hasattr(result, "__and__") and hasattr(result, "__invert__")
 
     def test_and_all_rules_single_expression(self) -> None:
         """Test and_all_rules with single expression."""
@@ -182,7 +182,7 @@ class TestValidationEdgeCases:
         rules = {"col1": ["col1 > 0"]}
         result = and_all_rules(rules)
         # Check for Column-like object (works with both PySpark and mock-spark)
-        assert hasattr(result, '__and__') and hasattr(result, '__invert__')
+        assert hasattr(result, "__and__") and hasattr(result, "__invert__")
 
     def test_and_all_rules_multiple_expressions(self) -> None:
         """Test and_all_rules with multiple expressions."""
@@ -190,7 +190,7 @@ class TestValidationEdgeCases:
         rules = {"col1": ["col1 > 0"], "col2": ["col2 IS NOT NULL"]}
         result = and_all_rules(rules)
         # Check for Column-like object (works with both PySpark and mock-spark)
-        assert hasattr(result, '__and__') and hasattr(result, '__invert__')
+        assert hasattr(result, "__and__") and hasattr(result, "__invert__")
 
     def test_string_rule_conversion_edge_cases(self) -> None:
         """Test string rule conversion edge cases."""
@@ -205,7 +205,7 @@ class TestValidationEdgeCases:
         for rule in test_cases:
             result = _convert_rule_to_expression(rule, "col1")
             # Check for Column-like object (works with both PySpark and mock-spark)
-            assert hasattr(result, '__and__') and hasattr(result, '__invert__')
+            assert hasattr(result, "__and__") and hasattr(result, "__invert__")
 
     def test_validation_error_handling(self) -> None:
         """Test validation error handling paths."""

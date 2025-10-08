@@ -57,7 +57,7 @@ class TestDataValidation:
     @pytest.mark.spark
     @pytest.mark.skipif(
         os.environ.get("SPARK_MODE", "mock").lower() == "mock",
-        reason="withColumn with complex Column predicates not fully supported in mock-spark"
+        reason="withColumn with complex Column predicates not fully supported in mock-spark",
     )
     def test_and_all_rules(self, sample_dataframe):
         """Test rule combination with real Spark operations."""
@@ -294,7 +294,7 @@ class TestPerformanceWithRealData:
     @pytest.mark.spark
     @pytest.mark.skipif(
         os.environ.get("SPARK_MODE", "mock").lower() == "mock",
-        reason="Complex datetime transformations require real Spark"
+        reason="Complex datetime transformations require real Spark",
     )
     def test_complex_transformations(self, spark_session):
         """Test complex transformations with real Spark operations."""

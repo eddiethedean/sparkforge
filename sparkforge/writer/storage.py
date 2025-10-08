@@ -145,10 +145,10 @@ class StorageManager:
         except Exception as e:
             # Safely get row count for error context
             try:
-                row_count = df.count() if hasattr(df, 'count') else 0
+                row_count = df.count() if hasattr(df, "count") else 0
             except Exception:
                 row_count = 0
-                
+
             raise WriterTableError(
                 f"Failed to write DataFrame to {self.table_fqn}: {e}",
                 table_name=self.table_fqn,
@@ -201,7 +201,7 @@ class StorageManager:
             # Run OPTIMIZE command using Delta Lake Python API
             delta_table = DeltaTable.forName(self.spark, self.table_fqn)
             # Note: optimize() method may not be available in all Delta Lake versions
-            if hasattr(delta_table, 'optimize'):
+            if hasattr(delta_table, "optimize"):
                 delta_table.optimize()
             else:
                 # Fallback: use SQL command
@@ -290,11 +290,13 @@ class StorageManager:
 
             # Get table details using Delta Lake Python API
             # Note: detail() method may not be available in all Delta Lake versions
-            if hasattr(delta_table, 'detail'):
+            if hasattr(delta_table, "detail"):
                 table_details = delta_table.detail().collect()
             else:
                 # Fallback: use SQL command
-                table_details = self.spark.sql(f"DESCRIBE DETAIL {self.table_fqn}").collect()
+                table_details = self.spark.sql(
+                    f"DESCRIBE DETAIL {self.table_fqn}"
+                ).collect()
 
             # Get table history
             table_history = delta_table.history().collect()
@@ -380,9 +382,9 @@ class StorageManager:
             # For mock-spark, use lit() with string timestamp to avoid issues
             import os
             from datetime import datetime
-            
+
             current_time_str = datetime.now().isoformat()
-            
+
             if "created_at" not in df.columns:
                 df = df.withColumn("created_at", F.lit(current_time_str))
 
@@ -400,8 +402,9 @@ class StorageManager:
         try:
             # Convert log rows to dictionaries
             from datetime import datetime
+
             current_time_str = datetime.now().isoformat()
-            
+
             log_data = []
             for row in log_rows:
                 row_dict = {

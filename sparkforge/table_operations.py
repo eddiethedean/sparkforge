@@ -172,14 +172,14 @@ def drop_table(spark: SparkSession, fqn: str) -> bool:
             # Use Java SparkSession to access external catalog
             jspark_session = spark._jsparkSession  # type: ignore[attr-defined]
             external_catalog = jspark_session.sharedState().externalCatalog()
-            
+
             # Parse fully qualified name
             if "." in fqn:
                 database_name, table_name = fqn.split(".", 1)
             else:
                 database_name = "default"
                 table_name = fqn
-            
+
             # Drop the table using external catalog
             # Parameters: db, table, ignoreIfNotExists, purge
             external_catalog.dropTable(database_name, table_name, True, True)

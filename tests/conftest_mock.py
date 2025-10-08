@@ -64,10 +64,10 @@ def spark_session():
     Java or Spark installation.
     """
     print("🔧 Creating Mock Spark session for all tests")
-    
+
     # Create mock Spark session
     spark = MockSparkSession(f"SparkForgeTests-{os.getpid()}")
-    
+
     # Create test database
     try:
         spark.catalog.createDatabase("test_schema")
@@ -76,7 +76,7 @@ def spark_session():
         print(f"❌ Could not create test_schema database: {e}")
 
     yield spark
-    
+
     # Cleanup (mock sessions don't need explicit cleanup)
     print("🧹 Mock Spark session cleanup completed")
 
@@ -91,12 +91,12 @@ def isolated_spark_session():
     """
     unique_id = int(time.time() * 1000000) % 1000000
     schema_name = f"test_schema_{unique_id}"
-    
+
     print(f"🔧 Creating isolated Mock Spark session for {schema_name}")
-    
+
     # Create mock Spark session
     spark = MockSparkSession(f"SparkForgeTests-{os.getpid()}-{unique_id}")
-    
+
     # Create isolated test database
     try:
         spark.catalog.createDatabase(schema_name)
@@ -105,7 +105,7 @@ def isolated_spark_session():
         print(f"❌ Could not create isolated test database {schema_name}: {e}")
 
     yield spark
-    
+
     # Cleanup
     print(f"🧹 Isolated Mock Spark session cleanup completed for {schema_name}")
 
@@ -167,15 +167,23 @@ def sample_dataframe(spark_session):
 
     This fixture creates a sample DataFrame with common test data.
     """
-    from mock_spark import MockStructType, MockStructField, StringType, IntegerType, DoubleType
-    
-    schema = MockStructType([
-        MockStructField("user_id", StringType(), True),
-        MockStructField("age", IntegerType(), True),
-        MockStructField("score", DoubleType(), True),
-        MockStructField("category", StringType(), True),
-    ])
-    
+    from mock_spark import (
+        MockStructType,
+        MockStructField,
+        StringType,
+        IntegerType,
+        DoubleType,
+    )
+
+    schema = MockStructType(
+        [
+            MockStructField("user_id", StringType(), True),
+            MockStructField("age", IntegerType(), True),
+            MockStructField("score", DoubleType(), True),
+            MockStructField("category", StringType(), True),
+        ]
+    )
+
     data = [
         ("user1", 25, 85.5, "A"),
         ("user2", 30, 92.0, "B"),
@@ -183,7 +191,7 @@ def sample_dataframe(spark_session):
         ("user4", 35, None, "C"),
         ("user5", 28, 88.0, "B"),
     ]
-    
+
     return spark_session.createDataFrame(data, schema)
 
 
@@ -195,12 +203,14 @@ def empty_dataframe(spark_session):
     This fixture creates an empty DataFrame with a defined schema.
     """
     from mock_spark import MockStructType, MockStructField, StringType
-    
-    schema = MockStructType([
-        MockStructField("col1", StringType(), True),
-        MockStructField("col2", StringType(), True),
-    ])
-    
+
+    schema = MockStructType(
+        [
+            MockStructField("col1", StringType(), True),
+            MockStructField("col2", StringType(), True),
+        ]
+    )
+
     return spark_session.createDataFrame([], schema)
 
 
@@ -213,9 +223,9 @@ def test_warehouse_dir():
     """
     warehouse_dir = f"/tmp/spark-warehouse-{os.getpid()}"
     os.makedirs(warehouse_dir, exist_ok=True)
-    
+
     yield warehouse_dir
-    
+
     # Cleanup
     if os.path.exists(warehouse_dir):
         shutil.rmtree(warehouse_dir, ignore_errors=True)
@@ -227,15 +237,9 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
     )
-    config.addinivalue_line(
-        "markers", "integration: marks tests as integration tests"
-    )
-    config.addinivalue_line(
-        "markers", "unit: marks tests as unit tests"
-    )
-    config.addinivalue_line(
-        "markers", "system: marks tests as system tests"
-    )
+    config.addinivalue_line("markers", "integration: marks tests as integration tests")
+    config.addinivalue_line("markers", "unit: marks tests as unit tests")
+    config.addinivalue_line("markers", "system: marks tests as system tests")
 
 
 def pytest_collection_modifyitems(config, items):
@@ -248,7 +252,7 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(pytest.mark.system)
         else:
             item.add_marker(pytest.mark.unit)
-        
+
         # Add slow marker for tests that take longer than 1 second
         if "performance" in str(item.fspath) or "load" in str(item.fspath):
             item.add_marker(pytest.mark.slow)

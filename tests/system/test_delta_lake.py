@@ -19,7 +19,7 @@ else:
 # Skip all Delta Lake tests when running with mock-spark
 pytestmark = pytest.mark.skipif(
     os.environ.get("SPARK_MODE", "mock").lower() == "mock",
-    reason="Delta Lake tests require real Spark"
+    reason="Delta Lake tests require real Spark",
 )
 
 

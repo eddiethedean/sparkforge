@@ -325,7 +325,8 @@ class DataProcessor:
             df_transformed = df.withColumn(
                 "processing_efficiency",
                 F.when(
-                    F.col("input_rows") > 0, F.col("output_rows") / F.col("input_rows") * 100
+                    F.col("input_rows") > 0,
+                    F.col("output_rows") / F.col("input_rows") * 100,
                 ).otherwise(0),
             ).withColumn(
                 "data_quality_score",

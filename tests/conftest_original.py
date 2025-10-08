@@ -56,13 +56,14 @@ def test_isolation():
     """
     # Clean up any global state that might interfere between tests
     import gc
+
     gc.collect()  # Force garbage collection
-    
+
     # Reset any module-level state if needed
     # (This is where you'd add any global state cleanup)
-    
+
     yield  # Run the test
-    
+
     # Cleanup after test
     gc.collect()  # Force garbage collection after test
 
@@ -73,6 +74,7 @@ def unique_test_schema():
     Provide a unique schema name for each test to avoid conflicts.
     """
     import time
+
     unique_id = int(time.time() * 1000000) % 1000000
     return f"test_schema_{unique_id}"
 
@@ -125,12 +127,14 @@ def spark_session():
         print("💡 To fix this issue:")
         print("   1. Install Delta Lake: pip install delta-spark")
         print("   2. Or set SPARKFORGE_SKIP_DELTA=1 to skip Delta Lake tests")
-        print("   3. Or set SPARKFORGE_BASIC_SPARK=1 to use basic Spark without Delta Lake")
-        
+        print(
+            "   3. Or set SPARKFORGE_BASIC_SPARK=1 to use basic Spark without Delta Lake"
+        )
+
         # Check if user explicitly wants to skip Delta Lake or use basic Spark
         skip_delta = os.environ.get("SPARKFORGE_SKIP_DELTA", "0") == "1"
         basic_spark = os.environ.get("SPARKFORGE_BASIC_SPARK", "0") == "1"
-        
+
         if skip_delta or basic_spark:
             print("🔧 Using basic Spark configuration as requested")
             try:
@@ -186,10 +190,14 @@ def spark_session():
 
     # Cleanup - stop Spark session and clean up data
     try:
-        if spark and hasattr(spark, "sparkContext") and spark.sparkContext._jsc is not None:
+        if (
+            spark
+            and hasattr(spark, "sparkContext")
+            and spark.sparkContext._jsc is not None
+        ):
             # Clear all cached tables and temp views
             spark.catalog.clearCache()
-            
+
             # Drop all tables in test schema
             try:
                 tables = spark.catalog.listTables("test_schema")
@@ -197,7 +205,7 @@ def spark_session():
                     spark.sql(f"DROP TABLE IF EXISTS test_schema.{table.name}")
             except Exception:
                 pass  # Ignore errors when dropping tables
-                
+
             # Drop test schema
             spark.sql("DROP DATABASE IF EXISTS test_schema CASCADE")
     except Exception as e:
@@ -268,14 +276,18 @@ def isolated_spark_session():
         print("💡 To fix this issue:")
         print("   1. Install Delta Lake: pip install delta-spark")
         print("   2. Or set SPARKFORGE_SKIP_DELTA=1 to skip Delta Lake tests")
-        print("   3. Or set SPARKFORGE_BASIC_SPARK=1 to use basic Spark without Delta Lake")
-        
+        print(
+            "   3. Or set SPARKFORGE_BASIC_SPARK=1 to use basic Spark without Delta Lake"
+        )
+
         # Check if user explicitly wants to skip Delta Lake or use basic Spark
         skip_delta = os.environ.get("SPARKFORGE_SKIP_DELTA", "0") == "1"
         basic_spark = os.environ.get("SPARKFORGE_BASIC_SPARK", "0") == "1"
-        
+
         if skip_delta or basic_spark:
-            print("🔧 Using basic Spark configuration for isolated session as requested")
+            print(
+                "🔧 Using basic Spark configuration for isolated session as requested"
+            )
             try:
                 builder = (
                     SparkSession.builder.appName(
@@ -391,6 +403,7 @@ def sample_bronze_rules():
     """Create sample bronze validation rules."""
     import os
 
+
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
     from mock_spark import functions as F
@@ -409,6 +422,7 @@ def sample_silver_rules():
     """Create sample silver validation rules."""
     import os
 
+
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
     from mock_spark import functions as F
@@ -426,6 +440,7 @@ else:
 def sample_gold_rules():
     """Create sample gold validation rules."""
     import os
+
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":

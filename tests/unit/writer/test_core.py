@@ -116,22 +116,28 @@ class TestLogWriter:
 
         # Create writer
         writer = LogWriter(mock_spark, valid_config, mock_logger)
-        
+
         # Mock the data processor and storage manager
-        with patch.object(writer.data_processor, 'process_execution_result') as mock_process, \
-             patch.object(writer.storage_manager, 'write_batch') as mock_write_batch, \
-             patch.object(writer.storage_manager, 'create_table_if_not_exists') as mock_create_table:
-            
+        with patch.object(
+            writer.data_processor, "process_execution_result"
+        ) as mock_process, patch.object(
+            writer.storage_manager, "write_batch"
+        ) as mock_write_batch, patch.object(
+            writer.storage_manager, "create_table_if_not_exists"
+        ) as mock_create_table:
+
             mock_process.return_value = mock_log_rows
             mock_write_batch.return_value = {
                 "rows_written": 1,
                 "success": True,
-                "table_name": "analytics.pipeline_logs"
+                "table_name": "analytics.pipeline_logs",
             }
             mock_create_table.return_value = None
-            
+
             # Call method
-            result = writer.write_execution_result(mock_execution_result, run_id="test-run")
+            result = writer.write_execution_result(
+                mock_execution_result, run_id="test-run"
+            )
 
             # Verify results
             assert result["success"] is True
@@ -170,9 +176,11 @@ class TestLogWriter:
         )
 
         writer = LogWriter(mock_spark, valid_config, mock_logger)
-        
+
         # Mock the data processor to raise validation error
-        with patch.object(writer.data_processor, 'process_execution_result') as mock_process:
+        with patch.object(
+            writer.data_processor, "process_execution_result"
+        ) as mock_process:
             mock_process.side_effect = ValueError("Validation failed")
 
             with pytest.raises(ValueError, match="Validation failed"):
@@ -200,11 +208,11 @@ class TestLogWriter:
         writer = LogWriter(mock_spark, valid_config, mock_logger)
 
         # Mock the storage manager
-        with patch.object(writer.storage_manager, 'write_batch') as mock_write_batch:
+        with patch.object(writer.storage_manager, "write_batch") as mock_write_batch:
             mock_write_batch.return_value = {
                 "rows_written": 1,
                 "success": True,
-                "table_name": "analytics.pipeline_logs"
+                "table_name": "analytics.pipeline_logs",
             }
 
             result = writer.write_step_results(
@@ -216,21 +224,19 @@ class TestLogWriter:
             mock_write_batch.assert_called_once()
             assert result["success"] is True
 
-    def test_write_log_rows_success(
-        self, mock_spark, valid_config, mock_logger
-    ):
+    def test_write_log_rows_success(self, mock_spark, valid_config, mock_logger):
         """Test successful log rows writing."""
         # Setup mocks
         mock_log_rows = [{"test": "data"}]
 
         writer = LogWriter(mock_spark, valid_config, mock_logger)
-        
+
         # Mock the storage manager
-        with patch.object(writer.storage_manager, 'write_batch') as mock_write_batch:
+        with patch.object(writer.storage_manager, "write_batch") as mock_write_batch:
             mock_write_batch.return_value = {
                 "rows_written": 1,
                 "success": True,
-                "table_name": "analytics.pipeline_logs"
+                "table_name": "analytics.pipeline_logs",
             }
 
             # Call method
@@ -254,9 +260,9 @@ class TestLogWriter:
         mock_log_rows = [{"test": "data"}]
 
         writer = LogWriter(mock_spark, valid_config, mock_logger)
-        
+
         # Mock the storage manager to raise validation error
-        with patch.object(writer.storage_manager, 'write_batch') as mock_write_batch:
+        with patch.object(writer.storage_manager, "write_batch") as mock_write_batch:
             mock_write_batch.side_effect = ValueError("Validation failed")
 
             with pytest.raises(ValueError, match="Validation failed"):
@@ -329,14 +335,14 @@ class TestLogWriter:
     def test_get_table_info(self, mock_spark, valid_config, mock_logger):
         """Test getting table info."""
         writer = LogWriter(mock_spark, valid_config, mock_logger)
-        
+
         # Mock the storage manager to return proper table info
-        with patch.object(writer.storage_manager, 'get_table_info') as mock_get_info:
+        with patch.object(writer.storage_manager, "get_table_info") as mock_get_info:
             mock_get_info.return_value = {
                 "table_fqn": "analytics.pipeline_logs",
                 "row_count": 100,
                 "columns": ["col1", "col2"],
-                "schema": '{"type": "struct"}'
+                "schema": '{"type": "struct"}',
             }
 
             # Call method
@@ -354,11 +360,11 @@ class TestLogWriter:
         execution_results = [mock_execution_result, mock_execution_result]
 
         # Mock the storage manager to avoid DataFrame issues
-        with patch.object(writer.storage_manager, 'write_batch') as mock_write_batch:
+        with patch.object(writer.storage_manager, "write_batch") as mock_write_batch:
             mock_write_batch.return_value = {
                 "rows_written": 2,
                 "success": True,
-                "table_name": "analytics.pipeline_logs"
+                "table_name": "analytics.pipeline_logs",
             }
 
             result = writer.write_execution_result_batch(
@@ -381,11 +387,11 @@ class TestLogWriter:
         execution_results = [mock_execution_result, mock_execution_result]
 
         # Mock the storage manager to avoid DataFrame issues
-        with patch.object(writer.storage_manager, 'write_batch') as mock_write_batch:
+        with patch.object(writer.storage_manager, "write_batch") as mock_write_batch:
             mock_write_batch.return_value = {
                 "rows_written": 1,
                 "success": True,
-                "table_name": "analytics.pipeline_logs"
+                "table_name": "analytics.pipeline_logs",
             }
 
             result = writer.write_execution_result_batch(
@@ -596,7 +602,7 @@ class TestLogWriter:
                 "optimization_completed": True,
                 "table_name": "analytics.pipeline_logs",
                 "timestamp": "2023-01-01T00:00:00Z",
-                "table_info": {"row_count": 1000}
+                "table_info": {"row_count": 1000},
             }
 
             result = writer.optimize_table()
@@ -610,7 +616,7 @@ class TestLogWriter:
         with patch.object(writer.storage_manager, "optimize_table") as mock_optimize:
             mock_optimize.return_value = {
                 "optimized": False,
-                "reason": "Table does not exist"
+                "reason": "Table does not exist",
             }
 
             result = writer.optimize_table()
@@ -624,7 +630,7 @@ class TestLogWriter:
             mock_vacuum.return_value = {
                 "vacuumed": True,
                 "files_removed": 5,
-                "vacuum_timestamp": "2023-01-01T00:00:00Z"
+                "vacuum_timestamp": "2023-01-01T00:00:00Z",
             }
 
             result = writer.vacuum_table(retention_hours=168)
@@ -635,12 +641,14 @@ class TestLogWriter:
 
     def test_analyze_quality_trends_success(self, writer):
         """Test successful quality trends analysis."""
-        with patch.object(writer.quality_analyzer, "analyze_quality_trends") as mock_analyze:
+        with patch.object(
+            writer.quality_analyzer, "analyze_quality_trends"
+        ) as mock_analyze:
             mock_analyze.return_value = {
                 "trends_analyzed": True,
                 "quality_trend": "improving",
                 "analysis_period": 30,
-                "analysis_timestamp": "2023-01-01T00:00:00Z"
+                "analysis_timestamp": "2023-01-01T00:00:00Z",
             }
 
             result = writer.analyze_quality_trends(days=30)
@@ -651,12 +659,14 @@ class TestLogWriter:
 
     def test_analyze_execution_trends_success(self, writer):
         """Test successful execution trends analysis."""
-        with patch.object(writer.trend_analyzer, "analyze_execution_trends") as mock_analyze:
+        with patch.object(
+            writer.trend_analyzer, "analyze_execution_trends"
+        ) as mock_analyze:
             mock_analyze.return_value = {
                 "trends_analyzed": True,
                 "execution_trend": "stable",
                 "analysis_period": 30,
-                "analysis_timestamp": "2023-01-01T00:00:00Z"
+                "analysis_timestamp": "2023-01-01T00:00:00Z",
             }
 
             result = writer.analyze_execution_trends(days=30)

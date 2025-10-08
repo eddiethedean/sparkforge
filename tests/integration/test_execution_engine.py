@@ -357,7 +357,9 @@ class TestExecutionEngine:
 
             # Provide data in context for bronze step
             context = {"test_bronze": mock_df}
-            result = engine.execute_step(sample_bronze_step, context, ExecutionMode.INITIAL)
+            result = engine.execute_step(
+                sample_bronze_step, context, ExecutionMode.INITIAL
+            )
 
             assert result.step_name == "test_bronze"
             assert result.step_type == StepType.BRONZE
@@ -472,8 +474,14 @@ class TestExecutionEngine:
 
         # Verify the error message is clear
         error_msg = str(excinfo.value)
-        assert "Bronze step 'test_bronze' requires data to be provided in context" in error_msg
-        assert "Bronze steps are for validating existing data, not creating it" in error_msg
+        assert (
+            "Bronze step 'test_bronze' requires data to be provided in context"
+            in error_msg
+        )
+        assert (
+            "Bronze steps are for validating existing data, not creating it"
+            in error_msg
+        )
 
     def test_execute_bronze_step_with_data(self, mock_spark, mock_config):
         """Test bronze step execution with provided data."""
@@ -611,7 +619,9 @@ class TestExecutionEngine:
             mock_apply_rules.assert_not_called()
             mock_df.write.mode.assert_not_called()
             assert result.output_table is None
-            assert result.rows_processed == 100  # Data is still processed in validation-only mode
+            assert (
+                result.rows_processed == 100
+            )  # Data is still processed in validation-only mode
 
     def test_execute_step_exception_handling(
         self, mock_spark, mock_config, sample_bronze_step
@@ -656,7 +666,9 @@ class TestExecutionEngine:
             # Provide data in context for bronze step
             context = {"test_bronze": mock_df}
             steps = [sample_bronze_step, sample_silver_step, sample_gold_step]
-            result = engine.execute_pipeline(steps, ExecutionMode.INITIAL, context=context)
+            result = engine.execute_pipeline(
+                steps, ExecutionMode.INITIAL, context=context
+            )
 
             assert result.execution_id is not None
             assert result.mode == ExecutionMode.INITIAL
@@ -677,7 +689,7 @@ class TestExecutionEngine:
             name="failing_step",
             rules={"invalid_column": ["not_null"]},  # Column that doesn't exist
             incremental_col="timestamp",
-            schema="test_schema"
+            schema="test_schema",
         )
 
         # Provide data in context for bronze step
@@ -686,15 +698,20 @@ class TestExecutionEngine:
         mock_df.count.return_value = 100  # Add count method
         mock_df.filter.return_value = mock_df  # Add filter method
         context = {"failing_step": mock_df}
-        
-        result = engine.execute_pipeline([failing_step], ExecutionMode.INITIAL, context=context)
-        
+
+        result = engine.execute_pipeline(
+            [failing_step], ExecutionMode.INITIAL, context=context
+        )
+
         # Check that the pipeline failed
         assert result.status == "failed"
         assert len(result.steps) == 1
         assert result.steps[0].status.value == "failed"
         assert result.steps[0].error is not None
-        assert "Columns referenced in validation rules do not exist" in result.steps[0].error
+        assert (
+            "Columns referenced in validation rules do not exist"
+            in result.steps[0].error
+        )
 
     def test_execute_pipeline_with_different_step_types(self, mock_spark, mock_config):
         """Test pipeline execution with different step types."""
@@ -774,7 +791,10 @@ class TestExecutionEngine:
             # Provide data in context for bronze step
             context = {"test_bronze": mock_df}
             result = engine.execute_pipeline(
-                [sample_bronze_step], ExecutionMode.INITIAL, max_workers=8, context=context
+                [sample_bronze_step],
+                ExecutionMode.INITIAL,
+                max_workers=8,
+                context=context,
             )
 
             assert result.status == "completed"
@@ -821,19 +841,24 @@ class TestExecutionEngine:
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
 
             steps = [sample_bronze_step, silver_step]
-            
+
             # Provide data in context for bronze step
             context = {"test_bronze": mock_df}
 
-            result = engine.execute_pipeline(steps, ExecutionMode.INITIAL, context=context)
-            
+            result = engine.execute_pipeline(
+                steps, ExecutionMode.INITIAL, context=context
+            )
+
             # Check that the pipeline failed
             assert result.status == "failed"
             assert len(result.steps) == 2
             assert result.steps[0].status.value == "completed"  # Bronze step succeeded
-            assert result.steps[1].status.value == "failed"     # Silver step failed
+            assert result.steps[1].status.value == "failed"  # Silver step failed
             assert result.steps[1].error is not None
-            assert "Source bronze step nonexistent not found in context" in result.steps[1].error
+            assert (
+                "Source bronze step nonexistent not found in context"
+                in result.steps[1].error
+            )
 
     def test_backward_compatibility_aliases(self):
         """Test that backward compatibility aliases work."""

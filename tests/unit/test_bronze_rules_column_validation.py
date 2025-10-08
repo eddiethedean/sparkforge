@@ -13,7 +13,12 @@ import os
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
     from mock_spark import functions as F
-    from mock_spark import IntegerType, StringType, MockStructField as StructField, MockStructType as StructType
+    from mock_spark import (
+        IntegerType,
+        StringType,
+        MockStructField as StructField,
+        MockStructType as StructType,
+    )
 else:
     from pyspark.sql import functions as F
     from pyspark.sql.types import IntegerType, StringType, StructField, StructType
@@ -27,6 +32,7 @@ from sparkforge.validation import apply_column_rules
 def reset_test_environment():
     """Reset test environment before each test in this file."""
     import gc
+
     gc.collect()
     yield
     gc.collect()
@@ -41,17 +47,17 @@ class TestBronzeRulesColumnValidation:
         df = spark_session.createDataFrame(
             [("user1", "click"), ("user2", "view")], ["user_id", "action"]
         )
-        
+
         # Try to apply rules for columns that don't exist
         rules = {
             "user_id": [F.col("user_id").isNotNull()],  # This exists
             "value": [F.col("value") > 0],  # This doesn't exist
             "timestamp": [F.col("timestamp").isNotNull()],  # This doesn't exist
         }
-        
+
         with pytest.raises(ValidationError) as exc_info:
             apply_column_rules(df, rules, "bronze", "test_step")
-        
+
         # Verify the error message contains helpful information
         error_msg = str(exc_info.value)
         assert "Columns referenced in validation rules do not exist" in error_msg
@@ -67,17 +73,24 @@ class TestBronzeRulesColumnValidation:
     def test_existing_columns_validation_success(self, spark_session):
         """Test that validation succeeds when all columns exist."""
         # Create DataFrame with all required columns and explicit schema
-        schema = StructType([
-            StructField("user_id", StringType(), True),
-            StructField("action", StringType(), True),
-            StructField("value", IntegerType(), True),
-            StructField("timestamp", StringType(), True),
-        ])
+        schema = StructType(
+            [
+                StructField("user_id", StringType(), True),
+                StructField("action", StringType(), True),
+                StructField("value", IntegerType(), True),
+                StructField("timestamp", StringType(), True),
+            ]
+        )
         data = [
-            {"user_id": "user1", "action": "click", "value": 100, "timestamp": "2024-01-01 10:00:00"}
+            {
+                "user_id": "user1",
+                "action": "click",
+                "value": 100,
+                "timestamp": "2024-01-01 10:00:00",
+            }
         ]
         df = spark_session.createDataFrame(data, schema)
-        
+
         # Apply rules for columns that exist
         rules = {
             "user_id": [F.col("user_id").isNotNull()],
@@ -85,10 +98,12 @@ class TestBronzeRulesColumnValidation:
             "value": [F.col("value") > 0],
             "timestamp": [F.col("timestamp").isNotNull()],
         }
-        
+
         # Should not raise an exception
-        valid_df, invalid_df, stats = apply_column_rules(df, rules, "bronze", "test_step")
-        
+        valid_df, invalid_df, stats = apply_column_rules(
+            df, rules, "bronze", "test_step"
+        )
+
         # Verify results
         assert valid_df.count() == 1
         assert invalid_df.count() == 0
@@ -98,15 +113,15 @@ class TestBronzeRulesColumnValidation:
 
     def test_empty_rules_validation_success(self, spark_session):
         """Test that empty rules don't cause column validation errors."""
-        df = spark_session.createDataFrame(
-            [("user1", "click")], ["user_id", "action"]
-        )
-        
+        df = spark_session.createDataFrame([("user1", "click")], ["user_id", "action"])
+
         # Empty rules should not cause validation errors
         rules = {}
-        
-        valid_df, invalid_df, stats = apply_column_rules(df, rules, "bronze", "test_step")
-        
+
+        valid_df, invalid_df, stats = apply_column_rules(
+            df, rules, "bronze", "test_step"
+        )
+
         # Verify results
         assert valid_df.count() == 1
         assert invalid_df.count() == 0
@@ -118,19 +133,21 @@ class TestBronzeRulesColumnValidation:
         """Test that bronze step works correctly with provided data."""
         from sparkforge.models import BronzeStep, PipelineConfig
         from sparkforge.execution import ExecutionEngine
-        
+
         # Create sample data with the expected columns
-        schema = StructType([
-            StructField("user_id", StringType(), True),
-            StructField("value", IntegerType(), True),
-            StructField("timestamp", StringType(), True),
-        ])
+        schema = StructType(
+            [
+                StructField("user_id", StringType(), True),
+                StructField("value", IntegerType(), True),
+                StructField("timestamp", StringType(), True),
+            ]
+        )
         sample_data = [
             {"user_id": "user1", "value": 100, "timestamp": "2024-01-01 10:00:00"},
-            {"user_id": "user2", "value": 200, "timestamp": "2024-01-01 11:00:00"}
+            {"user_id": "user2", "value": 200, "timestamp": "2024-01-01 11:00:00"},
         ]
         df = spark_session.createDataFrame(sample_data, schema)
-        
+
         # Create a bronze step with rules for specific columns
         bronze_step = BronzeStep(
             name="test_bronze",
@@ -141,32 +158,32 @@ class TestBronzeRulesColumnValidation:
             },
             incremental_col="timestamp",
         )
-        
+
         # Create execution engine with required config
         config = PipelineConfig.create_default("test_schema")
         engine = ExecutionEngine(spark_session, config)
-        
+
         # Execute bronze step with provided data in context
         context = {"test_bronze": df}
         result_df = engine._execute_bronze_step(bronze_step, context)
-        
+
         # Verify the DataFrame has the expected columns
         expected_columns = {"user_id", "value", "timestamp"}
         actual_columns = set(result_df.columns)
-        
+
         assert expected_columns.issubset(actual_columns), (
             f"Expected columns {expected_columns} not found in DataFrame. "
             f"Actual columns: {actual_columns}"
         )
-        
+
         # Verify the DataFrame has data
         assert result_df.count() == 2
-        
+
         # Verify we can apply the rules without column errors
         valid_df, invalid_df, stats = apply_column_rules(
             result_df, bronze_step.rules, "bronze", "test_bronze"
         )
-        
+
         # Should not raise an exception and should validate data
         assert stats.total_rows == 2
         assert stats.valid_rows == 2
@@ -177,10 +194,10 @@ class TestBronzeRulesColumnValidation:
         # Create sample data with limited columns
         sample_data = [("user1", "click"), ("user2", "view")]
         df = spark_session.createDataFrame(sample_data, ["user_id", "action"])
-        
+
         # Create pipeline builder
         builder = PipelineBuilder(spark=spark_session, schema="test_schema")
-        
+
         # Add bronze rules that reference missing columns
         builder.with_bronze_rules(
             name="events",
@@ -191,10 +208,10 @@ class TestBronzeRulesColumnValidation:
             },
             incremental_col="timestamp",
         )
-        
+
         # Build the pipeline runner
         runner = builder.to_pipeline()
-        
+
         # Try to execute with data that has missing columns
         # This should either work with fallback schema or fail with clear error
         try:
@@ -214,7 +231,7 @@ class TestBronzeRulesColumnValidation:
         from sparkforge.models import BronzeStep, PipelineConfig
         from sparkforge.execution import ExecutionEngine
         from sparkforge.errors import ExecutionError
-        
+
         # Create bronze step with various column types
         bronze_step = BronzeStep(
             name="test_types",
@@ -224,16 +241,22 @@ class TestBronzeRulesColumnValidation:
                 "timestamp": [F.col("timestamp").isNotNull()],
             },
         )
-        
+
         config = PipelineConfig.create_default("test_schema")
         engine = ExecutionEngine(spark_session, config)
-        
+
         # Execute bronze step without providing data in context
         # This should raise a clear error
         with pytest.raises(ExecutionError) as excinfo:
             engine._execute_bronze_step(bronze_step, {})
-        
+
         error_msg = str(excinfo.value)
-        assert "Bronze step 'test_types' requires data to be provided in context" in error_msg
-        assert "Bronze steps are for validating existing data, not creating it" in error_msg
+        assert (
+            "Bronze step 'test_types' requires data to be provided in context"
+            in error_msg
+        )
+        assert (
+            "Bronze steps are for validating existing data, not creating it"
+            in error_msg
+        )
         assert "Please provide data using bronze_sources parameter" in error_msg

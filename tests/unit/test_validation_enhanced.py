@@ -16,28 +16,34 @@ from sparkforge.validation.data_validation import (
     and_all_rules,
     apply_column_rules,
     assess_data_quality,
-    validate_dataframe_schema
+    validate_dataframe_schema,
 )
 from sparkforge.validation.pipeline_validation import (
     ValidationResult,
     UnifiedValidator,
-    StepValidator
+    StepValidator,
 )
-from sparkforge.validation.utils import (
-    safe_divide,
-    get_dataframe_info
-)
+from sparkforge.validation.utils import safe_divide, get_dataframe_info
 from sparkforge.functions import FunctionsProtocol, get_default_functions
 
 # Import mock objects
 from mock_spark import MockSparkSession, MockDataFrame, MockFunctions
-from mock_spark import MockStructType, MockStructField, StringType, IntegerType, DoubleType, BooleanType
+from mock_spark import (
+    MockStructType,
+    MockStructField,
+    StringType,
+    IntegerType,
+    DoubleType,
+    BooleanType,
+)
 
 # Apply mock-spark 0.3.1 patches
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from mock_spark_patch import apply_mock_spark_patches
+
 apply_mock_spark_patches()
 
 
@@ -48,7 +54,7 @@ class TestValidationWithMockFunctions:
         """Set up test fixtures."""
         self.mock_spark = MockSparkSession("TestApp")
         self.mock_functions = MockFunctions()
-        
+
         # Create sample data
         self.sample_data = [
             {"id": 1, "name": "Alice", "age": 25, "salary": 50000.0, "active": True},
@@ -56,34 +62,40 @@ class TestValidationWithMockFunctions:
             {"id": 3, "name": "Charlie", "age": 35, "salary": 70000.0, "active": False},
             {"id": 4, "name": "Diana", "age": 28, "salary": 55000.0, "active": True},
         ]
-        
+
         # Create sample schema
-        self.sample_schema = MockStructType([
-            MockStructField("id", IntegerType()),
-            MockStructField("name", StringType()),
-            MockStructField("age", IntegerType()),
-            MockStructField("salary", DoubleType()),
-            MockStructField("active", BooleanType())
-        ])
-        
+        self.sample_schema = MockStructType(
+            [
+                MockStructField("id", IntegerType()),
+                MockStructField("name", StringType()),
+                MockStructField("age", IntegerType()),
+                MockStructField("salary", DoubleType()),
+                MockStructField("active", BooleanType()),
+            ]
+        )
+
         # Create mock DataFrame
-        self.mock_df = self.mock_spark.createDataFrame(self.sample_data, self.sample_schema)
+        self.mock_df = self.mock_spark.createDataFrame(
+            self.sample_data, self.sample_schema
+        )
 
     def test_convert_rule_to_expression_with_mock_functions(self):
         """Test _convert_rule_to_expression with mock functions."""
         # Test not_null rule
         expr = _convert_rule_to_expression("not_null", "name", self.mock_functions)
         assert expr is not None
-        assert hasattr(expr, 'isNotNull')
-        
+        assert hasattr(expr, "isNotNull")
+
         # Test positive rule
         expr = _convert_rule_to_expression("positive", "age", self.mock_functions)
         assert expr is not None
-        
+
         # Test non_negative rule
-        expr = _convert_rule_to_expression("non_negative", "salary", self.mock_functions)
+        expr = _convert_rule_to_expression(
+            "non_negative", "salary", self.mock_functions
+        )
         assert expr is not None
-        
+
         # Test non_zero rule
         expr = _convert_rule_to_expression("non_zero", "id", self.mock_functions)
         assert expr is not None
@@ -103,19 +115,15 @@ class TestValidationWithMockFunctions:
 
     def test_convert_rules_to_expressions_with_mock_functions(self):
         """Test _convert_rules_to_expressions with mock functions."""
-        rules = {
-            "name": ["not_null"],
-            "age": ["positive"],
-            "salary": ["non_negative"]
-        }
-        
+        rules = {"name": ["not_null"], "age": ["positive"], "salary": ["non_negative"]}
+
         expressions = _convert_rules_to_expressions(rules, self.mock_functions)
-        
+
         assert isinstance(expressions, dict)
         assert "name" in expressions
         assert "age" in expressions
         assert "salary" in expressions
-        
+
         # Each column should have a list of expressions
         for column, exprs in expressions.items():
             assert isinstance(exprs, list)
@@ -123,43 +131,37 @@ class TestValidationWithMockFunctions:
 
     def test_and_all_rules_with_mock_functions(self):
         """Test and_all_rules with mock functions."""
-        rules = {
-            "name": ["not_null"],
-            "age": ["positive"],
-            "salary": ["non_negative"]
-        }
-        
+        rules = {"name": ["not_null"], "age": ["positive"], "salary": ["non_negative"]}
+
         combined_expr = and_all_rules(rules, self.mock_functions)
         assert combined_expr is not None
 
     def test_apply_column_rules_with_mock_functions(self):
         """Test apply_column_rules with mock functions."""
-        rules = {
-            "name": ["not_null"],
-            "age": ["positive"],
-            "salary": ["non_negative"]
-        }
-        
+        rules = {"name": ["not_null"], "age": ["positive"], "salary": ["non_negative"]}
+
         # This should work with mock DataFrame and mock functions
-        result = apply_column_rules(self.mock_df, rules, "test_stage", "test_step", functions=self.mock_functions)
+        result = apply_column_rules(
+            self.mock_df,
+            rules,
+            "test_stage",
+            "test_step",
+            functions=self.mock_functions,
+        )
         assert result is not None
 
     def test_assess_data_quality_with_mock_functions(self):
         """Test assess_data_quality with mock functions."""
-        rules = {
-            "name": ["not_null"],
-            "age": ["positive"],
-            "salary": ["non_negative"]
-        }
-        
+        rules = {"name": ["not_null"], "age": ["positive"], "salary": ["non_negative"]}
+
         result = assess_data_quality(self.mock_df, rules, self.mock_functions)
         assert result is not None
         assert isinstance(result, dict)
-        assert 'total_rows' in result
-        assert 'valid_rows' in result
-        assert 'invalid_rows' in result
-        assert 'quality_rate' in result
-        assert 'is_empty' in result
+        assert "total_rows" in result
+        assert "valid_rows" in result
+        assert "invalid_rows" in result
+        assert "quality_rate" in result
+        assert "is_empty" in result
 
     def test_validate_dataframe_schema_with_mock_functions(self):
         """Test validate_dataframe_schema with mock functions."""
@@ -167,20 +169,17 @@ class TestValidationWithMockFunctions:
         expected_columns = ["id", "name", "age", "salary", "active"]
         result = validate_dataframe_schema(self.mock_df, expected_columns)
         assert result is not None
-        
+
         # Test with invalid schema - pass column names as list
         invalid_columns = ["id", "invalid_field"]  # invalid_field not in DataFrame
-        
+
         result = validate_dataframe_schema(self.mock_df, invalid_columns)
         assert result is not None
 
     def test_validation_functions_backward_compatibility(self):
         """Test that validation functions work without functions parameter (backward compatibility)."""
-        rules = {
-            "name": ["not_null"],
-            "age": ["positive"]
-        }
-        
+        rules = {"name": ["not_null"], "age": ["positive"]}
+
         # Test that functions can be omitted (should use default)
         try:
             result = _convert_rules_to_expressions(rules)
@@ -193,33 +192,33 @@ class TestValidationWithMockFunctions:
     def test_mock_functions_protocol_compliance(self):
         """Test that MockFunctions implements FunctionsProtocol correctly."""
         # Test that MockFunctions has all required methods
-        assert hasattr(self.mock_functions, 'col')
-        assert hasattr(self.mock_functions, 'expr')
-        assert hasattr(self.mock_functions, 'lit')
-        assert hasattr(self.mock_functions, 'current_timestamp')
-        assert hasattr(self.mock_functions, 'dayofweek')  # MockFunctions has dayofweek
-        assert hasattr(self.mock_functions, 'count')
-        assert hasattr(self.mock_functions, 'countDistinct')
-        assert hasattr(self.mock_functions, 'max')
-        assert hasattr(self.mock_functions, 'sum')
-        assert hasattr(self.mock_functions, 'when')
-        assert hasattr(self.mock_functions, 'length')
+        assert hasattr(self.mock_functions, "col")
+        assert hasattr(self.mock_functions, "expr")
+        assert hasattr(self.mock_functions, "lit")
+        assert hasattr(self.mock_functions, "current_timestamp")
+        assert hasattr(self.mock_functions, "dayofweek")  # MockFunctions has dayofweek
+        assert hasattr(self.mock_functions, "count")
+        assert hasattr(self.mock_functions, "countDistinct")
+        assert hasattr(self.mock_functions, "max")
+        assert hasattr(self.mock_functions, "sum")
+        assert hasattr(self.mock_functions, "when")
+        assert hasattr(self.mock_functions, "length")
 
     def test_validation_with_complex_rules(self):
         """Test validation with complex rule combinations."""
         complex_rules = {
             "name": ["not_null"],
             "age": ["positive", "non_zero"],
-            "salary": ["non_negative", "positive"]
+            "salary": ["non_negative", "positive"],
         }
-        
+
         result = assess_data_quality(self.mock_df, complex_rules, self.mock_functions)
         assert result is not None
         assert isinstance(result, dict)
-        assert 'total_rows' in result
-        assert 'valid_rows' in result
-        assert 'invalid_rows' in result
-        assert 'quality_rate' in result
+        assert "total_rows" in result
+        assert "valid_rows" in result
+        assert "invalid_rows" in result
+        assert "quality_rate" in result
 
     def test_validation_error_handling_with_mock_functions(self):
         """Test validation error handling with mock functions."""
@@ -227,41 +226,39 @@ class TestValidationWithMockFunctions:
         empty_rules = {}
         result = assess_data_quality(self.mock_df, empty_rules, self.mock_functions)
         assert result is not None
-        
+
         # Test with invalid column names - should raise ValidationError
-        invalid_rules = {
-            "nonexistent_column": ["not_null"]
-        }
-        with pytest.raises(Exception):  # Should raise ValidationError for invalid columns
+        invalid_rules = {"nonexistent_column": ["not_null"]}
+        with pytest.raises(
+            Exception
+        ):  # Should raise ValidationError for invalid columns
             assess_data_quality(self.mock_df, invalid_rules, self.mock_functions)
 
     def test_validation_performance_with_mock_functions(self):
         """Test validation performance with mock functions."""
         import time
-        
+
         # Test with larger dataset
         large_data = []
         for i in range(1000):
-            large_data.append({
-                "id": i,
-                "name": f"User{i}",
-                "age": 20 + (i % 50),
-                "salary": 30000.0 + (i * 10),
-                "active": i % 2 == 0
-            })
-        
+            large_data.append(
+                {
+                    "id": i,
+                    "name": f"User{i}",
+                    "age": 20 + (i % 50),
+                    "salary": 30000.0 + (i * 10),
+                    "active": i % 2 == 0,
+                }
+            )
+
         large_df = self.mock_spark.createDataFrame(large_data, self.sample_schema)
-        
-        rules = {
-            "name": ["not_null"],
-            "age": ["positive"],
-            "salary": ["non_negative"]
-        }
-        
+
+        rules = {"name": ["not_null"], "age": ["positive"], "salary": ["non_negative"]}
+
         start_time = time.time()
         result = assess_data_quality(large_df, rules, self.mock_functions)
         end_time = time.time()
-        
+
         assert result is not None
         assert (end_time - start_time) < 1.0  # Should be very fast with mock functions
 
@@ -277,37 +274,37 @@ class TestPipelineBuilderWithMockFunctions:
     def test_pipeline_builder_with_mock_functions(self):
         """Test PipelineBuilder initialization with mock functions."""
         from sparkforge import PipelineBuilder
-        
+
         builder = PipelineBuilder(
-            spark=self.mock_spark,
-            schema="test_schema",
-            functions=self.mock_functions
+            spark=self.mock_spark, schema="test_schema", functions=self.mock_functions
         )
-        
+
         assert builder is not None
         assert builder.functions == self.mock_functions
 
     def test_pipeline_builder_static_methods_with_mock_functions(self):
         """Test PipelineBuilder static methods with mock functions."""
         from sparkforge import PipelineBuilder
-        
+
         # Test not_null_rules
         rules = PipelineBuilder.not_null_rules(["name", "age"], self.mock_functions)
         assert isinstance(rules, dict)
         assert "name" in rules
         assert "age" in rules
-        
+
         # Test positive_number_rules
-        rules = PipelineBuilder.positive_number_rules(["age", "salary"], self.mock_functions)
+        rules = PipelineBuilder.positive_number_rules(
+            ["age", "salary"], self.mock_functions
+        )
         assert isinstance(rules, dict)
         assert "age" in rules
         assert "salary" in rules
-        
+
         # Test string_not_empty_rules
         rules = PipelineBuilder.string_not_empty_rules(["name"], self.mock_functions)
         assert isinstance(rules, dict)
         assert "name" in rules
-        
+
         # Test timestamp_rules
         rules = PipelineBuilder.timestamp_rules(["created_at"], self.mock_functions)
         assert isinstance(rules, dict)
@@ -316,13 +313,10 @@ class TestPipelineBuilderWithMockFunctions:
     def test_pipeline_builder_backward_compatibility(self):
         """Test PipelineBuilder backward compatibility without functions parameter."""
         from sparkforge import PipelineBuilder
-        
+
         # Test that functions can be omitted (should use default)
         try:
-            builder = PipelineBuilder(
-                spark=self.mock_spark,
-                schema="test_schema"
-            )
+            builder = PipelineBuilder(spark=self.mock_spark, schema="test_schema")
             assert builder is not None
             # Should have default functions
             assert builder.functions is not None
@@ -334,30 +328,24 @@ class TestPipelineBuilderWithMockFunctions:
     def test_pipeline_builder_class_methods_with_mock_functions(self):
         """Test PipelineBuilder class methods with mock functions."""
         from sparkforge import PipelineBuilder
-        
+
         # Test for_development
         builder = PipelineBuilder.for_development(
-            spark=self.mock_spark,
-            schema="test_schema",
-            functions=self.mock_functions
+            spark=self.mock_spark, schema="test_schema", functions=self.mock_functions
         )
         assert builder is not None
         assert builder.functions == self.mock_functions
-        
+
         # Test for_production
         builder = PipelineBuilder.for_production(
-            spark=self.mock_spark,
-            schema="test_schema",
-            functions=self.mock_functions
+            spark=self.mock_spark, schema="test_schema", functions=self.mock_functions
         )
         assert builder is not None
         assert builder.functions == self.mock_functions
-        
+
         # Test for_testing
         builder = PipelineBuilder.for_testing(
-            spark=self.mock_spark,
-            schema="test_schema",
-            functions=self.mock_functions
+            spark=self.mock_spark, schema="test_schema", functions=self.mock_functions
         )
         assert builder is not None
         assert builder.functions == self.mock_functions
@@ -376,12 +364,12 @@ class TestMockFunctionsIntegration:
         # Test col function
         col_expr = self.mock_functions.col("test_column")
         assert col_expr is not None
-        assert hasattr(col_expr, 'isNotNull')
-        
+        assert hasattr(col_expr, "isNotNull")
+
         # Test expr function
         expr = self.mock_functions.expr("test_expression")
         assert expr is not None
-        
+
         # Test length function
         length_expr = self.mock_functions.length(col_expr)
         assert length_expr is not None
@@ -389,59 +377,55 @@ class TestMockFunctionsIntegration:
     def test_validation_with_mock_functions_end_to_end(self):
         """Test complete validation workflow with mock functions."""
         from sparkforge import PipelineBuilder
-        
+
         # Create sample data
         sample_data = [
             {"id": 1, "name": "Alice", "age": 25, "salary": 50000.0},
             {"id": 2, "name": "Bob", "age": 30, "salary": 60000.0},
         ]
-        
-        schema = MockStructType([
-            MockStructField("id", IntegerType()),
-            MockStructField("name", StringType()),
-            MockStructField("age", IntegerType()),
-            MockStructField("salary", DoubleType())
-        ])
-        
+
+        schema = MockStructType(
+            [
+                MockStructField("id", IntegerType()),
+                MockStructField("name", StringType()),
+                MockStructField("age", IntegerType()),
+                MockStructField("salary", DoubleType()),
+            ]
+        )
+
         df = self.mock_spark.createDataFrame(sample_data, schema)
-        
+
         # Create builder with mock functions
         builder = PipelineBuilder(
-            spark=self.mock_spark,
-            schema="test_schema",
-            functions=self.mock_functions
+            spark=self.mock_spark, schema="test_schema", functions=self.mock_functions
         )
-        
+
         # Test validation rules
-        rules = {
-            "name": ["not_null"],
-            "age": ["positive"],
-            "salary": ["non_negative"]
-        }
-        
+        rules = {"name": ["not_null"], "age": ["positive"], "salary": ["non_negative"]}
+
         # This should work with mock functions
         result = assess_data_quality(df, rules, self.mock_functions)
         assert result is not None
         assert isinstance(result, dict)
-        assert 'total_rows' in result
-        assert 'valid_rows' in result
-        assert 'invalid_rows' in result
-        assert 'quality_rate' in result
+        assert "total_rows" in result
+        assert "valid_rows" in result
+        assert "invalid_rows" in result
+        assert "quality_rate" in result
 
     def test_mock_functions_performance(self):
         """Test MockFunctions performance characteristics."""
         import time
-        
+
         # Test function call performance
         start_time = time.time()
-        
+
         for i in range(1000):
             col_expr = self.mock_functions.col(f"column_{i}")
             expr = self.mock_functions.expr(f"expression_{i}")
             length_expr = self.mock_functions.length(col_expr)
-        
+
         end_time = time.time()
-        
+
         # Should be very fast
         assert (end_time - start_time) < 0.1  # Less than 100ms for 1000 calls
 
@@ -458,20 +442,38 @@ class TestMockFunctionsIntegration:
     def test_functions_protocol_type_checking(self):
         """Test that MockFunctions properly implements FunctionsProtocol."""
         from sparkforge.functions import FunctionsProtocol
-        
+
         # MockFunctions should be compatible with FunctionsProtocol
         # Since FunctionsProtocol is not runtime checkable, we'll test method availability instead
-        required_methods = ['col', 'expr', 'lit', 'current_timestamp', 'count', 'max', 'sum']
+        required_methods = [
+            "col",
+            "expr",
+            "lit",
+            "current_timestamp",
+            "count",
+            "max",
+            "sum",
+        ]
         for method in required_methods:
-            assert hasattr(self.mock_functions, method), f"MockFunctions missing required method: {method}"
-        
+            assert hasattr(
+                self.mock_functions, method
+            ), f"MockFunctions missing required method: {method}"
+
         # Test that all protocol methods exist and are callable
         protocol_methods = [
-            'col', 'expr', 'lit', 'current_timestamp',
-            'dayofweek', 'count', 'countDistinct', 'max', 'sum',
-            'when', 'length'
+            "col",
+            "expr",
+            "lit",
+            "current_timestamp",
+            "dayofweek",
+            "count",
+            "countDistinct",
+            "max",
+            "sum",
+            "when",
+            "length",
         ]
-        
+
         for method_name in protocol_methods:
             assert hasattr(self.mock_functions, method_name)
             method = getattr(self.mock_functions, method_name)

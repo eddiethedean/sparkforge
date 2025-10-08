@@ -84,10 +84,14 @@ def system_spark_session():
 
     # Cleanup - stop Spark session and clean up data
     try:
-        if spark and hasattr(spark, "sparkContext") and spark.sparkContext._jsc is not None:
+        if (
+            spark
+            and hasattr(spark, "sparkContext")
+            and spark.sparkContext._jsc is not None
+        ):
             # Clear all cached tables and temp views
             spark.catalog.clearCache()
-            
+
             # Drop all tables in test schema
             try:
                 tables = spark.catalog.listTables("test_schema")
@@ -95,7 +99,7 @@ def system_spark_session():
                     spark.sql(f"DROP TABLE IF EXISTS test_schema.{table.name}")
             except Exception:
                 pass  # Ignore errors when dropping tables
-                
+
             # Drop test schema
             spark.sql("DROP DATABASE IF EXISTS test_schema CASCADE")
     except Exception as e:

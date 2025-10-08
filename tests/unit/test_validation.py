@@ -40,6 +40,7 @@ from sparkforge.validation import (
 def reset_test_environment():
     """Reset test environment before each test in this file."""
     import gc
+
     # Force garbage collection to clear any lingering references
     gc.collect()
     yield
@@ -52,7 +53,7 @@ def sample_dataframe(spark_session):
     """Create sample DataFrame for testing - validation test specific (4 rows, no category)."""
     from mock_spark import MockStructType, MockStructField
     from pyspark.sql.types import StringType, IntegerType, DoubleType
-    
+
     # Force using MockStructType for consistency
     schema = MockStructType(
         [

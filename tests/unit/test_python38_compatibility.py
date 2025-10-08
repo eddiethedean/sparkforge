@@ -158,8 +158,11 @@ class Python38CompatibilityTest(unittest.TestCase):
             except Exception as e:
                 # Log parsing errors instead of silently skipping
                 import logging
+
                 logger = logging.getLogger(__name__)
-                logger.warning(f"Failed to parse file {py_file} for Dict type annotations: {e}")
+                logger.warning(
+                    f"Failed to parse file {py_file} for Dict type annotations: {e}"
+                )
                 # Add to violations to track parsing failures
                 violations.append((str(py_file), 0, f"Parse error: {e}"))
 
@@ -204,8 +207,11 @@ class Python38CompatibilityTest(unittest.TestCase):
             except Exception as e:
                 # Log parsing errors instead of printing
                 import logging
+
                 logger = logging.getLogger(__name__)
-                logger.warning(f"Failed to parse file {py_file} for dict syntax annotations: {e}")
+                logger.warning(
+                    f"Failed to parse file {py_file} for dict syntax annotations: {e}"
+                )
                 # Add to violations to track parsing failures
                 violations.append((str(py_file), 0, f"Parse error: {e}"))
 
@@ -245,8 +251,11 @@ class Python38CompatibilityTest(unittest.TestCase):
             except Exception as e:
                 # Log parsing errors instead of silently skipping
                 import logging
+
                 logger = logging.getLogger(__name__)
-                logger.warning(f"Failed to parse file {py_file} for dict syntax annotations: {e}")
+                logger.warning(
+                    f"Failed to parse file {py_file} for dict syntax annotations: {e}"
+                )
                 # Add to violations to track parsing failures
                 violations.append((str(py_file), 0, f"Parse error: {e}"))
 
@@ -323,6 +332,7 @@ class DictTypeAnnotationTest(unittest.TestCase):
 
     def test_dict_vs_Dict_compatibility(self):
         """Test that Dict from typing works in Python 3.8 (dict[...] syntax doesn't)."""
+
         # Test function with Dict annotation (correct for Python 3.8)
         def func_with_Dict() -> Dict[str, int]:
             return {"test": 1}

@@ -15,7 +15,7 @@ import os
 # Skip all real Spark tests when running with mock-spark
 pytestmark = pytest.mark.skipif(
     os.environ.get("SPARK_MODE", "mock").lower() == "mock",
-    reason="Real Spark tests require actual Spark installation"
+    reason="Real Spark tests require actual Spark installation",
 )
 
 # Use mock functions when in mock mode

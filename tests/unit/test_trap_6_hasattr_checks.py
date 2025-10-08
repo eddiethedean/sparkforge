@@ -26,28 +26,25 @@ from sparkforge.validation.pipeline_validation import UnifiedValidator
 class TestTrap6HasattrChecks:
     """Test cases for hasattr check fixes."""
 
-    def test_execution_engine_rules_check_without_hasattr(self, spark_session, test_config):
+    def test_execution_engine_rules_check_without_hasattr(
+        self, spark_session, test_config
+    ):
         """Test that execution engine checks rules without hasattr."""
         # Create a bronze step with rules
         bronze_step = BronzeStep(
-            name="test_bronze",
-            rules={"user_id": [F.col("user_id").isNotNull()]}
+            name="test_bronze", rules={"user_id": [F.col("user_id").isNotNull()]}
         )
-        
+
         # Create execution engine
-        engine = ExecutionEngine(
-            spark=spark_session,
-            config=test_config,
-            logger=Mock()
-        )
-        
+        engine = ExecutionEngine(spark=spark_session, config=test_config, logger=Mock())
+
         # Mock the apply_column_rules function
-        with patch('sparkforge.execution.apply_column_rules') as mock_apply:
+        with patch("sparkforge.execution.apply_column_rules") as mock_apply:
             mock_apply.return_value = (Mock(), Mock(), Mock())
-            
+
             # Create a mock DataFrame
             mock_df = Mock()
-            
+
             # Test that rules are applied without hasattr check
             # This should not raise an AttributeError
             try:
@@ -69,19 +66,19 @@ class TestTrap6HasattrChecks:
             source_bronze="test_bronze",
             transform=lambda spark, bronze_df, prior_silvers: bronze_df,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="test_table"
+            table_name="test_table",
         )
-        
+
         # Create dependency analyzer
         analyzer = DependencyAnalyzer(logger=Mock())
-        
+
         # Test that source_bronze is accessed without hasattr check
         # This should not raise an AttributeError
         try:
             result = analyzer.analyze_dependencies(
                 bronze_steps={},
                 silver_steps={"test_silver": silver_step},
-                gold_steps={}
+                gold_steps={},
             )
             # If we get here, the hasattr check was removed successfully
             assert hasattr(result, "graph")
@@ -100,19 +97,17 @@ class TestTrap6HasattrChecks:
             transform=lambda spark, silvers: list(silvers.values())[0],
             rules={"user_id": [F.col("user_id").isNotNull()]},
             table_name="test_table",
-            source_silvers=["test_silver"]
+            source_silvers=["test_silver"],
         )
-        
+
         # Create dependency analyzer
         analyzer = DependencyAnalyzer(logger=Mock())
-        
+
         # Test that source_silvers is accessed without hasattr check
         # This should not raise an AttributeError
         try:
             result = analyzer.analyze_dependencies(
-                bronze_steps={},
-                silver_steps={},
-                gold_steps={"test_gold": gold_step}
+                bronze_steps={}, silver_steps={}, gold_steps={"test_gold": gold_step}
             )
             # If we get here, the hasattr check was removed successfully
             assert hasattr(result, "graph")
@@ -128,16 +123,14 @@ class TestTrap6HasattrChecks:
         # Create a mock step with dependencies attribute
         mock_step = Mock()
         mock_step.dependencies = [Mock(step_name="test_step")]
-        
+
         # Create pipeline validator
         validator = UnifiedValidator(logger=Mock())
-        
+
         # Test that the improved hasattr check works
         try:
             errors, warnings = validator._validate_dependencies(
-                bronze_steps={},
-                silver_steps={},
-                gold_steps={"test_step": mock_step}
+                bronze_steps={}, silver_steps={}, gold_steps={"test_step": mock_step}
             )
             # If we get here, the hasattr check was improved successfully
             assert isinstance(errors, list)
@@ -152,10 +145,10 @@ class TestTrap6HasattrChecks:
     def test_logging_context_removes_redundant_hasattr(self):
         """Test that logging context removes redundant hasattr checks."""
         from sparkforge.logging import PipelineLogger
-        
+
         # Create a logger
         logger = PipelineLogger("test_logger")
-        
+
         # Test that context method works without redundant hasattr checks
         try:
             with logger.context(test_key="test_value"):
@@ -174,31 +167,28 @@ class TestTrap6HasattrChecks:
         """Test that base model to_dict keeps appropriate hasattr for duck typing."""
         from sparkforge.models.base import BaseModel
         from dataclasses import dataclass
-        
+
         # Create a test model with a nested object that has to_dict
         @dataclass
         class NestedModel:
             def to_dict(self):
                 return {"nested": "value"}
-        
+
         @dataclass
         class TestModel(BaseModel):
             nested: NestedModel
             simple: str
-            
+
             def validate(self) -> None:
                 """Implement abstract method."""
                 pass
-        
+
         # Create test instance
-        test_model = TestModel(
-            nested=NestedModel(),
-            simple="test"
-        )
-        
+        test_model = TestModel(nested=NestedModel(), simple="test")
+
         # Test that to_dict works with appropriate hasattr check
         result = test_model.to_dict()
-        
+
         # Should convert nested object using its to_dict method
         assert result["nested"] == {"nested": "value"}
         assert result["simple"] == "test"
@@ -207,15 +197,15 @@ class TestTrap6HasattrChecks:
         """Test that execution context mode handling keeps appropriate hasattr for enum types."""
         from sparkforge.models.execution import ExecutionContext
         from datetime import datetime
-        
+
         # Create execution context with different mode types
         context = ExecutionContext(
             run_id="test_run",
             run_mode="initial",
             mode=ExecutionMode.INITIAL,
-            start_time=datetime.utcnow()
+            start_time=datetime.utcnow(),
         )
-        
+
         # Test that mode handling works with appropriate hasattr check
         # This should not raise an AttributeError
         try:

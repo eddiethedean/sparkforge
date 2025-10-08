@@ -209,11 +209,13 @@ class ExecutionEngine:
 
             # Write output if not in validation-only mode
             # Note: Bronze steps only validate data, they don't write to tables
-            if mode != ExecutionMode.VALIDATION_ONLY and not isinstance(step, BronzeStep):
+            if mode != ExecutionMode.VALIDATION_ONLY and not isinstance(
+                step, BronzeStep
+            ):
                 # Use table_name attribute for SilverStep and GoldStep
                 table_name = getattr(step, "table_name", step.name)
                 schema = getattr(step, "schema", None)
-                
+
                 # Validate schema is provided
                 if schema is None:
                     raise ExecutionError(
@@ -221,7 +223,7 @@ class ExecutionEngine:
                         f"Silver and Gold steps must have a valid schema for table operations. "
                         f"Please provide a schema when creating the step."
                     )
-                
+
                 output_table = fqn(schema, table_name)
                 output_df.write.mode("overwrite").saveAsTable(output_table)
                 result.output_table = output_table
@@ -303,10 +305,10 @@ class ExecutionEngine:
                         end_time=datetime.now(),
                         duration=0.0,
                     )
-                
+
                 if result.steps is not None:
                     result.steps.append(step_result)
-                    
+
                 if step_result.status == StepStatus.COMPLETED:
                     # Bronze steps don't write to tables, they only validate data
                     # The validated data is available in the step result's output_df
@@ -329,14 +331,14 @@ class ExecutionEngine:
                         end_time=datetime.now(),
                         duration=0.0,
                     )
-                
+
                 if result.steps is not None:
                     result.steps.append(step_result)
-                    
+
                 if step_result.status == StepStatus.COMPLETED:
                     table_name = getattr(silver_step, "table_name", silver_step.name)
                     schema = getattr(silver_step, "schema", None)
-                    
+
                     # Validate schema is provided
                     if schema is None:
                         self.logger.error(
@@ -363,14 +365,14 @@ class ExecutionEngine:
                         end_time=datetime.now(),
                         duration=0.0,
                     )
-                
+
                 if result.steps is not None:
                     result.steps.append(step_result)
-                    
+
                 if step_result.status == StepStatus.COMPLETED:
                     table_name = getattr(gold_step, "table_name", gold_step.name)
                     schema = getattr(gold_step, "schema", None)
-                    
+
                     # Validate schema is provided
                     if schema is None:
                         self.logger.error(
@@ -378,21 +380,25 @@ class ExecutionEngine:
                             f"Cannot read from table. Skipping context update."
                         )
                     else:
-                        context[gold_step.name] = self.spark.table(fqn(schema, table_name))
+                        context[gold_step.name] = self.spark.table(
+                            fqn(schema, table_name)
+                        )
 
             # Determine overall pipeline status based on step results
             if result.steps is None:
                 result.steps = []
             step_results: list[StepExecutionResult] = result.steps
             failed_steps = [s for s in step_results if s.status == StepStatus.FAILED]
-            
+
             if failed_steps:
                 result.status = "failed"
-                self.logger.error(f"Pipeline execution failed: {len(failed_steps)} steps failed")
+                self.logger.error(
+                    f"Pipeline execution failed: {len(failed_steps)} steps failed"
+                )
             else:
                 result.status = "completed"
                 self.logger.info(f"Completed pipeline execution: {execution_id}")
-            
+
             result.end_time = datetime.now()
 
         except Exception as e:
@@ -417,9 +423,9 @@ class ExecutionEngine:
                 f"Please provide data using bronze_sources parameter or context dictionary. "
                 f"Available context keys: {list(context.keys())}"
             )
-        
+
         df = context[step.name]
-        
+
         # Validate that the DataFrame is not empty (optional check)
         if df.count() == 0:
             self.logger.warning(

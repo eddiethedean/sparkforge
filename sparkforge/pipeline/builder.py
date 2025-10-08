@@ -19,7 +19,14 @@ from ..errors import ExecutionError as StepError
 from ..execution import ExecutionEngine, ExecutionMode
 from ..functions import FunctionsProtocol, get_default_functions
 from ..logging import PipelineLogger
-from ..models import BronzeStep, GoldStep, ParallelConfig, PipelineConfig, SilverStep, ValidationThresholds
+from ..models import (
+    BronzeStep,
+    GoldStep,
+    ParallelConfig,
+    PipelineConfig,
+    SilverStep,
+    ValidationThresholds,
+)
 from ..types import (
     ColumnRules,
     GoldTransformFunction,
@@ -795,7 +802,11 @@ class PipelineBuilder:
 
     @classmethod
     def for_development(
-        cls, spark: SparkSession, schema: str, functions: Optional[FunctionsProtocol] = None, **kwargs: Any
+        cls,
+        spark: SparkSession,
+        schema: str,
+        functions: Optional[FunctionsProtocol] = None,
+        **kwargs: Any,
     ) -> PipelineBuilder:
         """
         Create a PipelineBuilder optimized for development with relaxed validation.
@@ -827,7 +838,11 @@ class PipelineBuilder:
 
     @classmethod
     def for_production(
-        cls, spark: SparkSession, schema: str, functions: Optional[FunctionsProtocol] = None, **kwargs: Any
+        cls,
+        spark: SparkSession,
+        schema: str,
+        functions: Optional[FunctionsProtocol] = None,
+        **kwargs: Any,
     ) -> PipelineBuilder:
         """
         Create a PipelineBuilder optimized for production with strict validation.
@@ -859,7 +874,11 @@ class PipelineBuilder:
 
     @classmethod
     def for_testing(
-        cls, spark: SparkSession, schema: str, functions: Optional[FunctionsProtocol] = None, **kwargs: Any
+        cls,
+        spark: SparkSession,
+        schema: str,
+        functions: Optional[FunctionsProtocol] = None,
+        **kwargs: Any,
     ) -> PipelineBuilder:
         """
         Create a PipelineBuilder optimized for testing with minimal validation.
@@ -894,7 +913,9 @@ class PipelineBuilder:
     # ============================================================================
 
     @staticmethod
-    def not_null_rules(columns: list[str], functions: Optional[FunctionsProtocol] = None) -> ColumnRules:
+    def not_null_rules(
+        columns: list[str], functions: Optional[FunctionsProtocol] = None
+    ) -> ColumnRules:
         """
         Create validation rules for non-null constraints on multiple columns.
 
@@ -919,7 +940,9 @@ class PipelineBuilder:
         return {col: [functions.col(col).isNotNull()] for col in columns}
 
     @staticmethod
-    def positive_number_rules(columns: list[str], functions: Optional[FunctionsProtocol] = None) -> ColumnRules:
+    def positive_number_rules(
+        columns: list[str], functions: Optional[FunctionsProtocol] = None
+    ) -> ColumnRules:
         """
         Create validation rules for positive number constraints on multiple columns.
 
@@ -940,10 +963,15 @@ class PipelineBuilder:
         """
         if functions is None:
             functions = get_default_functions()
-        return {col: [functions.col(col).isNotNull(), functions.col(col) > 0] for col in columns}
+        return {
+            col: [functions.col(col).isNotNull(), functions.col(col) > 0]
+            for col in columns
+        }
 
     @staticmethod
-    def string_not_empty_rules(columns: list[str], functions: Optional[FunctionsProtocol] = None) -> ColumnRules:
+    def string_not_empty_rules(
+        columns: list[str], functions: Optional[FunctionsProtocol] = None
+    ) -> ColumnRules:
         """
         Create validation rules for non-empty string constraints on multiple columns.
 
@@ -965,11 +993,17 @@ class PipelineBuilder:
         if functions is None:
             functions = get_default_functions()
         return {
-            col: [functions.col(col).isNotNull(), functions.length(functions.col(col)) > 0] for col in columns
+            col: [
+                functions.col(col).isNotNull(),
+                functions.length(functions.col(col)) > 0,
+            ]
+            for col in columns
         }
 
     @staticmethod
-    def timestamp_rules(columns: list[str], functions: Optional[FunctionsProtocol] = None) -> ColumnRules:
+    def timestamp_rules(
+        columns: list[str], functions: Optional[FunctionsProtocol] = None
+    ) -> ColumnRules:
         """
         Create validation rules for timestamp constraints on multiple columns.
 
@@ -991,7 +1025,8 @@ class PipelineBuilder:
         if functions is None:
             functions = get_default_functions()
         return {
-            col: [functions.col(col).isNotNull(), functions.col(col).isNotNull()] for col in columns
+            col: [functions.col(col).isNotNull(), functions.col(col).isNotNull()]
+            for col in columns
         }
 
     @staticmethod
@@ -1053,7 +1088,10 @@ class PipelineBuilder:
             if schema not in databases:
                 raise StepError(
                     f"Schema '{schema}' does not exist",
-                    context={"step_name": "schema_validation", "step_type": "validation"},
+                    context={
+                        "step_name": "schema_validation",
+                        "step_type": "validation",
+                    },
                     suggestions=[
                         f"Create the schema first: CREATE SCHEMA IF NOT EXISTS {schema}",
                         "Check schema permissions",
@@ -1085,6 +1123,7 @@ class PipelineBuilder:
         try:
             # For mock-spark, use catalog API directly as SQL doesn't update catalog
             import os
+
             if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
                 # Check if schema exists
                 existing_dbs = [db.name for db in self.spark.catalog.listDatabases()]
@@ -1093,7 +1132,7 @@ class PipelineBuilder:
             else:
                 # For real Spark, use SQL
                 self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
-            
+
             self.logger.info(f"✅ Schema '{schema}' created or already exists")
         except Exception as e:
             raise StepError(

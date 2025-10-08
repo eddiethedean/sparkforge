@@ -59,7 +59,9 @@ class PerformanceMonitor:
             self.logger.error(
                 f"Failed to start monitoring operation {operation_id}: {e}"
             )
-            raise WriterError(f"Failed to start monitoring operation {operation_id}: {e}") from e
+            raise WriterError(
+                f"Failed to start monitoring operation {operation_id}: {e}"
+            ) from e
 
     def end_operation(
         self,
@@ -131,7 +133,9 @@ class PerformanceMonitor:
 
         except Exception as e:
             self.logger.error(f"Failed to end monitoring operation {operation_id}: {e}")
-            raise WriterError(f"Failed to end monitoring operation {operation_id}: {e}") from e
+            raise WriterError(
+                f"Failed to end monitoring operation {operation_id}: {e}"
+            ) from e
 
     def get_metrics(self) -> WriterMetrics:
         """Get current performance metrics."""

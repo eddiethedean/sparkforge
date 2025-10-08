@@ -6,13 +6,24 @@ This module tests all data validation and quality assessment functions.
 """
 
 import pytest
-from mock_spark import MockSparkSession, MockDataFrame, MockFunctions, MockStructType, MockStructField, StringType, IntegerType, DoubleType
+from mock_spark import (
+    MockSparkSession,
+    MockDataFrame,
+    MockFunctions,
+    MockStructType,
+    MockStructField,
+    StringType,
+    IntegerType,
+    DoubleType,
+)
 
 # Apply mock-spark 0.3.1 patches
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from mock_spark_patch import apply_mock_spark_patches
+
 apply_mock_spark_patches()
 
 from sparkforge.errors import ValidationError
@@ -43,11 +54,13 @@ def mock_functions():
 @pytest.fixture
 def sample_dataframe(mock_spark_session):
     """Create sample DataFrame for testing."""
-    schema = MockStructType([
-        MockStructField("user_id", StringType(), True),
-        MockStructField("age", IntegerType(), True),
-        MockStructField("score", DoubleType(), True),
-    ])
+    schema = MockStructType(
+        [
+            MockStructField("user_id", StringType(), True),
+            MockStructField("age", IntegerType(), True),
+            MockStructField("score", DoubleType(), True),
+        ]
+    )
     data = [
         {"user_id": "user1", "age": 25, "score": 85.5},
         {"user_id": "user2", "age": 30, "score": 92.0},
@@ -99,9 +112,7 @@ class TestGetDataframeInfo:
 
     def test_empty_dataframe(self, mock_spark_session):
         """Test empty DataFrame info."""
-        schema = MockStructType([
-            MockStructField("col1", StringType(), True)
-        ])
+        schema = MockStructType([MockStructField("col1", StringType(), True)])
         empty_df = mock_spark_session.createDataFrame([], schema)
         info = get_dataframe_info(empty_df)
         assert info["row_count"] == 0
@@ -122,7 +133,7 @@ class TestConvertRuleToExpression:
         """Test not_null rule conversion."""
         expr = _convert_rule_to_expression("not_null", "user_id", mock_functions)
         assert expr is not None
-        assert hasattr(expr, 'isNotNull') or hasattr(expr, 'operation')
+        assert hasattr(expr, "isNotNull") or hasattr(expr, "operation")
 
     def test_positive_rule(self, mock_functions):
         """Test positive rule conversion."""
@@ -141,7 +152,9 @@ class TestConvertRuleToExpression:
 
     def test_custom_expression(self, mock_functions):
         """Test custom expression rule."""
-        expr = _convert_rule_to_expression("col('user_id').isNotNull()", "user_id", mock_functions)
+        expr = _convert_rule_to_expression(
+            "col('user_id').isNotNull()", "user_id", mock_functions
+        )
         assert expr is not None
 
 
@@ -157,10 +170,7 @@ class TestConvertRulesToExpressions:
 
     def test_multiple_rules(self, mock_functions):
         """Test multiple rules conversion."""
-        rules = {
-            "user_id": ["not_null"],
-            "age": ["positive", "non_zero"]
-        }
+        rules = {"user_id": ["not_null"], "age": ["positive", "non_zero"]}
         expressions = _convert_rules_to_expressions(rules, mock_functions)
         assert len(expressions) == 2
         assert "user_id" in expressions
@@ -188,10 +198,7 @@ class TestAndAllRules:
 
     def test_multiple_rules(self, mock_functions):
         """Test multiple rules."""
-        rules = {
-            "user_id": ["not_null"],
-            "age": ["positive"]
-        }
+        rules = {"user_id": ["not_null"], "age": ["positive"]}
         result = and_all_rules(rules, mock_functions)
         assert result is not None
 
@@ -202,7 +209,9 @@ class TestApplyColumnRules:
     def test_basic_validation(self, sample_dataframe, mock_functions):
         """Test basic column validation."""
         rules = {"user_id": ["not_null"]}
-        valid_df, invalid_df, stats = apply_column_rules(sample_dataframe, rules, "bronze", "test", mock_functions)
+        valid_df, invalid_df, stats = apply_column_rules(
+            sample_dataframe, rules, "bronze", "test", mock_functions
+        )
         assert valid_df is not None
         assert invalid_df is not None
         assert stats is not None
@@ -210,11 +219,10 @@ class TestApplyColumnRules:
 
     def test_multiple_columns(self, sample_dataframe, mock_functions):
         """Test multiple column validation."""
-        rules = {
-            "user_id": ["not_null"],
-            "age": ["positive"]
-        }
-        valid_df, invalid_df, stats = apply_column_rules(sample_dataframe, rules, "bronze", "test", mock_functions)
+        rules = {"user_id": ["not_null"], "age": ["positive"]}
+        valid_df, invalid_df, stats = apply_column_rules(
+            sample_dataframe, rules, "bronze", "test", mock_functions
+        )
         assert valid_df is not None
         assert invalid_df is not None
         assert stats is not None
@@ -222,7 +230,9 @@ class TestApplyColumnRules:
 
     def test_empty_rules(self, sample_dataframe, mock_functions):
         """Test empty rules."""
-        valid_df, invalid_df, stats = apply_column_rules(sample_dataframe, {}, "bronze", "test", mock_functions)
+        valid_df, invalid_df, stats = apply_column_rules(
+            sample_dataframe, {}, "bronze", "test", mock_functions
+        )
         assert valid_df is not None
         assert invalid_df is not None
         assert stats is not None
@@ -245,7 +255,7 @@ class TestAssessDataQuality:
         rules = {
             "user_id": ["not_null"],
             "age": ["positive"],
-            "score": ["non_negative"]
+            "score": ["non_negative"],
         }
         result = assess_data_quality(sample_dataframe, rules, mock_functions)
         assert result is not None

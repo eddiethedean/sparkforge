@@ -9,7 +9,7 @@ def _patched_select(self, *columns):
     """Patched select method that handles tuple row access correctly."""
     if not columns:
         return self
-    
+
     # Handle simple column selection
     col_names = []
     for col in columns:
@@ -20,14 +20,15 @@ def _patched_select(self, *columns):
                 col_names.append(col)
         else:
             col_names.append(str(col))
-    
+
     # Validate columns exist
     available_columns = [field.name for field in self.schema.fields]
     for col_name in col_names:
         if col_name not in available_columns and col_name != "*":
             from mock_spark.errors import ColumnNotFoundException
+
             raise ColumnNotFoundException(col_name)
-    
+
     # Filter data to selected columns
     filtered_data = []
     for row in self.data:
@@ -45,7 +46,7 @@ def _patched_select(self, *columns):
                     # For dict-like rows, access by column name
                     filtered_row.append(row.get(col_name))
         filtered_data.append(tuple(filtered_row))
-    
+
     # Create new schema with selected fields
     selected_fields = []
     for col_name in col_names:
@@ -56,7 +57,7 @@ def _patched_select(self, *columns):
                 if field.name == col_name:
                     selected_fields.append(field)
                     break
-    
+
     new_schema = MockStructType(selected_fields)
     return MockDataFrame(filtered_data, new_schema, self.storage)
 

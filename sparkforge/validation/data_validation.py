@@ -20,11 +20,13 @@ from ..models import ColumnRules, StageStats
 logger = PipelineLogger("DataValidation")
 
 
-def _convert_rule_to_expression(rule: str, column_name: str, functions: Optional[FunctionsProtocol] = None) -> Column:
+def _convert_rule_to_expression(
+    rule: str, column_name: str, functions: Optional[FunctionsProtocol] = None
+) -> Column:
     """Convert a string rule to a PySpark Column expression."""
     if functions is None:
         functions = get_default_functions()
-    
+
     if rule == "not_null":
         return functions.col(column_name).isNotNull()
     elif rule == "positive":
@@ -45,7 +47,7 @@ def _convert_rules_to_expressions(
     """Convert string rules to PySpark Column expressions."""
     if functions is None:
         functions = get_default_functions()
-    
+
     converted_rules: Dict[str, list[str | Column]] = {}
     for column_name, rule_list in rules.items():
         converted_rule_list: list[str | Column] = []
@@ -60,7 +62,9 @@ def _convert_rules_to_expressions(
     return converted_rules
 
 
-def and_all_rules(rules: ColumnRules, functions: Optional[FunctionsProtocol] = None) -> Column | bool:
+def and_all_rules(
+    rules: ColumnRules, functions: Optional[FunctionsProtocol] = None
+) -> Column | bool:
     """Combine all validation rules with AND logic."""
     if not rules:
         return True
@@ -81,7 +85,11 @@ def and_all_rules(rules: ColumnRules, functions: Optional[FunctionsProtocol] = N
     column_expressions = []
     for expr in expressions:
         # Check if it's a Column-like object (has column operations)
-        if hasattr(expr, '__and__') and hasattr(expr, '__invert__') and not isinstance(expr, str):
+        if (
+            hasattr(expr, "__and__")
+            and hasattr(expr, "__invert__")
+            and not isinstance(expr, str)
+        ):
             column_expressions.append(expr)
         elif isinstance(expr, Column):
             column_expressions.append(expr)
@@ -145,7 +153,7 @@ def apply_column_rules(
     df_columns = set(df.columns)
     rule_columns = set(rules.keys())
     missing_columns = rule_columns - df_columns
-    
+
     if missing_columns:
         available_columns = sorted(df_columns)
         missing_columns_list = sorted(missing_columns)
@@ -170,9 +178,9 @@ def apply_column_rules(
         valid_rows = total_rows
         invalid_rows = 0
     elif isinstance(validation_predicate, Column) or (
-        hasattr(validation_predicate, '__and__') and 
-        hasattr(validation_predicate, '__invert__') and 
-        not isinstance(validation_predicate, bool)
+        hasattr(validation_predicate, "__and__")
+        and hasattr(validation_predicate, "__invert__")
+        and not isinstance(validation_predicate, bool)
     ):
         # Handle PySpark Column expressions and mock-spark MockColumnOperation
         valid_df = df.filter(validation_predicate)
@@ -230,7 +238,9 @@ def validate_dataframe_schema(df: DataFrame, expected_columns: list[str]) -> boo
 
 
 def assess_data_quality(
-    df: DataFrame, rules: ColumnRules | None = None, functions: Optional[FunctionsProtocol] = None
+    df: DataFrame,
+    rules: ColumnRules | None = None,
+    functions: Optional[FunctionsProtocol] = None,
 ) -> Dict[str, Any]:
     """
     Assess data quality of a DataFrame.
@@ -255,7 +265,9 @@ def assess_data_quality(
             }
 
         if rules:
-            valid_df, invalid_df, stats = apply_column_rules(df, rules, "test", "test", functions=functions)
+            valid_df, invalid_df, stats = apply_column_rules(
+                df, rules, "test", "test", functions=functions
+            )
             return {
                 "total_rows": stats.total_rows,
                 "valid_rows": stats.valid_rows,
@@ -277,9 +289,10 @@ def assess_data_quality(
     except Exception as e:
         # Log the unexpected error and re-raise with context
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Unexpected error in assess_data_quality: {e}")
         raise ValidationError(
             f"Data quality assessment failed: {e}",
-            context={"function": "assess_data_quality", "original_error": str(e)}
+            context={"function": "assess_data_quality", "original_error": str(e)},
         ) from e

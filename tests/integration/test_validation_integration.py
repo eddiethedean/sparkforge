@@ -361,6 +361,7 @@ class TestAssessDataQuality:
         # Mock count to raise an exception
         with patch.object(df, "count", side_effect=Exception("Assessment failed")):
             from sparkforge.errors import ValidationError
+
             with pytest.raises(ValidationError, match="Data quality assessment failed"):
                 assess_data_quality(df)
 

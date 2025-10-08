@@ -32,13 +32,17 @@ class TestTrap4BroadExceptionCatching:
             spark=spark_session,
             config=config,
         )
-        
+
         # Mock storage manager to raise an exception
-        with patch.object(writer.storage_manager, 'get_table_info', side_effect=RuntimeError("Database connection failed")):
+        with patch.object(
+            writer.storage_manager,
+            "get_table_info",
+            side_effect=RuntimeError("Database connection failed"),
+        ):
             # Should raise WriterError, not return {"error": "..."}
             with pytest.raises(WriterError) as excinfo:
                 writer.get_table_info()
-            
+
             # Verify the error message is helpful
             error_msg = str(excinfo.value)
             assert "Failed to get table info" in error_msg
@@ -54,13 +58,17 @@ class TestTrap4BroadExceptionCatching:
             spark=spark_session,
             config=config,
         )
-        
+
         # Mock storage manager to raise an exception
-        with patch.object(writer.storage_manager, 'query_logs', side_effect=RuntimeError("Query failed")):
+        with patch.object(
+            writer.storage_manager,
+            "query_logs",
+            side_effect=RuntimeError("Query failed"),
+        ):
             # Should raise WriterError, not return {"error": "..."}
             with pytest.raises(WriterError) as excinfo:
                 writer.analyze_quality_trends()
-            
+
             error_msg = str(excinfo.value)
             assert "Failed to analyze quality trends" in error_msg
             assert "Query failed" in error_msg
@@ -75,13 +83,15 @@ class TestTrap4BroadExceptionCatching:
             spark=spark_session,
             config=config,
         )
-        
+
         # Mock Spark to raise an exception
-        with patch.object(storage.spark, 'sql', side_effect=RuntimeError("SQL execution failed")):
+        with patch.object(
+            storage.spark, "sql", side_effect=RuntimeError("SQL execution failed")
+        ):
             # Should raise WriterTableError, not return {"error": "..."}
             with pytest.raises(WriterTableError) as excinfo:
                 storage.get_table_info()
-            
+
             error_msg = str(excinfo.value)
             assert "Failed to get table info for test_schema.test_logs" in error_msg
             assert "Failed to get table info" in error_msg
@@ -92,18 +102,21 @@ class TestTrap4BroadExceptionCatching:
             spark=spark_session,
             logger=Mock(),
         )
-        
+
         # Create a real DataFrame that will cause an exception
         from pyspark.sql.types import StructType, StructField, StringType
+
         schema = StructType([StructField("test_col", StringType(), True)])
         mock_df = spark_session.createDataFrame([], schema)
-        
+
         # Mock the count method to raise an exception
-        with patch.object(mock_df, 'count', side_effect=RuntimeError("DataFrame operation failed")):
+        with patch.object(
+            mock_df, "count", side_effect=RuntimeError("DataFrame operation failed")
+        ):
             # Should raise WriterError, not return {"error": "..."}
             with pytest.raises(WriterError) as excinfo:
                 analyzer.analyze_quality_trends(mock_df)
-            
+
             error_msg = str(excinfo.value)
             assert "Failed to analyze quality trends" in error_msg
             assert "Failed to analyze quality trends" in error_msg
@@ -114,13 +127,15 @@ class TestTrap4BroadExceptionCatching:
             spark=spark_session,
             logger=Mock(),
         )
-        
+
         # Mock psutil to raise an exception
-        with patch('psutil.virtual_memory', side_effect=RuntimeError("Memory info unavailable")):
+        with patch(
+            "psutil.virtual_memory", side_effect=RuntimeError("Memory info unavailable")
+        ):
             # Should raise WriterError, not return {"error": "..."}
             with pytest.raises(WriterError) as excinfo:
                 monitor.get_memory_usage()
-            
+
             error_msg = str(excinfo.value)
             assert "Failed to get memory usage" in error_msg
             assert "Memory info unavailable" in error_msg
@@ -135,13 +150,15 @@ class TestTrap4BroadExceptionCatching:
             spark=spark_session,
             config=config,
         )
-        
+
         original_error = RuntimeError("Original database error")
-        
-        with patch.object(writer.storage_manager, 'get_table_info', side_effect=original_error):
+
+        with patch.object(
+            writer.storage_manager, "get_table_info", side_effect=original_error
+        ):
             with pytest.raises(WriterError) as excinfo:
                 writer.get_table_info()
-            
+
             # Verify the exception is chained
             assert excinfo.value.__cause__ is original_error
             assert "Original database error" in str(excinfo.value)
@@ -156,23 +173,31 @@ class TestTrap4BroadExceptionCatching:
             spark=spark_session,
             config=config,
         )
-        
+
         # Mock all methods to raise exceptions
-        with patch.object(writer.storage_manager, 'get_table_info', side_effect=RuntimeError("Test error")):
-            with patch.object(writer.storage_manager, 'query_logs', side_effect=RuntimeError("Test error")):
+        with patch.object(
+            writer.storage_manager,
+            "get_table_info",
+            side_effect=RuntimeError("Test error"),
+        ):
+            with patch.object(
+                writer.storage_manager,
+                "query_logs",
+                side_effect=RuntimeError("Test error"),
+            ):
                 # All methods should raise exceptions, not return error responses
                 with pytest.raises(WriterError):
                     writer.get_table_info()
-                
+
                 with pytest.raises(WriterError):
                     writer.analyze_quality_trends()
-                
+
                 with pytest.raises(WriterError):
                     writer.analyze_execution_trends()
-                
+
                 with pytest.raises(WriterError):
                     writer.detect_quality_anomalies()
-                
+
                 with pytest.raises(WriterError):
                     writer.generate_performance_report()
 
@@ -186,12 +211,16 @@ class TestTrap4BroadExceptionCatching:
             spark=spark_session,
             config=config,
         )
-        
-        with patch.object(writer.storage_manager, 'get_table_info', side_effect=RuntimeError("Test error")):
-            with patch.object(writer.logger, 'error') as mock_logger:
+
+        with patch.object(
+            writer.storage_manager,
+            "get_table_info",
+            side_effect=RuntimeError("Test error"),
+        ):
+            with patch.object(writer.logger, "error") as mock_logger:
                 with pytest.raises(WriterError):
                     writer.get_table_info()
-                
+
                 # Verify error was logged
                 mock_logger.assert_called_once()
                 log_call = mock_logger.call_args[0][0]

@@ -15,7 +15,7 @@ import os
 # Skip multi-schema tests in mock mode for now
 pytestmark = pytest.mark.skipif(
     os.environ.get("SPARK_MODE", "mock").lower() == "mock",
-    reason="Multi-schema tests need real Spark - complex schema operations"
+    reason="Multi-schema tests need real Spark - complex schema operations",
 )
 
 # Use mock functions when in mock mode
@@ -215,7 +215,9 @@ class TestMultiSchemaSupport:
 
     def test_schema_creation_failure(self):
         """Test schema creation failure handling."""
-        with patch.object(self.builder.spark.catalog, "createDatabase") as mock_create_db:
+        with patch.object(
+            self.builder.spark.catalog, "createDatabase"
+        ) as mock_create_db:
             mock_create_db.side_effect = Exception("Permission denied")
 
             with pytest.raises(StepError, match="Failed to create schema 'new_schema'"):
