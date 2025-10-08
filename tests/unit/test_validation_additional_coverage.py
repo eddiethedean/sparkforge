@@ -181,7 +181,7 @@ class TestValidationEdgeCases:
         """Test and_all_rules with single expression."""
         # Test with single valid expression
         rules = {"col1": ["col1 > 0"]}
-        result = and_all_rules(rules)
+        result = and_all_rules(rules, F)
         # Check for Column-like object (works with both PySpark and mock-spark)
         assert hasattr(result, "__and__") and hasattr(result, "__invert__")
 
@@ -189,7 +189,7 @@ class TestValidationEdgeCases:
         """Test and_all_rules with multiple expressions."""
         # Test with multiple expressions
         rules = {"col1": ["col1 > 0"], "col2": ["col2 IS NOT NULL"]}
-        result = and_all_rules(rules)
+        result = and_all_rules(rules, F)
         # Check for Column-like object (works with both PySpark and mock-spark)
         assert hasattr(result, "__and__") and hasattr(result, "__invert__")
 

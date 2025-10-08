@@ -176,7 +176,7 @@ class TestApplyColumnRules:
         }
 
         valid_df, invalid_df, stats = apply_column_rules(
-            sample_dataframe, rules, "test", "test_step", filter_columns_by_rules=True
+            sample_dataframe, rules, "test", "test_step", filter_columns_by_rules=True, functions=F
         )
 
         assert (
@@ -223,7 +223,7 @@ class TestApplyColumnRules:
         }
 
         valid_df, invalid_df, stats = apply_column_rules(
-            sample_dataframe, rules, "test", "test_step", filter_columns_by_rules=True
+            sample_dataframe, rules, "test", "test_step", filter_columns_by_rules=True, functions=F
         )
 
         # Only user1 and user2 should pass all rules
