@@ -6,12 +6,21 @@ This test verifies that ExecutionEngine and DependencyAnalyzer objects
 are properly created and accessible in the PipelineBuilder.to_pipeline() method.
 """
 
+import os
 import pytest
 from unittest.mock import Mock, patch
 
 from sparkforge.pipeline.builder import PipelineBuilder
 from sparkforge.execution import ExecutionEngine
 from sparkforge.dependencies import DependencyAnalyzer
+
+# Use mock functions when in mock mode
+if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+    from mock_spark import functions as F
+    MockF = F
+else:
+    from pyspark.sql import functions as F
+    MockF = None
 
 
 class TestTrap2MissingObjectCreation:
@@ -23,6 +32,7 @@ class TestTrap2MissingObjectCreation:
         builder = PipelineBuilder(
             spark=spark_session,
             schema="test_schema",
+            functions=MockF,
         )
 
         # Add a bronze step to make the pipeline valid
@@ -46,6 +56,7 @@ class TestTrap2MissingObjectCreation:
                     spark=spark_session,
                     config=builder.config,
                     logger=builder.logger,
+                    functions=builder.functions,
                 )
 
                 # Verify DependencyAnalyzer was created
@@ -60,6 +71,7 @@ class TestTrap2MissingObjectCreation:
         builder = PipelineBuilder(
             spark=spark_session,
             schema="test_schema",
+            functions=MockF,
         )
 
         # Add a bronze step
@@ -115,6 +127,7 @@ class TestTrap2MissingObjectCreation:
         builder = PipelineBuilder(
             spark=spark_session,
             schema="test_schema",
+            functions=MockF,
         )
 
         # Add a bronze step to make it valid
@@ -143,6 +156,7 @@ class TestTrap2MissingObjectCreation:
         builder = PipelineBuilder(
             spark=spark_session,
             schema="test_schema",
+            functions=MockF,
         )
 
         # Add a bronze step

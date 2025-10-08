@@ -381,7 +381,7 @@ class TestGlobalLoggerFunctions:
         logger = get_logger()
 
         assert isinstance(logger, PipelineLogger)
-        assert logger.name == "SparkForge"
+        assert logger.name == "PipelineFramework"
 
     def test_set_logger(self):
         """Test setting custom logger."""
@@ -397,7 +397,7 @@ class TestGlobalLoggerFunctions:
         logger = create_logger()
 
         assert isinstance(logger, PipelineLogger)
-        assert logger.name == "SparkForge"
+        assert logger.name == "PipelineFramework"
 
     def test_create_logger_custom(self):
         """Test creating logger with custom parameters."""
