@@ -68,7 +68,7 @@ class TestValidationEdgeCases:
         rules = {}  # Empty rules should return all rows as valid
 
         result = apply_column_rules(
-            mock_df, rules, stage="test_stage", step="test_step"
+            mock_df, rules, stage="test_stage", step="test_step", functions=F
         )
 
         assert result is not None
@@ -91,6 +91,7 @@ class TestValidationEdgeCases:
             stage="test_stage",
             step="test_step",
             filter_columns_by_rules=False,
+            functions=F,
         )
 
         assert result is not None
@@ -154,7 +155,7 @@ class TestValidationEdgeCases:
         mock_df.count.return_value = 100
 
         # Test with empty rules
-        result = apply_column_rules(mock_df, {}, "test_stage", "test_step")
+        result = apply_column_rules(mock_df, {}, "test_stage", "test_step", functions=F)
         assert result is not None
 
     def test_convert_rules_to_expressions_complex_cases(self) -> None:

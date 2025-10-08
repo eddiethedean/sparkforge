@@ -347,7 +347,7 @@ class TestAssessDataQuality:
             "age": ["positive"],
             "score": ["non_negative"],
         }
-        result = assess_data_quality(sample_dataframe, rules)
+        result = assess_data_quality(sample_dataframe, rules, F)
 
         assert isinstance(result, dict)
         assert "total_rows" in result
@@ -366,7 +366,7 @@ class TestApplyValidationRules:
             "age": ["positive"],
             "score": ["non_negative"],
         }
-        result = apply_column_rules(sample_dataframe, rules, "bronze", "test_step")
+        result = apply_column_rules(sample_dataframe, rules, "bronze", "test_step", functions=F)
 
         assert result is not None
         assert len(result) == 3  # Should return tuple of (df, df, stats)
