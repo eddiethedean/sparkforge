@@ -165,7 +165,7 @@ class TestImprovedUserExperience:
 
     def test_validation_helper_not_null_rules(self):
         """Test not_null_rules helper method."""
-        rules = PipelineBuilder.not_null_rules(["user_id", "timestamp", "value"])
+        rules = PipelineBuilder.not_null_rules(["user_id", "timestamp", "value"], functions=F)
 
         expected = {
             "user_id": [F.col("user_id").isNotNull()],
@@ -182,7 +182,7 @@ class TestImprovedUserExperience:
 
     def test_validation_helper_positive_number_rules(self):
         """Test positive_number_rules helper method."""
-        rules = PipelineBuilder.positive_number_rules(["value", "count"])
+        rules = PipelineBuilder.positive_number_rules(["value", "count"], functions=F)
 
         assert len(rules) == 2
         for col in ["value", "count"]:
@@ -191,7 +191,7 @@ class TestImprovedUserExperience:
 
     def test_validation_helper_string_not_empty_rules(self):
         """Test string_not_empty_rules helper method."""
-        rules = PipelineBuilder.string_not_empty_rules(["name", "category"])
+        rules = PipelineBuilder.string_not_empty_rules(["name", "category"], functions=F)
 
         assert len(rules) == 2
         for col in ["name", "category"]:
@@ -200,7 +200,7 @@ class TestImprovedUserExperience:
 
     def test_validation_helper_timestamp_rules(self):
         """Test timestamp_rules helper method."""
-        rules = PipelineBuilder.timestamp_rules(["created_at", "updated_at"])
+        rules = PipelineBuilder.timestamp_rules(["created_at", "updated_at"], functions=F)
 
         assert len(rules) == 2
         for col in ["created_at", "updated_at"]:
