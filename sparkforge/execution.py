@@ -42,6 +42,7 @@ Example:
 
 # Depends on:
 #   errors
+#   functions
 #   logging
 #   models.pipeline
 #   models.steps
@@ -55,11 +56,12 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Dict
+from typing import Dict, Optional
 
 from pyspark.sql import DataFrame, SparkSession
 
 from .errors import ExecutionError
+from .functions import FunctionsProtocol
 from .logging import PipelineLogger
 from .models import BronzeStep, GoldStep, PipelineConfig, SilverStep
 from .table_operations import fqn
@@ -145,6 +147,7 @@ class ExecutionEngine:
         spark: SparkSession,
         config: PipelineConfig,
         logger: PipelineLogger | None = None,
+        functions: Optional[FunctionsProtocol] = None,
     ):
         """
         Initialize the execution engine.
@@ -153,6 +156,7 @@ class ExecutionEngine:
             spark: Active SparkSession instance
             config: Pipeline configuration
             logger: Optional logger instance
+            functions: Optional functions object for PySpark operations
         """
         self.spark = spark
         self.config = config
@@ -160,6 +164,13 @@ class ExecutionEngine:
             self.logger = PipelineLogger()
         else:
             self.logger = logger
+        
+        # Store functions for validation
+        if functions is None:
+            from .functions import get_default_functions
+            self.functions = get_default_functions()
+        else:
+            self.functions = functions
 
     def execute_step(
         self,
@@ -212,7 +223,7 @@ class ExecutionEngine:
                 # All step types (Bronze, Silver, Gold) have rules attribute
                 if step.rules:
                     output_df, _, _ = apply_column_rules(
-                        output_df, step.rules, "pipeline", step.name
+                        output_df, step.rules, "pipeline", step.name, functions=self.functions
                     )
 
             # Write output if not in validation-only mode

@@ -1183,6 +1183,7 @@ class PipelineBuilder:
             spark=self.spark,
             config=self.config,
             logger=self.logger,
+            functions=self.functions,
         )
 
         # Create dependency analyzer
@@ -1196,6 +1197,7 @@ class PipelineBuilder:
             silver_steps=self.silver_steps,
             gold_steps=self.gold_steps,
             logger=self.logger,
+            functions=self.functions,
         )
 
         self.logger.info(

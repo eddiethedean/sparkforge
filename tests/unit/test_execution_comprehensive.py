@@ -5,6 +5,7 @@ This module tests all execution engine functionality including step execution,
 pipeline execution, error handling, and various execution modes.
 """
 
+import os
 import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, patch, call
@@ -28,6 +29,14 @@ from sparkforge.errors import ExecutionError
 from sparkforge.logging import PipelineLogger
 from mock_spark import MockSparkSession, MockDataFrame
 from mock_spark import MockStructType, MockStructField, StringType, IntegerType
+
+# Use mock functions when in mock mode
+if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+    from mock_spark import functions as F
+    MockF = F
+else:
+    from pyspark.sql import functions as F
+    MockF = None
 
 
 class TestExecutionMode:
@@ -224,7 +233,7 @@ class TestExecutionEngineInitialization:
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
 
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         assert engine.spark == spark_session
         assert engine.config == config
@@ -240,7 +249,7 @@ class TestExecutionEngineInitialization:
         custom_logger = PipelineLogger()
 
         engine = ExecutionEngine(
-            spark=spark_session, config=config, logger=custom_logger
+            spark=spark_session, config=config, logger=custom_logger, functions=MockF
         )
 
         assert engine.spark == spark_session
@@ -255,7 +264,7 @@ class TestExecutionEngineInitialization:
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
 
-        engine = ExecutionEngine(spark=spark_session, config=config, logger=None)
+        engine = ExecutionEngine(spark=spark_session, config=config, logger=None, functions=MockF)
 
         assert engine.spark == spark_session
         assert engine.config == config
@@ -272,7 +281,7 @@ class TestExecuteStep:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
         schema = MockStructType(
@@ -307,7 +316,7 @@ class TestExecuteStep:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create mock step with unknown type
         class UnknownStep:
@@ -327,7 +336,7 @@ class TestExecuteStep:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         bronze_step = BronzeStep(name="test_bronze", rules={"id": ["not_null"]})
         context = {}  # Empty context
@@ -348,7 +357,7 @@ class TestExecutePipeline:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         bronze_step = BronzeStep(name="test_bronze", rules={"id": ["not_null"]})
 
@@ -370,7 +379,7 @@ class TestExecutePipeline:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         bronze_step = BronzeStep(name="test_bronze", rules={"id": ["not_null"]})
 
@@ -392,7 +401,7 @@ class TestExecutePipeline:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Execute pipeline with empty steps
         result = engine.execute_pipeline(
@@ -413,7 +422,7 @@ class TestPrivateMethods:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create empty DataFrame
         schema = MockStructType(
@@ -460,7 +469,7 @@ class TestExecutionIntegration:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
         schema = MockStructType(
@@ -488,7 +497,7 @@ class TestExecutionIntegration:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
         schema = MockStructType(

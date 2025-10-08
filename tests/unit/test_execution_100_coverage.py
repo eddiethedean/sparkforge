@@ -4,6 +4,7 @@ Additional tests for sparkforge.execution module to achieve 100% coverage.
 This module covers the remaining uncovered lines in execution.py.
 """
 
+import os
 import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, patch, call
@@ -28,6 +29,14 @@ from sparkforge.logging import PipelineLogger
 from mock_spark import MockSparkSession, MockDataFrame
 from mock_spark import MockStructType, MockStructField, StringType, IntegerType
 
+# Use mock functions when in mock mode
+if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+    from mock_spark import functions as F
+    MockF = F
+else:
+    from pyspark.sql import functions as F
+    MockF = None
+
 
 @pytest.fixture(scope="function", autouse=True)
 def reset_test_environment():
@@ -49,7 +58,7 @@ class TestExecuteStepComplete:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
         schema = MockStructType(
@@ -94,7 +103,7 @@ class TestExecuteStepComplete:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
         schema = MockStructType(
@@ -139,7 +148,7 @@ class TestExecuteStepComplete:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
         schema = MockStructType(
@@ -181,7 +190,7 @@ class TestExecuteStepComplete:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
         schema = MockStructType(
@@ -224,7 +233,7 @@ class TestExecuteStepComplete:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
         schema = MockStructType(
@@ -263,7 +272,7 @@ class TestExecuteStepComplete:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
         schema = MockStructType(
@@ -300,7 +309,7 @@ class TestExecuteStepComplete:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         def transform_func(spark, bronze_df, silvers):
             return bronze_df.select("id", "name")
@@ -328,7 +337,7 @@ class TestExecuteStepComplete:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         def transform_func(spark, silvers):
             return silvers["missing_silver"]
@@ -356,7 +365,7 @@ class TestExecuteStepComplete:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
         schema = MockStructType(
@@ -399,7 +408,7 @@ class TestExecutePipelineComplete:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
         schema = MockStructType(
@@ -454,7 +463,7 @@ class TestExecutePipelineComplete:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
         schema = MockStructType(
@@ -509,7 +518,7 @@ class TestExecutePipelineComplete:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create silver step that will fail
         def failing_transform(spark, bronze_df, silvers):
@@ -541,7 +550,7 @@ class TestExecutePipelineComplete:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create gold step that will fail
         def failing_transform(spark, silvers):
@@ -573,7 +582,7 @@ class TestExecutePipelineComplete:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
         schema = MockStructType(
@@ -615,7 +624,7 @@ class TestExecutePipelineComplete:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
         schema = MockStructType(
@@ -661,7 +670,7 @@ class TestPrivateMethodsComplete:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
         schema = MockStructType(
@@ -696,7 +705,7 @@ class TestPrivateMethodsComplete:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         def transform_func(spark, bronze_df, silvers):
             return bronze_df.select("id", "name")
@@ -723,7 +732,7 @@ class TestPrivateMethodsComplete:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
         schema = MockStructType(
@@ -758,7 +767,7 @@ class TestPrivateMethodsComplete:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         def transform_func(spark, silvers):
             return silvers["missing_silver"]
@@ -785,7 +794,7 @@ class TestPrivateMethodsComplete:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Transform that works with empty silvers dict
         def transform_func(spark, silvers):

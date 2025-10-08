@@ -6,6 +6,7 @@ execution to the simplified execution engine.
 
 # Depends on:
 #   execution
+#   functions
 #   logging
 #   models.pipeline
 #   models.steps
@@ -15,10 +16,12 @@ execution to the simplified execution engine.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Optional
 
 from pyspark.sql import DataFrame, SparkSession
 
 from ..execution import ExecutionEngine, ExecutionMode, ExecutionResult
+from ..functions import FunctionsProtocol
 from ..logging import PipelineLogger
 from ..models import BronzeStep, GoldStep, PipelineConfig, PipelineMetrics, SilverStep
 from .models import PipelineMode, PipelineReport, PipelineStatus
@@ -40,6 +43,7 @@ class SimplePipelineRunner:
         silver_steps: dict[str, SilverStep] | None = None,
         gold_steps: dict[str, GoldStep] | None = None,
         logger: PipelineLogger | None = None,
+        functions: Optional[FunctionsProtocol] = None,
     ):
         """
         Initialize the simplified pipeline runner.
@@ -51,6 +55,7 @@ class SimplePipelineRunner:
             silver_steps: Silver steps dictionary
             gold_steps: Gold steps dictionary
             logger: Optional logger instance
+            functions: Optional functions object for PySpark operations
         """
         self.spark = spark
         self.config = config
@@ -58,7 +63,8 @@ class SimplePipelineRunner:
         self.silver_steps = silver_steps or {}
         self.gold_steps = gold_steps or {}
         self.logger = logger or PipelineLogger()
-        self.execution_engine = ExecutionEngine(spark, config, self.logger)
+        self.functions = functions
+        self.execution_engine = ExecutionEngine(spark, config, self.logger, functions)
 
     def run_pipeline(
         self,
