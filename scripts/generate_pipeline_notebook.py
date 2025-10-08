@@ -180,6 +180,7 @@ def remove_sparkforge_imports(code: str) -> str:
     """
     lines = code.split('\n')
     new_lines = []
+    in_multiline_import = False
     
     for line in lines:
         # Check for any relative imports (starting with one or more dots)
@@ -188,10 +189,40 @@ def remove_sparkforge_imports(code: str) -> str:
             indent = len(line) - len(line.lstrip())
             comment = '# ' + line.strip() + '  # Removed: defined in notebook cells above'
             new_lines.append(' ' * indent + comment)
+            
+            # Check if this starts a multi-line import
+            if '(' in line and ')' not in line:
+                in_multiline_import = True
+        elif in_multiline_import:
+            # Comment out continuation lines of multi-line imports
+            indent = len(line) - len(line.lstrip())
+            comment = '# ' + line.strip()
+            new_lines.append(' ' * indent + comment)
+            
+            # Check if this line ends the multi-line import
+            if ')' in line:
+                in_multiline_import = False
         else:
             new_lines.append(line)
     
     code = '\n'.join(new_lines)
+    
+    # Remove mock_spark conditional imports - replace with direct pyspark imports
+    # Pattern: if os.environ.get("SPARK_MODE"...) block with from mock_spark import
+    code = re.sub(
+        r'# Use mock functions when in mock mode\n' +
+        r'if os\.environ\.get\("SPARK_MODE"[^)]+\)[^:]+:\n' +
+        r'    from mock_spark import functions as F\n' +
+        r'else:\n' +
+        r'    from pyspark\.sql import functions as F',
+        'from pyspark.sql import functions as F',
+        code,
+        flags=re.MULTILINE
+    )
+    
+    # Remove any remaining mock_spark references
+    code = re.sub(r'from mock_spark import .*\n', '', code)
+    code = re.sub(r'import mock_spark.*\n', '', code)
     
     # Remove references to "sparkforge" in various contexts
     # Replace in import statements
@@ -281,19 +312,29 @@ def create_notebook_cell(code: str, cell_type: str = 'code', metadata: Dict = No
     if metadata is None:
         metadata = {}
     
+    # Format source with proper newlines for Jupyter
+    # Each line should end with \n except the last line
+    if code:
+        lines = code.split('\n')
+        source = [line + '\n' for line in lines[:-1]]
+        if lines[-1]:  # Add last line without \n if it's not empty
+            source.append(lines[-1])
+    else:
+        source = []
+    
     if cell_type == 'code':
         return {
             'cell_type': 'code',
             'execution_count': None,
             'metadata': metadata,
             'outputs': [],
-            'source': code.split('\n') if code else []
+            'source': source
         }
     else:  # markdown
         return {
             'cell_type': 'markdown',
             'metadata': metadata,
-            'source': code.split('\n') if code else []
+            'source': source
         }
 
 
