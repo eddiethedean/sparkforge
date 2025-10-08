@@ -2,6 +2,7 @@
 Basic tests for sparkforge.pipeline.builder.PipelineBuilder that avoid PySpark dependencies.
 """
 
+import os
 import pytest
 from datetime import datetime
 from unittest.mock import patch, MagicMock
@@ -18,6 +19,12 @@ from sparkforge.models.enums import PipelinePhase, ExecutionMode
 from sparkforge.errors import ConfigurationError, ExecutionError
 from sparkforge.logging import PipelineLogger
 from mock_spark import MockSparkSession
+
+# Use mock functions when in mock mode
+if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+    from mock_spark import functions as MockF
+else:
+    MockF = None
 
 
 class TestPipelineBuilderInitialization:

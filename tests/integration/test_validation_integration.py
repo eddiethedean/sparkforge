@@ -45,28 +45,28 @@ class TestConvertRuleToExpression:
 
     def test_not_null_rule(self):
         """Test not_null rule conversion."""
-        result = _convert_rule_to_expression("not_null", "test_column")
+        result = _convert_rule_to_expression("not_null", "test_column", F)
         # This should return a PySpark Column expression
         assert result is not None
 
     def test_positive_rule(self):
         """Test positive rule conversion."""
-        result = _convert_rule_to_expression("positive", "test_column")
+        result = _convert_rule_to_expression("positive", "test_column", F)
         assert result is not None
 
     def test_non_negative_rule(self):
         """Test non_negative rule conversion."""
-        result = _convert_rule_to_expression("non_negative", "test_column")
+        result = _convert_rule_to_expression("non_negative", "test_column", F)
         assert result is not None
 
     def test_non_zero_rule(self):
         """Test non_zero rule conversion."""
-        result = _convert_rule_to_expression("non_zero", "test_column")
+        result = _convert_rule_to_expression("non_zero", "test_column", F)
         assert result is not None
 
     def test_unknown_rule(self):
         """Test unknown rule converts to F.expr."""
-        result = _convert_rule_to_expression("custom_rule", "test_column")
+        result = _convert_rule_to_expression("custom_rule", "test_column", F)
         # Should return a Column object created by F.expr
         assert hasattr(result, "isNull")  # Column objects have isNull method
 
@@ -82,7 +82,7 @@ class TestConvertRulesToExpressions:
             "age": ["non_negative"],
         }
 
-        result = _convert_rules_to_expressions(rules)
+        result = _convert_rules_to_expressions(rules, F)
 
         assert "id" in result
         assert "name" in result
@@ -95,7 +95,7 @@ class TestConvertRulesToExpressions:
         """Test conversion of mixed string and expression rules."""
         rules = {"id": ["not_null", F.col("id") > 0], "name": ["not_null"]}
 
-        result = _convert_rules_to_expressions(rules)
+        result = _convert_rules_to_expressions(rules, F)
 
         assert "id" in result
         assert "name" in result

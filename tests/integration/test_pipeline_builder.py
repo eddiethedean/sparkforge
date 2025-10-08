@@ -6,6 +6,7 @@ This module tests all pipeline building and execution functionality, including
 the fluent API, validation, execution modes, error handling, and reporting.
 """
 
+import os
 import unittest
 from datetime import datetime
 from unittest.mock import Mock
@@ -20,6 +21,12 @@ from sparkforge.pipeline import (
     PipelineRunner,
     PipelineStatus,
 )
+
+# Use mock functions when in mock mode
+if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+    from mock_spark import functions as MockF
+else:
+    MockF = None
 
 
 class TestPipelineMode(unittest.TestCase):
@@ -142,10 +149,15 @@ class TestPipelineBuilder(unittest.TestCase):
         self.spark = Mock()
         self.schema = "test_schema"
 
-        # Create pipeline builder
-        self.builder = PipelineBuilder(
-            spark=self.spark, schema=self.schema, verbose=False
-        )
+        # Create pipeline builder with mock functions if in mock mode
+        if MockF is not None:
+            self.builder = PipelineBuilder(
+                spark=self.spark, schema=self.schema, verbose=False, functions=MockF
+            )
+        else:
+            self.builder = PipelineBuilder(
+                spark=self.spark, schema=self.schema, verbose=False
+            )
 
     def test_builder_creation(self):
         """Test pipeline builder creation."""
@@ -392,7 +404,10 @@ class TestPipelineBuilderIntegration(unittest.TestCase):
 
     def test_complex_pipeline_construction(self):
         """Test construction of a complex pipeline."""
-        builder = PipelineBuilder(spark=self.spark, schema=self.schema, verbose=False)
+        if MockF is not None:
+            builder = PipelineBuilder(spark=self.spark, schema=self.schema, verbose=False, functions=MockF)
+        else:
+            builder = PipelineBuilder(spark=self.spark, schema=self.schema, verbose=False)
 
         # Add multiple bronze steps
         builder.with_bronze_rules(
