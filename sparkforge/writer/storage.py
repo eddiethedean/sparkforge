@@ -15,16 +15,10 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, Dict, List
-import os
 
 from delta.tables import DeltaTable
 from pyspark.sql import DataFrame, SparkSession
-
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F
-else:
-    from pyspark.sql import functions as F
+from pyspark.sql import functions as F
 
 from ..logging import PipelineLogger
 from ..table_operations import table_exists
@@ -385,8 +379,6 @@ class StorageManager:
         """Prepare DataFrame for writing to Delta table."""
         try:
             # Add metadata columns if not present
-            # For mock-spark, use lit() with string timestamp to avoid issues
-            import os
             from datetime import datetime
 
             current_time_str = datetime.now().isoformat()

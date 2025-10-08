@@ -73,20 +73,6 @@ class FunctionsProtocol(Protocol):
 
 def get_default_functions() -> FunctionsProtocol:
     """Get the default PySpark functions implementation."""
-    # Check if we're in a test environment with mock_spark
-    try:
-        from mock_spark import MockFunctions
-
-        # If we can import MockFunctions, we're likely in a test environment
-        # Check if we have a mock Spark session active
-        import sys
-
-        if "mock_spark" in sys.modules:
-            return MockFunctions()  # type: ignore[return-value]
-    except ImportError:
-        pass
-
-    # Fall back to real PySpark functions
     from pyspark.sql import functions as F
 
     return F  # type: ignore[return-value]

@@ -1135,18 +1135,8 @@ class PipelineBuilder:
             schema: Schema name to create
         """
         try:
-            # For mock-spark, use catalog API directly as SQL doesn't update catalog
-            import os
-
-            if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-                # Check if schema exists
-                existing_dbs = [db.name for db in self.spark.catalog.listDatabases()]
-                if schema not in existing_dbs:
-                    self.spark.catalog.createDatabase(schema)
-            else:
-                # For real Spark, use SQL
-                self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
-
+            # Use SQL to create schema
+            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
             self.logger.info(f"✅ Schema '{schema}' created or already exists")
         except Exception as e:
             raise StepError(

@@ -88,7 +88,6 @@ def and_all_rules(
         return True
 
     # Filter out non-Column expressions and convert strings to Columns
-    # Support both PySpark Column and mock-spark MockColumnOperation
     column_expressions = []
     for expr in expressions:
         # Check if it's a Column-like object (has column operations)
@@ -189,7 +188,7 @@ def apply_column_rules(
         and hasattr(validation_predicate, "__invert__")
         and not isinstance(validation_predicate, bool)
     ):
-        # Handle PySpark Column expressions and mock-spark MockColumnOperation
+        # Handle PySpark Column expressions
         valid_df = df.filter(validation_predicate)
         invalid_df = df.filter(~validation_predicate)
         total_rows = df.count()
