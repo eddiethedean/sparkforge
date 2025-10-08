@@ -23,7 +23,7 @@ from pyspark.sql import functions as F
 from ..logging import PipelineLogger
 from ..table_operations import table_exists
 from .exceptions import WriterTableError
-from .models import LogRow, WriteMode, WriterConfig
+from .models import LogRow, WriteMode, WriterConfig, create_log_schema
 
 
 class StorageManager:
@@ -437,8 +437,9 @@ class StorageManager:
                 }
                 log_data.append(row_dict)
 
-            # Create DataFrame
-            df = self.spark.createDataFrame(log_data)  # type: ignore[type-var]
+            # Create DataFrame with explicit schema (required for mock-spark with None values)
+            schema = create_log_schema()
+            df = self.spark.createDataFrame(log_data, schema)  # type: ignore[type-var]
             return df
 
         except Exception as e:

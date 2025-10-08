@@ -2,6 +2,7 @@
 Unit tests for writer core functionality.
 """
 
+import os
 from datetime import datetime
 from unittest.mock import Mock, patch
 
@@ -18,6 +19,10 @@ from sparkforge.writer.exceptions import (
 from sparkforge.writer.models import WriteMode, WriterConfig
 
 
+@pytest.mark.skipif(
+    os.environ.get("SPARK_MODE", "mock").lower() == "mock",
+    reason="Writer tests require Delta Lake which is not supported in mock-spark"
+)
 class TestLogWriter:
     """Test LogWriter functionality."""
 

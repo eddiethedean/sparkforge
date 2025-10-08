@@ -25,7 +25,7 @@ from ..logging import PipelineLogger
 from ..models import ExecutionResult, StepResult
 from ..validation import get_dataframe_info
 from .exceptions import WriterValidationError
-from .models import LogRow, create_log_rows_from_execution_result, validate_log_data
+from .models import LogRow, create_log_rows_from_execution_result, create_log_schema, validate_log_data
 
 
 class DataProcessor:
@@ -208,8 +208,9 @@ class DataProcessor:
                 }
                 log_data.append(row_dict)
 
-            # Create DataFrame
-            df = self.spark.createDataFrame(log_data)  # type: ignore[type-var]
+            # Create DataFrame with explicit schema (required for mock-spark with None values)
+            schema = create_log_schema()
+            df = self.spark.createDataFrame(log_data, schema)  # type: ignore[type-var]
 
             self.logger.info("Successfully created DataFrame from log rows")
             return df

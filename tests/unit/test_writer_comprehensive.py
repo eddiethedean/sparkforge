@@ -2,6 +2,7 @@
 Comprehensive tests for sparkforge.writer.core module.
 """
 
+import os
 import pytest
 from datetime import datetime
 from unittest.mock import patch
@@ -68,6 +69,10 @@ def create_execution_result(
     )
 
 
+@pytest.mark.skipif(
+    os.environ.get("SPARK_MODE", "mock").lower() == "mock",
+    reason="Writer tests require Delta Lake which is not supported in mock-spark"
+)
 class TestWriterComprehensive:
     """Comprehensive tests for writer module."""
 
