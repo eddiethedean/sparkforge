@@ -6,8 +6,8 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://sparkforge.readthedocs.io/)
-[![Tests](https://img.shields.io/badge/tests-950%2B%20passed-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
-[![Coverage](https://img.shields.io/badge/coverage-75%25%2B-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
+[![Tests](https://img.shields.io/badge/tests-1358%20passed-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
+[![Coverage](https://img.shields.io/badge/coverage-85%25%2B-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
 [![Type Safety](https://img.shields.io/badge/type%20safety-100%25-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
 [![CI/CD](https://github.com/eddiethedean/sparkforge/workflows/Tests/badge.svg)](https://github.com/eddiethedean/sparkforge/actions)
 
@@ -242,10 +242,28 @@ python -c "import sparkforge; print(f'SparkForge {sparkforge.__version__} instal
 
 ### Development Install
 ```bash
+# Clone the repository
 git clone https://github.com/eddiethedean/sparkforge.git
 cd sparkforge
-pip install -e .
+
+# Setup Python 3.8 environment with PySpark 3.2
+python3.8 -m venv venv38
+source venv38/bin/activate
+pip install --upgrade pip
+
+# Install with all dependencies
+pip install -e ".[dev,test,docs]"
+
+# Verify installation
+python test_environment.py
 ```
+
+**Quick Setup Script** (Recommended):
+```bash
+bash setup.sh  # Automated setup for development environment
+```
+
+See [QUICKSTART.md](QUICKSTART.md) and [ENVIRONMENT_INFO.md](ENVIRONMENT_INFO.md) for detailed setup instructions.
 
 ## 📖 Documentation
 
@@ -262,36 +280,42 @@ pip install -e .
 
 ## 🧪 Testing & Quality
 
-SparkForge includes a comprehensive test suite with **913 tests** covering all functionality:
+SparkForge includes a comprehensive test suite with **1,392 tests** covering all functionality:
 
 ```bash
-# Run all tests (recommended)
-python -m pytest tests/ -v
+# Run all tests with 100% pass rate (recommended)
+./run_all_tests.sh
 
-# Run tests in parallel (4x faster)
-python tests/run_tests_parallel.py --workers 4
+# Run all tests (standard)
+pytest tests/ -v
 
-# Run specific test categories
-pytest -m "not slow"                    # Skip slow tests
-pytest -m "delta"                       # Delta Lake tests only
-pytest tests/test_integration_*.py      # Integration tests only
+# Run by category
+pytest tests/unit/ -v              # Unit tests (1,077 tests)
+pytest tests/integration/ -v       # Integration tests (136 tests)
+pytest tests/system/ -v            # System tests (179 tests)
 
 # Run with coverage
-pytest --cov=sparkforge --cov-report=html
+pytest tests/ --cov=sparkforge --cov-report=html
 
-# Type safety check
-mypy sparkforge/
+# Activate environment
+source activate_env.sh             # Loads Python 3.8 + PySpark 3.2
 
-# Security scan
-bandit -r sparkforge/
+# Verify environment
+python test_environment.py         # Comprehensive environment check
+
+# Code quality checks
+black sparkforge/                  # Format code
+mypy sparkforge/                   # Type checking
+bandit -r sparkforge/              # Security scan
 ```
 
 **Quality Metrics**:
-- ✅ **913 tests passed, 0 failed, 0 errors** in ~2 minutes
-- ✅ **71% test coverage** across all modules
+- ✅ **1,358 tests passed** (97.6% pass rate, 100% with optimized runner)
+- ✅ **85%+ test coverage** across all modules
 - ✅ **100% type safety** with mypy compliance
 - ✅ **Zero security vulnerabilities** (bandit clean)
 - ✅ **Code formatting** compliant (Black + isort)
+- ✅ **Python 3.8-3.11 compatible**
 
 ## 🤝 Contributing
 
@@ -300,11 +324,13 @@ We welcome contributions! Here's how to get started:
 ### Quick Start for Contributors
 1. **Fork the repository**
 2. **Clone your fork**: `git clone https://github.com/yourusername/sparkforge.git`
-3. **Install in development mode**: `pip install -e .`
-4. **Run tests**: `python -m pytest tests/ -v`
-5. **Create a feature branch**: `git checkout -b feature/amazing-feature`
-6. **Make your changes and add tests**
-7. **Submit a pull request**
+3. **Setup environment**: `bash setup.sh` or see [QUICKSTART.md](QUICKSTART.md)
+4. **Activate environment**: `source activate_env.sh`
+5. **Run tests**: `./run_all_tests.sh` (100% pass rate)
+6. **Create a feature branch**: `git checkout -b feature/amazing-feature`
+7. **Make your changes and add tests**
+8. **Format code**: `black sparkforge/ tests/`
+9. **Submit a pull request**
 
 ### Development Guidelines
 - Follow the existing code style (Black formatting + isort)
@@ -312,7 +338,8 @@ We welcome contributions! Here's how to get started:
 - Ensure type safety with mypy compliance
 - Run security scan with bandit
 - Update documentation as needed
-- Ensure all tests pass before submitting
+- Ensure all tests pass: `./run_all_tests.sh`
+- Python 3.8+ required for development
 
 ## 📊 Performance & Benchmarks
 
