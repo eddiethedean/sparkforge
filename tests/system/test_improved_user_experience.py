@@ -10,22 +10,30 @@ Tests for the new user experience improvements:
 - Timestamp detection
 """
 
-
-import pytest
 import os
+import pytest
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
     from mock_spark import functions as F
+    from mock_spark import (
+        IntegerType,
+        StringType,
+        MockStructField as StructField,
+        MockStructType as StructType,
+        TimestampType,
+    )
+    MockF = F
 else:
     from pyspark.sql import functions as F
-from pyspark.sql.types import (
-    IntegerType,
-    StringType,
-    StructField,
-    StructType,
-    TimestampType,
-)
+    from pyspark.sql.types import (
+        IntegerType,
+        StringType,
+        StructField,
+        StructType,
+        TimestampType,
+    )
+    MockF = None
 
 from sparkforge import PipelineBuilder
 from sparkforge.errors import StepError
@@ -37,7 +45,7 @@ class TestImprovedUserExperience:
     @pytest.fixture(autouse=True)
     def setup_test(self, spark_session):
         """Set up for each test."""
-        self.builder = PipelineBuilder(spark=spark_session, schema="test_schema")
+        self.builder = PipelineBuilder(spark=spark_session, schema="test_schema", functions=MockF if MockF else None)
         self.mock_silver_transform = (
             lambda spark, bronze_df, prior_silvers: bronze_df.withColumn(
                 "new_col", F.lit(1)

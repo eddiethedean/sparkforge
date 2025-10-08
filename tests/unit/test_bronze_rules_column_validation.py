@@ -6,9 +6,9 @@ with "column not found" errors when columns referenced in rules don't exist
 in the DataFrame.
 """
 
+import os
 import pytest
 from pyspark.sql import SparkSession
-import os
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
@@ -19,9 +19,11 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
         MockStructField as StructField,
         MockStructType as StructType,
     )
+    MockF = F
 else:
     from pyspark.sql import functions as F
     from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+    MockF = None
 
 from sparkforge import PipelineBuilder
 from sparkforge.errors import ValidationError
@@ -196,7 +198,7 @@ class TestBronzeRulesColumnValidation:
         df = spark_session.createDataFrame(sample_data, ["user_id", "action"])
 
         # Create pipeline builder
-        builder = PipelineBuilder(spark=spark_session, schema="test_schema")
+        builder = PipelineBuilder(spark=spark_session, schema="test_schema", functions=MockF if MockF else None)
 
         # Add bronze rules that reference missing columns
         builder.with_bronze_rules(
