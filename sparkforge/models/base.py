@@ -1,5 +1,10 @@
 """
 Base classes and configuration models for the Pipeline Builder.
+
+# Depends on:
+#   errors
+#   models.enums
+#   models.types
 """
 
 from __future__ import annotations

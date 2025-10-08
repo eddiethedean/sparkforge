@@ -3,6 +3,12 @@ Writer monitoring module for performance tracking and metrics collection.
 
 This module handles performance monitoring, metrics collection, and
 analytics for the writer operations.
+
+# Depends on:
+#   logging
+#   writer.exceptions
+#   writer.models
+#   writer.query_builder
 """
 
 from __future__ import annotations

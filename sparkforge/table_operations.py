@@ -3,6 +3,10 @@ Table operations utilities for the SparkForge pipeline framework.
 
 This module contains functions for reading, writing, and managing tables
 in the data lake.
+
+# Depends on:
+#   errors
+#   performance
 """
 
 from __future__ import annotations

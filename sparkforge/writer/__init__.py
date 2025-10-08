@@ -115,4 +115,59 @@ __all__ = [
 # Version information
 __version__ = "0.8.0"
 __author__ = "SparkForge Team"
+
+# Depends on:
+#   analytics
+#   core
+#   enums
+#   exceptions
+#   models
+#   monitoring
+#   operations
+#   query_builder
+#   storage
+
+# Depends on:
+#   analytics
+#   core
+#   enums
+#   exceptions
+#   models
+#   monitoring
+#   operations
+#   query_builder
+#   storage
+
+# Depends on:
+#   analytics
+#   core
+#   enums
+#   exceptions
+#   models
+#   monitoring
+#   operations
+#   query_builder
+#   storage
+
+# Depends on:
+#   analytics
+#   core
+#   exceptions
+#   models
+#   models.enums
+#   monitoring
+#   operations
+#   query_builder
+#   storage
+
+# Depends on:
+#   analytics
+#   core
+#   exceptions
+#   models
+#   models.enums
+#   monitoring
+#   operations
+#   query_builder
+#   storage
 __description__ = "Modular log writer for SparkForge pipeline execution results"

@@ -3,6 +3,9 @@ Pipeline models and data structures for SparkForge.
 
 This module defines the core data structures used throughout the pipeline system,
 providing a clean separation of concerns and better type safety.
+
+# Depends on:
+#   models.pipeline
 """
 
 from __future__ import annotations

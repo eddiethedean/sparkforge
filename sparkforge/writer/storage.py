@@ -3,6 +3,12 @@ Writer storage module for Delta Lake and table operations.
 
 This module handles all storage-related operations including Delta Lake
 integration, table management, and data persistence.
+
+# Depends on:
+#   logging
+#   table_operations
+#   writer.exceptions
+#   writer.models
 """
 
 from __future__ import annotations

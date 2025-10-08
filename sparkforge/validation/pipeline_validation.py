@@ -3,6 +3,12 @@ Pipeline validation functions for SparkForge.
 
 This module provides functions and classes for validating pipeline configurations,
 step dependencies, and overall pipeline structure.
+
+# Depends on:
+#   logging
+#   models.execution
+#   models.pipeline
+#   models.steps
 """
 
 from __future__ import annotations

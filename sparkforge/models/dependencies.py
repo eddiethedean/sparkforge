@@ -1,5 +1,9 @@
 """
 Dependency models for the Pipeline Builder.
+
+# Depends on:
+#   errors
+#   models.base
 """
 
 from __future__ import annotations

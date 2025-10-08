@@ -1,5 +1,11 @@
 """
 Execution models for the Pipeline Builder.
+
+# Depends on:
+#   models.base
+#   models.enums
+#   models.exceptions
+#   models.pipeline
 """
 
 from __future__ import annotations

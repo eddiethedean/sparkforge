@@ -4,6 +4,20 @@ Simplified PipelineBuilder for SparkForge.
 This module provides a clean, maintainable PipelineBuilder that handles
 pipeline construction with the Medallion Architecture (Bronze → Silver → Gold).
 The builder creates pipelines that can be executed with the simplified execution engine.
+
+# Depends on:
+#   dependencies.analyzer
+#   errors
+#   execution
+#   functions
+#   logging
+#   models.base
+#   models.pipeline
+#   models.steps
+#   pipeline.runner
+#   types
+#   validation.data_validation
+#   validation.pipeline_validation
 """
 
 from __future__ import annotations

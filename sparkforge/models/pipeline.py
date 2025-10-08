@@ -1,5 +1,9 @@
 """
 Pipeline configuration models.
+
+# Depends on:
+#   errors
+#   models.base
 """
 
 from __future__ import annotations

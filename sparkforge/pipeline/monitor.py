@@ -2,6 +2,11 @@
 Simplified pipeline monitoring for SparkForge.
 
 This module provides basic monitoring and reporting for pipeline execution.
+
+# Depends on:
+#   logging
+#   models.pipeline
+#   pipeline.models
 """
 
 from __future__ import annotations

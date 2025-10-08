@@ -3,6 +3,11 @@ Reporting utilities for the SparkForge pipeline framework.
 
 This module contains functions for creating reports, statistics, and summaries
 for pipeline execution.
+
+# Depends on:
+#   models.execution
+#   performance
+#   validation.utils
 """
 
 from __future__ import annotations

@@ -1,5 +1,10 @@
 """
 Step models for the Pipeline Builder.
+
+# Depends on:
+#   errors
+#   models.base
+#   models.types
 """
 
 from __future__ import annotations

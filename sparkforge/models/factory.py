@@ -1,5 +1,13 @@
 """
 Factory functions for creating and managing pipeline models.
+
+# Depends on:
+#   models.base
+#   models.enums
+#   models.exceptions
+#   models.execution
+#   models.pipeline
+#   models.steps
 """
 
 from __future__ import annotations

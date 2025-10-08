@@ -39,6 +39,14 @@ Example:
     ...     sources={"events": source_df},
     ...     mode=ExecutionMode.INITIAL
     ... )
+
+# Depends on:
+#   errors
+#   logging
+#   models.pipeline
+#   models.steps
+#   table_operations
+#   validation.data_validation
 """
 
 from __future__ import annotations

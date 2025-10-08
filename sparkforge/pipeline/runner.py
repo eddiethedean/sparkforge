@@ -3,6 +3,13 @@ Simplified pipeline runner for SparkForge.
 
 This module provides a clean, focused pipeline runner that delegates
 execution to the simplified execution engine.
+
+# Depends on:
+#   execution
+#   logging
+#   models.pipeline
+#   models.steps
+#   pipeline.models
 """
 
 from __future__ import annotations

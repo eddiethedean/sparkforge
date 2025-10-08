@@ -3,6 +3,11 @@ Writer analytics module for data quality and trend analysis.
 
 This module provides comprehensive analytics capabilities for analyzing
 pipeline execution data, detecting trends, and generating insights.
+
+# Depends on:
+#   logging
+#   writer.exceptions
+#   writer.query_builder
 """
 
 from __future__ import annotations

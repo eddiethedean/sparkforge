@@ -3,6 +3,12 @@ Unified dependency analyzer for SparkForge pipelines.
 
 This module provides a single, consolidated dependency analyzer that replaces
 both DependencyAnalyzer and UnifiedDependencyAnalyzer with a cleaner design.
+
+# Depends on:
+#   dependencies.exceptions
+#   dependencies.graph
+#   logging
+#   models.steps
 """
 
 from __future__ import annotations

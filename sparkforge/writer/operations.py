@@ -3,6 +3,13 @@ Writer operations module for data processing and transformations.
 
 This module contains the core data processing operations for the writer,
 including data transformation, validation, and quality checks.
+
+# Depends on:
+#   logging
+#   models.execution
+#   validation.utils
+#   writer.exceptions
+#   writer.models
 """
 
 from __future__ import annotations

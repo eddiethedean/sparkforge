@@ -4,6 +4,9 @@ Writer-specific models and type definitions.
 This module contains all the dataclasses, TypedDict definitions, and type aliases
 used by the writer module. It integrates with existing SparkForge models while
 providing writer-specific functionality.
+
+# Depends on:
+#   models.execution
 """
 
 from __future__ import annotations

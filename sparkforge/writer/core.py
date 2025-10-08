@@ -3,6 +3,18 @@ Refactored LogWriter implementation with modular architecture.
 
 This module contains the main LogWriter class that orchestrates the various
 writer components for comprehensive logging functionality.
+
+# Depends on:
+#   logging
+#   models.execution
+#   validation.data_validation
+#   validation.utils
+#   writer.analytics
+#   writer.exceptions
+#   writer.models
+#   writer.monitoring
+#   writer.operations
+#   writer.storage
 """
 
 from __future__ import annotations
