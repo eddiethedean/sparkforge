@@ -271,31 +271,31 @@ class TestConvertRuleToExpression:
 
     def test_not_null_rule(self):
         """Test not_null rule conversion."""
-        result = _convert_rule_to_expression("not_null", "test_column")
+        result = _convert_rule_to_expression("not_null", "test_column", F)
         # This should return a Column expression
         assert hasattr(result, "isNotNull")
 
     def test_positive_rule(self):
         """Test positive rule conversion."""
-        result = _convert_rule_to_expression("positive", "test_column")
+        result = _convert_rule_to_expression("positive", "test_column", F)
         # This should return a Column expression
         assert hasattr(result, "__gt__")
 
     def test_non_negative_rule(self):
         """Test non_negative rule conversion."""
-        result = _convert_rule_to_expression("non_negative", "test_column")
+        result = _convert_rule_to_expression("non_negative", "test_column", F)
         # This should return a Column expression
         assert hasattr(result, "__ge__")
 
     def test_non_zero_rule(self):
         """Test non_zero rule conversion."""
-        result = _convert_rule_to_expression("non_zero", "test_column")
+        result = _convert_rule_to_expression("non_zero", "test_column", F)
         # This should return a Column expression
         assert hasattr(result, "__ne__")
 
     def test_custom_expression_rule(self):
         """Test custom expression rule conversion."""
-        result = _convert_rule_to_expression("col('test_column') > 10", "test_column")
+        result = _convert_rule_to_expression("col('test_column') > 10", "test_column", F)
         # This should return a Column expression
         assert hasattr(result, "__gt__")
 
@@ -306,7 +306,7 @@ class TestConvertRulesToExpressions:
     def test_string_rules_conversion(self):
         """Test conversion of string rules."""
         rules = {"col1": ["not_null", "positive"], "col2": ["non_negative"]}
-        result = _convert_rules_to_expressions(rules)
+        result = _convert_rules_to_expressions(rules, F)
 
         assert "col1" in result
         assert "col2" in result
@@ -319,7 +319,7 @@ class TestConvertRulesToExpressions:
             "col1": ["not_null", F.col("col1") > 0],
             "col2": [F.col("col2").isNotNull()],
         }
-        result = _convert_rules_to_expressions(rules)
+        result = _convert_rules_to_expressions(rules, F)
 
         assert "col1" in result
         assert "col2" in result

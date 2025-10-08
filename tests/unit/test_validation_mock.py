@@ -210,7 +210,7 @@ class TestApplyColumnRules:
         """Test basic column validation."""
         rules = {"user_id": ["not_null"]}
         valid_df, invalid_df, stats = apply_column_rules(
-            sample_dataframe, rules, "bronze", "test", mock_functions
+            sample_dataframe, rules, "bronze", "test", functions=mock_functions
         )
         assert valid_df is not None
         assert invalid_df is not None
@@ -221,7 +221,7 @@ class TestApplyColumnRules:
         """Test multiple column validation."""
         rules = {"user_id": ["not_null"], "age": ["positive"]}
         valid_df, invalid_df, stats = apply_column_rules(
-            sample_dataframe, rules, "bronze", "test", mock_functions
+            sample_dataframe, rules, "bronze", "test", functions=mock_functions
         )
         assert valid_df is not None
         assert invalid_df is not None

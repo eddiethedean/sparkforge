@@ -39,7 +39,7 @@ class TestValidationEdgeCases:
     def test_convert_rule_to_expression_string_handling(self) -> None:
         """Test _convert_rule_to_expression with string rules."""
         # Test with string rule
-        result = _convert_rule_to_expression("col1 > 0", "col1")
+        result = _convert_rule_to_expression("col1 > 0", "col1", F)
         # Check for Column-like object (works with both PySpark and mock-spark)
         assert hasattr(result, "__and__") and hasattr(result, "__invert__")
 
@@ -166,13 +166,13 @@ class TestValidationEdgeCases:
             "col3": [None, "invalid"],
         }
 
-        result = _convert_rules_to_expressions(rules)
+        result = _convert_rules_to_expressions(rules, F)
         assert isinstance(result, dict)
 
     def test_convert_rule_to_expression_edge_cases(self) -> None:
         """Test _convert_rule_to_expression with edge cases."""
         # Test with valid string expressions
-        result = _convert_rule_to_expression("col1 > 0", "col1")
+        result = _convert_rule_to_expression("col1 > 0", "col1", F)
         # Check for Column-like object (works with both PySpark and mock-spark)
         assert hasattr(result, "__and__") and hasattr(result, "__invert__")
 
@@ -203,7 +203,7 @@ class TestValidationEdgeCases:
         ]
 
         for rule in test_cases:
-            result = _convert_rule_to_expression(rule, "col1")
+            result = _convert_rule_to_expression(rule, "col1", F)
             # Check for Column-like object (works with both PySpark and mock-spark)
             assert hasattr(result, "__and__") and hasattr(result, "__invert__")
 
