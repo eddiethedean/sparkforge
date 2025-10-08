@@ -64,6 +64,44 @@ def _create_mock_spark_session():
     # Create mock Spark session
     spark = MockSparkSession(f"SparkForgeTests-{os.getpid()}")
     
+    # Monkey-patch createDataFrame to handle tuples when schema is provided
+    original_createDataFrame = spark.createDataFrame
+    
+    def createDataFrame_wrapper(data, schema=None, **kwargs):
+        """Wrapper to convert tuples to dicts when schema is provided."""
+        if schema is not None and data and isinstance(data, list) and len(data) > 0:
+            # Check if data contains tuples
+            if isinstance(data[0], tuple):
+                # Get column names from schema
+                if hasattr(schema, 'fieldNames'):
+                    # Real PySpark StructType
+                    column_names = schema.fieldNames()
+                elif hasattr(schema, 'names'):
+                    # Mock StructType might have names attribute
+                    column_names = schema.names
+                elif hasattr(schema, 'fields'):
+                    # Extract names from fields
+                    column_names = [field.name for field in schema.fields]
+                elif isinstance(schema, list):
+                    # Schema is a list of column names (string schema)
+                    column_names = schema
+                else:
+                    # Can't determine column names, pass through
+                    if schema is None:
+                        return original_createDataFrame(data)
+                    else:
+                        return original_createDataFrame(data, schema)
+                
+                # Convert tuples to dictionaries
+                data = [dict(zip(column_names, row)) for row in data]
+        
+        if schema is None:
+            return original_createDataFrame(data)
+        else:
+            return original_createDataFrame(data, schema)
+    
+    spark.createDataFrame = createDataFrame_wrapper
+    
     # Create test database
     try:
         spark.catalog.createDatabase("test_schema")
@@ -189,10 +227,10 @@ def _create_real_spark_session():
     return spark
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def spark_session():
     """
-    Create a shared Spark session for testing.
+    Create a Spark session for testing (function-scoped for test isolation).
 
     This fixture creates either a mock Spark session or a real Spark session
     based on the SPARK_MODE environment variable:
@@ -231,7 +269,21 @@ def spark_session():
             if spark:
                 spark.stop()
         else:
-            # Mock Spark cleanup (no explicit cleanup needed)
+            # Mock Spark cleanup
+            if spark and hasattr(spark, 'storage'):
+                # Clear all schemas except system ones
+                schemas = list(spark.storage.schemas.keys()) if hasattr(spark.storage, 'schemas') else []
+                for schema_name in schemas:
+                    if schema_name not in ['default', 'information_schema']:
+                        try:
+                            spark.storage.drop_schema(schema_name, cascade=True)
+                        except:
+                            pass
+            
+            # Stop the session
+            if spark and hasattr(spark, 'stop'):
+                spark.stop()
+            
             print("🧹 Mock Spark session cleanup completed")
     except Exception as e:
         print(f"Warning: Could not clean up test database: {e}")
@@ -278,6 +330,39 @@ def isolated_spark_session():
         from mock_spark import MockSparkSession
         spark = MockSparkSession(f"SparkForgeTests-{os.getpid()}-{unique_id}")
         
+        # Monkey-patch createDataFrame to handle tuples when schema is provided
+        original_createDataFrame = spark.createDataFrame
+        
+        def createDataFrame_wrapper(data, schema=None, **kwargs):
+            """Wrapper to convert tuples to dicts when schema is provided."""
+            if schema is not None and data and isinstance(data, list) and len(data) > 0:
+                # Check if data contains tuples
+                if isinstance(data[0], tuple):
+                    # Get column names from schema
+                    if hasattr(schema, 'fieldNames'):
+                        column_names = schema.fieldNames()
+                    elif hasattr(schema, 'names'):
+                        column_names = schema.names
+                    elif hasattr(schema, 'fields'):
+                        column_names = [field.name for field in schema.fields]
+                    elif isinstance(schema, list):
+                        column_names = schema
+                    else:
+                        if schema is None:
+                            return original_createDataFrame(data)
+                        else:
+                            return original_createDataFrame(data, schema)
+                    
+                    # Convert tuples to dictionaries
+                    data = [dict(zip(column_names, row)) for row in data]
+            
+            if schema is None:
+                return original_createDataFrame(data)
+            else:
+                return original_createDataFrame(data, schema)
+        
+        spark.createDataFrame = createDataFrame_wrapper
+        
         # Create isolated test database
         try:
             spark.catalog.createDatabase(schema_name)
@@ -307,7 +392,91 @@ def mock_spark_session():
         pytest.skip("Mock Spark session not available in real Spark mode")
     
     from mock_spark import MockSparkSession
-    return MockSparkSession(f"TestApp-{os.getpid()}")
+    spark = MockSparkSession(f"TestApp-{os.getpid()}")
+    
+    # Monkey-patch createDataFrame to handle tuples when schema is provided
+    original_createDataFrame = spark.createDataFrame
+    
+    def createDataFrame_wrapper(data, schema=None, **kwargs):
+        """Wrapper to convert tuples to dicts when schema is provided."""
+        if schema is not None and data and isinstance(data, list) and len(data) > 0:
+            # Check if data contains tuples
+            if isinstance(data[0], tuple):
+                # Get column names from schema
+                if hasattr(schema, 'fieldNames'):
+                    column_names = schema.fieldNames()
+                elif hasattr(schema, 'names'):
+                    column_names = schema.names
+                elif hasattr(schema, 'fields'):
+                    column_names = [field.name for field in schema.fields]
+                elif isinstance(schema, list):
+                    column_names = schema
+                else:
+                    if schema is None:
+                        return original_createDataFrame(data)
+                    else:
+                        return original_createDataFrame(data, schema)
+                
+                # Convert tuples to dictionaries
+                data = [dict(zip(column_names, row)) for row in data]
+        
+        if schema is None:
+            return original_createDataFrame(data)
+        else:
+            return original_createDataFrame(data, schema)
+    
+    spark.createDataFrame = createDataFrame_wrapper
+    
+    yield spark
+    
+    # Cleanup: Aggressively clear all mock-spark state
+    try:
+        if hasattr(spark, 'storage') and spark.storage is not None:
+            # Clear all non-system schemas
+            try:
+                schemas_to_drop = []
+                if hasattr(spark.storage, 'schemas'):
+                    for schema_name in list(spark.storage.schemas.keys()):
+                        if schema_name not in ['default', 'information_schema', 'main']:
+                            schemas_to_drop.append(schema_name)
+                
+                for schema_name in schemas_to_drop:
+                    try:
+                        spark.storage.drop_schema(schema_name, cascade=True)
+                    except Exception:
+                        pass
+                
+                # Also try to clear tables from default schema
+                try:
+                    if 'default' in spark.storage.schemas:
+                        default_schema = spark.storage.schemas['default']
+                        if hasattr(default_schema, 'tables'):
+                            tables_to_drop = list(default_schema.tables.keys())
+                            for table_name in tables_to_drop:
+                                try:
+                                    spark.storage.drop_table('default', table_name)
+                                except Exception:
+                                    pass
+                except Exception:
+                    pass
+            except Exception:
+                pass
+        
+        # Clear catalog cache
+        if hasattr(spark, 'catalog'):
+            try:
+                spark.catalog.clearCache()
+            except:
+                pass
+        
+        # Stop the session
+        if hasattr(spark, 'stop'):
+            try:
+                spark.stop()
+            except:
+                pass
+    except Exception:
+        pass
 
 
 @pytest.fixture(scope="function")
@@ -450,6 +619,26 @@ def empty_dataframe(spark_session):
 
 
 @pytest.fixture(scope="function")
+def large_dataset():
+    """
+    Create a large dataset for testing.
+    
+    This fixture creates a list of dictionaries representing a large dataset
+    for testing pipeline performance and data handling.
+    """
+    # Create 1000 rows of test data
+    return [
+        {
+            "id": i,
+            "name": f"name_{i}",
+            "value": float(i * 1.5),
+            "category": f"category_{i % 10}",
+        }
+        for i in range(1, 1001)
+    ]
+
+
+@pytest.fixture(scope="function")
 def test_warehouse_dir():
     """
     Create a temporary warehouse directory for testing.
@@ -464,6 +653,22 @@ def test_warehouse_dir():
     # Cleanup
     if os.path.exists(warehouse_dir):
         shutil.rmtree(warehouse_dir, ignore_errors=True)
+
+
+@pytest.fixture(scope="function")
+def test_config():
+    """
+    Provide test configuration for pipeline tests.
+    
+    Returns a PipelineConfig object for testing.
+    """
+    from sparkforge.models import PipelineConfig, ValidationThresholds, ParallelConfig
+    
+    return PipelineConfig(
+        schema="test_schema",
+        thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
+        parallel=ParallelConfig(enabled=False, max_workers=1)
+    )
 
 
 @pytest.fixture(scope="function", autouse=True)

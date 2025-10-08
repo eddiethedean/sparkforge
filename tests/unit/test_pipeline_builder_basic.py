@@ -196,27 +196,27 @@ class TestHelperMethods:
             schema="test_schema"
         )
         
-        # Mock the sql method
-        spark_session.sql = MagicMock(return_value=None)
+        # Create a new schema
+        builder._create_schema_if_not_exists("new_schema_basic_test")
         
-        # Should not raise exception
-        builder._create_schema_if_not_exists("new_schema")
-        
-        # Verify sql was called
-        spark_session.sql.assert_called_once_with("CREATE SCHEMA IF NOT EXISTS new_schema")
+        # Verify schema was created by listing databases
+        dbs = spark_session.catalog.listDatabases()
+        db_names = [db.name for db in dbs]
+        assert "new_schema_basic_test" in db_names
 
     def test_create_schema_if_not_exists_failure(self, spark_session):
         """Test _create_schema_if_not_exists with failure."""
+        from unittest.mock import patch
+        
         builder = PipelineBuilder(
             spark=spark_session,
             schema="test_schema"
         )
         
-        # Mock the sql method to raise exception
-        spark_session.sql = MagicMock(side_effect=Exception("Permission denied"))
-        
-        with pytest.raises(ExecutionError):
-            builder._create_schema_if_not_exists("new_schema")
+        # Patch the catalog.createDatabase method to raise exception
+        with patch.object(spark_session.catalog, 'createDatabase', side_effect=Exception("Permission denied")):
+            with pytest.raises(ExecutionError):
+                builder._create_schema_if_not_exists("new_schema")
 
 
 class TestClassMethods:

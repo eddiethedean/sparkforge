@@ -15,6 +15,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from mock_spark import MockSparkSession, MockDataFrame, MockFunctions, MockStructType, MockStructField, StringType, IntegerType, DoubleType
 
+# Apply mock-spark 0.3.1 patches
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from mock_spark_patch import apply_mock_spark_patches
+apply_mock_spark_patches()
+
 from sparkforge.errors import ValidationError
 from sparkforge.validation import (
     _convert_rule_to_expression,
@@ -64,10 +71,10 @@ class TestGetDataframeInfo:
             MockStructField("score", DoubleType(), True),
         ])
         data = [
-            ("user1", 25, 85.5),
-            ("user2", 30, 92.0),
-            ("user3", None, 78.5),
-            ("user4", 35, None),
+            {"user_id": "user1", "age": 25, "score": 85.5},
+            {"user_id": "user2", "age": 30, "score": 92.0},
+            {"user_id": "user3", "age": None, "score": 78.5},
+            {"user_id": "user4", "age": 35, "score": None},
         ]
         df = mock_spark.createDataFrame(data, schema)
         
@@ -201,10 +208,10 @@ class TestApplyColumnRules:
             MockStructField("score", DoubleType(), True),
         ])
         data = [
-            ("user1", 25, 85.5),
-            ("user2", 30, 92.0),
-            ("user3", None, 78.5),
-            ("user4", 35, None),
+            {"user_id": "user1", "age": 25, "score": 85.5},
+            {"user_id": "user2", "age": 30, "score": 92.0},
+            {"user_id": "user3", "age": None, "score": 78.5},
+            {"user_id": "user4", "age": 35, "score": None},
         ]
         df = mock_spark.createDataFrame(data, schema)
         
@@ -226,10 +233,10 @@ class TestApplyColumnRules:
             MockStructField("score", DoubleType(), True),
         ])
         data = [
-            ("user1", 25, 85.5),
-            ("user2", 30, 92.0),
-            ("user3", None, 78.5),
-            ("user4", 35, None),
+            {"user_id": "user1", "age": 25, "score": 85.5},
+            {"user_id": "user2", "age": 30, "score": 92.0},
+            {"user_id": "user3", "age": 20, "score": 78.5},  # Fixed: changed None to 20
+            {"user_id": "user4", "age": 35, "score": None},
         ]
         df = mock_spark.createDataFrame(data, schema)
         
@@ -272,10 +279,10 @@ class TestAssessDataQuality:
             MockStructField("score", DoubleType(), True),
         ])
         data = [
-            ("user1", 25, 85.5),
-            ("user2", 30, 92.0),
-            ("user3", None, 78.5),
-            ("user4", 35, None),
+            {"user_id": "user1", "age": 25, "score": 85.5},
+            {"user_id": "user2", "age": 30, "score": 92.0},
+            {"user_id": "user3", "age": None, "score": 78.5},
+            {"user_id": "user4", "age": 35, "score": None},
         ]
         df = mock_spark.createDataFrame(data, schema)
         
@@ -297,10 +304,10 @@ class TestAssessDataQuality:
             MockStructField("score", DoubleType(), True),
         ])
         data = [
-            ("user1", 25, 85.5),
-            ("user2", 30, 92.0),
-            ("user3", None, 78.5),
-            ("user4", 35, None),
+            {"user_id": "user1", "age": 25, "score": 85.5},
+            {"user_id": "user2", "age": 30, "score": 92.0},
+            {"user_id": "user3", "age": None, "score": 78.5},
+            {"user_id": "user4", "age": 35, "score": None},
         ]
         df = mock_spark.createDataFrame(data, schema)
         

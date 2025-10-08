@@ -11,7 +11,7 @@ from sparkforge.models import ExecutionResult, StepResult, PipelinePhase, Execut
 from sparkforge.logging import PipelineLogger
 from sparkforge.writer.exceptions import WriterConfigurationError, WriterError
 from mock_spark import MockSparkSession
-from mock_spark.types import MockStructType, MockStructField, StringType, IntegerType, DoubleType, TimestampType
+from mock_spark import MockStructType, MockStructField, StringType, IntegerType, DoubleType, TimestampType
 from mock_spark.functions import F
 
 
@@ -182,7 +182,7 @@ class TestWriterComprehensive:
         with pytest.raises(WriterConfigurationError):
             LogWriter(spark=mock_spark_session, config=config)
     
-    @patch('sparkforge.writer.storage.current_timestamp', F.current_timestamp)
+    # No patch needed - F.current_timestamp works directly with mock-spark
     def test_write_execution_result(self, mock_spark_session):
         """Test writing execution result."""
         # Create config and writer
@@ -243,7 +243,7 @@ class TestWriterComprehensive:
         assert writer.metrics["total_writes"] == 1
         assert writer.metrics["successful_writes"] == 1
     
-    @patch('sparkforge.writer.storage.current_timestamp', F.current_timestamp)
+    # No patch needed - F.current_timestamp works directly with mock-spark
     def test_write_execution_result_with_metadata(self, mock_spark_session):
         """Test writing execution result with metadata."""
         config = WriterConfig(
@@ -267,7 +267,7 @@ class TestWriterComprehensive:
         assert isinstance(result, dict)
         assert writer.metrics["total_writes"] == 1
     
-    @patch('sparkforge.writer.storage.current_timestamp', F.current_timestamp)
+    # No patch needed - F.current_timestamp works directly with mock-spark
     def test_write_step_results(self, mock_spark_session):
         """Test writing step results."""
         config = WriterConfig(
@@ -309,7 +309,7 @@ class TestWriterComprehensive:
         assert isinstance(result, dict)
         assert writer.metrics["total_writes"] == 1
     
-    @patch('sparkforge.writer.storage.current_timestamp', F.current_timestamp)
+    # No patch needed - F.current_timestamp works directly with mock-spark
     def test_write_log_rows(self, mock_spark_session):
         """Test writing log rows directly."""
         config = WriterConfig(
@@ -358,7 +358,7 @@ class TestWriterComprehensive:
         assert isinstance(result, dict)
         assert writer.metrics["total_writes"] == 1
     
-    @patch('sparkforge.writer.storage.current_timestamp', F.current_timestamp)
+    # No patch needed - F.current_timestamp works directly with mock-spark
     def test_write_execution_result_batch(self, mock_spark_session):
         """Test writing multiple execution results in batch."""
         config = WriterConfig(
@@ -380,7 +380,7 @@ class TestWriterComprehensive:
         assert isinstance(result, dict)
         assert writer.metrics["total_writes"] == 1  # Batch write counts as one write
     
-    @patch('sparkforge.writer.storage.current_timestamp', F.current_timestamp)
+    # No patch needed - F.current_timestamp works directly with mock-spark
     def test_writer_metrics_tracking(self, mock_spark_session):
         """Test that writer metrics are properly tracked."""
         config = WriterConfig(
@@ -412,7 +412,7 @@ class TestWriterComprehensive:
         assert writer.metrics["total_duration_secs"] >= 0  # Duration might be 0 for very fast operations
         assert writer.metrics["avg_write_duration_secs"] >= 0  # Duration might be 0 for very fast operations
     
-    @patch('sparkforge.writer.storage.current_timestamp', F.current_timestamp)
+    # No patch needed - F.current_timestamp works directly with mock-spark
     def test_writer_with_different_write_modes(self, mock_spark_session):
         """Test writer with different write modes."""
         # Test APPEND mode
@@ -441,7 +441,7 @@ class TestWriterComprehensive:
         result_overwrite = writer_overwrite.write_execution_result(execution_result)
         assert isinstance(result_overwrite, dict)
     
-    @patch('sparkforge.writer.storage.current_timestamp', F.current_timestamp)
+    # No patch needed - F.current_timestamp works directly with mock-spark
     def test_writer_with_different_log_levels(self, mock_spark_session):
         """Test writer with different log levels."""
         log_levels = [LogLevel.DEBUG, LogLevel.INFO, LogLevel.WARNING, LogLevel.ERROR, LogLevel.CRITICAL]
@@ -460,7 +460,7 @@ class TestWriterComprehensive:
             result = writer.write_execution_result(execution_result)
             assert isinstance(result, dict)
     
-    @patch('sparkforge.writer.storage.current_timestamp', F.current_timestamp)
+    # No patch needed - F.current_timestamp works directly with mock-spark
     def test_writer_with_custom_batch_size(self, mock_spark_session):
         """Test writer with custom batch size."""
         config = WriterConfig(
@@ -479,7 +479,7 @@ class TestWriterComprehensive:
         result = writer.write_execution_result(execution_result)
         assert isinstance(result, dict)
     
-    @patch('sparkforge.writer.storage.current_timestamp', F.current_timestamp)
+    # No patch needed - F.current_timestamp works directly with mock-spark
     def test_writer_with_compression_settings(self, mock_spark_session):
         """Test writer with different compression settings."""
         compression_options = ["snappy", "gzip", "lz4", "zstd"]
@@ -501,7 +501,7 @@ class TestWriterComprehensive:
             result = writer.write_execution_result(execution_result)
             assert isinstance(result, dict)
     
-    @patch('sparkforge.writer.storage.current_timestamp', F.current_timestamp)
+    # No patch needed - F.current_timestamp works directly with mock-spark
     def test_writer_with_partition_settings(self, mock_spark_session):
         """Test writer with partition settings."""
         config = WriterConfig(
@@ -522,7 +522,7 @@ class TestWriterComprehensive:
         result = writer.write_execution_result(execution_result)
         assert isinstance(result, dict)
     
-    @patch('sparkforge.writer.storage.current_timestamp', F.current_timestamp)
+    # No patch needed - F.current_timestamp works directly with mock-spark
     def test_writer_schema_evolution_settings(self, mock_spark_session):
         """Test writer with schema evolution settings."""
         config = WriterConfig(

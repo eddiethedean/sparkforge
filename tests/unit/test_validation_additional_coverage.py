@@ -15,10 +15,11 @@ import os
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
     from mock_spark import functions as F
     from mock_spark import MockDataFrame as DataFrame
+    from mock_spark.functions import col
 else:
     from pyspark.sql import functions as F
     from pyspark.sql import DataFrame
-from pyspark.sql.functions import Column, col
+    from pyspark.sql.functions import col
 
 from sparkforge.validation import (
     _convert_rule_to_expression,
@@ -39,7 +40,8 @@ class TestValidationEdgeCases:
         """Test _convert_rule_to_expression with string rules."""
         # Test with string rule
         result = _convert_rule_to_expression("col1 > 0", "col1")
-        assert isinstance(result, Column)
+        # Check for Column-like object (works with both PySpark and mock-spark)
+        assert hasattr(result, '__and__') and hasattr(result, '__invert__')
 
     def test_and_all_rules_empty_expressions(self) -> None:
         """Test and_all_rules with empty expressions."""
@@ -171,21 +173,24 @@ class TestValidationEdgeCases:
         """Test _convert_rule_to_expression with edge cases."""
         # Test with valid string expressions
         result = _convert_rule_to_expression("col1 > 0", "col1")
-        assert isinstance(result, Column)
+        # Check for Column-like object (works with both PySpark and mock-spark)
+        assert hasattr(result, '__and__') and hasattr(result, '__invert__')
 
     def test_and_all_rules_single_expression(self) -> None:
         """Test and_all_rules with single expression."""
         # Test with single valid expression
         rules = {"col1": ["col1 > 0"]}
         result = and_all_rules(rules)
-        assert isinstance(result, Column)
+        # Check for Column-like object (works with both PySpark and mock-spark)
+        assert hasattr(result, '__and__') and hasattr(result, '__invert__')
 
     def test_and_all_rules_multiple_expressions(self) -> None:
         """Test and_all_rules with multiple expressions."""
         # Test with multiple expressions
         rules = {"col1": ["col1 > 0"], "col2": ["col2 IS NOT NULL"]}
         result = and_all_rules(rules)
-        assert isinstance(result, Column)
+        # Check for Column-like object (works with both PySpark and mock-spark)
+        assert hasattr(result, '__and__') and hasattr(result, '__invert__')
 
     def test_string_rule_conversion_edge_cases(self) -> None:
         """Test string rule conversion edge cases."""
@@ -199,7 +204,8 @@ class TestValidationEdgeCases:
 
         for rule in test_cases:
             result = _convert_rule_to_expression(rule, "col1")
-            assert isinstance(result, Column)
+            # Check for Column-like object (works with both PySpark and mock-spark)
+            assert hasattr(result, '__and__') and hasattr(result, '__invert__')
 
     def test_validation_error_handling(self) -> None:
         """Test validation error handling paths."""

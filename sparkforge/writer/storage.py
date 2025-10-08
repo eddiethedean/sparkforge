@@ -9,10 +9,16 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, Dict, List
+import os
 
 from delta.tables import DeltaTable
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.functions import col, current_timestamp, desc, lit
+
+# Use mock functions when in mock mode
+if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+    from mock_spark import functions as F
+else:
+    from pyspark.sql import functions as F
 
 from ..logging import PipelineLogger
 from ..table_operations import table_exists
@@ -340,12 +346,12 @@ class StorageManager:
             if filters:
                 for column, value in filters.items():
                     if isinstance(value, str):
-                        result_df = result_df.filter(col(column) == lit(value))
+                        result_df = result_df.filter(F.col(column) == F.lit(value))
                     else:
-                        result_df = result_df.filter(col(column) == value)
+                        result_df = result_df.filter(F.col(column) == value)
 
             # Add ordering using PySpark functions
-            result_df = result_df.orderBy(desc("created_at"))
+            result_df = result_df.orderBy(F.desc("created_at"))
 
             # Apply limit if specified
             if limit:
@@ -371,11 +377,17 @@ class StorageManager:
         """Prepare DataFrame for writing to Delta table."""
         try:
             # Add metadata columns if not present
+            # For mock-spark, use lit() with string timestamp to avoid issues
+            import os
+            from datetime import datetime
+            
+            current_time_str = datetime.now().isoformat()
+            
             if "created_at" not in df.columns:
-                df = df.withColumn("created_at", current_timestamp())
+                df = df.withColumn("created_at", F.lit(current_time_str))
 
             if "updated_at" not in df.columns:
-                df = df.withColumn("updated_at", current_timestamp())
+                df = df.withColumn("updated_at", F.lit(current_time_str))
 
             return df
 
@@ -387,6 +399,9 @@ class StorageManager:
         """Create DataFrame from log rows."""
         try:
             # Convert log rows to dictionaries
+            from datetime import datetime
+            current_time_str = datetime.now().isoformat()
+            
             log_data = []
             for row in log_rows:
                 row_dict = {
@@ -417,12 +432,13 @@ class StorageManager:
                     "memory_usage_mb": row["memory_usage_mb"],
                     "cpu_usage_percent": row["cpu_usage_percent"],
                     "metadata": row["metadata"],
-                    "created_at": current_timestamp(),
+                    "created_at": current_time_str,  # Include timestamp directly as string
                 }
                 log_data.append(row_dict)
 
             # Create DataFrame
-            return self.spark.createDataFrame(log_data)  # type: ignore[type-var]
+            df = self.spark.createDataFrame(log_data)  # type: ignore[type-var]
+            return df
 
         except Exception as e:
             self.logger.error(f"Failed to create DataFrame from log rows: {e}")

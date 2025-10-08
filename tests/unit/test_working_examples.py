@@ -248,7 +248,7 @@ class TestWorkingExamples:
         """Test integration with mock Spark session."""
         # Test basic DataFrame operations
         assert sample_dataframe.count() > 0
-        assert len(sample_dataframe.columns()) > 0
+        assert len(sample_dataframe.columns) > 0
         
         # Test schema operations
         mock_spark_session.storage.create_schema("test_schema")

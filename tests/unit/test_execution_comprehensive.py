@@ -27,7 +27,7 @@ from sparkforge.models import (
 from sparkforge.errors import ExecutionError
 from sparkforge.logging import PipelineLogger
 from mock_spark import MockSparkSession, MockDataFrame
-from mock_spark.types import MockStructType, MockStructField, StringType, IntegerType
+from mock_spark import MockStructType, MockStructField, StringType, IntegerType
 
 
 class TestExecutionMode:

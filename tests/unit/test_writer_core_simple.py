@@ -72,7 +72,7 @@ class TestWriterCoreSimple:
     
     def test_table_exists_function(self, spark_session):
         """Test table_exists function."""
-        from mock_spark.types import MockStructType, MockStructField, StringType, IntegerType
+        from mock_spark import MockStructType, MockStructField, StringType, IntegerType
         
         # Create schema and table
         spark_session.storage.create_schema("test_schema")

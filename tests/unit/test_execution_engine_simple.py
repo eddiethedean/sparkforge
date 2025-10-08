@@ -139,7 +139,7 @@ class TestExecutionEngineSimple:
         engine = ExecutionEngine(spark=spark_session, config=config)
         
         # Create empty DataFrame
-        from mock_spark.types import MockStructType, MockStructField, StringType, IntegerType
+        from mock_spark import MockStructType, MockStructField, StringType, IntegerType
         schema = MockStructType([
             MockStructField("id", IntegerType()),
             MockStructField("name", StringType())

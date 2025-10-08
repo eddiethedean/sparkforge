@@ -36,23 +36,42 @@ from sparkforge.validation import (
 # Using shared spark_session fixture from conftest.py
 
 
-@pytest.fixture
+@pytest.fixture(scope="function", autouse=True)
+def reset_test_environment():
+    """Reset test environment before each test in this file."""
+    import gc
+    # Force garbage collection to clear any lingering references
+    gc.collect()
+    yield
+    # Cleanup after test
+    gc.collect()
+
+
+@pytest.fixture(scope="function")
 def sample_dataframe(spark_session):
-    """Create sample DataFrame for testing."""
-    schema = StructType(
+    """Create sample DataFrame for testing - validation test specific (4 rows, no category)."""
+    from mock_spark import MockStructType, MockStructField
+    from pyspark.sql.types import StringType, IntegerType, DoubleType
+    
+    # Force using MockStructType for consistency
+    schema = MockStructType(
         [
-            StructField("user_id", StringType(), True),
-            StructField("age", IntegerType(), True),
-            StructField("score", DoubleType(), True),
+            MockStructField("user_id", StringType(), True),
+            MockStructField("age", IntegerType(), True),
+            MockStructField("score", DoubleType(), True),
         ]
     )
+    # Use dict format explicitly for mock-spark
     data = [
-        ("user1", 25, 85.5),
-        ("user2", 30, 92.0),
-        ("user3", None, 78.5),
-        ("user4", 35, None),
+        {"user_id": "user1", "age": 25, "score": 85.5},
+        {"user_id": "user2", "age": 30, "score": 92.0},
+        {"user_id": "user3", "age": None, "score": 78.5},
+        {"user_id": "user4", "age": 35, "score": None},
     ]
-    return spark_session.createDataFrame(data, schema)
+    df = spark_session.createDataFrame(data, schema)
+    # Verify we have exactly 4 rows
+    assert df.count() == 4, f"Expected 4 rows, got {df.count()}"
+    return df
 
 
 class TestAndAllRules:

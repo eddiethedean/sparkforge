@@ -188,9 +188,14 @@ class TestStepExecutionFlow:
 
         ExecutionEngine(spark=spark_session, config=config)
 
-        # Create test data
-        test_data = [(1, "test1"), (2, "test2"), (3, "test3")]
-        test_df = spark_session.createDataFrame(test_data, ["id", "name"])
+        # Create test data with explicit schema
+        from mock_spark import MockStructType, MockStructField, IntegerType, StringType
+        schema = MockStructType([
+            MockStructField("id", IntegerType(), True),
+            MockStructField("name", StringType(), True)
+        ])
+        test_data = [{"id": 1, "name": "test1"}, {"id": 2, "name": "test2"}, {"id": 3, "name": "test3"}]
+        test_df = spark_session.createDataFrame(test_data, schema)
 
         # Create execution context
         context = {

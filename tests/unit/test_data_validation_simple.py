@@ -13,30 +13,31 @@ class TestDataValidationSimple:
     
     def test_unified_validator_initialization(self, mock_spark_session):
         """Test unified validator initialization."""
-        validator = UnifiedValidator(spark=mock_spark_session)
-        assert validator.spark == mock_spark_session
+        validator = UnifiedValidator()
+        assert validator is not None
     
     def test_unified_validator_invalid_spark_session(self):
         """Test unified validator with invalid spark session."""
-        with pytest.raises(IllegalArgumentException):
-            UnifiedValidator(spark=None)
+        # UnifiedValidator doesn't require spark parameter
+        validator = UnifiedValidator()
+        assert validator is not None
     
     def test_unified_validator_get_spark(self, mock_spark_session):
         """Test getting spark session from unified validator."""
-        validator = UnifiedValidator(spark=mock_spark_session)
-        assert validator.spark == mock_spark_session
+        validator = UnifiedValidator()
+        # UnifiedValidator doesn't store spark session
+        assert validator is not None
     
     def test_validation_result_creation(self):
         """Test creating ValidationResult."""
         result = ValidationResult(
-            step_name="test_step",
-            passed=True,
+            is_valid=True,
             errors=[],
-            warnings=[]
+            warnings=[],
+            recommendations=[]
         )
         
-        assert result.step_name == "test_step"
-        assert result.passed is True
+        assert result.is_valid is True
         assert len(result.errors) == 0
         assert len(result.warnings) == 0
     
@@ -46,14 +47,13 @@ class TestDataValidationSimple:
         warnings = ["Warning 1"]
         
         result = ValidationResult(
-            step_name="test_step",
-            passed=False,
+            is_valid=False,
             errors=errors,
-            warnings=warnings
+            warnings=warnings,
+            recommendations=[]
         )
         
-        assert result.step_name == "test_step"
-        assert result.passed is False
+        assert result.is_valid is False
         assert len(result.errors) == 2
         assert len(result.warnings) == 1
         assert result.errors[0] == "Error 1"
@@ -62,21 +62,21 @@ class TestDataValidationSimple:
     
     def test_validation_result_enum(self):
         """Test ValidationResult enum values."""
-        assert ValidationResultEnum.PASSED == "PASSED"
-        assert ValidationResultEnum.FAILED == "FAILED"
-        assert ValidationResultEnum.WARNING == "WARNING"
+        assert ValidationResultEnum.PASSED.value == "passed"
+        assert ValidationResultEnum.FAILED.value == "failed"
+        assert ValidationResultEnum.WARNING.value == "warning"
     
     def test_unified_validator_with_sample_data(self, mock_spark_session, sample_dataframe):
         """Test unified validator with sample data."""
-        validator = UnifiedValidator(spark=mock_spark_session)
+        validator = UnifiedValidator()
         
         # Test with sample DataFrame
         assert sample_dataframe.count() > 0
-        assert len(sample_dataframe.columns()) > 0
+        assert len(sample_dataframe.columns) > 0
     
     def test_unified_validator_error_handling(self, mock_spark_session):
         """Test unified validator error handling."""
-        validator = UnifiedValidator(spark=mock_spark_session)
+        validator = UnifiedValidator()
         
         # Test with invalid table name
         with pytest.raises(AnalysisException):
@@ -84,7 +84,7 @@ class TestDataValidationSimple:
     
     def test_unified_validator_metrics_collection(self, mock_spark_session, sample_dataframe):
         """Test unified validator metrics collection."""
-        validator = UnifiedValidator(spark=mock_spark_session)
+        validator = UnifiedValidator()
         
         # Test basic metrics
         start_time = 0.0
@@ -103,14 +103,13 @@ class TestDataValidationSimple:
         ]
         
         result = ValidationResult(
-            step_name="data_validation",
-            passed=False,
+            is_valid=False,
             errors=errors,
-            warnings=["Data quality is below threshold"]
+            warnings=["Data quality is below threshold"],
+            recommendations=[]
         )
         
-        assert result.step_name == "data_validation"
-        assert result.passed is False
+        assert result.is_valid is False
         assert len(result.errors) == 3
         assert len(result.warnings) == 1
         assert "null" in result.errors[0]
@@ -125,14 +124,13 @@ class TestDataValidationSimple:
         ]
         
         result = ValidationResult(
-            step_name="data_validation",
-            passed=True,
+            is_valid=True,
             errors=[],
-            warnings=warnings
+            warnings=warnings,
+            recommendations=[]
         )
         
-        assert result.step_name == "data_validation"
-        assert result.passed is True
+        assert result.is_valid is True
         assert len(result.errors) == 0
         assert len(result.warnings) == 2
         assert "threshold" in result.warnings[0]
@@ -141,13 +139,12 @@ class TestDataValidationSimple:
     def test_validation_result_empty(self):
         """Test empty ValidationResult."""
         result = ValidationResult(
-            step_name="empty_validation",
-            passed=True,
+            is_valid=True,
             errors=[],
-            warnings=[]
+            warnings=[],
+            recommendations=[]
         )
         
-        assert result.step_name == "empty_validation"
-        assert result.passed is True
+        assert result.is_valid is True
         assert len(result.errors) == 0
         assert len(result.warnings) == 0

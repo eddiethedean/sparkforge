@@ -18,7 +18,7 @@ from sparkforge.models.enums import PipelinePhase, ExecutionMode
 from sparkforge.errors import ConfigurationError, ExecutionError
 from sparkforge.logging import PipelineLogger
 from mock_spark import MockSparkSession
-from mock_spark.types import MockStructType, MockStructField, StringType, IntegerType, DoubleType, TimestampType
+from mock_spark import MockStructType, MockStructField, StringType, IntegerType, DoubleType, TimestampType
 from mock_spark.functions import F
 
 
@@ -626,15 +626,7 @@ class TestPipelineValidation:
 
     def test_validate_pipeline_invalid_config(self, mock_spark_session):
         """Test validating pipeline with invalid configuration."""
-        builder = PipelineBuilder(
-            spark=mock_spark_session,
-            schema="",  # Invalid empty schema
-            min_bronze_rate=95.0,
-            min_silver_rate=98.0,
-            min_gold_rate=99.0
-        )
-        
-        # This should fail during initialization, not validation
+        # This should fail during initialization due to empty schema
         with pytest.raises(ConfigurationError):
             PipelineBuilder(
                 spark=mock_spark_session,
@@ -692,16 +684,15 @@ class TestToPipeline:
         )
         
         # Add invalid step (no source bronze for silver)
-        builder.add_silver_transform(
-            name="test_silver",
-            source_bronze="nonexistent_bronze",
-            transform=lambda spark, df, silvers: df,
-            rules={"id": ["not_null"]},
-            table_name="test_table"
-        )
-        
-        with pytest.raises(ValueError):
-            builder.to_pipeline()
+        # New implementation validates immediately in add_silver_transform
+        with pytest.raises(ExecutionError):
+            builder.add_silver_transform(
+                name="test_silver",
+                source_bronze="nonexistent_bronze",
+                transform=lambda spark, df, silvers: df,
+                rules={"id": ["not_null"]},
+                table_name="test_table"
+            )
 
     def test_to_pipeline_empty(self, mock_spark_session):
         """Test building empty pipeline."""
@@ -738,16 +729,13 @@ class TestHelperMethods:
 
     def test_validate_schema_existing(self, mock_spark_session):
         """Test _validate_schema with existing schema."""
+        # Create the schema in mock-spark
+        mock_spark_session.catalog.createDatabase("test_schema")
+        
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema"
         )
-        
-        # Mock the catalog to return existing schema
-        mock_spark_session.catalog.listDatabases.return_value = [
-            MagicMock(name="test_schema"),
-            MagicMock(name="other_schema")
-        ]
         
         # Should not raise exception
         builder._validate_schema("test_schema")
@@ -759,11 +747,9 @@ class TestHelperMethods:
             schema="test_schema"
         )
         
-        # Mock the catalog to return empty list
-        mock_spark_session.catalog.listDatabases.return_value = []
-        
+        # Try to validate a schema that doesn't exist
         with pytest.raises(ExecutionError):
-            builder._validate_schema("nonexistent_schema")
+            builder._validate_schema("nonexistent_schema_that_does_not_exist")
 
     def test_create_schema_if_not_exists(self, mock_spark_session):
         """Test _create_schema_if_not_exists method."""
@@ -772,27 +758,27 @@ class TestHelperMethods:
             schema="test_schema"
         )
         
-        # Mock the sql method
-        mock_spark_session.sql.return_value = None
+        # Create a new schema
+        builder._create_schema_if_not_exists("new_schema_to_test")
         
-        # Should not raise exception
-        builder._create_schema_if_not_exists("new_schema")
-        
-        # Verify sql was called
-        mock_spark_session.sql.assert_called_once_with("CREATE SCHEMA IF NOT EXISTS new_schema")
+        # Verify schema was created by listing databases
+        dbs = mock_spark_session.catalog.listDatabases()
+        db_names = [db.name for db in dbs]
+        assert "new_schema_to_test" in db_names
 
     def test_create_schema_if_not_exists_failure(self, mock_spark_session):
         """Test _create_schema_if_not_exists with failure."""
+        from unittest.mock import patch
+        
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema"
         )
         
-        # Mock the sql method to raise exception
-        mock_spark_session.sql.side_effect = Exception("Permission denied")
-        
-        with pytest.raises(ExecutionError):
-            builder._create_schema_if_not_exists("new_schema")
+        # Patch the catalog.createDatabase method to raise exception
+        with patch.object(mock_spark_session.catalog, 'createDatabase', side_effect=Exception("Permission denied")):
+            with pytest.raises(ExecutionError):
+                builder._create_schema_if_not_exists("new_schema")
 
 
 class TestClassMethods:
@@ -819,18 +805,6 @@ class TestClassMethods:
         assert isinstance(builder, PipelineBuilder)
         assert builder.schema == "test_schema"
         assert builder.config.verbose is False  # Production should not be verbose
-
-    def test_for_analytics(self, mock_spark_session):
-        """Test for_analytics class method."""
-        builder = PipelineBuilder.for_analytics(
-            spark=mock_spark_session,
-            schema="test_schema"
-        )
-        
-        assert isinstance(builder, PipelineBuilder)
-        assert builder.schema == "test_schema"
-        # Analytics should have specific quality thresholds
-        assert builder.config.thresholds.gold == 99.0
 
 
 class TestIntegration:

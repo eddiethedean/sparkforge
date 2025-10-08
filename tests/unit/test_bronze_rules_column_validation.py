@@ -13,13 +13,23 @@ import os
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
     from mock_spark import functions as F
+    from mock_spark import IntegerType, StringType, MockStructField as StructField, MockStructType as StructType
 else:
     from pyspark.sql import functions as F
-from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+    from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
 from sparkforge import PipelineBuilder
 from sparkforge.errors import ValidationError
 from sparkforge.validation import apply_column_rules
+
+
+@pytest.fixture(scope="function", autouse=True)
+def reset_test_environment():
+    """Reset test environment before each test in this file."""
+    import gc
+    gc.collect()
+    yield
+    gc.collect()
 
 
 class TestBronzeRulesColumnValidation:
@@ -56,11 +66,17 @@ class TestBronzeRulesColumnValidation:
 
     def test_existing_columns_validation_success(self, spark_session):
         """Test that validation succeeds when all columns exist."""
-        # Create DataFrame with all required columns
-        df = spark_session.createDataFrame(
-            [("user1", "click", 100, "2024-01-01 10:00:00")],
-            ["user_id", "action", "value", "timestamp"]
-        )
+        # Create DataFrame with all required columns and explicit schema
+        schema = StructType([
+            StructField("user_id", StringType(), True),
+            StructField("action", StringType(), True),
+            StructField("value", IntegerType(), True),
+            StructField("timestamp", StringType(), True),
+        ])
+        data = [
+            {"user_id": "user1", "action": "click", "value": 100, "timestamp": "2024-01-01 10:00:00"}
+        ]
+        df = spark_session.createDataFrame(data, schema)
         
         # Apply rules for columns that exist
         rules = {
@@ -104,12 +120,15 @@ class TestBronzeRulesColumnValidation:
         from sparkforge.execution import ExecutionEngine
         
         # Create sample data with the expected columns
-        sample_data = [("user1", 100, "2024-01-01 10:00:00"), ("user2", 200, "2024-01-01 11:00:00")]
         schema = StructType([
             StructField("user_id", StringType(), True),
             StructField("value", IntegerType(), True),
             StructField("timestamp", StringType(), True),
         ])
+        sample_data = [
+            {"user_id": "user1", "value": 100, "timestamp": "2024-01-01 10:00:00"},
+            {"user_id": "user2", "value": 200, "timestamp": "2024-01-01 11:00:00"}
+        ]
         df = spark_session.createDataFrame(sample_data, schema)
         
         # Create a bronze step with rules for specific columns

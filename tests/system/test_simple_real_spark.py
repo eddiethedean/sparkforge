@@ -4,11 +4,19 @@ Simple tests demonstrating real Spark operations without mocks.
 
 This module shows how to test core functionality using real Spark DataFrames
 and operations instead of mocks.
+
+NOTE: These tests require real Spark and will be skipped in mock mode.
 """
 
 
 import pytest
 import os
+
+# Skip all real Spark tests when running with mock-spark
+pytestmark = pytest.mark.skipif(
+    os.environ.get("SPARK_MODE", "mock").lower() == "mock",
+    reason="Real Spark tests require actual Spark installation"
+)
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":

@@ -31,7 +31,14 @@ from sparkforge.functions import FunctionsProtocol, get_default_functions
 
 # Import mock objects
 from mock_spark import MockSparkSession, MockDataFrame, MockFunctions
-from mock_spark.types import MockStructType, MockStructField, StringType, IntegerType, DoubleType, BooleanType
+from mock_spark import MockStructType, MockStructField, StringType, IntegerType, DoubleType, BooleanType
+
+# Apply mock-spark 0.3.1 patches
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from mock_spark_patch import apply_mock_spark_patches
+apply_mock_spark_patches()
 
 
 class TestValidationWithMockFunctionsSimple:

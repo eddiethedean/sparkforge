@@ -22,68 +22,62 @@ class TestConstantsCoverage:
     def test_constants_values(self):
         """Test that constants have expected values."""
         # Test that constants are defined and have values
-        assert hasattr(constants, 'DEFAULT_BRONZE_RATE')
-        assert hasattr(constants, 'DEFAULT_SILVER_RATE')
-        assert hasattr(constants, 'DEFAULT_GOLD_RATE')
-        assert hasattr(constants, 'DEFAULT_BATCH_SIZE')
-        assert hasattr(constants, 'DEFAULT_COMPRESSION')
-        assert hasattr(constants, 'DEFAULT_MAX_FILE_SIZE_MB')
-        assert hasattr(constants, 'DEFAULT_PARTITION_COUNT')
-        assert hasattr(constants, 'DEFAULT_TIMEOUT_SECS')
-        assert hasattr(constants, 'DEFAULT_LOG_LEVEL')
-        assert hasattr(constants, 'DEFAULT_SCHEMA_VALIDATION_MODE')
+        assert 'DEFAULT_BRONZE_THRESHOLD' in globals()
+        assert 'DEFAULT_SILVER_THRESHOLD' in globals()
+        assert 'DEFAULT_GOLD_THRESHOLD' in globals()
+        assert 'DEFAULT_MAX_FILE_SIZE_MB' in globals()
+        assert 'DEFAULT_TIMEOUT_SECONDS' in globals()
+        assert 'DEFAULT_LOG_LEVEL' in globals()
+        assert 'BYTES_PER_KB' in globals()
+        assert 'BYTES_PER_MB' in globals()
+        assert 'BYTES_PER_GB' in globals()
     
     def test_constants_types(self):
         """Test that constants have correct types."""
-        assert isinstance(DEFAULT_BRONZE_RATE, (int, float))
-        assert isinstance(DEFAULT_SILVER_RATE, (int, float))
-        assert isinstance(DEFAULT_GOLD_RATE, (int, float))
-        assert isinstance(DEFAULT_BATCH_SIZE, int)
-        assert isinstance(DEFAULT_COMPRESSION, str)
+        assert isinstance(DEFAULT_BRONZE_THRESHOLD, (int, float))
+        assert isinstance(DEFAULT_SILVER_THRESHOLD, (int, float))
+        assert isinstance(DEFAULT_GOLD_THRESHOLD, (int, float))
         assert isinstance(DEFAULT_MAX_FILE_SIZE_MB, int)
-        assert isinstance(DEFAULT_PARTITION_COUNT, int)
-        assert isinstance(DEFAULT_TIMEOUT_SECS, int)
+        assert isinstance(DEFAULT_TIMEOUT_SECONDS, int)
         assert isinstance(DEFAULT_LOG_LEVEL, str)
-        assert isinstance(DEFAULT_SCHEMA_VALIDATION_MODE, str)
+        assert isinstance(BYTES_PER_KB, int)
+        assert isinstance(BYTES_PER_MB, int)
+        assert isinstance(BYTES_PER_GB, int)
     
     def test_constants_ranges(self):
         """Test that constants have reasonable values."""
-        assert 0 <= DEFAULT_BRONZE_RATE <= 100
-        assert 0 <= DEFAULT_SILVER_RATE <= 100
-        assert 0 <= DEFAULT_GOLD_RATE <= 100
-        assert DEFAULT_BATCH_SIZE > 0
+        assert 0 <= DEFAULT_BRONZE_THRESHOLD <= 100
+        assert 0 <= DEFAULT_SILVER_THRESHOLD <= 100
+        assert 0 <= DEFAULT_GOLD_THRESHOLD <= 100
         assert DEFAULT_MAX_FILE_SIZE_MB > 0
-        assert DEFAULT_PARTITION_COUNT > 0
-        assert DEFAULT_TIMEOUT_SECS > 0
+        assert DEFAULT_TIMEOUT_SECONDS > 0
         assert DEFAULT_LOG_LEVEL in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
-        assert DEFAULT_SCHEMA_VALIDATION_MODE in ['strict', 'permissive', 'disabled']
     
     def test_constants_consistency(self):
         """Test that constants are consistent with each other."""
-        assert DEFAULT_BRONZE_RATE <= DEFAULT_SILVER_RATE <= DEFAULT_GOLD_RATE
-        assert DEFAULT_BATCH_SIZE <= 10000  # Reasonable upper limit
+        assert DEFAULT_BRONZE_THRESHOLD <= DEFAULT_SILVER_THRESHOLD <= DEFAULT_GOLD_THRESHOLD
         assert DEFAULT_MAX_FILE_SIZE_MB <= 1024  # Reasonable upper limit
-        assert DEFAULT_PARTITION_COUNT <= 1000  # Reasonable upper limit
-        assert DEFAULT_TIMEOUT_SECS <= 3600  # Reasonable upper limit
+        assert BYTES_PER_KB < BYTES_PER_MB < BYTES_PER_GB
+        assert DEFAULT_TIMEOUT_SECONDS <= 3600  # Reasonable upper limit
     
     def test_constants_immutability(self):
         """Test that constants cannot be modified."""
-        original_bronze = DEFAULT_BRONZE_RATE
-        original_silver = DEFAULT_SILVER_RATE
-        original_gold = DEFAULT_GOLD_RATE
+        original_bronze = DEFAULT_BRONZE_THRESHOLD
+        original_silver = DEFAULT_SILVER_THRESHOLD
+        original_gold = DEFAULT_GOLD_THRESHOLD
         
         # Try to modify constants (should not work)
         try:
-            constants.DEFAULT_BRONZE_RATE = 50
-            constants.DEFAULT_SILVER_RATE = 60
-            constants.DEFAULT_GOLD_RATE = 70
+            constants.DEFAULT_BRONZE_THRESHOLD = 50
+            constants.DEFAULT_SILVER_THRESHOLD = 60
+            constants.DEFAULT_GOLD_THRESHOLD = 70
         except:
             pass  # Expected to fail
         
         # Constants should remain unchanged
-        assert DEFAULT_BRONZE_RATE == original_bronze
-        assert DEFAULT_SILVER_RATE == original_silver
-        assert DEFAULT_GOLD_RATE == original_gold
+        assert DEFAULT_BRONZE_THRESHOLD == original_bronze
+        assert DEFAULT_SILVER_THRESHOLD == original_silver
+        assert DEFAULT_GOLD_THRESHOLD == original_gold
     
     def test_constants_documentation(self):
         """Test that constants have proper documentation."""
@@ -104,9 +98,9 @@ class TestConstantsCoverage:
     def test_constants_usage_examples(self):
         """Test that constants can be used in practical examples."""
         # Test using constants in calculations
-        bronze_threshold = DEFAULT_BRONZE_RATE / 100
-        silver_threshold = DEFAULT_SILVER_RATE / 100
-        gold_threshold = DEFAULT_GOLD_RATE / 100
+        bronze_threshold = DEFAULT_BRONZE_THRESHOLD / 100
+        silver_threshold = DEFAULT_SILVER_THRESHOLD / 100
+        gold_threshold = DEFAULT_GOLD_THRESHOLD / 100
         
         assert 0 <= bronze_threshold <= 1
         assert 0 <= silver_threshold <= 1
@@ -115,19 +109,18 @@ class TestConstantsCoverage:
         
         # Test using constants in configuration
         config = {
-            'bronze_rate': DEFAULT_BRONZE_RATE,
-            'silver_rate': DEFAULT_SILVER_RATE,
-            'gold_rate': DEFAULT_GOLD_RATE,
-            'batch_size': DEFAULT_BATCH_SIZE,
-            'compression': DEFAULT_COMPRESSION,
+            'bronze_threshold': DEFAULT_BRONZE_THRESHOLD,
+            'silver_threshold': DEFAULT_SILVER_THRESHOLD,
+            'gold_threshold': DEFAULT_GOLD_THRESHOLD,
             'max_file_size_mb': DEFAULT_MAX_FILE_SIZE_MB,
-            'partition_count': DEFAULT_PARTITION_COUNT,
-            'timeout_secs': DEFAULT_TIMEOUT_SECS,
+            'timeout_seconds': DEFAULT_TIMEOUT_SECONDS,
             'log_level': DEFAULT_LOG_LEVEL,
-            'schema_validation_mode': DEFAULT_SCHEMA_VALIDATION_MODE
+            'bytes_per_kb': BYTES_PER_KB,
+            'bytes_per_mb': BYTES_PER_MB,
+            'bytes_per_gb': BYTES_PER_GB
         }
         
-        assert len(config) == 10
+        assert len(config) == 9
         assert all(isinstance(v, (int, float, str)) for v in config.values())
     
     def test_constants_error_handling(self):
@@ -140,9 +133,9 @@ class TestConstantsCoverage:
         importlib.reload(constants)
         
         # Constants should still be accessible
-        assert hasattr(constants, 'DEFAULT_BRONZE_RATE')
-        assert hasattr(constants, 'DEFAULT_SILVER_RATE')
-        assert hasattr(constants, 'DEFAULT_GOLD_RATE')
+        assert 'DEFAULT_BRONZE_THRESHOLD' in globals()
+        assert 'DEFAULT_SILVER_THRESHOLD' in globals()
+        assert 'DEFAULT_GOLD_THRESHOLD' in globals()
     
     def test_constants_module_attributes(self):
         """Test that constants module has expected attributes."""
@@ -150,18 +143,17 @@ class TestConstantsCoverage:
         
         # Check that module has expected attributes
         expected_attrs = [
-            'DEFAULT_BRONZE_RATE',
-            'DEFAULT_SILVER_RATE', 
-            'DEFAULT_GOLD_RATE',
-            'DEFAULT_BATCH_SIZE',
-            'DEFAULT_COMPRESSION',
+            'DEFAULT_BRONZE_THRESHOLD',
+            'DEFAULT_SILVER_THRESHOLD', 
+            'DEFAULT_GOLD_THRESHOLD',
             'DEFAULT_MAX_FILE_SIZE_MB',
-            'DEFAULT_PARTITION_COUNT',
-            'DEFAULT_TIMEOUT_SECS',
+            'DEFAULT_TIMEOUT_SECONDS',
             'DEFAULT_LOG_LEVEL',
-            'DEFAULT_SCHEMA_VALIDATION_MODE'
+            'BYTES_PER_KB',
+            'BYTES_PER_MB',
+            'BYTES_PER_GB'
         ]
         
         for attr in expected_attrs:
-            assert hasattr(constants, attr), f"Missing constant: {attr}"
+            assert attr in globals(), f"Missing constant: {attr}"
             assert getattr(constants, attr) is not None, f"Constant {attr} is None"

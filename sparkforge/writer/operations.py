@@ -10,9 +10,15 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from typing import Any, Dict, List
+import os
 
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.functions import col, current_timestamp, when
+
+# Use mock functions when in mock mode
+if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+    from mock_spark import functions as F
+else:
+    from pyspark.sql import functions as F
 
 from ..logging import PipelineLogger
 from ..models import ExecutionResult, StepResult
@@ -197,7 +203,7 @@ class DataProcessor:
                     "metadata": (
                         json.dumps(row["metadata"]) if row["metadata"] else None
                     ),
-                    "created_at": current_timestamp(),
+                    "created_at": datetime.now().isoformat(),  # Include timestamp directly as string
                 }
                 log_data.append(row_dict)
 
@@ -233,13 +239,13 @@ class DataProcessor:
 
             for col_name in critical_columns:
                 if col_name in df.columns:
-                    null_count = df.filter(col(col_name).isNull()).count()
+                    null_count = df.filter(F.col(col_name).isNull()).count()
                     null_counts[col_name] = null_count
 
             # Check validation rates
             validation_issues = []
             if "validation_rate" in df.columns:
-                low_validation = df.filter(col("validation_rate") < 95.0).count()
+                low_validation = df.filter(F.col("validation_rate") < 95.0).count()
                 if low_validation > 0:
                     validation_issues.append(
                         f"{low_validation} records with validation rate < 95%"
@@ -248,7 +254,7 @@ class DataProcessor:
             # Check for failed executions
             failed_executions = 0
             if "success" in df.columns:
-                failed_executions = df.filter(col("success") == False).count()
+                failed_executions = df.filter(F.col("success") == False).count()
 
             validation_result = {
                 "is_valid": len(validation_issues) == 0 and failed_executions == 0,
@@ -318,13 +324,13 @@ class DataProcessor:
             # Add computed columns
             df_transformed = df.withColumn(
                 "processing_efficiency",
-                when(
-                    col("input_rows") > 0, col("output_rows") / col("input_rows") * 100
+                F.when(
+                    F.col("input_rows") > 0, F.col("output_rows") / F.col("input_rows") * 100
                 ).otherwise(0),
             ).withColumn(
                 "data_quality_score",
-                when(col("validation_rate") >= 95.0, "High")
-                .when(col("validation_rate") >= 80.0, "Medium")
+                F.when(F.col("validation_rate") >= 95.0, "High")
+                .when(F.col("validation_rate") >= 80.0, "Medium")
                 .otherwise("Low"),
             )
 

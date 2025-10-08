@@ -2,32 +2,45 @@
 # SparkForge Environment Activation Script
 # Run this to activate the environment in new terminal sessions
 
-# Set Java environment
+# Set Java environment (Java 8 or Java 11 both work with PySpark 3.2)
 if [ -d "/opt/homebrew/opt/openjdk@11" ]; then
     export JAVA_HOME=/opt/homebrew/opt/openjdk@11
+    export PATH=$JAVA_HOME/bin:$PATH
 elif [ -d "/usr/local/opt/openjdk@11" ]; then
     export JAVA_HOME=/usr/local/opt/openjdk@11
+    export PATH=$JAVA_HOME/bin:$PATH
 else
-    java_home=$(/usr/libexec/java_home -v 11 2>/dev/null || echo "")
+    # Try to find any Java installation
+    java_home=$(/usr/libexec/java_home 2>/dev/null || echo "")
     if [ -n "$java_home" ]; then
         export JAVA_HOME="$java_home"
+        export PATH=$JAVA_HOME/bin:$PATH
     fi
 fi
-
-export PATH=$JAVA_HOME/bin:$PATH
 
 # Activate virtual environment
 source venv38/bin/activate
 
 echo "🚀 SparkForge environment activated!"
-echo "Java: $(java -version 2>&1 | head -n 1)"
-echo "Python: $(python --version)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Environment Details:"
+echo "  Java: $(java -version 2>&1 | head -n 1)"
+echo "  Python: $(python --version)"
+echo "  PySpark: $(python -c 'import pyspark; print(pyspark.__version__)' 2>/dev/null || echo 'Not found')"
+echo "  SparkForge: $(python -c 'import sparkforge; print(sparkforge.__version__)' 2>/dev/null || echo 'Not found')"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "Available commands:"
-echo "  python -m pytest tests/ -v          # Run all tests"
-echo "  python -m pytest tests/unit/ -v     # Run unit tests only"
-echo "  python -m pytest tests/integration/ -v  # Run integration tests only"
-echo "  python -m pytest tests/system/ -v   # Run system tests only"
-echo "  make test                           # Run tests with Makefile"
-echo "  make test-cov                       # Run tests with coverage"
-echo "  make quality                        # Run quality checks"
+echo "Quick Commands:"
+echo "  python test_environment.py              # Verify environment"
+echo "  python -m pytest tests/ -v              # Run all tests"
+echo "  python -m pytest tests/unit/ -v         # Run unit tests only"
+echo "  python -m pytest tests/integration/ -v  # Run integration tests"
+echo "  python -m pytest tests/system/ -v       # Run system tests"
+echo "  python -m pytest --cov=sparkforge       # Run with coverage"
+echo ""
+echo "Code Quality:"
+echo "  black sparkforge/                       # Format code"
+echo "  mypy sparkforge/                        # Type checking"
+echo "  flake8 sparkforge/                      # Linting"
+echo "  ruff check sparkforge/                  # Fast linting"
+echo ""

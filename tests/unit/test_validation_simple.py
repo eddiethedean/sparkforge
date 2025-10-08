@@ -29,7 +29,7 @@ from sparkforge.models.enums import PipelinePhase, ExecutionMode
 from sparkforge.logging import PipelineLogger
 from sparkforge.errors import ValidationError
 from mock_spark import MockSparkSession
-from mock_spark.types import MockStructType, MockStructField, StringType, IntegerType, DoubleType, TimestampType
+from mock_spark import MockStructType, MockStructField, StringType, IntegerType, DoubleType, TimestampType
 from mock_spark.functions import F
 
 
@@ -48,21 +48,17 @@ class TestValidationUtils:
 
     def test_safe_divide_none_values(self, mock_spark_session):
         """Test safe_divide with None values."""
-        # Test with None numerator
-        try:
-            result = safe_divide(None, 2)
-            assert False, "Should have raised TypeError"
-        except TypeError:
-            # Expected to raise TypeError
-            pass
+        # Test with None numerator - should return default (0.0)
+        result = safe_divide(None, 2)
+        assert result == 0.0
         
-        # Test with None denominator
-        try:
-            result = safe_divide(10, None)
-            assert False, "Should have raised TypeError"
-        except TypeError:
-            # Expected to raise TypeError
-            pass
+        # Test with None denominator - should return default (0.0)
+        result = safe_divide(10, None)
+        assert result == 0.0
+        
+        # Test with custom default
+        result = safe_divide(None, 2, default=99.0)
+        assert result == 99.0
 
     def test_safe_divide_edge_cases(self, mock_spark_session):
         """Test safe_divide with edge cases."""

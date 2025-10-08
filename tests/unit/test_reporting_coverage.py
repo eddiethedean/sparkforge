@@ -9,6 +9,7 @@ from unittest.mock import Mock, patch
 # Add the project root to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
+import sparkforge.reporting as reporting
 from sparkforge.reporting import *
 
 
@@ -56,7 +57,7 @@ class TestReportingCoverage:
         }
         
         # Test function exists and can be called
-        if hasattr(sparkforge.reporting, 'generate_execution_report'):
+        if hasattr(reporting, 'generate_execution_report'):
             try:
                 report = generate_execution_report(execution_data)
                 assert report is not None
@@ -78,7 +79,7 @@ class TestReportingCoverage:
         }
         
         # Test function exists and can be called
-        if hasattr(sparkforge.reporting, 'generate_quality_report'):
+        if hasattr(reporting, 'generate_quality_report'):
             try:
                 report = generate_quality_report(quality_data)
                 assert report is not None
@@ -101,7 +102,7 @@ class TestReportingCoverage:
         }
         
         # Test function exists and can be called
-        if hasattr(sparkforge.reporting, 'generate_performance_report'):
+        if hasattr(reporting, 'generate_performance_report'):
             try:
                 report = generate_performance_report(performance_data)
                 assert report is not None
@@ -125,7 +126,7 @@ class TestReportingCoverage:
         }
         
         # Test function exists and can be called
-        if hasattr(sparkforge.reporting, 'generate_error_report'):
+        if hasattr(reporting, 'generate_error_report'):
             try:
                 report = generate_error_report(error_data)
                 assert report is not None
@@ -147,7 +148,7 @@ class TestReportingCoverage:
         }
         
         # Test function exists and can be called
-        if hasattr(sparkforge.reporting, 'format_report'):
+        if hasattr(reporting, 'format_report'):
             try:
                 formatted_report = format_report(report_data)
                 assert formatted_report is not None
@@ -163,7 +164,7 @@ class TestReportingCoverage:
         file_path = "/tmp/test_report.txt"
         
         # Test function exists and can be called
-        if hasattr(sparkforge.reporting, 'save_report'):
+        if hasattr(reporting, 'save_report'):
             try:
                 with patch('builtins.open', Mock()) as mock_open:
                     result = save_report(report_content, file_path)
@@ -178,7 +179,7 @@ class TestReportingCoverage:
         report_content = "Test report content"
         
         # Test function exists and can be called
-        if hasattr(sparkforge.reporting, 'print_report'):
+        if hasattr(reporting, 'print_report'):
             try:
                 with patch('builtins.print') as mock_print:
                     result = print_report(report_content)
@@ -210,7 +211,7 @@ class TestReportingCoverage:
         invalid_data = None
         
         # Test functions with invalid input
-        if hasattr(sparkforge.reporting, 'generate_execution_report'):
+        if hasattr(reporting, 'generate_execution_report'):
             try:
                 result = generate_execution_report(invalid_data)
                 # Should either return a default report or raise an exception

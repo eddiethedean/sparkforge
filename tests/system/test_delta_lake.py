@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
 Comprehensive Delta Lake tests to validate Databricks workflow compatibility.
+
+NOTE: These tests require real Spark with Delta Lake support.
 """
 
 import time
@@ -13,6 +15,12 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
     from mock_spark import functions as F
 else:
     from pyspark.sql import functions as F
+
+# Skip all Delta Lake tests when running with mock-spark
+pytestmark = pytest.mark.skipif(
+    os.environ.get("SPARK_MODE", "mock").lower() == "mock",
+    reason="Delta Lake tests require real Spark"
+)
 
 
 @pytest.mark.delta

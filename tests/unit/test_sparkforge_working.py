@@ -22,7 +22,7 @@ from sparkforge.errors import (
     DataError, SystemError, PerformanceError, ResourceError
 )
 from mock_spark import MockSparkSession
-from mock_spark.types import MockStructType, MockStructField, StringType, IntegerType, DoubleType
+from mock_spark import MockStructType, MockStructField, StringType, IntegerType, DoubleType
 from datetime import datetime
 import uuid
 
@@ -360,7 +360,7 @@ class TestSparkForgeWorking:
         empty_schema = MockStructType([])
         empty_df = mock_spark_session.createDataFrame([{}], empty_schema)
         assert empty_df.count() == 1
-        assert len(empty_df.columns()) == 0
+        assert len(empty_df.columns) == 0
         
         # Test with null values
         data_with_nulls = [
