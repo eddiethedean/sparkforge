@@ -1,5 +1,5 @@
 """
-Simplified pipeline monitoring for SparkForge.
+Simplified pipeline monitoring for the framework.
 
 This module provides basic monitoring and reporting for pipeline execution.
 

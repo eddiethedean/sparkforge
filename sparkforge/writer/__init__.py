@@ -1,9 +1,9 @@
 """
-SparkForge Writer Module - Refactored with Modular Architecture
+Writer Module - Refactored with Modular Architecture
 
-Enhanced log writer for PipelineBuilder reports with full SparkForge integration.
+Enhanced log writer for PipelineBuilder reports with full framework integration.
 This module provides a comprehensive logging and reporting system for pipeline
-execution results, integrating seamlessly with the existing SparkForge ecosystem.
+execution results, integrating seamlessly with the existing the ecosystem.
 
 Architecture:
 - Core: Main LogWriter class that orchestrates all components
@@ -13,7 +13,7 @@ Architecture:
 - Analytics: Data quality analysis and trend detection
 
 Key Features:
-- Full integration with SparkForge models (StepResult, ExecutionResult, PipelineMetrics)
+- Full integration with framework models (StepResult, ExecutionResult, PipelineMetrics)
 - Enhanced type safety with proper TypedDict definitions
 - Comprehensive error handling and validation
 - Performance monitoring and optimization
@@ -36,8 +36,8 @@ Functions:
     validate_log_data: Validate log data before writing
 
 Example:
-    from sparkforge.writer import LogWriter, WriterConfig
-    from sparkforge.models import ExecutionResult
+    from the framework.writer import LogWriter, WriterConfig
+    from the framework.models import ExecutionResult
 
     # Configure writer
     config = WriterConfig(
@@ -114,7 +114,7 @@ __all__ = [
 
 # Version information
 __version__ = "0.8.0"
-__author__ = "SparkForge Team"
+__author__ = "Framework Team"
 
 # Depends on:
 #   analytics
@@ -170,4 +170,4 @@ __author__ = "SparkForge Team"
 #   operations
 #   query_builder
 #   storage
-__description__ = "Modular log writer for SparkForge pipeline execution results"
+__description__ = "Modular log writer for the framework pipeline execution results"

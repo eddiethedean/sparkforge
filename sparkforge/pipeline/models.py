@@ -1,5 +1,5 @@
 """
-Pipeline models and data structures for SparkForge.
+Pipeline models and data structures for the framework.
 
 This module defines the core data structures used throughout the pipeline system,
 providing a clean separation of concerns and better type safety.

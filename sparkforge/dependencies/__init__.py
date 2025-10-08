@@ -23,7 +23,7 @@
 
 
 """
-Dependency analysis system for SparkForge pipelines.
+Dependency analysis system for the framework pipelines.
 
 This package provides a unified dependency analysis system that replaces
 both DependencyAnalyzer and UnifiedDependencyAnalyzer with a single,

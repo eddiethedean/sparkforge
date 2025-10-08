@@ -1,8 +1,8 @@
 """
-Constants and configuration values for SparkForge.
+Constants and configuration values for the framework.
 
 This module contains all magic numbers, default values, and configuration
-constants used throughout the SparkForge codebase.
+constants used throughout the the codebase.
 """
 
 # Memory and Size Constants

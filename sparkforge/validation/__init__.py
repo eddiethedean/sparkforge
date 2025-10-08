@@ -1,5 +1,5 @@
 """
-Unified validation system for SparkForge.
+Unified validation system for the framework.
 
 This module provides a comprehensive validation system that handles both
 data validation and pipeline validation with early error detection and
@@ -21,7 +21,7 @@ String Rules Support:
     - "between", min, max → F.col("column").between(min, max)
 
 Example:
-    >>> from sparkforge.validation import _convert_rules_to_expressions
+    >>> from the framework.validation import _convert_rules_to_expressions
     >>> from pyspark.sql import functions as F
     >>>
     >>> # Convert string rules to PySpark expressions

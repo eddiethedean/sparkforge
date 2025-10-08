@@ -1,5 +1,5 @@
 """
-Simplified error handling system for SparkForge.
+Simplified error handling system for the framework.
 
 This module provides a clean, consolidated error handling system
 with just the essential error types needed for the project.
@@ -41,9 +41,9 @@ ErrorSuggestions = List[str]
 
 class SparkForgeError(Exception):
     """
-    Base exception for all SparkForge errors.
+    Base exception for all framework errors.
 
-    This is the root exception class that all other SparkForge exceptions
+    This is the root exception class that all other framework exceptions
     inherit from, providing consistent error handling patterns and rich context.
     """
 
@@ -60,7 +60,7 @@ class SparkForgeError(Exception):
         cause: Exception | None = None,
     ):
         """
-        Initialize a SparkForge error.
+        Initialize a framework error.
 
         Args:
             message: Human-readable error message

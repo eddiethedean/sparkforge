@@ -1,5 +1,5 @@
 """
-Utility functions for SparkForge validation.
+Utility functions for the framework validation.
 
 This module provides utility functions for data analysis and validation operations.
 """

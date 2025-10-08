@@ -1,5 +1,5 @@
 """
-Simplified PipelineBuilder for SparkForge.
+Simplified PipelineBuilder for the framework.
 
 This module provides a clean, maintainable PipelineBuilder that handles
 pipeline construction with the Medallion Architecture (Bronze → Silver → Gold).
@@ -73,7 +73,7 @@ class PipelineBuilder:
         during construction with clear error messages.
 
     Example:
-        from sparkforge import PipelineBuilder
+        from the framework import PipelineBuilder
         from pyspark.sql import functions as F
 
         # Initialize builder
@@ -131,7 +131,7 @@ class PipelineBuilder:
         StepError: If step dependencies cannot be resolved
 
     Example:
-        >>> from sparkforge import PipelineBuilder
+        >>> from the framework import PipelineBuilder
         >>> from pyspark.sql import SparkSession, functions as F
         >>>
         >>> spark = SparkSession.builder.appName("My Pipeline").getOrCreate()

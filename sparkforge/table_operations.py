@@ -1,5 +1,5 @@
 """
-Table operations utilities for the SparkForge pipeline framework.
+Table operations utilities for the pipeline framework.
 
 This module contains functions for reading, writing, and managing tables
 in the data lake.

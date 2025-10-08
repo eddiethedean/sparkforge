@@ -1,5 +1,5 @@
 """
-Unified dependency analyzer for SparkForge pipelines.
+Unified dependency analyzer for the framework pipelines.
 
 This module provides a single, consolidated dependency analyzer that replaces
 both DependencyAnalyzer and UnifiedDependencyAnalyzer with a cleaner design.

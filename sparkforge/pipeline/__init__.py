@@ -2,7 +2,7 @@
 
 
 """
-Pipeline system for SparkForge.
+Pipeline system for the framework.
 
 This package provides a refactored, modular pipeline system that replaces
 the monolithic PipelineBuilder with focused, maintainable components.

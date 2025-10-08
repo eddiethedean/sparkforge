@@ -1,5 +1,5 @@
 """
-Dependency analysis exceptions for SparkForge.
+Dependency analysis exceptions for the framework.
 
 This module defines exceptions specific to dependency analysis operations.
 """

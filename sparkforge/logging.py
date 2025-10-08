@@ -1,5 +1,5 @@
 """
-Simplified logging system for SparkForge.
+Simplified logging system for the framework.
 
 This module provides a clean, focused logging system for pipeline operations
 without the complexity of the previous over-engineered system.
@@ -25,7 +25,7 @@ class PipelineLogger:
 
     def __init__(
         self,
-        name: str = "SparkForge",
+        name: str = "PipelineFramework",
         level: int = logging.INFO,
         log_file: Optional[str] = None,
         verbose: bool = True,
@@ -228,7 +228,7 @@ def set_logger(logger: PipelineLogger) -> None:
 
 
 def create_logger(
-    name: str = "SparkForge",
+    name: str = "PipelineFramework",
     level: int = logging.INFO,
     log_file: Optional[str] = None,
     verbose: bool = True,

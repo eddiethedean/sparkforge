@@ -1,5 +1,5 @@
 """
-Simplified pipeline runner for SparkForge.
+Simplified pipeline runner for the framework.
 
 This module provides a clean, focused pipeline runner that delegates
 execution to the simplified execution engine.

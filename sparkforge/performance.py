@@ -1,5 +1,5 @@
 """
-Performance monitoring utilities for the SparkForge pipeline framework.
+Performance monitoring utilities for the pipeline framework.
 
 This module contains functions for timing operations, monitoring performance,
 and managing execution metrics.

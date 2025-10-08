@@ -1,5 +1,5 @@
 """
-Reporting utilities for the SparkForge pipeline framework.
+Reporting utilities for the pipeline framework.
 
 This module contains functions for creating reports, statistics, and summaries
 for pipeline execution.

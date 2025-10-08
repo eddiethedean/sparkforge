@@ -2,7 +2,7 @@
 Writer-specific models and type definitions.
 
 This module contains all the dataclasses, TypedDict definitions, and type aliases
-used by the writer module. It integrates with existing SparkForge models while
+used by the writer module. It integrates with existing framework models while
 providing writer-specific functionality.
 
 # Depends on:
@@ -59,10 +59,10 @@ class LogLevel(Enum):
 
 class LogRow(TypedDict):
     """
-    Enhanced log row with full type safety and SparkForge integration.
+    Enhanced log row with full type safety and framework integration.
 
     This replaces the previous MinimalLogRow with proper integration
-    with SparkForge models and enhanced type safety.
+    with framework models and enhanced type safety.
     """
 
     # Run-level information

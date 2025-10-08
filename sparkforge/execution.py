@@ -1,5 +1,5 @@
 """
-Production-ready execution system for SparkForge pipelines.
+Production-ready execution system for the framework pipelines.
 
 This module provides a robust execution engine that handles pipeline execution
 with comprehensive error handling, step-by-step processing, and detailed reporting.
@@ -19,8 +19,8 @@ Execution Modes:
     - VALIDATION_ONLY: Validate data without writing results
 
 Example:
-    >>> from sparkforge.execution import ExecutionEngine, ExecutionMode
-    >>> from sparkforge.models import BronzeStep, PipelineConfig
+    >>> from the framework.execution import ExecutionEngine, ExecutionMode
+    >>> from the framework.models import BronzeStep, PipelineConfig
     >>> from pyspark.sql import functions as F
     >>>
     >>> # Create execution engine
@@ -134,7 +134,7 @@ class ExecutionResult:
 
 class ExecutionEngine:
     """
-    Simplified execution engine for SparkForge pipelines.
+    Simplified execution engine for the framework pipelines.
 
     This engine handles both individual step execution and full pipeline execution
     with a clean, unified interface.

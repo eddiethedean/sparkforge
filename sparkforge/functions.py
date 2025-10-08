@@ -1,8 +1,8 @@
 """
-Functions interface for SparkForge.
+Functions interface for the framework.
 
 This module provides a protocol for PySpark functions that can be injected
-into SparkForge components, allowing for better testability and flexibility.
+into framework components, allowing for better testability and flexibility.
 """
 
 from __future__ import annotations

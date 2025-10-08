@@ -1,5 +1,5 @@
 """
-Dependency graph representation for SparkForge pipelines.
+Dependency graph representation for the framework pipelines.
 
 This module provides a clean, efficient representation of pipeline dependencies
 that can be used for analysis and optimization.

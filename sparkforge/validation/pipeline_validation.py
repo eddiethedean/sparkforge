@@ -1,5 +1,5 @@
 """
-Pipeline validation functions for SparkForge.
+Pipeline validation functions for the framework.
 
 This module provides functions and classes for validating pipeline configurations,
 step dependencies, and overall pipeline structure.

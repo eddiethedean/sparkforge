@@ -1,7 +1,7 @@
 """
-SparkForge - A production-ready data pipeline framework for Apache Spark & Delta Lake.
+The framework - A production-ready data pipeline framework for Apache Spark & Delta Lake.
 
-SparkForge transforms complex Spark + Delta Lake development into clean, maintainable code
+This framework transforms complex Spark + Delta Lake development into clean, maintainable code
 using the proven Medallion Architecture (Bronze → Silver → Gold). Features include:
 
 - **Robust Validation System**: Early error detection with clear validation messages
@@ -14,7 +14,7 @@ using the proven Medallion Architecture (Bronze → Silver → Gold). Features i
 - **Extensive Test Coverage**: 1,358+ comprehensive tests ensuring reliability
 
 Quick Start:
-    from sparkforge import PipelineBuilder
+    from the framework import PipelineBuilder
     from pyspark.sql import functions as F
 
     # Initialize Spark
