@@ -44,6 +44,38 @@ except ImportError:
         pass
 
 
+@pytest.fixture(autouse=True, scope="function")
+def reset_global_state():
+    """Reset global state before and after each test to prevent pollution."""
+    # Reset before test
+    try:
+        from sparkforge.logging import reset_global_logger
+        reset_global_logger()
+    except Exception:
+        pass
+    
+    # Clear any cached PySpark modules
+    import sys
+    spark_modules = [k for k in sys.modules.keys() if 'pyspark' in k.lower() and '_jvm' not in k]
+    # Don't remove modules, just ensure SparkContext is clean
+    try:
+        from pyspark import SparkContext
+        if SparkContext._active_spark_context is not None:
+            # Don't stop it as other tests might need it
+            pass
+    except Exception:
+        pass
+    
+    yield
+    
+    # Reset after test
+    try:
+        from sparkforge.logging import reset_global_logger
+        reset_global_logger()
+    except Exception:
+        pass
+
+
 def get_test_schema():
     """Get the test schema name."""
     return "test_schema"

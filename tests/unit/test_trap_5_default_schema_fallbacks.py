@@ -16,10 +16,8 @@ from pyspark.sql.types import StructType, StructField, StringType
 # Add the project root to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-# Apply mock-spark patches for compatibility
-from mock_spark_patch import apply_mock_spark_patches
-
-apply_mock_spark_patches()
+# NOTE: mock-spark patches removed - now using mock-spark 1.3.0 which doesn't need patches
+# The apply_mock_spark_patches() call was causing test pollution
 
 from sparkforge.execution import ExecutionEngine
 from sparkforge.errors import ExecutionError

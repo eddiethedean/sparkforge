@@ -16,6 +16,13 @@ from pathlib import Path
 
 import pytest
 
+# Check if yaml is available
+try:
+    import yaml
+    HAS_YAML = True
+except ImportError:
+    HAS_YAML = False
+
 from tests.security.compliance_checker import ComplianceChecker, ComplianceStandard
 from tests.security.security_monitoring import (
     SecurityEvent,
@@ -417,6 +424,7 @@ password = "hardcoded_password"  # This should trigger a security issue
 
         security_monitor.stop_monitoring()
 
+    @pytest.mark.skipif(not HAS_YAML, reason="PyYAML not installed")
     def test_security_configuration_integration(self, temp_project_dir):
         """Test security configuration integration."""
         # Create security configuration file
