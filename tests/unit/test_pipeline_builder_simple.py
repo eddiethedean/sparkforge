@@ -624,12 +624,10 @@ class TestHelperMethods:
         # Create a new schema
         builder._create_schema_if_not_exists("new_schema_simple_test")
 
-        # Note: mock-spark SQL "CREATE SCHEMA" doesn't update catalog
-        # This is a mock-spark API limitation - schema creation works in production
-        # Verify schema was created by listing databases
-        # dbs = mock_spark_session.catalog.listDatabases()
-        # db_names = [db.name for db in dbs]
-        # assert "new_schema_simple_test" in db_names
+        # Verify schema was created by listing databases (works in mock-spark 1.4.0+)
+        dbs = mock_spark_session.catalog.listDatabases()
+        db_names = [db.name for db in dbs]
+        assert "new_schema_simple_test" in db_names
 
     def test_create_schema_if_not_exists_failure(self, mock_spark_session):
         """Test _create_schema_if_not_exists with failure."""

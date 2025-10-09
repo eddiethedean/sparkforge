@@ -80,10 +80,10 @@ class TestSparkForgeWorking:
 
         # Test schema creation
         builder._create_schema_if_not_exists("new_schema")
-        # Note: mock-spark SQL "CREATE SCHEMA" doesn't update storage catalog
-        # This is a mock-spark limitation, not a code issue
-        # In production, schema creation works correctly
-        # assert mock_spark_session.storage.schema_exists("new_schema")
+        # Verify schema was created by listing databases (works in mock-spark 1.4.0+)
+        dbs = mock_spark_session.catalog.listDatabases()
+        db_names = [db.name for db in dbs]
+        assert "new_schema" in db_names
 
     def test_execution_engine_working(self, mock_spark_session):
         """Test ExecutionEngine using actual API."""

@@ -208,7 +208,7 @@ class DataProcessor:
                 }
                 log_data.append(row_dict)
 
-            # Create DataFrame with explicit schema (required for mock-spark with None values)
+            # Create DataFrame with explicit schema for type safety and None value handling
             schema = create_log_schema()
             df = self.spark.createDataFrame(log_data, schema)  # type: ignore[type-var]
 
