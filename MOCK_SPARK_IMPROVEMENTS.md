@@ -1,9 +1,36 @@
 # Mock-Spark Improvement Suggestions
 
 **Document Purpose**: Feedback for mock-spark development based on real-world usage in SparkForge  
-**Mock-Spark Version**: 1.3.0  
-**Date**: October 8, 2025  
+**Mock-Spark Version**: 1.3.0 (Original), **1.4.0 (UPDATED - Critical issues FIXED!)**  
+**Date**: October 8, 2025 (Created), October 9, 2025 (Updated)  
 **Project**: SparkForge (PySpark + Delta Lake pipeline framework)
+
+---
+
+## 🎉 UPDATE: Mock-Spark 1.4.0 Released!
+
+**As of October 9, 2025, mock-spark 1.4.0 has FIXED the two critical issues!**
+
+### ✅ Fixed in 1.4.0:
+1. **Schema Inference with None Values** - Now works exactly like PySpark!
+2. **Catalog API Updated by SQL DDL** - CREATE SCHEMA now properly updates catalog!
+
+### Verification Results:
+```python
+# Test 1: None values - NOW WORKS! ✅
+data = [{"id": 1, "optional": None}, {"id": 2, "optional": "value"}]
+df = spark.createDataFrame(data)  # ✅ Success!
+
+# Test 2: Schema catalog - NOW WORKS! ✅
+spark.sql("CREATE SCHEMA IF NOT EXISTS my_schema")
+assert "my_schema" in [db.name for db in spark.catalog.listDatabases()]  # ✅ Pass!
+```
+
+**Impact**: SparkForge can now remove workarounds and potentially enable more tests!
+
+---
+
+## Original Document (for 1.3.0 - Historical Reference)
 
 ---
 
