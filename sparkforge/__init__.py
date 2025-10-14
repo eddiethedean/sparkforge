@@ -11,7 +11,7 @@ using the proven Medallion Architecture (Bronze → Silver → Gold). Features i
 - **Delta Lake Integration**: ACID transactions and time travel
 - **Multi-schema Support**: Enterprise-ready cross-schema data flows
 - **Comprehensive Error Handling**: Detailed error messages with suggestions
-- **Extensive Test Coverage**: 1,358+ comprehensive tests ensuring reliability
+- **Extensive Test Coverage**: 1,400+ comprehensive tests ensuring reliability
 - **Flexible Engine Support**: Works with PySpark or mock-spark
 
 Quick Start:
@@ -73,7 +73,7 @@ Validation Requirements:
 # Import main classes for easy access
 from .pipeline import PipelineBuilder, PipelineRunner
 
-__version__ = "0.9.0"
+__version__ = "0.9.1"
 __author__ = "Odos Matthews"
 __email__ = "odosmattthewsm@gmail.com"
 __description__ = "A simplified, production-ready data pipeline builder for Apache Spark and Delta Lake"
