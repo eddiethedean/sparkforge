@@ -5,9 +5,10 @@ This module provides fixtures and configuration for integration tests,
 which use real Spark sessions but mock external systems.
 """
 
+import os
+
 import pytest
 from pyspark.sql import SparkSession
-import os
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":

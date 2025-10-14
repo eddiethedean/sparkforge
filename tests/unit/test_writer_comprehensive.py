@@ -2,31 +2,25 @@
 Comprehensive tests for sparkforge.writer.core module.
 """
 
-import os
-import pytest
 from datetime import datetime
-from unittest.mock import patch
-from sparkforge.writer.core import LogWriter, table_exists, time_write_operation
-from sparkforge.writer.models import (
-    WriterConfig,
-    LogRow,
-    WriterMetrics,
-    LogLevel,
-    WriteMode,
-)
-from sparkforge.models import ExecutionResult, StepResult, PipelinePhase, ExecutionMode
-from sparkforge.logging import PipelineLogger
-from sparkforge.writer.exceptions import WriterConfigurationError, WriterError
-from mock_spark import MockSparkSession
+
+import pytest
 from mock_spark import (
-    MockStructType,
-    MockStructField,
-    StringType,
     IntegerType,
-    DoubleType,
-    TimestampType,
+    MockStructField,
+    MockStructType,
 )
-from mock_spark.functions import F
+
+from sparkforge.logging import PipelineLogger
+from sparkforge.models import ExecutionMode, ExecutionResult, PipelinePhase, StepResult
+from sparkforge.writer.core import LogWriter, table_exists, time_write_operation
+from sparkforge.writer.exceptions import WriterConfigurationError
+from sparkforge.writer.models import (
+    LogLevel,
+    LogRow,
+    WriteMode,
+    WriterConfig,
+)
 
 
 def create_execution_result(
@@ -69,10 +63,7 @@ def create_execution_result(
     )
 
 
-@pytest.mark.skipif(
-    os.environ.get("SPARK_MODE", "mock").lower() == "mock",
-    reason="Writer tests require Delta Lake which is not supported in mock-spark"
-)
+# Writer tests now work with mock-spark 2.4.0
 class TestWriterComprehensive:
     """Comprehensive tests for writer module."""
 
@@ -600,7 +591,7 @@ class TestWriterComprehensive:
         writer = LogWriter(spark=mock_spark_session, config=config)
 
         # Test with invalid execution result (missing required fields)
-        with pytest.raises(Exception):  # Should raise some kind of error
+        with pytest.raises((ValueError, TypeError, AttributeError)):
             writer.write_execution_result(None)
 
     def test_writer_components_initialization(self, mock_spark_session):

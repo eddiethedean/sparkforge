@@ -2,9 +2,8 @@
 Test constants module for coverage improvement.
 """
 
-import pytest
-import sys
 import os
+import sys
 
 # Add the project root to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
@@ -77,7 +76,7 @@ class TestConstantsCoverage:
             constants.DEFAULT_BRONZE_THRESHOLD = 50
             constants.DEFAULT_SILVER_THRESHOLD = 60
             constants.DEFAULT_GOLD_THRESHOLD = 70
-        except:
+        except Exception:
             pass  # Expected to fail
 
         # Constants should remain unchanged
@@ -133,6 +132,7 @@ class TestConstantsCoverage:
         """Test error handling scenarios with constants."""
         # Test that constants are accessible even if module is reloaded
         import importlib
+
         import sparkforge.constants as constants
 
         # Reload the module

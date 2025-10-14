@@ -4,29 +4,26 @@ Final tests to achieve 100% coverage for execution.py.
 This module covers the remaining uncovered lines.
 """
 
-import pytest
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
+
+from mock_spark import IntegerType, MockStructField, MockStructType, StringType
+
 from sparkforge.execution import (
     ExecutionEngine,
     ExecutionMode,
+    StepExecutionResult,
     StepStatus,
     StepType,
-    StepExecutionResult,
-    ExecutionResult,
 )
 from sparkforge.models import (
     BronzeStep,
-    SilverStep,
     GoldStep,
-    PipelineConfig,
-    ValidationThresholds,
     ParallelConfig,
+    PipelineConfig,
+    SilverStep,
+    ValidationThresholds,
 )
-from sparkforge.errors import ExecutionError
-from sparkforge.logging import PipelineLogger
-from mock_spark import MockSparkSession, MockDataFrame
-from mock_spark import MockStructType, MockStructField, StringType, IntegerType
 
 
 class TestExecutionFinalCoverage:

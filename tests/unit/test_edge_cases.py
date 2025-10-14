@@ -2,38 +2,37 @@
 Edge case tests for Mock Spark components.
 """
 
+
 import pytest
-from mock_spark import MockSparkSession
 from mock_spark import (
-    MockStructType,
-    MockStructField,
-    StringType,
-    IntegerType,
-    DoubleType,
-    BooleanType,
     ArrayType,
+    BooleanType,
+    DoubleType,
+    IntegerType,
     MapType,
-)
-from mock_spark.functions import (
-    F,
-    MockColumn,
-    MockLiteral,
-    MockAggregateFunction,
-    MockWindowFunction,
+    MockSparkSession,
+    MockStructField,
+    MockStructType,
+    StringType,
 )
 from mock_spark.errors import (
     AnalysisException,
-    IllegalArgumentException,
     PySparkValueError,
 )
+from mock_spark.functions import (
+    F,
+    MockAggregateFunction,
+    MockColumn,
+    MockLiteral,
+    MockWindowFunction,
+)
+
+from sparkforge.execution import ExecutionEngine
+from sparkforge.models import ParallelConfig, PipelineConfig, ValidationThresholds
 from sparkforge.pipeline.builder import PipelineBuilder
-from sparkforge.execution import ExecutionEngine, ExecutionMode, StepStatus, StepType
 from sparkforge.validation.pipeline_validation import UnifiedValidator, ValidationResult
 from sparkforge.writer.core import LogWriter
-from sparkforge.writer.models import WriterConfig, WriteMode, LogLevel
-from sparkforge.models import PipelineConfig, ValidationThresholds, ParallelConfig
-from datetime import datetime
-import uuid
+from sparkforge.writer.models import LogLevel, WriteMode, WriterConfig
 
 
 class TestEdgeCases:
@@ -323,12 +322,14 @@ class TestEdgeCases:
 
     def test_pipeline_builder_edge_cases(self, mock_spark_session):
         """Test PipelineBuilder edge cases."""
+        from sparkforge.errors import ConfigurationError
+        
         # Test with invalid schema name
-        with pytest.raises(Exception):
+        with pytest.raises(ConfigurationError):
             PipelineBuilder(spark=mock_spark_session, schema="")
 
         # Test with None spark session
-        with pytest.raises(Exception):
+        with pytest.raises(ConfigurationError):
             PipelineBuilder(spark=None, schema="test")
 
         # Test with very long schema name
@@ -358,7 +359,7 @@ class TestEdgeCases:
 
     def test_validation_edge_cases(self, mock_spark_session):
         """Test validation edge cases."""
-        validator = UnifiedValidator()
+        UnifiedValidator()
 
         # Test with empty validation result
         result = ValidationResult(
@@ -407,8 +408,8 @@ class TestEdgeCases:
 
     def test_storage_edge_cases(self, mock_spark_session):
         """Test storage edge cases."""
-        # Test with very long table names
-        long_table_name = "a" * 1000
+        # Test with long table names (DuckDB limit is 63 characters)
+        long_table_name = "a" * 50
         schema = MockStructType([MockStructField("id", IntegerType())])
 
         mock_spark_session.storage.create_schema("test")

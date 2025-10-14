@@ -3,57 +3,60 @@ Working SparkForge coverage tests using actual APIs.
 """
 
 import os
+import uuid
+from datetime import datetime
+
 import pytest
-from sparkforge.pipeline.builder import PipelineBuilder
-from sparkforge.execution import ExecutionEngine, ExecutionMode, StepStatus, StepType
-from sparkforge.validation.pipeline_validation import (
-    UnifiedValidator,
-    ValidationResult,
-    StepValidator,
+from mock_spark import (
+    DoubleType,
+    IntegerType,
+    MockStructField,
+    MockStructType,
+    StringType,
 )
-from sparkforge.writer.core import LogWriter, table_exists
-from sparkforge.writer.models import (
-    WriterConfig,
-    WriteMode,
-    LogLevel,
-    LogRow,
-    WriterMetrics,
-)
-from sparkforge.models import (
-    PipelineConfig,
-    ValidationThresholds,
-    ParallelConfig,
-    ExecutionContext,
-    StageStats,
-    StepResult,
-)
-from sparkforge.models.enums import PipelinePhase
-from sparkforge.logging import PipelineLogger
-from sparkforge.performance import now_dt, format_duration
-from sparkforge.table_operations import (
-    drop_table,
-    table_exists as sparkforge_table_exists,
-)
-from sparkforge.validation.utils import safe_divide, get_dataframe_info
+
 from sparkforge.errors import (
     ConfigurationError,
-    ValidationError,
-    ExecutionError,
     DataError,
-    SystemError,
+    ExecutionError,
     PerformanceError,
     ResourceError,
+    SystemError,
+    ValidationError,
 )
-from mock_spark import MockSparkSession
-from mock_spark import (
-    MockStructType,
-    MockStructField,
-    StringType,
-    IntegerType,
-    DoubleType,
+from sparkforge.execution import ExecutionEngine, ExecutionMode
+from sparkforge.logging import PipelineLogger
+from sparkforge.models import (
+    ExecutionContext,
+    ParallelConfig,
+    PipelineConfig,
+    StageStats,
+    StepResult,
+    ValidationThresholds,
 )
-from datetime import datetime
-import uuid
+from sparkforge.models.enums import PipelinePhase
+from sparkforge.performance import format_duration, now_dt
+from sparkforge.pipeline.builder import PipelineBuilder
+from sparkforge.table_operations import (
+    drop_table,
+)
+from sparkforge.table_operations import (
+    table_exists as sparkforge_table_exists,
+)
+from sparkforge.validation.pipeline_validation import (
+    StepValidator,
+    UnifiedValidator,
+    ValidationResult,
+)
+from sparkforge.validation.utils import get_dataframe_info, safe_divide
+from sparkforge.writer.core import LogWriter
+from sparkforge.writer.models import (
+    LogLevel,
+    LogRow,
+    WriteMode,
+    WriterConfig,
+    WriterMetrics,
+)
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
@@ -520,7 +523,7 @@ class TestSparkForgeWorking:
             end_time=datetime.now(),
         )
 
-        with pytest.raises(Exception):  # Should raise PipelineConfigurationError
+        with pytest.raises((ValueError, AttributeError)):
             invalid_stage_stats.validate()
 
     def test_comprehensive_coverage_working(self, mock_spark_session):

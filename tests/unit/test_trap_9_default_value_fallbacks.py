@@ -5,12 +5,13 @@ This module tests that default value fallbacks no longer use the 'or' operator
 which could mask None values, and instead use explicit None checking.
 """
 
+
 import pytest
-from unittest.mock import Mock
-from sparkforge.writer.models import WriterConfig
-from sparkforge.writer.core import LogWriter
+
 from sparkforge.execution import ExecutionEngine
 from sparkforge.models.pipeline import PipelineConfig
+from sparkforge.writer.core import LogWriter
+from sparkforge.writer.models import WriterConfig
 
 
 class TestTrap9DefaultValueFallbacks:
@@ -84,8 +85,7 @@ class TestTrap9DefaultValueFallbacks:
     def test_execution_engine_context_validation(self, spark_session):
         """Test that ExecutionEngine properly validates context parameter."""
         # Test the context validation logic directly
-        from sparkforge.execution import ExecutionEngine
-        from sparkforge.models.pipeline import PipelineConfig, ValidationThresholds
+        from sparkforge.models.pipeline import ValidationThresholds
 
         # Create a minimal config
         config = PipelineConfig(
@@ -100,7 +100,6 @@ class TestTrap9DefaultValueFallbacks:
         # Test that None context is converted to empty dict
         # We'll test the context validation by calling execute_pipeline with None
         from sparkforge.models.steps import BronzeStep
-        from sparkforge.validation import ColumnRules
 
         step = BronzeStep(
             name="test_bronze",
@@ -113,8 +112,7 @@ class TestTrap9DefaultValueFallbacks:
 
     def test_execution_engine_context_type_validation(self, spark_session):
         """Test that ExecutionEngine validates context type."""
-        from sparkforge.execution import ExecutionEngine
-        from sparkforge.models.pipeline import PipelineConfig, ValidationThresholds
+        from sparkforge.models.pipeline import ValidationThresholds
 
         # Create a minimal config
         config = PipelineConfig(
@@ -126,9 +124,8 @@ class TestTrap9DefaultValueFallbacks:
         )
         engine = ExecutionEngine(spark=spark_session, config=config)
 
-        from sparkforge.models.steps import BronzeStep
-        from sparkforge.validation import ColumnRules
         from sparkforge.errors import ExecutionError
+        from sparkforge.models.steps import BronzeStep
 
         step = BronzeStep(
             name="test_bronze",
@@ -150,9 +147,9 @@ class TestTrap9DefaultValueFallbacks:
         writer = LogWriter(spark=spark_session, config=config)
 
         # Should generate new run_id when None is provided
-        from sparkforge.models.execution import ExecutionContext, StepResult
-        from sparkforge.execution import StepStatus
         from datetime import datetime
+
+        from sparkforge.models.execution import ExecutionContext, StepResult
 
         context = ExecutionContext(
             pipeline_id="test_pipeline",
@@ -188,11 +185,11 @@ class TestTrap9DefaultValueFallbacks:
         )
         writer = LogWriter(spark=spark_session, config=config)
 
-        from sparkforge.models.execution import ExecutionContext, StepResult
-        from sparkforge.execution import StepStatus
         from datetime import datetime
 
-        context = ExecutionContext(
+        from sparkforge.models.execution import ExecutionContext, StepResult
+
+        ExecutionContext(
             pipeline_id="test_pipeline",
             schema="test_schema",
             run_id="test_run",
@@ -236,8 +233,8 @@ class TestTrap9DefaultValueFallbacks:
 
     def test_logger_initialization_explicit_none(self, spark_session):
         """Test that logger initialization properly handles explicit None."""
-        from sparkforge.writer.monitoring import PerformanceMonitor
         from sparkforge.logging import PipelineLogger
+        from sparkforge.writer.monitoring import PerformanceMonitor
 
         # Should create new logger when None is explicitly passed
         monitor = PerformanceMonitor(spark=spark_session, logger=None)
@@ -246,8 +243,8 @@ class TestTrap9DefaultValueFallbacks:
 
     def test_logger_initialization_with_logger(self, spark_session):
         """Test that logger initialization preserves provided logger."""
-        from sparkforge.writer.monitoring import PerformanceMonitor
         from sparkforge.logging import PipelineLogger
+        from sparkforge.writer.monitoring import PerformanceMonitor
 
         # Should use provided logger
         custom_logger = PipelineLogger("CustomLogger")
@@ -257,14 +254,12 @@ class TestTrap9DefaultValueFallbacks:
 
     def test_step_result_step_type_handling(self):
         """Test that StepResult properly handles None step_type."""
-        from sparkforge.models.execution import StepResult
-        from sparkforge.execution import StepStatus
-        from sparkforge.writer.models import create_log_row_from_step_result
-        from sparkforge.models.execution import ExecutionContext
         from datetime import datetime
 
         # Create StepResult with None step_type
         from sparkforge.models.enums import PipelinePhase
+        from sparkforge.models.execution import ExecutionContext, StepResult
+        from sparkforge.writer.models import create_log_row_from_step_result
 
         step_result = StepResult(
             step_name="test_step",
@@ -295,14 +290,12 @@ class TestTrap9DefaultValueFallbacks:
 
     def test_step_result_step_type_with_value(self):
         """Test that StepResult preserves actual step_type value."""
-        from sparkforge.models.execution import StepResult
-        from sparkforge.execution import StepStatus
-        from sparkforge.writer.models import create_log_row_from_step_result
-        from sparkforge.models.execution import ExecutionContext
         from datetime import datetime
 
         # Create StepResult with actual step_type
         from sparkforge.models.enums import PipelinePhase
+        from sparkforge.models.execution import ExecutionContext, StepResult
+        from sparkforge.writer.models import create_log_row_from_step_result
 
         step_result = StepResult(
             step_name="test_step",

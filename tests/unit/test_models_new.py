@@ -6,11 +6,11 @@ This module tests all model classes and methods with extensive coverage.
 """
 
 import json
+import os
 from dataclasses import dataclass
 from datetime import datetime
 
 import pytest
-import os
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
@@ -22,7 +22,6 @@ from sparkforge.errors import (
     PipelineValidationError,
     ValidationError,
 )
-from sparkforge.models.exceptions import PipelineConfigurationError
 from sparkforge.models import (
     BaseModel,
     BronzeStep,
@@ -38,6 +37,7 @@ from sparkforge.models import (
     StepResult,
     ValidationThresholds,
 )
+from sparkforge.models.exceptions import PipelineConfigurationError
 from sparkforge.pipeline.models import PipelineMode, PipelineReport, PipelineStatus
 from sparkforge.types import StepStatus, StepType
 

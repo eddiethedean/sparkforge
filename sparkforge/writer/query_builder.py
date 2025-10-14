@@ -10,22 +10,10 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any, Dict
 
-from pyspark.sql import DataFrame
-from pyspark.sql.functions import (
-    avg,
-    col,
-    count,
-    date_format,
-    desc,
-    lag,
-    lit,
-    max,
-    min,
-    stddev,
-)
-from pyspark.sql.functions import sum as spark_sum
-from pyspark.sql.functions import when
-from pyspark.sql.window import Window
+from ..compat import DataFrame
+
+# Import specific functions for convenience
+from ..compat import F as functions
 
 
 class QueryBuilder:
@@ -45,7 +33,10 @@ class QueryBuilder:
         """
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
-        return df.filter(col("created_at") >= lit(start_date.strftime("%Y-%m-%d")))
+        return df.filter(
+            functions.col("created_at")
+            >= functions.lit(start_date.strftime("%Y-%m-%d"))
+        )
 
     @staticmethod
     def add_date_column(
@@ -66,7 +57,9 @@ class QueryBuilder:
         Returns:
             DataFrame with added date column
         """
-        return df.withColumn(output_column, date_format(col(date_column), format))
+        return df.withColumn(
+            output_column, functions.date_format(functions.col(date_column), format)
+        )
 
     @staticmethod
     def get_common_aggregations() -> Dict[str, Any]:
@@ -77,32 +70,46 @@ class QueryBuilder:
             Dictionary of common aggregations
         """
         return {
-            "count_all": count("*").alias("total_executions"),
-            "count_rows": count("*").alias("execution_count"),
-            "avg_validation_rate": avg("validation_rate").alias("avg_validation_rate"),
-            "min_validation_rate": min("validation_rate").alias("min_validation_rate"),
-            "max_validation_rate": max("validation_rate").alias("max_validation_rate"),
-            "stddev_validation_rate": stddev("validation_rate").alias(
+            "count_all": functions.count("*").alias("total_executions"),
+            "count_rows": functions.count("*").alias("execution_count"),
+            "avg_validation_rate": functions.avg("validation_rate").alias(
+                "avg_validation_rate"
+            ),
+            "min_validation_rate": functions.min("validation_rate").alias(
+                "min_validation_rate"
+            ),
+            "max_validation_rate": functions.max("validation_rate").alias(
+                "max_validation_rate"
+            ),
+            "stddev_validation_rate": functions.stddev("validation_rate").alias(
                 "stddev_validation_rate"
             ),
-            "avg_execution_time": avg("execution_time").alias("avg_execution_time"),
-            "min_execution_time": min("execution_time").alias("min_execution_time"),
-            "max_execution_time": max("execution_time").alias("max_execution_time"),
-            "stddev_execution_time": stddev("execution_time").alias(
+            "avg_execution_time": functions.avg("execution_time").alias(
+                "avg_execution_time"
+            ),
+            "min_execution_time": functions.min("execution_time").alias(
+                "min_execution_time"
+            ),
+            "max_execution_time": functions.max("execution_time").alias(
+                "max_execution_time"
+            ),
+            "stddev_execution_time": functions.stddev("execution_time").alias(
                 "stddev_execution_time"
             ),
-            "sum_rows_written": spark_sum("rows_written").alias("total_rows_written"),
-            "successful_executions": spark_sum(
-                when(col("success") == True, 1).otherwise(0)
+            "sum_rows_written": functions.sum("rows_written").alias(
+                "total_rows_written"
+            ),
+            "successful_executions": functions.sum(
+                functions.when(functions.col("success"), 1).otherwise(0)
             ).alias("successful_executions"),
-            "failed_executions": spark_sum(
-                when(col("success") == False, 1).otherwise(0)
+            "failed_executions": functions.sum(
+                functions.when(~functions.col("success"), 1).otherwise(0)
             ).alias("failed_executions"),
-            "high_quality_executions": spark_sum(
-                when(col("validation_rate") >= 95.0, 1).otherwise(0)
+            "high_quality_executions": functions.sum(
+                functions.when(functions.col("validation_rate") >= 95.0, 1).otherwise(0)
             ).alias("high_quality_executions"),
-            "low_quality_executions": spark_sum(
-                when(col("validation_rate") < 80.0, 1).otherwise(0)
+            "low_quality_executions": functions.sum(
+                functions.when(functions.col("validation_rate") < 80.0, 1).otherwise(0)
             ).alias("low_quality_executions"),
         }
 
@@ -217,7 +224,9 @@ class QueryBuilder:
         aggs = QueryBuilder.get_performance_aggregations()
 
         return (
-            filtered_df.groupBy("step").agg(**aggs).orderBy(desc("avg_execution_time"))
+            filtered_df.groupBy("step")
+            .agg(**aggs)
+            .orderBy(functions.desc("avg_execution_time"))
         )
 
     @staticmethod
@@ -274,7 +283,7 @@ class QueryBuilder:
         Returns:
             DataFrame with anomalies
         """
-        return df.filter(col(threshold_column) < threshold_value)
+        return df.filter(functions.col(threshold_column) < threshold_value)
 
     @staticmethod
     def build_performance_anomaly_query(
@@ -291,9 +300,9 @@ class QueryBuilder:
             DataFrame with performance anomalies
         """
         return df.filter(
-            (col("execution_time") > performance_threshold)
-            | (col("validation_rate") < 80.0)
-            | (col("success") == False)
+            (functions.col("execution_time") > performance_threshold)
+            | (functions.col("validation_rate") < 80.0)
+            | (~functions.col("success"))
         )
 
     @staticmethod
@@ -310,7 +319,7 @@ class QueryBuilder:
         Returns:
             DataFrame with quality anomalies
         """
-        return df.filter(col("validation_rate") < quality_threshold)
+        return df.filter(functions.col("validation_rate") < quality_threshold)
 
     @staticmethod
     def build_temporal_anomaly_query(
@@ -330,22 +339,25 @@ class QueryBuilder:
         daily_quality_df = (
             df.transform(lambda df: QueryBuilder.add_date_column(df))
             .groupBy("date")
-            .agg(avg("validation_rate").alias("daily_avg_validation_rate"))
+            .agg(functions.avg("validation_rate").alias("daily_avg_validation_rate"))
             .orderBy("date")
         )
 
         # Use window function to calculate lag and quality change
+        from ..compat import Window
+
         window_spec = Window.orderBy("date")
         return (
             daily_quality_df.withColumn(
                 "prev_avg_validation_rate",
-                lag("daily_avg_validation_rate", 1).over(window_spec),
+                functions.lag("daily_avg_validation_rate", 1).over(window_spec),
             )
             .withColumn(
                 "quality_change",
-                col("daily_avg_validation_rate") - col("prev_avg_validation_rate"),
+                functions.col("daily_avg_validation_rate")
+                - functions.col("prev_avg_validation_rate"),
             )
-            .filter(col("quality_change") < change_threshold)
+            .filter(functions.col("quality_change") < change_threshold)
             .orderBy("quality_change")
         )
 
@@ -362,10 +374,10 @@ class QueryBuilder:
             Dictionary with statistics
         """
         stats_df = df.agg(
-            avg(column).alias("avg"),
-            stddev(column).alias("stddev"),
-            min(column).alias("min"),
-            max(column).alias("max"),
+            functions.avg(column).alias("avg"),
+            functions.stddev(column).alias("stddev"),
+            functions.min(column).alias("min"),
+            functions.max(column).alias("max"),
         )
 
         result = stats_df.collect()[0]
@@ -390,9 +402,13 @@ class QueryBuilder:
         """
         filtered_df = QueryBuilder.filter_by_date_range(df, days)
         aggs = {
-            "daily_executions": count("*").alias("daily_executions"),
-            "avg_execution_time": avg("execution_time").alias("avg_execution_time"),
-            "avg_validation_rate": avg("validation_rate").alias("avg_validation_rate"),
+            "daily_executions": functions.count("*").alias("daily_executions"),
+            "avg_execution_time": functions.avg("execution_time").alias(
+                "avg_execution_time"
+            ),
+            "avg_validation_rate": functions.avg("validation_rate").alias(
+                "avg_validation_rate"
+            ),
         }
 
         return (

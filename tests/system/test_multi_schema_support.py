@@ -7,16 +7,13 @@ in SparkForge pipelines, enabling cross-schema data flows.
 NOTE: Multi-schema tests have complex requirements. Skipping in mock mode for now.
 """
 
+import os
 from unittest.mock import patch
 
 import pytest
-import os
 
-# Skip multi-schema tests in mock mode for now
-pytestmark = pytest.mark.skipif(
-    os.environ.get("SPARK_MODE", "mock").lower() == "mock",
-    reason="Multi-schema tests need real Spark - complex schema operations",
-)
+# Multi-schema tests now run with mock-spark
+# Schema operations are supported by mock-spark backend
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":

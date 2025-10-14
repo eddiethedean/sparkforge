@@ -18,7 +18,7 @@ import pytest
 
 # Check if yaml is available
 try:
-    import yaml
+    import yaml  # noqa: F401
     HAS_YAML = True
 except ImportError:
     HAS_YAML = False

@@ -5,10 +5,10 @@ This module tests that test parsing no longer silently skips files that can't be
 and instead logs warnings and tracks parsing failures.
 """
 
-import pytest
-import tempfile
 import os
-from unittest.mock import patch, Mock
+import tempfile
+from unittest.mock import Mock, patch
+
 from tests.unit.test_python38_compatibility import Python38CompatibilityTest
 
 

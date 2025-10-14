@@ -9,10 +9,10 @@ to make PipelineBuilder available without requiring sparkforge installation.
 Usage:
     # Generate notebook with default name (uses current version)
     python scripts/generate_pipeline_notebook.py
-    
+
     # Generate with custom output path
     python scripts/generate_pipeline_notebook.py --output my_notebook.ipynb
-    
+
     # Show detailed module ordering
     python scripts/generate_pipeline_notebook.py --verbose
 
@@ -30,7 +30,7 @@ Output:
     - All external imports (code)
     - All modules in dependency order (markdown header + code for each)
     - Usage example (markdown + code)
-    
+
 The generated notebook can be run top-to-bottom without requiring sparkforge
 to be installed, making it perfect for sharing, teaching, or quick prototyping.
 """
@@ -41,13 +41,13 @@ import re
 import sys
 from collections import defaultdict, deque
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List
 
 
 def extract_version() -> str:
     """Extract version from sparkforge/__init__.py"""
     init_file = Path('sparkforge/__init__.py')
-    with open(init_file, 'r') as f:
+    with open(init_file) as f:
         content = f.read()
     match = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', content)
     if match:
@@ -58,9 +58,9 @@ def extract_version() -> str:
 def extract_dependencies(file_path: Path) -> List[str]:
     """Extract dependencies from a module's docstring."""
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path) as f:
             content = f.read()
-        
+
         match = re.search(r'# Depends on:\n((?:#   .+\n)*)', content)
         if match:
             deps = []
@@ -70,43 +70,43 @@ def extract_dependencies(file_path: Path) -> List[str]:
                     deps.append(line.replace('#   ', ''))
             return deps
         return []
-    except:
+    except Exception:
         return []
 
 
 def get_module_info(sparkforge_root: Path) -> Dict[str, Dict]:
     """
     Get information about all modules including their dependencies.
-    
+
     Returns:
         Dict mapping module_path to {file_path, dependencies, code}
     """
     modules = {}
-    
+
     for py_file in sparkforge_root.rglob('*.py'):
         if '__pycache__' in str(py_file):
             continue
         if py_file.name == '__init__.py':
             continue
-        
+
         # Get module path
         rel_path = py_file.relative_to(sparkforge_root)
         module_path = str(rel_path).replace('.py', '').replace('/', '.')
-        
+
         # Read file content
-        with open(py_file, 'r') as f:
+        with open(py_file) as f:
             code = f.read()
-        
+
         # Extract dependencies
         deps = extract_dependencies(py_file)
-        
+
         modules[module_path] = {
             'file_path': py_file,
             'dependencies': deps,
             'code': code,
             'name': py_file.stem
         }
-    
+
     return modules
 
 
@@ -114,43 +114,43 @@ def topological_sort(modules: Dict[str, Dict]) -> List[str]:
     """
     Perform topological sort on modules based on dependencies.
     Handles circular dependencies by breaking cycles strategically.
-    
+
     Args:
         modules: Dict of module info
-        
+
     Returns:
         List of module paths in dependency order
     """
     # Build adjacency list and in-degree count
-    in_degree = {module: 0 for module in modules}
+    in_degree = dict.fromkeys(modules, 0)
     adjacency = defaultdict(list)
     edges = []  # Track all edges for cycle detection
-    
+
     for module, info in modules.items():
         for dep in info['dependencies']:
             if dep in modules:
                 adjacency[dep].append(module)
                 in_degree[module] += 1
                 edges.append((dep, module))
-    
+
     # Find nodes with no incoming edges
     queue = deque([module for module, degree in in_degree.items() if degree == 0])
     result = []
-    
+
     while queue:
         module = queue.popleft()
         result.append(module)
-        
+
         # Reduce in-degree for dependent modules
         for dependent in adjacency[module]:
             in_degree[dependent] -= 1
             if in_degree[dependent] == 0:
                 queue.append(dependent)
-    
+
     # Handle circular dependencies
     if len(result) != len(modules):
         remaining = [m for m in modules if m not in result]
-        
+
         # For circular dependencies, sort by:
         # 1. Modules with fewer dependencies first
         # 2. Alphabetically for consistency
@@ -158,30 +158,30 @@ def topological_sort(modules: Dict[str, Dict]) -> List[str]:
             remaining,
             key=lambda m: (len(modules[m]['dependencies']), m)
         )
-        
+
         if remaining_sorted:
             print(f"⚠️  Note: {len(remaining_sorted)} module(s) with circular dependencies added at end", file=sys.stderr)
             print(f"    Modules: {', '.join(remaining_sorted)}", file=sys.stderr)
-        
+
         result.extend(remaining_sorted)
-    
+
     return result
 
 
 def remove_sparkforge_imports(code: str) -> str:
     """
     Remove sparkforge imports and references, adjust code to work standalone.
-    
+
     Args:
         code: Original module code
-        
+
     Returns:
         Modified code with sparkforge imports removed and references cleaned
     """
     lines = code.split('\n')
     new_lines = []
     in_multiline_import = False
-    
+
     for line in lines:
         # Check for any relative imports (starting with one or more dots)
         if re.match(r'^\s*from\s+\.', line):
@@ -189,7 +189,7 @@ def remove_sparkforge_imports(code: str) -> str:
             indent = len(line) - len(line.lstrip())
             comment = '# ' + line.strip() + '  # Removed: defined in notebook cells above'
             new_lines.append(' ' * indent + comment)
-            
+
             # Check if this starts a multi-line import
             if '(' in line and ')' not in line:
                 in_multiline_import = True
@@ -198,15 +198,15 @@ def remove_sparkforge_imports(code: str) -> str:
             indent = len(line) - len(line.lstrip())
             comment = '# ' + line.strip()
             new_lines.append(' ' * indent + comment)
-            
+
             # Check if this line ends the multi-line import
             if ')' in line:
                 in_multiline_import = False
         else:
             new_lines.append(line)
-    
+
     code = '\n'.join(new_lines)
-    
+
     # Remove mock_spark conditional imports - replace with direct pyspark imports
     # Pattern: if os.environ.get("SPARK_MODE"...) block with from mock_spark import
     code = re.sub(
@@ -219,16 +219,16 @@ def remove_sparkforge_imports(code: str) -> str:
         code,
         flags=re.MULTILINE
     )
-    
+
     # Remove any remaining mock_spark references
     code = re.sub(r'from mock_spark import .*\n', '', code)
     code = re.sub(r'import mock_spark.*\n', '', code)
-    
+
     # Remove references to "sparkforge" in various contexts
     # Replace in import statements
     code = re.sub(r'from sparkforge\.', 'from .', code)
     code = re.sub(r'import sparkforge', '# import sparkforge  # Not needed in notebook', code)
-    
+
     # Replace in docstrings and comments (but preserve technical meaning)
     code = re.sub(r'SparkForge\s+PipelineBuilder', 'PipelineBuilder', code)
     code = re.sub(r'for\s+SparkForge', 'for the framework', code)
@@ -242,47 +242,47 @@ def remove_sparkforge_imports(code: str) -> str:
     code = re.sub(r'from\s+sparkforge', 'from the framework', code)
     code = re.sub(r'SparkForge\s+integration', 'framework integration', code)
     code = re.sub(r'with\s+SparkForge', 'with the framework', code)
-    
+
     # Replace standalone "SparkForge" references
     code = re.sub(r'name\s*=\s*["\']SparkForge["\']', 'name="PipelineFramework"', code)
     code = re.sub(r'"SparkForge"', '"PipelineFramework"', code)
     code = re.sub(r"'SparkForge'", "'PipelineFramework'", code)
-    
+
     return code
 
 
 def extract_code_without_docstring(code: str) -> str:
     """Extract code without the module docstring."""
     lines = code.split('\n')
-    
+
     # Find and skip module docstring
     docstring_start = -1
     docstring_end = -1
     in_docstring = False
     quote_type = None
-    
+
     for i, line in enumerate(lines):
         stripped = line.strip()
-        
+
         # Skip shebang, encoding, comments at start
         if stripped.startswith('#'):
             continue
         if not stripped:
             continue
-        
+
         # Skip imports before docstring
         if stripped.startswith('from ') or stripped.startswith('import '):
             if docstring_start == -1:
                 continue
             else:
                 break
-        
+
         # Found docstring
         if not in_docstring:
             if '"""' in stripped or "'''" in stripped:
                 quote_type = '"""' if '"""' in stripped else "'''"
                 docstring_start = i
-                
+
                 if stripped.count(quote_type) >= 2:
                     docstring_end = i
                     break
@@ -291,19 +291,19 @@ def extract_code_without_docstring(code: str) -> str:
         elif in_docstring and quote_type in line:
             docstring_end = i
             break
-    
+
     # Return code without docstring
     if docstring_start != -1:
         result_lines = lines[:docstring_start] + lines[docstring_end + 1:]
     else:
         result_lines = lines
-    
+
     # Remove leading/trailing blank lines
     while result_lines and not result_lines[0].strip():
         result_lines.pop(0)
     while result_lines and not result_lines[-1].strip():
         result_lines.pop()
-    
+
     return '\n'.join(result_lines)
 
 
@@ -311,7 +311,7 @@ def create_notebook_cell(code: str, cell_type: str = 'code', metadata: Dict = No
     """Create a Jupyter notebook cell."""
     if metadata is None:
         metadata = {}
-    
+
     # Format source with proper newlines for Jupyter
     # Each line should end with \n except the last line
     if code:
@@ -321,7 +321,7 @@ def create_notebook_cell(code: str, cell_type: str = 'code', metadata: Dict = No
             source.append(lines[-1])
     else:
         source = []
-    
+
     if cell_type == 'code':
         return {
             'cell_type': 'code',
@@ -341,17 +341,17 @@ def create_notebook_cell(code: str, cell_type: str = 'code', metadata: Dict = No
 def generate_notebook(modules: Dict[str, Dict], sorted_modules: List[str], version: str) -> Dict:
     """
     Generate the Jupyter notebook structure.
-    
+
     Args:
         modules: Dict of module information
         sorted_modules: List of modules in dependency order
         version: Package version
-        
+
     Returns:
         Notebook dict structure
     """
     cells = []
-    
+
     # Title cell
     title = f"""# PipelineBuilder v{version} - Standalone Notebook
 
@@ -366,9 +366,9 @@ in the correct order.
 
 **Note:** This is generated from version {version}. Module dependencies are
 resolved automatically from source code analysis."""
-    
+
     cells.append(create_notebook_cell(title, 'markdown'))
-    
+
     # Imports cell
     imports_code = """# External imports (PySpark, standard library)
 from __future__ import annotations
@@ -414,38 +414,38 @@ try:
 except ImportError:
     print("⚠️  psutil not available. Memory monitoring disabled.")
     psutil = None"""
-    
+
     cells.append(create_notebook_cell(imports_code, 'code'))
-    
+
     # Add module cells in dependency order
     for module_path in sorted_modules:
         info = modules[module_path]
-        
+
         # Create markdown header for the module
         module_header = f"## Module: {module_path}\n\n"
         if info['dependencies']:
             module_header += f"**Dependencies:** {', '.join(sorted(info['dependencies']))}"
         else:
             module_header += "**Dependencies:** None (base module)"
-        
+
         cells.append(create_notebook_cell(module_header, 'markdown'))
-        
+
         # Extract code without docstring and remove sparkforge imports
         code = extract_code_without_docstring(info['code'])
         code = remove_sparkforge_imports(code)
-        
+
         # Clean up the code
         code = code.strip()
-        
+
         if code:
             cells.append(create_notebook_cell(code, 'code'))
-    
+
     # Add usage example cell
     usage_example = """## Usage Example
 
 Here's how to use the PipelineBuilder:"""
     cells.append(create_notebook_cell(usage_example, 'markdown'))
-    
+
     example_code = """# Example: Create a simple pipeline
 from pyspark.sql import SparkSession, functions as F
 
@@ -499,9 +499,9 @@ builder.add_gold_transform(
 pipeline = builder.to_pipeline()
 result = pipeline.run_initial_load(bronze_sources={"events": df})
 print(f"✅ Pipeline completed: {result.status}")"""
-    
+
     cells.append(create_notebook_cell(example_code, 'code'))
-    
+
     # Create notebook structure
     notebook = {
         'cells': cells,
@@ -527,7 +527,7 @@ print(f"✅ Pipeline completed: {result.status}")"""
         'nbformat': 4,
         'nbformat_minor': 4
     }
-    
+
     return notebook
 
 
@@ -546,55 +546,55 @@ def main():
         action='store_true',
         help='Show detailed output'
     )
-    
+
     args = parser.parse_args()
-    
+
     # Get version
     version = extract_version()
     print(f"📦 SparkForge version: {version}")
-    
+
     # Set output path
     if args.output:
         output_path = Path(args.output)
     else:
         output_path = Path(f'notebooks/pipeline_builder_v{version}.ipynb')
-    
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     print(f"📝 Output: {output_path}")
-    print(f"🔍 Analyzing modules...\n")
-    
+    print("🔍 Analyzing modules...\n")
+
     # Get all module information
     sparkforge_root = Path('sparkforge')
     modules = get_module_info(sparkforge_root)
-    
+
     print(f"Found {len(modules)} modules")
-    
+
     # Perform topological sort
     if args.verbose:
         print("\n🔄 Performing topological sort...")
     sorted_modules = topological_sort(modules)
-    
+
     if args.verbose:
         print(f"\nModule order ({len(sorted_modules)} modules):")
         for i, module in enumerate(sorted_modules, 1):
             deps = modules[module]['dependencies']
             deps_str = f" (depends on: {', '.join(deps)})" if deps else " (no dependencies)"
             print(f"  {i:2d}. {module}{deps_str}")
-    
+
     # Generate notebook
-    print(f"\n📓 Generating notebook...")
+    print("\n📓 Generating notebook...")
     notebook = generate_notebook(modules, sorted_modules, version)
-    
+
     # Write notebook
     with open(output_path, 'w') as f:
         json.dump(notebook, f, indent=2)
-    
+
     print(f"\n✅ Successfully generated notebook: {output_path}")
     print(f"   - Total cells: {len(notebook['cells'])}")
     print(f"   - Modules included: {len(sorted_modules)}")
-    print(f"   - Ready to run from top to bottom!")
-    
+    print("   - Ready to run from top to bottom!")
+
     return 0
 
 

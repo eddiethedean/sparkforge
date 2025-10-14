@@ -7,11 +7,11 @@ API alignment and error handling.
 """
 
 import json
+import os
 from dataclasses import dataclass
 from datetime import datetime
 
 import pytest
-import os
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
@@ -20,7 +20,6 @@ else:
     from pyspark.sql import functions as F
 
 from sparkforge.errors import ValidationError
-from sparkforge.models.exceptions import PipelineConfigurationError
 from sparkforge.models import (
     BaseModel,
     BronzeStep,
@@ -38,6 +37,7 @@ from sparkforge.models import (
     ValidationThresholds,
     WriteMode,
 )
+from sparkforge.models.exceptions import PipelineConfigurationError
 from sparkforge.pipeline.models import PipelineMode, PipelineReport, PipelineStatus
 from sparkforge.types import StepStatus, StepType
 

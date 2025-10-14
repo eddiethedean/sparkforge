@@ -5,8 +5,9 @@ This module tests that the simplified execution system properly handles
 DataFrame operations and transformations.
 """
 
-import pytest
 import os
+
+import pytest
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":

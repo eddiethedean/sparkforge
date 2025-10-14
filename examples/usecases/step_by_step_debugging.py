@@ -309,7 +309,7 @@ def main():
             spark.sql("DROP DATABASE IF EXISTS debug_demo CASCADE")
             spark.stop()
             print("\n🧹 Cleanup completed")
-        except:
+        except Exception:
             pass
 
 

@@ -7,8 +7,8 @@ providing a consistent testing environment without requiring Spark installation.
 """
 
 import os
-import sys
 import subprocess
+import sys
 
 
 def main():

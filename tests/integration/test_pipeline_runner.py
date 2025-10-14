@@ -5,20 +5,20 @@ Tests for pipeline runner functionality.
 This module tests the SimplePipelineRunner class and its methods.
 """
 
+import os
 from datetime import datetime
 from unittest.mock import Mock, patch
 
 import pytest
 from pyspark.sql import DataFrame, SparkSession
-import os
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F
     from mock_spark import MockDataFrame as DataFrame
+    from mock_spark import functions as F
 else:
-    from pyspark.sql import functions as F
     from pyspark.sql import DataFrame
+    from pyspark.sql import functions as F
 
 from sparkforge.execution import (
     ExecutionMode,

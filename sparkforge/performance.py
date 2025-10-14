@@ -17,7 +17,7 @@ from datetime import datetime
 from functools import wraps
 from typing import Any, Callable, Generator
 
-from pyspark.sql import DataFrame
+from .compat import DataFrame
 
 logger = logging.getLogger(__name__)
 

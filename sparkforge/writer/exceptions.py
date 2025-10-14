@@ -7,7 +7,7 @@ providing clear error handling and debugging information.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Dict
 
 
 class WriterError(Exception):
@@ -21,7 +21,7 @@ class WriterError(Exception):
     def __init__(
         self,
         message: str,
-        context: dict[str, Any] | None = None,
+        context: Dict[str, Any] | None = None,
         suggestions: list[str] | None = None,
         cause: Exception | None = None,
     ) -> None:
@@ -62,7 +62,7 @@ class WriterValidationError(WriterError):
         self,
         message: str,
         validation_errors: list[str] | None = None,
-        context: dict[str, Any] | None = None,
+        context: Dict[str, Any] | None = None,
         suggestions: list[str] | None = None,
     ) -> None:
         """
@@ -90,7 +90,7 @@ class WriterConfigurationError(WriterError):
         self,
         message: str,
         config_errors: list[str] | None = None,
-        context: dict[str, Any] | None = None,
+        context: Dict[str, Any] | None = None,
         suggestions: list[str] | None = None,
     ) -> None:
         """
@@ -119,7 +119,7 @@ class WriterTableError(WriterError):
         message: str,
         table_name: str | None = None,
         operation: str | None = None,
-        context: dict[str, Any] | None = None,
+        context: Dict[str, Any] | None = None,
         suggestions: list[str] | None = None,
         cause: Exception | None = None,
     ) -> None:
@@ -154,7 +154,7 @@ class WriterPerformanceError(WriterError):
         expected_duration: float | None = None,
         actual_memory: float | None = None,
         expected_memory: float | None = None,
-        context: dict[str, Any] | None = None,
+        context: Dict[str, Any] | None = None,
         suggestions: list[str] | None = None,
     ) -> None:
         """
@@ -190,7 +190,7 @@ class WriterSchemaError(WriterError):
         schema_errors: list[str] | None = None,
         expected_schema: str | None = None,
         actual_schema: str | None = None,
-        context: dict[str, Any] | None = None,
+        context: Dict[str, Any] | None = None,
         suggestions: list[str] | None = None,
     ) -> None:
         """
@@ -224,7 +224,7 @@ class WriterDataQualityError(WriterError):
         quality_issues: list[str] | None = None,
         validation_rate: float | None = None,
         threshold: float | None = None,
-        context: dict[str, Any] | None = None,
+        context: Dict[str, Any] | None = None,
         suggestions: list[str] | None = None,
     ) -> None:
         """

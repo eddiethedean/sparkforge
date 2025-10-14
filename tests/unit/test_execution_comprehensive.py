@@ -6,29 +6,33 @@ pipeline execution, error handling, and various execution modes.
 """
 
 import os
-import pytest
 from datetime import datetime
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import patch
+
+import pytest
+from mock_spark import (
+    IntegerType,
+    MockStructField,
+    MockStructType,
+    StringType,
+)
+
+from sparkforge.errors import ExecutionError
 from sparkforge.execution import (
     ExecutionEngine,
     ExecutionMode,
+    ExecutionResult,
+    StepExecutionResult,
     StepStatus,
     StepType,
-    StepExecutionResult,
-    ExecutionResult,
 )
+from sparkforge.logging import PipelineLogger
 from sparkforge.models import (
     BronzeStep,
-    SilverStep,
-    GoldStep,
+    ParallelConfig,
     PipelineConfig,
     ValidationThresholds,
-    ParallelConfig,
 )
-from sparkforge.errors import ExecutionError
-from sparkforge.logging import PipelineLogger
-from mock_spark import MockSparkSession, MockDataFrame
-from mock_spark import MockStructType, MockStructField, StringType, IntegerType
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
@@ -514,7 +518,7 @@ class TestExecutionIntegration:
 
         # Test logging during step execution
         with patch.object(engine.logger, "info") as mock_info:
-            result = engine.execute_step(bronze_step, context, ExecutionMode.INITIAL)
+            engine.execute_step(bronze_step, context, ExecutionMode.INITIAL)
 
             # Verify logging calls
             assert mock_info.call_count >= 2  # Start and completion

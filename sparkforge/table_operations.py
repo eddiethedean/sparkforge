@@ -14,9 +14,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.utils import AnalysisException
-
+from .compat import AnalysisException, DataFrame, SparkSession
 from .errors import TableOperationError
 from .performance import time_operation
 
@@ -174,7 +172,7 @@ def drop_table(spark: SparkSession, fqn: str) -> bool:
     try:
         if table_exists(spark, fqn):
             # Use Java SparkSession to access external catalog
-            jspark_session = spark._jsparkSession  # type: ignore[attr-defined]
+            jspark_session = spark._jsparkSession
             external_catalog = jspark_session.sharedState().externalCatalog()
 
             # Parse fully qualified name

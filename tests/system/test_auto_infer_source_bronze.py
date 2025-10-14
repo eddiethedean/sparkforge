@@ -6,10 +6,10 @@ This module tests the new feature that allows add_silver_transform to
 automatically infer the source_bronze from the most recent with_bronze_rules call.
 """
 
+import os
 from unittest.mock import patch
 
 import pytest
-import os
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":

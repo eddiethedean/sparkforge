@@ -5,20 +5,20 @@ This module provides common test utilities, data generators, and helper function
 to reduce duplication and improve test maintainability.
 """
 
+import os
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Tuple
 
 import pytest
 from pyspark.sql import DataFrame, SparkSession
-import os
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F
     from mock_spark import MockDataFrame as DataFrame
+    from mock_spark import functions as F
 else:
-    from pyspark.sql import functions as F
     from pyspark.sql import DataFrame
+    from pyspark.sql import functions as F
 
 from sparkforge import PipelineBuilder
 

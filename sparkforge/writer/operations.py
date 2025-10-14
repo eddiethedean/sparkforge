@@ -16,24 +16,34 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict
 
-from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql import functions as F
-
+from ..compat import DataFrame, SparkSession
+from ..functions import FunctionsProtocol, get_default_functions
 from ..logging import PipelineLogger
 from ..models import ExecutionResult, StepResult
 from ..validation import get_dataframe_info
 from .exceptions import WriterValidationError
-from .models import LogRow, create_log_rows_from_execution_result, create_log_schema, validate_log_data
+from .models import (
+    LogRow,
+    create_log_rows_from_execution_result,
+    create_log_schema,
+    validate_log_data,
+)
 
 
 class DataProcessor:
     """Handles data processing and transformation operations."""
 
-    def __init__(self, spark: SparkSession, logger: PipelineLogger | None = None):
+    def __init__(
+        self,
+        spark: SparkSession,
+        functions: FunctionsProtocol | None = None,
+        logger: PipelineLogger | None = None,
+    ):
         """Initialize the data processor."""
         self.spark = spark
+        self.functions = functions if functions is not None else get_default_functions()
         self.logger = logger or PipelineLogger("DataProcessor")
 
     def process_execution_result(
@@ -42,7 +52,7 @@ class DataProcessor:
         run_id: str,
         run_mode: str = "initial",
         metadata: Dict[str, Any] | None = None,
-    ) -> List[LogRow]:
+    ) -> list[LogRow]:
         """
         Process execution result into log rows.
 
@@ -93,7 +103,7 @@ class DataProcessor:
         run_id: str,
         run_mode: str = "initial",
         metadata: Dict[str, Any] | None = None,
-    ) -> List[LogRow]:
+    ) -> list[LogRow]:
         """
         Process step results into log rows.
 
@@ -158,7 +168,7 @@ class DataProcessor:
             self.logger.error(f"Failed to process step results: {e}")
             raise
 
-    def create_dataframe_from_log_rows(self, log_rows: List[LogRow]) -> DataFrame:
+    def create_dataframe_from_log_rows(self, log_rows: list[LogRow]) -> DataFrame:
         """
         Create DataFrame from log rows.
 
@@ -210,7 +220,7 @@ class DataProcessor:
 
             # Create DataFrame with explicit schema for type safety and None value handling
             schema = create_log_schema()
-            df = self.spark.createDataFrame(log_data, schema)  # type: ignore[type-var]
+            df = self.spark.createDataFrame(log_data, schema)  # type: ignore[attr-defined]
 
             self.logger.info("Successfully created DataFrame from log rows")
             return df
@@ -241,13 +251,17 @@ class DataProcessor:
 
             for col_name in critical_columns:
                 if col_name in df.columns:
-                    null_count = df.filter(F.col(col_name).isNull()).count()
+                    null_count = df.filter(
+                        self.functions.col(col_name).isNull()
+                    ).count()
                     null_counts[col_name] = null_count
 
             # Check validation rates
             validation_issues = []
             if "validation_rate" in df.columns:
-                low_validation = df.filter(F.col("validation_rate") < 95.0).count()
+                low_validation = df.filter(
+                    self.functions.col("validation_rate") < 95.0
+                ).count()
                 if low_validation > 0:
                     validation_issues.append(
                         f"{low_validation} records with validation rate < 95%"
@@ -256,7 +270,7 @@ class DataProcessor:
             # Check for failed executions
             failed_executions = 0
             if "success" in df.columns:
-                failed_executions = df.filter(F.col("success") == False).count()
+                failed_executions = df.filter(~self.functions.col("success")).count()
 
             validation_result = {
                 "is_valid": len(validation_issues) == 0 and failed_executions == 0,
@@ -282,7 +296,7 @@ class DataProcessor:
         self,
         df_info: Dict[str, Any],
         null_counts: Dict[str, int],
-        validation_issues: List[str],
+        validation_issues: list[str],
         failed_executions: int,
     ) -> float:
         """Calculate data quality score."""
@@ -326,14 +340,18 @@ class DataProcessor:
             # Add computed columns
             df_transformed = df.withColumn(
                 "processing_efficiency",
-                F.when(
-                    F.col("input_rows") > 0,
-                    F.col("output_rows") / F.col("input_rows") * 100,
+                self.functions.when(
+                    self.functions.col("input_rows") > 0,
+                    self.functions.col("output_rows")
+                    / self.functions.col("input_rows")
+                    * 100,
                 ).otherwise(0),
             ).withColumn(
                 "data_quality_score",
-                F.when(F.col("validation_rate") >= 95.0, "High")
-                .when(F.col("validation_rate") >= 80.0, "Medium")
+                self.functions.when(
+                    self.functions.col("validation_rate") >= 95.0, "High"
+                )
+                .when(self.functions.col("validation_rate") >= 80.0, "Medium")
                 .otherwise("Low"),
             )
 

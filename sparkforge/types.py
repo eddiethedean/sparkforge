@@ -8,7 +8,7 @@ for better type safety without over-engineering.
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Protocol, Union
 
-from pyspark.sql import Column, DataFrame, SparkSession
+from .compat import Column, DataFrame, SparkSession
 
 # ============================================================================
 # Basic Type Aliases

@@ -5,10 +5,12 @@ This module tests that performance monitoring no longer uses generic error handl
 that masks real issues, and instead raises specific exceptions with proper error chaining.
 """
 
-import pytest
 from unittest.mock import Mock, patch
-from sparkforge.writer.monitoring import PerformanceMonitor
+
+import pytest
+
 from sparkforge.writer.exceptions import WriterError
+from sparkforge.writer.monitoring import PerformanceMonitor
 
 
 class TestTrap8GenericErrorHandlingPerformance:

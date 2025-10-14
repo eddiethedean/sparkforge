@@ -7,8 +7,7 @@ clear error messages and explicit options.
 """
 
 import os
-import pytest
-from unittest.mock import patch, Mock
+from unittest.mock import patch
 
 
 class TestTrap7SilentFallbackTestConfig:

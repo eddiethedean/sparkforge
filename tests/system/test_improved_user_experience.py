@@ -11,18 +11,23 @@ Tests for the new user experience improvements:
 """
 
 import os
+
 import pytest
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F
     from mock_spark import (
         IntegerType,
         StringType,
-        MockStructField as StructField,
-        MockStructType as StructType,
         TimestampType,
     )
+    from mock_spark import (
+        MockStructField as StructField,
+    )
+    from mock_spark import (
+        MockStructType as StructType,
+    )
+    from mock_spark import functions as F
     MockF = F
 else:
     from pyspark.sql import functions as F

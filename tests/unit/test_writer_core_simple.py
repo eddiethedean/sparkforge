@@ -3,9 +3,10 @@ Simple unit tests for writer core using Mock Spark.
 """
 
 import pytest
+from mock_spark.errors import AnalysisException
+
 from sparkforge.writer.core import LogWriter, table_exists
-from sparkforge.writer.models import WriteMode, LogLevel, WriterConfig
-from mock_spark.errors import AnalysisException, IllegalArgumentException
+from sparkforge.writer.models import LogLevel, WriteMode, WriterConfig
 
 
 class TestWriterCoreSimple:
@@ -72,7 +73,7 @@ class TestWriterCoreSimple:
 
     def test_table_exists_function(self, spark_session):
         """Test table_exists function."""
-        from mock_spark import MockStructType, MockStructField, StringType, IntegerType
+        from mock_spark import IntegerType, MockStructField, StringType
 
         # Create schema and table
         spark_session.storage.create_schema("test_schema")
@@ -153,7 +154,7 @@ class TestWriterCoreSimple:
     def test_log_writer_with_sample_data(self, spark_session, sample_dataframe):
         """Test log writer with sample data."""
         config = self._create_test_config()
-        writer = LogWriter(spark=spark_session, config=config)
+        LogWriter(spark=spark_session, config=config)
 
         # Test with sample DataFrame
         assert sample_dataframe.count() > 0
@@ -164,7 +165,7 @@ class TestWriterCoreSimple:
     def test_log_writer_error_handling(self, spark_session):
         """Test log writer error handling."""
         config = self._create_test_config()
-        writer = LogWriter(spark=spark_session, config=config)
+        LogWriter(spark=spark_session, config=config)
 
         # Test with invalid table name
         with pytest.raises(AnalysisException):
@@ -173,7 +174,7 @@ class TestWriterCoreSimple:
     def test_log_writer_metrics_collection(self, spark_session, sample_dataframe):
         """Test log writer metrics collection."""
         config = self._create_test_config()
-        writer = LogWriter(spark=spark_session, config=config)
+        LogWriter(spark=spark_session, config=config)
 
         # Test basic metrics
         start_time = 0.0

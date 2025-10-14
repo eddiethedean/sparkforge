@@ -53,21 +53,23 @@ def reset_global_state():
         reset_global_logger()
     except Exception:
         pass
-    
-    # Clear any cached PySpark modules
+
+    # Clear any cached Spark modules
     import sys
-    spark_modules = [k for k in sys.modules.keys() if 'pyspark' in k.lower() and '_jvm' not in k]
+    [k for k in sys.modules.keys() if 'pyspark' in k.lower() and '_jvm' not in k]
     # Don't remove modules, just ensure SparkContext is clean
     try:
-        from pyspark import SparkContext
-        if SparkContext._active_spark_context is not None:
-            # Don't stop it as other tests might need it
-            pass
+        from sparkforge.compat import compat_name
+        if compat_name() == "pyspark":
+            from pyspark import SparkContext
+            if SparkContext._active_spark_context is not None:
+                # Don't stop it as other tests might need it
+                pass
     except Exception:
         pass
-    
+
     yield
-    
+
     # Reset after test
     try:
         from sparkforge.logging import reset_global_logger
@@ -89,7 +91,7 @@ def get_unique_test_schema():
 
 def _create_mock_spark_session():
     """Create a mock Spark session."""
-    from mock_spark import MockSparkSession, MockFunctions
+    from mock_spark import MockSparkSession
 
     print("🔧 Creating Mock Spark session for all tests")
 
@@ -238,7 +240,7 @@ def _create_real_spark_session():
                 f"Delta Lake configuration failed: {e}\n"
                 "This is required for SparkForge tests. Please install Delta Lake or "
                 "set environment variables to skip Delta Lake requirements."
-            )
+            ) from e
 
     # Ensure Spark session was created successfully
     if spark is None:
@@ -322,7 +324,7 @@ def spark_session():
                     if schema_name not in ["default", "information_schema"]:
                         try:
                             spark.storage.drop_schema(schema_name, cascade=True)
-                        except:
+                        except Exception:
                             pass
 
             # Stop the session
@@ -350,6 +352,10 @@ def isolated_spark_session():
         schema_name = f"test_schema_{unique_id}"
 
         print(f"🔧 Creating isolated real Spark session for {schema_name}")
+
+        # Create the spark session using the main fixture
+        from conftest import spark_session_fixture
+        spark = spark_session_fixture()
 
         # Create isolated test database
         try:
@@ -513,14 +519,14 @@ def mock_spark_session():
         if hasattr(spark, "catalog"):
             try:
                 spark.catalog.clearCache()
-            except:
+            except Exception:
                 pass
 
         # Stop the session
         if hasattr(spark, "stop"):
             try:
                 spark.stop()
-            except:
+            except Exception:
                 pass
     except Exception:
         pass
@@ -598,11 +604,11 @@ def sample_dataframe(spark_session):
 
     if spark_mode == "real":
         from pyspark.sql.types import (
-            StructType,
-            StructField,
-            StringType,
-            IntegerType,
             DoubleType,
+            IntegerType,
+            StringType,
+            StructField,
+            StructType,
         )
 
         schema = StructType(
@@ -625,11 +631,11 @@ def sample_dataframe(spark_session):
         return spark_session.createDataFrame(data, schema)
     else:
         from mock_spark import (
-            MockStructType,
-            MockStructField,
-            StringType,
-            IntegerType,
             DoubleType,
+            IntegerType,
+            MockStructField,
+            MockStructType,
+            StringType,
         )
 
         schema = MockStructType(
@@ -663,7 +669,7 @@ def empty_dataframe(spark_session):
     spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
 
     if spark_mode == "real":
-        from pyspark.sql.types import StructType, StructField, StringType
+        from pyspark.sql.types import StringType, StructField, StructType
 
         schema = StructType(
             [
@@ -674,7 +680,7 @@ def empty_dataframe(spark_session):
 
         return spark_session.createDataFrame([], schema)
     else:
-        from mock_spark import MockStructType, MockStructField, StringType
+        from mock_spark import MockStructField, MockStructType, StringType
 
         schema = MockStructType(
             [
@@ -730,7 +736,7 @@ def test_config():
 
     Returns a PipelineConfig object for testing.
     """
-    from sparkforge.models import PipelineConfig, ValidationThresholds, ParallelConfig
+    from sparkforge.models import ParallelConfig, PipelineConfig, ValidationThresholds
 
     return PipelineConfig(
         schema="test_schema",
@@ -752,6 +758,7 @@ def mock_pyspark_functions():
 
     if spark_mode == "mock":
         import sys
+
         from mock_spark import functions as mock_functions
 
         # Store original module

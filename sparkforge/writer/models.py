@@ -14,19 +14,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Literal, TypedDict, cast
+from typing import Any, Dict, Literal, TypedDict
 
-from pyspark.sql.types import (
-    BooleanType,
-    FloatType,
-    IntegerType,
-    StringType,
-    StructField,
-    StructType,
-    TimestampType,
-)
-
+from ..compat import types
 from ..models import ExecutionContext, ExecutionResult, StepResult
+
+# Import specific types for convenience
+BooleanType = types.BooleanType
+FloatType = types.FloatType
+IntegerType = types.IntegerType
+StringType = types.StringType
+StructField = types.StructField
+StructType = types.StructType
+TimestampType = types.TimestampType
 
 # ============================================================================
 # Enums
@@ -289,15 +289,17 @@ class WriterConfig:
 # Spark Schema Definitions
 # ============================================================================
 
+from ..compat import types  # noqa: E402
 
-def create_log_schema() -> StructType:
+
+def create_log_schema() -> types.StructType:
     """
     Create the Spark schema for log tables.
 
     Returns:
         StructType: Spark schema for log tables with proper types
     """
-    return StructType(
+    return types.StructType(
         [
             # Run-level fields
             StructField("run_id", StringType(), False),
@@ -336,6 +338,9 @@ def create_log_schema() -> StructType:
             StructField("cpu_usage_percent", FloatType(), True),
             # Metadata (stored as JSON string)
             StructField("metadata", StringType(), True),
+            # Timestamp fields for tracking
+            StructField("created_at", StringType(), True),
+            StructField("updated_at", StringType(), True),
         ]
     )
 

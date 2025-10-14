@@ -14,12 +14,20 @@ integration, table management, and data persistence.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict
 
-from delta.tables import DeltaTable
-from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql import functions as F
+from ..compat import DataFrame, SparkSession
 
+# Handle optional Delta Lake dependency
+try:
+    from delta.tables import DeltaTable
+
+    HAS_DELTA = True
+except ImportError:
+    DeltaTable = None  # type: ignore
+    HAS_DELTA = False
+
+from ..functions import FunctionsProtocol, get_default_functions
 from ..logging import PipelineLogger
 from ..table_operations import table_exists
 from .exceptions import WriterTableError
@@ -33,11 +41,13 @@ class StorageManager:
         self,
         spark: SparkSession,
         config: WriterConfig,
+        functions: FunctionsProtocol | None = None,
         logger: PipelineLogger | None = None,
     ):
         """Initialize the storage manager."""
         self.spark = spark
         self.config = config
+        self.functions = functions if functions is not None else get_default_functions()
         if logger is None:
             self.logger = PipelineLogger("StorageManager")
         else:
@@ -90,7 +100,7 @@ class StorageManager:
         self,
         df: DataFrame,
         write_mode: WriteMode = WriteMode.APPEND,
-        partition_columns: List[str] | None = None,
+        partition_columns: list[str] | None = None,
     ) -> Dict[str, Any]:
         """
         Write DataFrame to the log table.
@@ -163,7 +173,7 @@ class StorageManager:
             ) from e
 
     def write_batch(
-        self, log_rows: List[LogRow], write_mode: WriteMode = WriteMode.APPEND
+        self, log_rows: list[LogRow], write_mode: WriteMode = WriteMode.APPEND
     ) -> Dict[str, Any]:
         """
         Write a batch of log rows to the table.
@@ -195,6 +205,18 @@ class StorageManager:
         Returns:
             Dictionary containing optimization results
         """
+        if not HAS_DELTA:
+            self.logger.warning(
+                f"Delta Lake not available, optimize operation skipped for {self.table_fqn}"
+            )
+            return {
+                "table_name": self.table_fqn,
+                "optimization_completed": False,
+                "skipped": True,
+                "reason": "Delta Lake not available",
+                "timestamp": datetime.now().isoformat(),
+            }
+
         try:
             self.logger.info(f"Optimizing table: {self.table_fqn}")
 
@@ -243,6 +265,19 @@ class StorageManager:
         Returns:
             Dictionary containing vacuum results
         """
+        if not HAS_DELTA:
+            self.logger.warning(
+                f"Delta Lake not available, vacuum operation skipped for {self.table_fqn}"
+            )
+            return {
+                "table_name": self.table_fqn,
+                "vacuum_completed": False,
+                "skipped": True,
+                "reason": "Delta Lake not available",
+                "retention_hours": retention_hours,
+                "timestamp": datetime.now().isoformat(),
+            }
+
         try:
             self.logger.info(
                 f"Vacuuming table: {self.table_fqn} (retention: {retention_hours}h)"
@@ -282,6 +317,20 @@ class StorageManager:
         Returns:
             Dictionary containing table information
         """
+        if not HAS_DELTA:
+            self.logger.warning(
+                f"Delta Lake not available, using basic table info for {self.table_fqn}"
+            )
+            # Get basic info without Delta Lake
+            row_count = self.spark.table(self.table_fqn).count()
+            return {
+                "table_name": self.table_fqn,
+                "row_count": row_count,
+                "details": [],
+                "history": [],
+                "timestamp": datetime.now().isoformat(),
+            }
+
         try:
             self.logger.info(f"Getting table info for: {self.table_fqn}")
 
@@ -348,12 +397,18 @@ class StorageManager:
             if filters:
                 for column, value in filters.items():
                     if isinstance(value, str):
-                        result_df = result_df.filter(F.col(column) == F.lit(value))
+                        result_df = result_df.filter(
+                            self.functions.col(column) == self.functions.lit(value)
+                        )
                     else:
-                        result_df = result_df.filter(F.col(column) == value)
+                        result_df = result_df.filter(
+                            self.functions.col(column) == value
+                        )
 
             # Add ordering using PySpark functions
-            result_df = result_df.orderBy(F.desc("created_at"))
+            from ..compat import desc
+
+            result_df = result_df.orderBy(desc("created_at"))
 
             # Apply limit if specified
             if limit:
@@ -384,10 +439,10 @@ class StorageManager:
             current_time_str = datetime.now().isoformat()
 
             if "created_at" not in df.columns:
-                df = df.withColumn("created_at", F.lit(current_time_str))
+                df = df.withColumn("created_at", self.functions.lit(current_time_str))
 
             if "updated_at" not in df.columns:
-                df = df.withColumn("updated_at", F.lit(current_time_str))
+                df = df.withColumn("updated_at", self.functions.lit(current_time_str))
 
             return df
 
@@ -395,7 +450,7 @@ class StorageManager:
             self.logger.error(f"Failed to prepare DataFrame for write: {e}")
             raise
 
-    def _create_dataframe_from_log_rows(self, log_rows: List[LogRow]) -> DataFrame:
+    def _create_dataframe_from_log_rows(self, log_rows: list[LogRow]) -> DataFrame:
         """Create DataFrame from log rows."""
         try:
             # Convert log rows to dictionaries
@@ -439,7 +494,7 @@ class StorageManager:
 
             # Create DataFrame with explicit schema for type safety and None value handling
             schema = create_log_schema()
-            df = self.spark.createDataFrame(log_data, schema)  # type: ignore[type-var]
+            df = self.spark.createDataFrame(log_data, schema)  # type: ignore[attr-defined]
             return df
 
         except Exception as e:

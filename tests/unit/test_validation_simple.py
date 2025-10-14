@@ -2,39 +2,33 @@
 Simplified tests for sparkforge.validation modules that work with mock_spark.
 """
 
-import pytest
 from datetime import datetime
-from unittest.mock import patch, MagicMock
-from sparkforge.validation.utils import safe_divide, get_dataframe_info
-from sparkforge.validation.pipeline_validation import (
-    ValidationResult,
-    UnifiedValidator,
-    StepValidator,
-)
-from sparkforge.models import (
-    ColumnRules,
-    StageStats,
-    BronzeStep,
-    SilverStep,
-    GoldStep,
-    PipelineConfig,
-    ExecutionContext,
-    ValidationThresholds,
-    ParallelConfig,
-)
-from sparkforge.models.enums import PipelinePhase, ExecutionMode
-from sparkforge.logging import PipelineLogger
-from sparkforge.errors import ValidationError
-from mock_spark import MockSparkSession
+
 from mock_spark import (
-    MockStructType,
-    MockStructField,
-    StringType,
     IntegerType,
-    DoubleType,
-    TimestampType,
+    MockStructField,
+    MockStructType,
+    StringType,
 )
-from mock_spark.functions import F
+
+from sparkforge.errors import ValidationError
+from sparkforge.logging import PipelineLogger
+from sparkforge.models import (
+    BronzeStep,
+    ExecutionContext,
+    GoldStep,
+    ParallelConfig,
+    PipelineConfig,
+    SilverStep,
+    ValidationThresholds,
+)
+from sparkforge.models.enums import ExecutionMode
+from sparkforge.validation.pipeline_validation import (
+    StepValidator,
+    UnifiedValidator,
+    ValidationResult,
+)
+from sparkforge.validation.utils import get_dataframe_info, safe_divide
 
 
 class TestValidationUtils:

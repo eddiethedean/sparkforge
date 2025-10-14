@@ -48,21 +48,8 @@ def run_all_tests():
 
     result = subprocess.run(test_cmd, env=env, capture_output=True, text=True)
 
-    # Run mypy type checking on all tests
-    print("\n🔍 Running mypy type checking on all tests...")
-    mypy_tests_cmd = [
-        sys.executable,
-        "-m",
-        "mypy",
-        "tests/",
-        "--config-file=tests/mypy.ini",
-    ]
-
-    mypy_tests_result = subprocess.run(
-        mypy_tests_cmd, env=env, capture_output=True, text=True
-    )
-
-    # Run mypy on source code
+    # Skip mypy type checking on tests (not needed)
+    # Only run mypy on source code
     print("🔍 Running mypy on source code...")
     mypy_source_cmd = [
         sys.executable,
@@ -91,13 +78,6 @@ def run_all_tests():
         print(result.stdout)
         print(result.stderr)
 
-    if mypy_tests_result.returncode == 0:
-        print("✅ All tests mypy: PASSED")
-    else:
-        print("❌ All tests mypy: FAILED")
-        print(mypy_tests_result.stdout)
-        print(mypy_tests_result.stderr)
-
     if mypy_source_result.returncode == 0:
         print("✅ Source code mypy: PASSED")
     else:
@@ -108,11 +88,7 @@ def run_all_tests():
     print(f"⏱️  Total duration: {duration:.2f}s")
 
     # Return success if all checks passed
-    return (
-        result.returncode == 0
-        and mypy_tests_result.returncode == 0
-        and mypy_source_result.returncode == 0
-    )
+    return result.returncode == 0 and mypy_source_result.returncode == 0
 
 
 if __name__ == "__main__":

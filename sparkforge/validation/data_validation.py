@@ -15,10 +15,9 @@ including string rule conversion, column validation, and data quality assessment
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
-from pyspark.sql import Column, DataFrame
-
+from ..compat import Column, DataFrame
 from ..errors import ValidationError
 from ..functions import FunctionsProtocol, get_default_functions
 from ..logging import PipelineLogger
@@ -28,7 +27,7 @@ logger = PipelineLogger("DataValidation")
 
 
 def _convert_rule_to_expression(
-    rule: str, column_name: str, functions: Optional[FunctionsProtocol] = None
+    rule: str, column_name: str, functions: FunctionsProtocol | None = None
 ) -> Column:
     """Convert a string rule to a PySpark Column expression."""
     if functions is None:
@@ -49,7 +48,7 @@ def _convert_rule_to_expression(
 
 def _convert_rules_to_expressions(
     rules: ColumnRules,
-    functions: Optional[FunctionsProtocol] = None,
+    functions: FunctionsProtocol | None = None,
 ) -> Dict[str, list[str | Column]]:
     """Convert string rules to PySpark Column expressions."""
     if functions is None:
@@ -70,7 +69,7 @@ def _convert_rules_to_expressions(
 
 
 def and_all_rules(
-    rules: ColumnRules, functions: Optional[FunctionsProtocol] = None
+    rules: ColumnRules, functions: FunctionsProtocol | None = None
 ) -> Column | bool:
     """Combine all validation rules with AND logic."""
     if not rules:
@@ -118,7 +117,7 @@ def apply_column_rules(
     stage: str,
     step: str,
     filter_columns_by_rules: bool = True,
-    functions: Optional[FunctionsProtocol] = None,
+    functions: FunctionsProtocol | None = None,
 ) -> tuple[DataFrame, DataFrame, StageStats]:
     """
     Apply validation rules to a DataFrame and return valid/invalid DataFrames with statistics.
@@ -246,7 +245,7 @@ def validate_dataframe_schema(df: DataFrame, expected_columns: list[str]) -> boo
 def assess_data_quality(
     df: DataFrame,
     rules: ColumnRules | None = None,
-    functions: Optional[FunctionsProtocol] = None,
+    functions: FunctionsProtocol | None = None,
 ) -> Dict[str, Any]:
     """
     Assess data quality of a DataFrame.

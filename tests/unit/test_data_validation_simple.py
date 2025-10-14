@@ -3,9 +3,10 @@ Simple unit tests for data validation using Mock Spark.
 """
 
 import pytest
-from sparkforge.validation.pipeline_validation import UnifiedValidator, ValidationResult
+from mock_spark.errors import AnalysisException
+
 from sparkforge.models.enums import ValidationResult as ValidationResultEnum
-from mock_spark.errors import AnalysisException, IllegalArgumentException
+from sparkforge.validation.pipeline_validation import UnifiedValidator, ValidationResult
 
 
 class TestDataValidationSimple:
@@ -64,7 +65,7 @@ class TestDataValidationSimple:
         self, mock_spark_session, sample_dataframe
     ):
         """Test unified validator with sample data."""
-        validator = UnifiedValidator()
+        UnifiedValidator()
 
         # Test with sample DataFrame
         assert sample_dataframe.count() > 0
@@ -72,7 +73,7 @@ class TestDataValidationSimple:
 
     def test_unified_validator_error_handling(self, mock_spark_session):
         """Test unified validator error handling."""
-        validator = UnifiedValidator()
+        UnifiedValidator()
 
         # Test with invalid table name
         with pytest.raises(AnalysisException):
@@ -82,7 +83,7 @@ class TestDataValidationSimple:
         self, mock_spark_session, sample_dataframe
     ):
         """Test unified validator metrics collection."""
-        validator = UnifiedValidator()
+        UnifiedValidator()
 
         # Test basic metrics
         start_time = 0.0

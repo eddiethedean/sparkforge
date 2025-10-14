@@ -5,21 +5,21 @@ Comprehensive tests for execution engine functionality.
 This module tests the ExecutionEngine class and all its methods with extensive coverage.
 """
 
+import os
 import uuid
 from datetime import datetime
 from unittest.mock import Mock, patch
 
 import pytest
 from pyspark.sql import DataFrame, SparkSession
-import os
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F
     from mock_spark import MockDataFrame as DataFrame
+    from mock_spark import functions as F
 else:
-    from pyspark.sql import functions as F
     from pyspark.sql import DataFrame
+    from pyspark.sql import functions as F
 
 from sparkforge.errors import ExecutionError, ValidationError
 from sparkforge.execution import (

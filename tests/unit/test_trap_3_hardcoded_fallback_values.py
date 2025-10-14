@@ -6,15 +6,13 @@ This test verifies that LogRow creation uses actual data instead of
 hardcoded fallback values like "unknown" and None.
 """
 
-import pytest
 from datetime import datetime
-from unittest.mock import Mock
 
 from sparkforge.models.execution import (
-    StepResult,
     ExecutionContext,
-    PipelinePhase,
     ExecutionMode,
+    PipelinePhase,
+    StepResult,
 )
 from sparkforge.writer.models import create_log_row_from_step_result
 

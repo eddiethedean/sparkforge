@@ -4,40 +4,39 @@ Tests for sparkforge.constants module.
 This module tests all constants and configuration values.
 """
 
-import pytest
 from sparkforge.constants import (
+    BYTES_PER_GB,
     # Memory and Size Constants
     BYTES_PER_KB,
     BYTES_PER_MB,
-    BYTES_PER_GB,
-    # Default Memory Limits
-    DEFAULT_MAX_MEMORY_MB,
-    DEFAULT_CACHE_MEMORY_MB,
-    # File Size Constants
-    DEFAULT_MAX_FILE_SIZE_MB,
+    DEFAULT_ALERT_THRESHOLD_PERCENT,
     DEFAULT_BACKUP_COUNT,
-    # Performance Constants
-    DEFAULT_CACHE_PARTITIONS,
-    DEFAULT_SHUFFLE_PARTITIONS,
     # Validation Constants
     DEFAULT_BRONZE_THRESHOLD,
-    DEFAULT_SILVER_THRESHOLD,
+    DEFAULT_CACHE_MEMORY_MB,
+    # Performance Constants
+    DEFAULT_CACHE_PARTITIONS,
     DEFAULT_GOLD_THRESHOLD,
-    # Timeout Constants
-    DEFAULT_TIMEOUT_SECONDS,
-    DEFAULT_RETRY_TIMEOUT_SECONDS,
     # Logging Constants
     DEFAULT_LOG_LEVEL,
-    DEFAULT_VERBOSE,
+    # File Size Constants
+    DEFAULT_MAX_FILE_SIZE_MB,
+    # Default Memory Limits
+    DEFAULT_MAX_MEMORY_MB,
+    # Performance Monitoring Constants
+    DEFAULT_METRICS_INTERVAL_SECONDS,
+    DEFAULT_RETRY_TIMEOUT_SECONDS,
     # Schema Constants
     DEFAULT_SCHEMA,
-    TEST_SCHEMA,
+    DEFAULT_SHUFFLE_PARTITIONS,
+    DEFAULT_SILVER_THRESHOLD,
+    # Timeout Constants
+    DEFAULT_TIMEOUT_SECONDS,
+    DEFAULT_VERBOSE,
     # Error Constants
     MAX_ERROR_MESSAGE_LENGTH,
     MAX_STACK_TRACE_LINES,
-    # Performance Monitoring Constants
-    DEFAULT_METRICS_INTERVAL_SECONDS,
-    DEFAULT_ALERT_THRESHOLD_PERCENT,
+    TEST_SCHEMA,
 )
 
 

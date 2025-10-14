@@ -4,18 +4,19 @@ Tests for sparkforge.performance module.
 This module tests all performance monitoring utilities and functions.
 """
 
-import pytest
 import time
-import re
 from datetime import datetime
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 from sparkforge.performance import (
-    now_dt,
     format_duration,
-    time_operation,
-    performance_monitor,
-    time_write_operation,
     monitor_performance,
+    now_dt,
+    performance_monitor,
+    time_operation,
+    time_write_operation,
 )
 
 

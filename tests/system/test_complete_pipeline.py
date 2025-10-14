@@ -3,13 +3,14 @@ System tests for complete pipeline execution using Mock Spark.
 """
 
 import pytest
+from mock_spark.errors import AnalysisException
+
+from sparkforge.execution import ExecutionEngine
+from sparkforge.models import ParallelConfig, PipelineConfig, ValidationThresholds
 from sparkforge.pipeline.builder import PipelineBuilder
-from sparkforge.execution import ExecutionEngine, ExecutionMode
 from sparkforge.validation.pipeline_validation import UnifiedValidator
 from sparkforge.writer.core import LogWriter
-from sparkforge.writer.models import WriterConfig, WriteMode, LogLevel
-from sparkforge.models import PipelineConfig, ValidationThresholds, ParallelConfig
-from mock_spark.errors import AnalysisException
+from sparkforge.writer.models import LogLevel, WriteMode, WriterConfig
 
 
 class TestCompletePipeline:
@@ -58,7 +59,7 @@ class TestCompletePipeline:
         )
 
         # Insert sample data into Bronze layer
-        sample_data = sample_dataframe.collect()
+        sample_data = [row.asDict() for row in sample_dataframe.collect()]
         mock_spark_session.storage.insert_data("bronze", "raw_events", sample_data)
 
         # Verify Bronze layer data
@@ -115,7 +116,7 @@ class TestCompletePipeline:
         mock_spark_session.storage.create_schema("gold")
 
         # Create pipeline builder
-        builder = PipelineBuilder(spark=mock_spark_session, schema="bronze")
+        PipelineBuilder(spark=mock_spark_session, schema="bronze")
 
         # Create validator
         validator = UnifiedValidator()
@@ -144,7 +145,7 @@ class TestCompletePipeline:
         )
 
         # Insert data
-        sample_data = sample_dataframe.collect()
+        sample_data = [row.asDict() for row in sample_dataframe.collect()]
         mock_spark_session.storage.insert_data("bronze", "raw_data", sample_data)
 
         # Test validation at Bronze layer
@@ -175,7 +176,7 @@ class TestCompletePipeline:
         mock_spark_session.storage.create_schema("gold")
 
         # Create pipeline builder
-        builder = PipelineBuilder(spark=mock_spark_session, schema="bronze")
+        PipelineBuilder(spark=mock_spark_session, schema="bronze")
 
         # Create log writer
         writer_config = WriterConfig(
@@ -213,7 +214,7 @@ class TestCompletePipeline:
         )
 
         # Insert data
-        sample_data = sample_dataframe.collect()
+        sample_data = [row.asDict() for row in sample_dataframe.collect()]
         mock_spark_session.storage.insert_data("bronze", "raw_data", sample_data)
         mock_spark_session.storage.insert_data("silver", "processed_data", sample_data)
         mock_spark_session.storage.insert_data("gold", "aggregated_data", sample_data)
@@ -270,7 +271,7 @@ class TestCompletePipeline:
         )
 
         # Insert data
-        sample_data = sample_dataframe.collect()
+        sample_data = [row.asDict() for row in sample_dataframe.collect()]
         mock_spark_session.storage.insert_data("bronze", "raw_data", sample_data)
 
         # Test error handling
@@ -315,8 +316,8 @@ class TestCompletePipeline:
         engine = ExecutionEngine(spark=mock_spark_session, config=config)
 
         # Create tables
-        from mock_spark import MockStructType, MockStructField
-        from pyspark.sql.types import StringType, IntegerType, DoubleType
+        from mock_spark import MockStructField, MockStructType
+        from pyspark.sql.types import DoubleType, IntegerType, StringType
 
         schema = MockStructType(
             [

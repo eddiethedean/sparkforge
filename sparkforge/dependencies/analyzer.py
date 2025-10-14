@@ -75,9 +75,9 @@ class DependencyAnalyzer:
 
     def analyze_dependencies(
         self,
-        bronze_steps: dict[str, BronzeStep] | None = None,
-        silver_steps: dict[str, SilverStep] | None = None,
-        gold_steps: dict[str, GoldStep] | None = None,
+        bronze_steps: Dict[str, BronzeStep] | None = None,
+        silver_steps: Dict[str, SilverStep] | None = None,
+        gold_steps: Dict[str, GoldStep] | None = None,
         force_refresh: bool = False,
     ) -> DependencyAnalysisResult:
         """
@@ -154,9 +154,9 @@ class DependencyAnalyzer:
 
     def _build_dependency_graph(
         self,
-        bronze_steps: dict[str, BronzeStep] | None,
-        silver_steps: dict[str, SilverStep] | None,
-        gold_steps: dict[str, GoldStep] | None,
+        bronze_steps: Dict[str, BronzeStep] | None,
+        silver_steps: Dict[str, SilverStep] | None,
+        gold_steps: Dict[str, GoldStep] | None,
     ) -> DependencyGraph:
         """Build the dependency graph from all step types."""
         graph = DependencyGraph()
@@ -301,9 +301,9 @@ class DependencyAnalyzer:
 
     def _create_cache_key(
         self,
-        bronze_steps: dict[str, BronzeStep] | None,
-        silver_steps: dict[str, SilverStep] | None,
-        gold_steps: dict[str, GoldStep] | None,
+        bronze_steps: Dict[str, BronzeStep] | None,
+        silver_steps: Dict[str, SilverStep] | None,
+        gold_steps: Dict[str, GoldStep] | None,
     ) -> str:
         """Create a cache key for the analysis."""
         # Create a simple hash of the step configurations

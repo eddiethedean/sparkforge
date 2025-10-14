@@ -5,19 +5,19 @@ This module tests the actual execution flow of the simplified SparkForge
 execution system, including bronze, silver, and gold step execution.
 """
 
+import os
 from datetime import datetime
 
 import pytest
 from pyspark.sql import DataFrame
-import os
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F
     from mock_spark import MockDataFrame as DataFrame
+    from mock_spark import functions as F
 else:
-    from pyspark.sql import functions as F
     from pyspark.sql import DataFrame
+    from pyspark.sql import functions as F
 
 from sparkforge.execution import ExecutionEngine, ExecutionMode, StepStatus, StepType
 from sparkforge.logging import PipelineLogger
@@ -189,7 +189,7 @@ class TestStepExecutionFlow:
         ExecutionEngine(spark=spark_session, config=config)
 
         # Create test data with explicit schema
-        from mock_spark import MockStructType, MockStructField, IntegerType, StringType
+        from mock_spark import IntegerType, MockStructField, MockStructType, StringType
 
         schema = MockStructType(
             [

@@ -323,7 +323,7 @@ def main():
             spark.sql("DROP DATABASE IF EXISTS iot_analytics CASCADE")
             spark.stop()
             print("\n🧹 Cleanup completed")
-        except:
+        except Exception:
             pass
 
 

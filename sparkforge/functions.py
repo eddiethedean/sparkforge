@@ -7,8 +7,9 @@ into framework components, allowing for better testability and flexibility.
 
 from __future__ import annotations
 
-from typing import Protocol, Any
-from pyspark.sql import Column
+from typing import Any, Protocol
+
+from .compat import Column
 
 
 class FunctionsProtocol(Protocol):
@@ -72,7 +73,10 @@ class FunctionsProtocol(Protocol):
 
 
 def get_default_functions() -> FunctionsProtocol:
-    """Get the default PySpark functions implementation."""
-    from pyspark.sql import functions as F
+    """Get the default PySpark functions implementation.
 
-    return F  # type: ignore[return-value]
+    Returns the functions from the current compatibility layer.
+    """
+    from .compat import F
+
+    return F

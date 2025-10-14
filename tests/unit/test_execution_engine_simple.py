@@ -3,21 +3,21 @@ Simple unit tests for execution engine using Mock Spark.
 """
 
 import pytest
+from mock_spark.errors import AnalysisException
+
 from sparkforge.execution import (
     ExecutionEngine,
     ExecutionMode,
+    ExecutionResult,
+    StepExecutionResult,
     StepStatus,
     StepType,
-    StepExecutionResult,
-    ExecutionResult,
 )
 from sparkforge.models import (
-    StepResult,
+    ParallelConfig,
     PipelineConfig,
     ValidationThresholds,
-    ParallelConfig,
 )
-from mock_spark.errors import AnalysisException, IllegalArgumentException
 
 
 class TestExecutionEngineSimple:
@@ -150,10 +150,10 @@ class TestExecutionEngineSimple:
     def test_execution_engine_with_empty_data(self, spark_session):
         """Test execution engine with empty data."""
         config = self._create_test_config()
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        ExecutionEngine(spark=spark_session, config=config)
 
         # Create empty DataFrame
-        from mock_spark import MockStructType, MockStructField, StringType, IntegerType
+        from mock_spark import IntegerType, MockStructField, MockStructType, StringType
 
         schema = MockStructType(
             [
@@ -170,7 +170,7 @@ class TestExecutionEngineSimple:
     def test_execution_engine_with_sample_data(self, spark_session, sample_dataframe):
         """Test execution engine with sample data."""
         config = self._create_test_config()
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        ExecutionEngine(spark=spark_session, config=config)
 
         # Test with sample DataFrame
         assert sample_dataframe.count() > 0
@@ -181,7 +181,7 @@ class TestExecutionEngineSimple:
     def test_execution_engine_error_handling(self, spark_session):
         """Test execution engine error handling."""
         config = self._create_test_config()
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        ExecutionEngine(spark=spark_session, config=config)
 
         # Test with invalid table name
         with pytest.raises(AnalysisException):
@@ -190,7 +190,7 @@ class TestExecutionEngineSimple:
     def test_execution_engine_metrics_collection(self, spark_session, sample_dataframe):
         """Test execution engine metrics collection."""
         config = self._create_test_config()
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        ExecutionEngine(spark=spark_session, config=config)
 
         # Test basic metrics
         start_time = 0.0

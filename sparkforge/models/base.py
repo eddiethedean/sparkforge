@@ -114,17 +114,17 @@ class ValidationThresholds(BaseModel):
         return phase_map[phase]
 
     @classmethod
-    def create_default(cls) -> "ValidationThresholds":
+    def create_default(cls) -> ValidationThresholds:
         """Create default validation thresholds."""
         return cls(bronze=95.0, silver=98.0, gold=99.0)
 
     @classmethod
-    def create_strict(cls) -> "ValidationThresholds":
+    def create_strict(cls) -> ValidationThresholds:
         """Create strict validation thresholds."""
         return cls(bronze=99.0, silver=99.5, gold=99.9)
 
     @classmethod
-    def create_loose(cls) -> "ValidationThresholds":
+    def create_loose(cls) -> ValidationThresholds:
         """Create loose validation thresholds."""
         return cls(bronze=80.0, silver=85.0, gold=90.0)
 
@@ -160,16 +160,16 @@ class ParallelConfig(BaseModel):
             )
 
     @classmethod
-    def create_default(cls) -> "ParallelConfig":
+    def create_default(cls) -> ParallelConfig:
         """Create default parallel configuration."""
         return cls(enabled=True, max_workers=4, timeout_secs=300)
 
     @classmethod
-    def create_sequential(cls) -> "ParallelConfig":
+    def create_sequential(cls) -> ParallelConfig:
         """Create sequential execution configuration."""
         return cls(enabled=False, max_workers=1, timeout_secs=600)
 
     @classmethod
-    def create_high_performance(cls) -> "ParallelConfig":
+    def create_high_performance(cls) -> ParallelConfig:
         """Create high-performance parallel configuration."""
         return cls(enabled=True, max_workers=16, timeout_secs=1200)

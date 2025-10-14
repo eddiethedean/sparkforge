@@ -10,7 +10,7 @@ from __future__ import annotations
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
@@ -406,7 +406,7 @@ class WriterTestUtils:
     """Utility class for writer tests."""
 
     @staticmethod
-    def create_log_row(**kwargs) -> Dict[str, Any]:
+    def create_log_row(**kwargs) -> dict[str, Any]:
         """Create a log row with default values."""
         defaults = {
             "run_id": "test-run",
@@ -458,7 +458,7 @@ class WriterTestUtils:
         return ExecutionResult(**defaults)
 
     @staticmethod
-    def assert_result_structure(result: Dict[str, Any]) -> None:
+    def assert_result_structure(result: dict[str, Any]) -> None:
         """Assert that a result has the expected structure."""
         assert "success" in result
         assert isinstance(result["success"], bool)

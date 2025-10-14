@@ -6,7 +6,7 @@ Run tests in both mock and real Spark modes and compare results.
 import os
 import subprocess
 import sys
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
 
 def run_tests(mode: str, test_files: List[str]) -> Tuple[int, int, List[str]]:

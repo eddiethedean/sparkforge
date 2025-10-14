@@ -31,7 +31,7 @@ class DictAnnotationTest:
 
         for py_file in self._get_python_files():
             try:
-                with open(py_file, "r", encoding="utf-8") as f:
+                with open(py_file, encoding="utf-8") as f:
                     content = f.read()
 
                 lines = content.split("\n")
@@ -89,7 +89,7 @@ class DictAnnotationTest:
                                     )
                                 )
 
-            except Exception as e:
+            except Exception:
                 # Skip files that can't be parsed
                 continue
 
@@ -149,7 +149,7 @@ class DictAnnotationTest:
 
         for py_file in self._get_python_files():
             try:
-                with open(py_file, "r", encoding="utf-8") as f:
+                with open(py_file, encoding="utf-8") as f:
                     content = f.read()
 
                 tree = ast.parse(content)
@@ -272,7 +272,7 @@ def test_dict_vs_Dict_equivalence():
         ):  # This syntax doesn't work in Python 3.8
             return {"test": 1}
 
-        assert False, "dict[str, int] syntax should fail in Python 3.8"
+        raise AssertionError("dict[str, int] syntax should fail in Python 3.8")
     except TypeError:
         pass  # Expected to fail
 
@@ -311,9 +311,9 @@ def test_import_compatibility():
 def test_writer_imports():
     """Test that writer module can be imported."""
     try:
-        from sparkforge.writer import LogWriter
-        from sparkforge.writer.exceptions import WriterError
-        from sparkforge.writer.models import WriterConfig
+        from sparkforge.writer import LogWriter  # noqa: F401
+        from sparkforge.writer.exceptions import WriterError  # noqa: F401
+        from sparkforge.writer.models import WriterConfig  # noqa: F401
     except ImportError as e:
         pytest.fail(f"Failed to import writer modules: {e}")
 
@@ -321,8 +321,8 @@ def test_writer_imports():
 def test_models_imports():
     """Test that models can be imported."""
     try:
-        from sparkforge.models import ExecutionResult, StepResult
-        from sparkforge.types import NumericDict, StringDict
+        from sparkforge.models import ExecutionResult, StepResult  # noqa: F401
+        from sparkforge.types import NumericDict, StringDict  # noqa: F401
     except ImportError as e:
         pytest.fail(f"Failed to import model types: {e}")
 

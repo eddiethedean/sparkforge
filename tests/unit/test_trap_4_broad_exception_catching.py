@@ -6,16 +6,16 @@ This test verifies that writer components properly raise specific exceptions
 instead of returning generic error responses that mask real issues.
 """
 
-import pytest
 from unittest.mock import Mock, patch
-from pyspark.sql import SparkSession
 
+import pytest
+
+from sparkforge.writer.analytics import DataQualityAnalyzer
 from sparkforge.writer.core import LogWriter
 from sparkforge.writer.exceptions import WriterError, WriterTableError
-from sparkforge.writer.storage import StorageManager
-from sparkforge.writer.analytics import DataQualityAnalyzer
-from sparkforge.writer.monitoring import PerformanceMonitor
 from sparkforge.writer.models import WriterConfig
+from sparkforge.writer.monitoring import PerformanceMonitor
+from sparkforge.writer.storage import StorageManager
 
 
 class TestTrap4BroadExceptionCatching:
@@ -104,7 +104,7 @@ class TestTrap4BroadExceptionCatching:
         )
 
         # Create a real DataFrame that will cause an exception
-        from pyspark.sql.types import StructType, StructField, StringType
+        from pyspark.sql.types import StringType, StructField, StructType
 
         schema = StructType([StructField("test_col", StringType(), True)])
         mock_df = spark_session.createDataFrame([], schema)

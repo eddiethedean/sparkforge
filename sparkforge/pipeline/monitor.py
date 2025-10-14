@@ -12,7 +12,7 @@ This module provides basic monitoring and reporting for pipeline execution.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict
 
 from ..logging import PipelineLogger
 from ..models import PipelineMetrics
@@ -36,9 +36,9 @@ class SimplePipelineMonitor:
         self,
         pipeline_id: str,
         mode: PipelineMode,
-        bronze_steps: dict[str, Any],
-        silver_steps: dict[str, Any],
-        gold_steps: dict[str, Any],
+        bronze_steps: Dict[str, Any],
+        silver_steps: Dict[str, Any],
+        gold_steps: Dict[str, Any],
     ) -> PipelineReport:
         """Start monitoring a pipeline execution."""
         start_time = datetime.now()

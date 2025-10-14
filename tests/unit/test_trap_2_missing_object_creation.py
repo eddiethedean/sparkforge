@@ -7,12 +7,11 @@ are properly created and accessible in the PipelineBuilder.to_pipeline() method.
 """
 
 import os
-import pytest
 from unittest.mock import Mock, patch
 
+import pytest
+
 from sparkforge.pipeline.builder import PipelineBuilder
-from sparkforge.execution import ExecutionEngine
-from sparkforge.dependencies import DependencyAnalyzer
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
@@ -41,29 +40,26 @@ class TestTrap2MissingObjectCreation:
             rules={"id": ["not_null"]},
         )
 
-        # Mock the ExecutionEngine to track if it's created
+        # Mock the PipelineRunner to track if it's created
         with patch(
-            "sparkforge.pipeline.builder.ExecutionEngine"
-        ) as mock_execution_engine:
-            with patch(
-                "sparkforge.pipeline.builder.DependencyAnalyzer"
-            ) as mock_dependency_analyzer:
-                # Call to_pipeline()
-                runner = builder.to_pipeline()
+            "sparkforge.pipeline.builder.PipelineRunner"
+        ) as mock_pipeline_runner:
+            # Call to_pipeline()
+            runner = builder.to_pipeline()
 
-                # Verify ExecutionEngine was created with correct parameters
-                mock_execution_engine.assert_called_once_with(
-                    spark=spark_session,
-                    config=builder.config,
-                    logger=builder.logger,
-                    functions=builder.functions,
-                )
+            # Verify PipelineRunner was created with correct parameters
+            mock_pipeline_runner.assert_called_once_with(
+                spark=spark_session,
+                config=builder.config,
+                bronze_steps=builder.bronze_steps,
+                silver_steps=builder.silver_steps,
+                gold_steps=builder.gold_steps,
+                logger=builder.logger,
+                functions=builder.functions,
+            )
 
-                # Verify DependencyAnalyzer was created
-                mock_dependency_analyzer.assert_called_once_with(logger=builder.logger)
-
-                # Verify runner was created
-                assert runner is not None
+            # Verify runner was created
+            assert runner is not None
 
     def test_objects_are_not_garbage_collected(self, spark_session):
         """Test that created objects are not immediately garbage collected."""
@@ -83,36 +79,24 @@ class TestTrap2MissingObjectCreation:
         # Track object creation
         created_objects = []
 
-        def track_execution_engine(*args, **kwargs):
+        def track_pipeline_runner(*args, **kwargs):
             obj = Mock()
-            created_objects.append(("ExecutionEngine", obj))
-            return obj
-
-        def track_dependency_analyzer(*args, **kwargs):
-            obj = Mock()
-            created_objects.append(("DependencyAnalyzer", obj))
+            created_objects.append(("PipelineRunner", obj))
             return obj
 
         with patch(
-            "sparkforge.pipeline.builder.ExecutionEngine",
-            side_effect=track_execution_engine,
+            "sparkforge.pipeline.builder.PipelineRunner",
+            side_effect=track_pipeline_runner,
         ):
-            with patch(
-                "sparkforge.pipeline.builder.DependencyAnalyzer",
-                side_effect=track_dependency_analyzer,
-            ):
-                # Call to_pipeline()
-                runner = builder.to_pipeline()
+            # Call to_pipeline()
+            runner = builder.to_pipeline()
 
-                # Verify objects were created
-                assert len(created_objects) == 2
-                assert any(name == "ExecutionEngine" for name, obj in created_objects)
-                assert any(
-                    name == "DependencyAnalyzer" for name, obj in created_objects
-                )
+            # Verify objects were created
+            assert len(created_objects) == 1
+            assert any(name == "PipelineRunner" for name, obj in created_objects)
 
-                # Verify runner was created
-                assert runner is not None
+            # Verify runner was created
+            assert runner is not None
 
     def test_pipeline_validation_before_object_creation(self, spark_session):
         """Test that pipeline validation occurs before object creation."""
@@ -137,18 +121,14 @@ class TestTrap2MissingObjectCreation:
         )
 
         with patch(
-            "sparkforge.pipeline.builder.ExecutionEngine"
-        ) as mock_execution_engine:
-            with patch(
-                "sparkforge.pipeline.builder.DependencyAnalyzer"
-            ) as mock_dependency_analyzer:
-                # Call to_pipeline() - should succeed
-                runner = builder.to_pipeline()
+            "sparkforge.pipeline.builder.PipelineRunner"
+        ) as mock_pipeline_runner:
+            # Call to_pipeline() - should succeed
+            runner = builder.to_pipeline()
 
-                # Verify objects were created
-                mock_execution_engine.assert_called_once()
-                mock_dependency_analyzer.assert_called_once()
-                assert runner is not None
+            # Verify objects were created
+            mock_pipeline_runner.assert_called_once()
+            assert runner is not None
 
     def test_objects_are_accessible_after_creation(self, spark_session):
         """Test that created objects are accessible after creation."""
@@ -166,26 +146,20 @@ class TestTrap2MissingObjectCreation:
         )
 
         # Mock objects to track their creation
-        execution_engine_mock = Mock()
-        dependency_analyzer_mock = Mock()
+        pipeline_runner_mock = Mock()
 
         with patch(
-            "sparkforge.pipeline.builder.ExecutionEngine",
-            return_value=execution_engine_mock,
+            "sparkforge.pipeline.builder.PipelineRunner",
+            return_value=pipeline_runner_mock,
         ):
-            with patch(
-                "sparkforge.pipeline.builder.DependencyAnalyzer",
-                return_value=dependency_analyzer_mock,
-            ):
-                # Call to_pipeline()
-                runner = builder.to_pipeline()
+            # Call to_pipeline()
+            runner = builder.to_pipeline()
 
-                # Verify objects were created and are accessible
-                assert execution_engine_mock is not None
-                assert dependency_analyzer_mock is not None
-                assert runner is not None
+            # Verify objects were created and are accessible
+            assert pipeline_runner_mock is not None
+            assert runner is not None
 
-                # Verify objects have the expected attributes
-                assert hasattr(execution_engine_mock, "spark")
-                assert hasattr(execution_engine_mock, "config")
-                assert hasattr(execution_engine_mock, "logger")
+            # Verify objects have the expected attributes
+            assert hasattr(pipeline_runner_mock, "spark")
+            assert hasattr(pipeline_runner_mock, "config")
+            assert hasattr(pipeline_runner_mock, "logger")

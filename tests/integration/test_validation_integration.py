@@ -5,11 +5,10 @@ Comprehensive tests for validation module functionality.
 This module tests all validation functions and classes with extensive coverage.
 """
 
+import os
 from unittest.mock import Mock, patch
 
 import pytest
-from pyspark.sql import SparkSession
-import os
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":

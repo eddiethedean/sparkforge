@@ -6,12 +6,12 @@ This test verifies that the execution engine properly validates schema
 requirements instead of using silent fallback values.
 """
 
-import pytest
-import sys
 import os
+import sys
 from unittest.mock import Mock, patch
-from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, StructField, StringType
+
+import pytest
+from pyspark.sql.types import StringType, StructField, StructType
 
 # Add the project root to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -19,12 +19,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 # NOTE: mock-spark patches removed - now using mock-spark 1.3.0 which doesn't need patches
 # The apply_mock_spark_patches() call was causing test pollution
 
-from sparkforge.execution import ExecutionEngine
 from sparkforge.errors import ExecutionError
-from sparkforge.execution import ExecutionMode
-from sparkforge.models.execution import PipelinePhase
-from sparkforge.models.steps import SilverStep, GoldStep
-from sparkforge.types import StepName
+from sparkforge.execution import ExecutionEngine, ExecutionMode
+from sparkforge.models.steps import GoldStep, SilverStep
 
 
 class TestTrap5DefaultSchemaFallbacks:
@@ -151,7 +148,7 @@ class TestTrap5DefaultSchemaFallbacks:
 
         # Create a GoldStep with schema
         def dummy_gold_transform(spark, silver_dfs):
-            from pyspark.sql.types import StructType, StructField, StringType
+            from pyspark.sql.types import StringType, StructField, StructType
 
             schema = StructType([StructField("id", StringType(), True)])
             return (

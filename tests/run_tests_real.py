@@ -7,8 +7,8 @@ Requires Spark and Delta Lake to be installed.
 """
 
 import os
-import sys
 import subprocess
+import sys
 
 
 def main():

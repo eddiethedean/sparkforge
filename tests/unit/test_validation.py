@@ -5,8 +5,9 @@ Unit tests for the validation module.
 This module tests all data validation and quality assessment functions.
 """
 
-import pytest
 import os
+
+import pytest
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
@@ -51,8 +52,8 @@ def reset_test_environment():
 @pytest.fixture(scope="function")
 def sample_dataframe(spark_session):
     """Create sample DataFrame for testing - validation test specific (4 rows, no category)."""
-    from mock_spark import MockStructType, MockStructField
-    from pyspark.sql.types import StringType, IntegerType, DoubleType
+    from mock_spark import MockStructField, MockStructType
+    from pyspark.sql.types import StringType
 
     # Force using MockStructType for consistency
     schema = MockStructType(

@@ -282,7 +282,7 @@ def main():
             spark.sql("DROP DATABASE IF EXISTS ecommerce_analytics CASCADE")
             spark.stop()
             print("\n🧹 Cleanup completed")
-        except:
+        except Exception:
             pass
 
 

@@ -15,11 +15,11 @@ from __future__ import annotations
 
 import time
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import psutil
-from pyspark.sql import DataFrame, SparkSession
 
+from ..compat import DataFrame, SparkSession
 from ..logging import PipelineLogger
 from .exceptions import WriterError
 from .models import WriterMetrics
@@ -202,7 +202,7 @@ class PerformanceMonitor:
 
     def check_performance_thresholds(
         self, operation_metrics: Dict[str, Any]
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Check if performance thresholds are exceeded.
 

@@ -16,10 +16,9 @@ execution to the simplified execution engine.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
+from typing import Dict
 
-from pyspark.sql import DataFrame, SparkSession
-
+from ..compat import DataFrame, SparkSession
 from ..execution import ExecutionEngine, ExecutionMode, ExecutionResult
 from ..functions import FunctionsProtocol
 from ..logging import PipelineLogger
@@ -39,11 +38,11 @@ class SimplePipelineRunner:
         self,
         spark: SparkSession,
         config: PipelineConfig,
-        bronze_steps: dict[str, BronzeStep] | None = None,
-        silver_steps: dict[str, SilverStep] | None = None,
-        gold_steps: dict[str, GoldStep] | None = None,
+        bronze_steps: Dict[str, BronzeStep] | None = None,
+        silver_steps: Dict[str, SilverStep] | None = None,
+        gold_steps: Dict[str, GoldStep] | None = None,
         logger: PipelineLogger | None = None,
-        functions: Optional[FunctionsProtocol] = None,
+        functions: FunctionsProtocol | None = None,
     ):
         """
         Initialize the simplified pipeline runner.
@@ -70,7 +69,7 @@ class SimplePipelineRunner:
         self,
         steps: list[BronzeStep | SilverStep | GoldStep],
         mode: PipelineMode = PipelineMode.INITIAL,
-        bronze_sources: dict[str, DataFrame] | None = None,
+        bronze_sources: Dict[str, DataFrame] | None = None,
     ) -> PipelineReport:
         """
         Run a complete pipeline.
@@ -127,7 +126,7 @@ class SimplePipelineRunner:
     def run_initial_load(
         self,
         steps: list[BronzeStep | SilverStep | GoldStep] | None = None,
-        bronze_sources: dict[str, DataFrame] | None = None,
+        bronze_sources: Dict[str, DataFrame] | None = None,
     ) -> PipelineReport:
         """Run initial load pipeline."""
         if steps is None:
@@ -142,7 +141,7 @@ class SimplePipelineRunner:
     def run_incremental(
         self,
         steps: list[BronzeStep | SilverStep | GoldStep],
-        bronze_sources: dict[str, DataFrame] | None = None,
+        bronze_sources: Dict[str, DataFrame] | None = None,
     ) -> PipelineReport:
         """Run incremental pipeline."""
         return self.run_pipeline(steps, PipelineMode.INCREMENTAL, bronze_sources)
@@ -150,7 +149,7 @@ class SimplePipelineRunner:
     def run_full_refresh(
         self,
         steps: list[BronzeStep | SilverStep | GoldStep],
-        bronze_sources: dict[str, DataFrame] | None = None,
+        bronze_sources: Dict[str, DataFrame] | None = None,
     ) -> PipelineReport:
         """Run full refresh pipeline."""
         return self.run_pipeline(steps, PipelineMode.FULL_REFRESH, bronze_sources)
@@ -158,7 +157,7 @@ class SimplePipelineRunner:
     def run_validation_only(
         self,
         steps: list[BronzeStep | SilverStep | GoldStep],
-        bronze_sources: dict[str, DataFrame] | None = None,
+        bronze_sources: Dict[str, DataFrame] | None = None,
     ) -> PipelineReport:
         """Run validation-only pipeline."""
         return self.run_pipeline(steps, PipelineMode.VALIDATION_ONLY, bronze_sources)

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from pyspark.sql import DataFrame
+from ..compat import DataFrame
 
 
 def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> float:

@@ -6,20 +6,20 @@ This module tests all the data models, validation methods, and utility functions
 in the models.py file to achieve high test coverage.
 """
 
+import os
 from datetime import datetime
 from unittest.mock import Mock
 
 import pytest
 from pyspark.sql import DataFrame
-import os
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F
     from mock_spark import MockDataFrame as DataFrame
+    from mock_spark import functions as F
 else:
-    from pyspark.sql import functions as F
     from pyspark.sql import DataFrame
+    from pyspark.sql import functions as F
 
 from sparkforge.errors import ValidationError
 from sparkforge.models import (  # Exceptions; Enums; Type definitions; Base classes; Step classes; Result classes; Dependency classes; Utility classes

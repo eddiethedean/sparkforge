@@ -23,14 +23,11 @@ The builder creates pipelines that can be executed with the simplified execution
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Dict
 
-from pyspark.sql import DataFrame, SparkSession, functions as F
-
-from ..dependencies import DependencyAnalyzer
+from ..compat import DataFrame, SparkSession
 from ..errors import ConfigurationError as PipelineConfigurationError
 from ..errors import ExecutionError as StepError
-from ..execution import ExecutionEngine, ExecutionMode
 from ..functions import FunctionsProtocol, get_default_functions
 from ..logging import PipelineLogger
 from ..models import (
@@ -177,7 +174,7 @@ class PipelineBuilder:
         min_silver_rate: float = 98.0,
         min_gold_rate: float = 99.0,
         verbose: bool = True,
-        functions: Optional[FunctionsProtocol] = None,
+        functions: FunctionsProtocol | None = None,
     ) -> None:
         """
         Initialize a new PipelineBuilder instance.
@@ -241,9 +238,9 @@ class PipelineBuilder:
         self.validators = self.validator.custom_validators
 
         # Pipeline definition
-        self.bronze_steps: dict[str, BronzeStep] = {}
-        self.silver_steps: dict[str, SilverStep] = {}
-        self.gold_steps: dict[str, GoldStep] = {}
+        self.bronze_steps: Dict[str, BronzeStep] = {}
+        self.silver_steps: Dict[str, SilverStep] = {}
+        self.gold_steps: Dict[str, GoldStep] = {}
 
         self.logger.info(f"🔧 PipelineBuilder initialized (schema: {schema})")
 
@@ -415,7 +412,7 @@ class PipelineBuilder:
         def dummy_transform_func(
             spark: SparkSession,
             bronze_df: DataFrame,
-            prior_silvers: dict[str, DataFrame],
+            prior_silvers: Dict[str, DataFrame],
         ) -> DataFrame:
             return bronze_df
 
@@ -819,7 +816,7 @@ class PipelineBuilder:
         cls,
         spark: SparkSession,
         schema: str,
-        functions: Optional[FunctionsProtocol] = None,
+        functions: FunctionsProtocol | None = None,
         **kwargs: Any,
     ) -> PipelineBuilder:
         """
@@ -855,7 +852,7 @@ class PipelineBuilder:
         cls,
         spark: SparkSession,
         schema: str,
-        functions: Optional[FunctionsProtocol] = None,
+        functions: FunctionsProtocol | None = None,
         **kwargs: Any,
     ) -> PipelineBuilder:
         """
@@ -891,7 +888,7 @@ class PipelineBuilder:
         cls,
         spark: SparkSession,
         schema: str,
-        functions: Optional[FunctionsProtocol] = None,
+        functions: FunctionsProtocol | None = None,
         **kwargs: Any,
     ) -> PipelineBuilder:
         """
@@ -928,7 +925,7 @@ class PipelineBuilder:
 
     @staticmethod
     def not_null_rules(
-        columns: list[str], functions: Optional[FunctionsProtocol] = None
+        columns: list[str], functions: FunctionsProtocol | None = None
     ) -> ColumnRules:
         """
         Create validation rules for non-null constraints on multiple columns.
@@ -955,7 +952,7 @@ class PipelineBuilder:
 
     @staticmethod
     def positive_number_rules(
-        columns: list[str], functions: Optional[FunctionsProtocol] = None
+        columns: list[str], functions: FunctionsProtocol | None = None
     ) -> ColumnRules:
         """
         Create validation rules for positive number constraints on multiple columns.
@@ -978,13 +975,13 @@ class PipelineBuilder:
         if functions is None:
             functions = get_default_functions()
         return {
-            col: [functions.col(col).isNotNull(), functions.col(col) > 0]
+            col: [functions.col(col).isNotNull(), functions.col(col) > 0]  # type: ignore[list-item]
             for col in columns
         }
 
     @staticmethod
     def string_not_empty_rules(
-        columns: list[str], functions: Optional[FunctionsProtocol] = None
+        columns: list[str], functions: FunctionsProtocol | None = None
     ) -> ColumnRules:
         """
         Create validation rules for non-empty string constraints on multiple columns.
@@ -1009,14 +1006,14 @@ class PipelineBuilder:
         return {
             col: [
                 functions.col(col).isNotNull(),
-                functions.length(functions.col(col)) > 0,
+                functions.length(functions.col(col)) > 0,  # type: ignore[list-item]
             ]
             for col in columns
         }
 
     @staticmethod
     def timestamp_rules(
-        columns: list[str], functions: Optional[FunctionsProtocol] = None
+        columns: list[str], functions: FunctionsProtocol | None = None
     ) -> ColumnRules:
         """
         Create validation rules for timestamp constraints on multiple columns.
@@ -1177,17 +1174,6 @@ class PipelineBuilder:
             raise ValueError(
                 f"Pipeline validation failed with {len(validation_errors)} errors: {', '.join(validation_errors)}"
             )
-
-        # Create execution engine
-        execution_engine = ExecutionEngine(
-            spark=self.spark,
-            config=self.config,
-            logger=self.logger,
-            functions=self.functions,
-        )
-
-        # Create dependency analyzer
-        dependency_analyzer = DependencyAnalyzer(logger=self.logger)
 
         # Create pipeline runner
         runner = PipelineRunner(

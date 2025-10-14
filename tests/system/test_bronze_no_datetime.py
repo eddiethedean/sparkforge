@@ -5,14 +5,15 @@ This module tests the functionality where Bronze steps don't have datetime colum
 and therefore force full refresh of downstream Silver steps.
 """
 
-import pytest
 import os
+
+import pytest
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F
+    from mock_spark import functions as F  # type: ignore
 else:
-    from pyspark.sql import functions as F
+    from pyspark.sql import functions as F  # type: ignore
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
 from sparkforge import PipelineBuilder

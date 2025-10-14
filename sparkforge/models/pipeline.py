@@ -75,7 +75,7 @@ class PipelineConfig(BaseModel):
         self.parallel.validate()
 
     @classmethod
-    def create_default(cls, schema: str) -> "PipelineConfig":
+    def create_default(cls, schema: str) -> PipelineConfig:
         """Create default pipeline configuration."""
         return cls(
             schema=schema,
@@ -85,7 +85,7 @@ class PipelineConfig(BaseModel):
         )
 
     @classmethod
-    def create_high_performance(cls, schema: str) -> "PipelineConfig":
+    def create_high_performance(cls, schema: str) -> PipelineConfig:
         """Create high-performance pipeline configuration."""
         return cls(
             schema=schema,
@@ -95,7 +95,7 @@ class PipelineConfig(BaseModel):
         )
 
     @classmethod
-    def create_conservative(cls, schema: str) -> "PipelineConfig":
+    def create_conservative(cls, schema: str) -> PipelineConfig:
         """Create conservative pipeline configuration."""
         return cls(
             schema=schema,
@@ -174,7 +174,7 @@ class PipelineMetrics(BaseModel):
         return 100.0 - self.success_rate
 
     @classmethod
-    def from_step_results(cls, step_results: list[Any]) -> "PipelineMetrics":
+    def from_step_results(cls, step_results: list[Any]) -> PipelineMetrics:
         """Create metrics from step results."""
         total_steps = len(step_results)
         successful_steps = sum(1 for result in step_results if result.success)

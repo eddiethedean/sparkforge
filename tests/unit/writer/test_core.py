@@ -2,27 +2,20 @@
 Unit tests for writer core functionality.
 """
 
-import os
-from datetime import datetime
 from unittest.mock import Mock, patch
 
 import pytest
 
 from sparkforge.logging import PipelineLogger
-from sparkforge.models import ExecutionContext, ExecutionResult, StepResult
+from sparkforge.models import ExecutionResult, StepResult
 from sparkforge.writer.core import LogWriter
 from sparkforge.writer.exceptions import (
     WriterConfigurationError,
-    WriterError,
-    WriterValidationError,
 )
 from sparkforge.writer.models import WriteMode, WriterConfig
 
 
-@pytest.mark.skipif(
-    os.environ.get("SPARK_MODE", "mock").lower() == "mock",
-    reason="Writer tests require Delta Lake which is not supported in mock-spark"
-)
+# Writer tests now work with mock-spark 2.4.0
 class TestLogWriter:
     """Test LogWriter functionality."""
 
@@ -59,7 +52,7 @@ class TestLogWriter:
     @pytest.fixture
     def writer(self, mock_spark, valid_config, mock_logger):
         """LogWriter instance with mocked dependencies."""
-        return LogWriter(mock_spark, valid_config, mock_logger)
+        return LogWriter(mock_spark, valid_config, logger=mock_logger)
 
     @pytest.fixture
     def mock_execution_result(self):
@@ -78,7 +71,7 @@ class TestLogWriter:
 
     def test_init_valid_config(self, mock_spark, valid_config, mock_logger):
         """Test LogWriter initialization with valid config."""
-        writer = LogWriter(mock_spark, valid_config, mock_logger)
+        writer = LogWriter(mock_spark, valid_config, logger=mock_logger)
 
         assert writer.spark == mock_spark
         assert writer.config == valid_config
@@ -89,7 +82,7 @@ class TestLogWriter:
     def test_init_invalid_config(self, mock_spark, invalid_config, mock_logger):
         """Test LogWriter initialization with invalid config."""
         with pytest.raises(WriterConfigurationError):
-            LogWriter(mock_spark, invalid_config, mock_logger)
+            LogWriter(mock_spark, invalid_config, logger=mock_logger)
 
     def test_init_default_logger(self, mock_spark, valid_config):
         """Test LogWriter initialization with default logger."""
@@ -647,35 +640,45 @@ class TestLogWriter:
     def test_analyze_quality_trends_success(self, writer):
         """Test successful quality trends analysis."""
         with patch.object(
-            writer.quality_analyzer, "analyze_quality_trends"
-        ) as mock_analyze:
-            mock_analyze.return_value = {
-                "trends_analyzed": True,
-                "quality_trend": "improving",
-                "analysis_period": 30,
-                "analysis_timestamp": "2023-01-01T00:00:00Z",
-            }
+            writer.storage_manager, "query_logs"
+        ) as mock_query:
+            mock_query.return_value = None  # Mock DataFrame
+            
+            with patch.object(
+                writer.quality_analyzer, "analyze_quality_trends"
+            ) as mock_analyze:
+                mock_analyze.return_value = {
+                    "trends_analyzed": True,
+                    "quality_trend": "improving",
+                    "analysis_period": 30,
+                    "analysis_timestamp": "2023-01-01T00:00:00Z",
+                }
 
-            result = writer.analyze_quality_trends(days=30)
+                result = writer.analyze_quality_trends(days=30)
 
-            assert result["trends_analyzed"] is True
-            assert "quality_trend" in result
-            assert "analysis_period" in result
+                assert result["trends_analyzed"] is True
+                assert "quality_trend" in result
+                assert "analysis_period" in result
 
     def test_analyze_execution_trends_success(self, writer):
         """Test successful execution trends analysis."""
         with patch.object(
-            writer.trend_analyzer, "analyze_execution_trends"
-        ) as mock_analyze:
-            mock_analyze.return_value = {
-                "trends_analyzed": True,
-                "execution_trend": "stable",
-                "analysis_period": 30,
-                "analysis_timestamp": "2023-01-01T00:00:00Z",
-            }
+            writer.storage_manager, "query_logs"
+        ) as mock_query:
+            mock_query.return_value = None  # Mock DataFrame
+            
+            with patch.object(
+                writer.trend_analyzer, "analyze_execution_trends"
+            ) as mock_analyze:
+                mock_analyze.return_value = {
+                    "trends_analyzed": True,
+                    "execution_trend": "stable",
+                    "analysis_period": 30,
+                    "analysis_timestamp": "2023-01-01T00:00:00Z",
+                }
 
-            result = writer.analyze_execution_trends(days=30)
+                result = writer.analyze_execution_trends(days=30)
 
-            assert result["trends_analyzed"] is True
-            assert "execution_trend" in result
-            assert "analysis_period" in result
+                assert result["trends_analyzed"] is True
+                assert "execution_trend" in result
+                assert "analysis_period" in result

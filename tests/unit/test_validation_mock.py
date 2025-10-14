@@ -5,24 +5,21 @@ Unit tests for the validation module using mock_spark.
 This module tests all data validation and quality assessment functions.
 """
 
-import pytest
-from mock_spark import (
-    MockSparkSession,
-    MockDataFrame,
-    MockFunctions,
-    MockStructType,
-    MockStructField,
-    StringType,
-    IntegerType,
-    DoubleType,
-)
 
 # NOTE: mock-spark patches removed - now using mock-spark 1.3.0 which doesn't need patches
 # The apply_mock_spark_patches() call was causing test pollution
-import sys
-import os
 
-from sparkforge.errors import ValidationError
+import pytest
+from mock_spark import (
+    DoubleType,
+    IntegerType,
+    MockFunctions,
+    MockSparkSession,
+    MockStructField,
+    MockStructType,
+    StringType,
+)
+
 from sparkforge.validation import (
     _convert_rule_to_expression,
     _convert_rules_to_expressions,
@@ -102,7 +99,7 @@ class TestGetDataframeInfo:
         """Test basic DataFrame info."""
         info = get_dataframe_info(sample_dataframe)
         assert info["row_count"] == 4
-        assert info["is_empty"] == False
+        assert not info["is_empty"]
         assert "columns" in info
         assert len(info["columns"]) == 3
 
@@ -112,7 +109,7 @@ class TestGetDataframeInfo:
         empty_df = mock_spark_session.createDataFrame([], schema)
         info = get_dataframe_info(empty_df)
         assert info["row_count"] == 0
-        assert info["is_empty"] == True
+        assert info["is_empty"]
 
     def test_error_handling(self):
         """Test error handling with invalid input."""
@@ -291,10 +288,10 @@ class TestValidateDataframeSchema:
 
     def test_none_dataframe(self):
         """Test None DataFrame."""
-        with pytest.raises(Exception):
+        with pytest.raises((ValueError, TypeError, AttributeError)):
             validate_dataframe_schema(None, ["col1"])
 
     def test_none_expected_columns(self, sample_dataframe):
         """Test None expected columns."""
-        with pytest.raises(Exception):
+        with pytest.raises((ValueError, TypeError)):
             validate_dataframe_schema(sample_dataframe, None)

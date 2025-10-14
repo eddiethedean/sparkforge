@@ -10,7 +10,6 @@ from typing import Any, Dict, List, Union
 from unittest.mock import Mock
 
 from sparkforge.pipeline.models import PipelineMode
-from sparkforge.writer.models import WriteMode
 from sparkforge.types import (
     Duration,
     ErrorCode,
@@ -34,6 +33,7 @@ from sparkforge.types import (
     StringDict,
     TableName,
 )
+from sparkforge.writer.models import WriteMode
 
 
 class TestTypeAliases:

@@ -5,9 +5,23 @@ This module tests the core SparkForge validation system using mock PySpark funct
 focusing on the most important functionality.
 """
 
+
+# NOTE: mock-spark patches removed - now using mock-spark 1.3.0 which doesn't need patches
+# The apply_mock_spark_patches() call was causing test pollution
+
 import pytest
-from unittest.mock import Mock, patch
-from datetime import datetime
+
+# Import mock objects
+from mock_spark import (
+    BooleanType,
+    DoubleType,
+    IntegerType,
+    MockFunctions,
+    MockSparkSession,
+    MockStructField,
+    MockStructType,
+    StringType,
+)
 
 # Import SparkForge validation modules
 from sparkforge.validation.data_validation import (
@@ -18,29 +32,6 @@ from sparkforge.validation.data_validation import (
     assess_data_quality,
     validate_dataframe_schema,
 )
-from sparkforge.validation.pipeline_validation import (
-    ValidationResult,
-    UnifiedValidator,
-    StepValidator,
-)
-from sparkforge.validation.utils import safe_divide, get_dataframe_info
-from sparkforge.functions import FunctionsProtocol, get_default_functions
-
-# Import mock objects
-from mock_spark import MockSparkSession, MockDataFrame, MockFunctions
-from mock_spark import (
-    MockStructType,
-    MockStructField,
-    StringType,
-    IntegerType,
-    DoubleType,
-    BooleanType,
-)
-
-# NOTE: mock-spark patches removed - now using mock-spark 1.3.0 which doesn't need patches
-# The apply_mock_spark_patches() call was causing test pollution
-import sys
-import os
 
 
 class TestValidationWithMockFunctionsSimple:
@@ -109,7 +100,7 @@ class TestValidationWithMockFunctionsSimple:
         assert "salary" in expressions
 
         # Each column should have a list of expressions
-        for column, exprs in expressions.items():
+        for _column, exprs in expressions.items():
             assert isinstance(exprs, list)
             assert len(exprs) > 0
 
@@ -377,7 +368,7 @@ class TestMockFunctionsIntegrationSimple:
         df = self.mock_spark.createDataFrame(sample_data, schema)
 
         # Create builder with mock functions
-        builder = PipelineBuilder(
+        PipelineBuilder(
             spark=self.mock_spark, schema="test_schema", functions=self.mock_functions
         )
 
@@ -399,8 +390,8 @@ class TestMockFunctionsIntegrationSimple:
 
         for i in range(1000):
             col_expr = self.mock_functions.col(f"column_{i}")
-            lit_expr = self.mock_functions.lit(f"value_{i}")
-            length_expr = self.mock_functions.length(col_expr)
+            self.mock_functions.lit(f"value_{i}")
+            self.mock_functions.length(col_expr)
 
         end_time = time.time()
 
@@ -411,7 +402,7 @@ class TestMockFunctionsIntegrationSimple:
         """Test MockFunctions error handling."""
         # Test with invalid inputs
         try:
-            col_expr = self.mock_functions.col(None)
+            self.mock_functions.col(None)
             # MockFunctions should handle this gracefully
         except Exception as e:
             # If it raises an exception, that's also acceptable

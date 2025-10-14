@@ -2,9 +2,9 @@
 Test reporting module for coverage improvement.
 """
 
-import pytest
-import sys
 import os
+import sys
+from typing import Any
 from unittest.mock import Mock, patch
 
 # Add the project root to the path
@@ -61,10 +61,11 @@ class TestReportingCoverage:
         # Test function exists and can be called
         if hasattr(reporting, "generate_execution_report"):
             try:
-                report = generate_execution_report(execution_data)
+                func = getattr(reporting, "generate_execution_report")
+                report = func(execution_data)
                 assert report is not None
                 assert isinstance(report, (str, dict))
-            except Exception as e:
+            except Exception:
                 # If function doesn't exist or has different signature, that's ok
                 pass
 
@@ -83,17 +84,18 @@ class TestReportingCoverage:
         # Test function exists and can be called
         if hasattr(reporting, "generate_quality_report"):
             try:
-                report = generate_quality_report(quality_data)
+                func = getattr(reporting, "generate_quality_report")
+                report = func(quality_data)
                 assert report is not None
                 assert isinstance(report, (str, dict))
-            except Exception as e:
+            except Exception:
                 # If function doesn't exist or has different signature, that's ok
                 pass
 
     def test_generate_performance_report(self):
         """Test generate_performance_report function."""
         # Mock performance data
-        performance_data = {
+        performance_data: dict[str, Any] = {
             "total_execution_time": 300,
             "bronze_step_time": 60,
             "silver_step_time": 120,
@@ -106,17 +108,18 @@ class TestReportingCoverage:
         # Test function exists and can be called
         if hasattr(reporting, "generate_performance_report"):
             try:
-                report = generate_performance_report(performance_data)
+                func = getattr(reporting, "generate_performance_report")
+                report = func(performance_data)
                 assert report is not None
                 assert isinstance(report, (str, dict))
-            except Exception as e:
+            except Exception:
                 # If function doesn't exist or has different signature, that's ok
                 pass
 
     def test_generate_error_report(self):
         """Test generate_error_report function."""
         # Mock error data
-        error_data = {
+        error_data: dict[str, Any] = {
             "total_errors": 3,
             "error_types": ["ValidationError", "ExecutionError", "DataError"],
             "error_messages": [
@@ -130,17 +133,18 @@ class TestReportingCoverage:
         # Test function exists and can be called
         if hasattr(reporting, "generate_error_report"):
             try:
-                report = generate_error_report(error_data)
+                func = getattr(reporting, "generate_error_report")
+                report = func(error_data)
                 assert report is not None
                 assert isinstance(report, (str, dict))
-            except Exception as e:
+            except Exception:
                 # If function doesn't exist or has different signature, that's ok
                 pass
 
     def test_format_report(self):
         """Test format_report function."""
         # Mock report data
-        report_data = {
+        report_data: dict[str, Any] = {
             "title": "Test Report",
             "sections": [
                 {"name": "Summary", "content": "Test summary"},
@@ -152,10 +156,11 @@ class TestReportingCoverage:
         # Test function exists and can be called
         if hasattr(reporting, "format_report"):
             try:
-                formatted_report = format_report(report_data)
+                func = getattr(reporting, "format_report")
+                formatted_report = func(report_data)
                 assert formatted_report is not None
                 assert isinstance(formatted_report, str)
-            except Exception as e:
+            except Exception:
                 # If function doesn't exist or has different signature, that's ok
                 pass
 
@@ -168,10 +173,11 @@ class TestReportingCoverage:
         # Test function exists and can be called
         if hasattr(reporting, "save_report"):
             try:
-                with patch("builtins.open", Mock()) as mock_open:
-                    result = save_report(report_content, file_path)
+                with patch("builtins.open", Mock()):
+                    func = getattr(reporting, "save_report")
+                    result = func(report_content, file_path)
                     assert result is not None
-            except Exception as e:
+            except Exception:
                 # If function doesn't exist or has different signature, that's ok
                 pass
 
@@ -183,10 +189,11 @@ class TestReportingCoverage:
         # Test function exists and can be called
         if hasattr(reporting, "print_report"):
             try:
-                with patch("builtins.print") as mock_print:
-                    result = print_report(report_content)
+                with patch("builtins.print"):
+                    func = getattr(reporting, "print_report")
+                    result = func(report_content)
                     assert result is not None
-            except Exception as e:
+            except Exception:
                 # If function doesn't exist or has different signature, that's ok
                 pass
 
@@ -215,7 +222,8 @@ class TestReportingCoverage:
         # Test functions with invalid input
         if hasattr(reporting, "generate_execution_report"):
             try:
-                result = generate_execution_report(invalid_data)
+                func = getattr(reporting, "generate_execution_report")
+                result = func(invalid_data)
                 # Should either return a default report or raise an exception
                 assert result is not None or True  # Either works
             except Exception:
@@ -225,6 +233,7 @@ class TestReportingCoverage:
     def test_reporting_module_reload(self):
         """Test that reporting module can be reloaded."""
         import importlib
+
         import sparkforge.reporting as reporting
 
         # Reload the module
@@ -251,8 +260,9 @@ class TestReportingCoverage:
 
     def test_reporting_function_signatures(self):
         """Test that reporting functions have expected signatures."""
-        import sparkforge.reporting as reporting
         import inspect
+
+        import sparkforge.reporting as reporting
 
         # Get all functions in the module
         functions = [

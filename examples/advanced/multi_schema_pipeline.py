@@ -38,7 +38,7 @@ def create_test_data(spark: SparkSession):
         spark.sql("DROP SCHEMA IF EXISTS processing CASCADE")
         spark.sql("DROP SCHEMA IF EXISTS analytics CASCADE")
         spark.sql("DROP SCHEMA IF EXISTS staging CASCADE")
-    except:
+    except Exception:
         pass  # Ignore errors if schemas don't exist
 
     # Create schemas

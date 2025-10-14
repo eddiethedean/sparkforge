@@ -13,14 +13,15 @@ pipeline execution data, detecting trends, and generating insights.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any, Dict
 
-from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.functions import col
-
+from ..compat import DataFrame, F, SparkSession
 from ..logging import PipelineLogger
 from .exceptions import WriterError
 from .query_builder import QueryBuilder
+
+# Alias for convenience
+col = F.col
 
 
 class DataQualityAnalyzer:
@@ -403,7 +404,7 @@ class TrendAnalyzer:
             raise WriterError(f"Failed to analyze execution trends: {e}") from e
 
     def _calculate_trend_indicators(
-        self, volume_trends: List[Dict[str, Any]]
+        self, volume_trends: list[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """Calculate trend indicators from volume trends."""
         if len(volume_trends) < 2:
@@ -418,7 +419,9 @@ class TrendAnalyzer:
         execution_trend = (
             "increasing"
             if recent_executions > historical_avg * 1.1
-            else "decreasing" if recent_executions < historical_avg * 0.9 else "stable"
+            else "decreasing"
+            if recent_executions < historical_avg * 0.9
+            else "stable"
         )
 
         # Calculate success rate trend

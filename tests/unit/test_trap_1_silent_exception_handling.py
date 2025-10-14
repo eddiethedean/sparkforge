@@ -6,10 +6,10 @@ This test verifies that the assess_data_quality function properly
 raises exceptions instead of silently returning fallback responses.
 """
 
-import pytest
-from unittest.mock import Mock, patch
-from pyspark.sql import SparkSession
 import os
+from unittest.mock import patch
+
+import pytest
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
@@ -17,8 +17,8 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
 else:
     from pyspark.sql import functions as F
 
-from sparkforge.validation.data_validation import assess_data_quality
 from sparkforge.errors import ValidationError
+from sparkforge.validation.data_validation import assess_data_quality
 
 
 class TestTrap1SilentExceptionHandling:

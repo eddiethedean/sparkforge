@@ -5,9 +5,10 @@ This module tests that hasattr checks are replaced with proper type checking
 and explicit validation where appropriate.
 """
 
-import pytest
-from unittest.mock import Mock, patch
 import os
+from unittest.mock import Mock, patch
+
+import pytest
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
@@ -15,11 +16,9 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
 else:
     from pyspark.sql import functions as F
 
-from sparkforge.execution import ExecutionEngine
-from sparkforge.execution import ExecutionMode
-from sparkforge.models.pipeline import PipelineConfig
-from sparkforge.models.steps import BronzeStep, SilverStep, GoldStep
 from sparkforge.dependencies.analyzer import DependencyAnalyzer
+from sparkforge.execution import ExecutionEngine, ExecutionMode
+from sparkforge.models.steps import BronzeStep, GoldStep, SilverStep
 from sparkforge.validation.pipeline_validation import UnifiedValidator
 
 
@@ -43,7 +42,7 @@ class TestTrap6HasattrChecks:
             mock_apply.return_value = (Mock(), Mock(), Mock())
 
             # Create a mock DataFrame
-            mock_df = Mock()
+            Mock()
 
             # Test that rules are applied without hasattr check
             # This should not raise an AttributeError
@@ -165,8 +164,9 @@ class TestTrap6HasattrChecks:
 
     def test_base_model_to_dict_keeps_appropriate_hasattr(self):
         """Test that base model to_dict keeps appropriate hasattr for duck typing."""
-        from sparkforge.models.base import BaseModel
         from dataclasses import dataclass
+
+        from sparkforge.models.base import BaseModel
 
         # Create a test model with a nested object that has to_dict
         @dataclass
@@ -195,8 +195,9 @@ class TestTrap6HasattrChecks:
 
     def test_execution_context_mode_handling_keeps_appropriate_hasattr(self):
         """Test that execution context mode handling keeps appropriate hasattr for enum types."""
-        from sparkforge.models.execution import ExecutionContext
         from datetime import datetime
+
+        from sparkforge.models.execution import ExecutionContext
 
         # Create execution context with different mode types
         context = ExecutionContext(

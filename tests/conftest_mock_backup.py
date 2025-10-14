@@ -16,7 +16,7 @@ import pytest
 # Add the project root to the Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from mock_spark import MockSparkSession, MockFunctions
+from mock_spark import MockFunctions, MockSparkSession
 
 # Add the tests directory to the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -169,11 +169,11 @@ def sample_dataframe(spark_session):
     This fixture creates a sample DataFrame with common test data.
     """
     from mock_spark import (
-        MockStructType,
-        MockStructField,
-        StringType,
-        IntegerType,
         DoubleType,
+        IntegerType,
+        MockStructField,
+        MockStructType,
+        StringType,
     )
 
     schema = MockStructType(
@@ -203,7 +203,7 @@ def empty_dataframe(spark_session):
 
     This fixture creates an empty DataFrame with a defined schema.
     """
-    from mock_spark import MockStructType, MockStructField, StringType
+    from mock_spark import MockStructField, MockStructType, StringType
 
     schema = MockStructType(
         [

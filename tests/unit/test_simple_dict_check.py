@@ -7,8 +7,7 @@ without requiring Spark or other heavy dependencies.
 
 import sys
 import unittest
-from pathlib import Path
-from typing import Dict, Union, get_type_hints, TypedDict
+from typing import Dict, TypedDict, Union, get_type_hints
 
 
 class SimpleDictCheckTest(unittest.TestCase):
@@ -60,14 +59,14 @@ class SimpleDictCheckTest(unittest.TestCase):
     def test_dict_instantiation(self):
         """Test that dict can be instantiated but Dict cannot."""
         # This should work
-        d1 = dict()
-        d2 = dict(a=1, b=2)
+        d1 = {}
+        d2 = {"a": 1, "b": 2}
         self.assertEqual(d1, {})
         self.assertEqual(d2, {"a": 1, "b": 2})
 
         # This should fail in Python 3.8
         with self.assertRaises(TypeError):
-            d3 = Dict()  # This should raise TypeError
+            Dict()  # This should raise TypeError
 
     def test_dict_type_annotation_works(self):
         """Test that dict type annotations work in Python 3.8+."""

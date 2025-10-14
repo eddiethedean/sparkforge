@@ -5,29 +5,30 @@ This module covers the remaining uncovered lines in execution.py.
 """
 
 import os
+from unittest.mock import patch
+
 import pytest
-from datetime import datetime
-from unittest.mock import MagicMock, patch, call
+from mock_spark import (
+    IntegerType,
+    MockStructField,
+    MockStructType,
+    StringType,
+)
+
+from sparkforge.errors import ExecutionError
 from sparkforge.execution import (
     ExecutionEngine,
     ExecutionMode,
     StepStatus,
     StepType,
-    StepExecutionResult,
-    ExecutionResult,
 )
 from sparkforge.models import (
-    BronzeStep,
-    SilverStep,
     GoldStep,
-    PipelineConfig,
-    ValidationThresholds,
     ParallelConfig,
+    PipelineConfig,
+    SilverStep,
+    ValidationThresholds,
 )
-from sparkforge.errors import ExecutionError
-from sparkforge.logging import PipelineLogger
-from mock_spark import MockSparkSession, MockDataFrame
-from mock_spark import MockStructType, MockStructField, StringType, IntegerType
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":

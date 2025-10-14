@@ -2,32 +2,19 @@
 Simplified tests for sparkforge.pipeline.builder.PipelineBuilder that work with mock_spark.
 """
 
-import os
+from unittest.mock import patch
+
 import pytest
-from datetime import datetime
-from unittest.mock import patch, MagicMock
-from sparkforge.pipeline.builder import PipelineBuilder
-from sparkforge.models import (
-    BronzeStep,
-    SilverStep,
-    GoldStep,
-    PipelineConfig,
-    ValidationThresholds,
-    ParallelConfig,
-)
-from sparkforge.models.enums import PipelinePhase, ExecutionMode
+from mock_spark.functions import F
+
 from sparkforge.errors import ConfigurationError, ExecutionError
 from sparkforge.logging import PipelineLogger
-from mock_spark import MockSparkSession
-from mock_spark import (
-    MockStructType,
-    MockStructField,
-    StringType,
-    IntegerType,
-    DoubleType,
-    TimestampType,
+from sparkforge.models import (
+    BronzeStep,
+    PipelineConfig,
+    SilverStep,
 )
-from mock_spark.functions import F
+from sparkforge.pipeline.builder import PipelineBuilder
 
 # Use mock functions when in mock mode
 MockF = F  # Already imported above
@@ -121,7 +108,7 @@ class TestBronzeRules:
         builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
 
         rules = {"id": ["not_null"]}
-        result = builder.with_bronze_rules(
+        builder.with_bronze_rules(
             name="test_bronze", rules=rules, incremental_col="timestamp"
         )
 
@@ -140,7 +127,7 @@ class TestBronzeRules:
         # Mock the schema validation
         with patch.object(builder, "_validate_schema"):
             rules = {"id": ["not_null"]}
-            result = builder.with_bronze_rules(
+            builder.with_bronze_rules(
                 name="test_bronze", rules=rules, schema="custom_schema"
             )
 
@@ -201,7 +188,7 @@ class TestSilverRules:
         builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
 
         rules = {"id": ["not_null"]}
-        result = builder.with_silver_rules(
+        builder.with_silver_rules(
             name="test_silver",
             table_name="test_table",
             rules=rules,
@@ -284,7 +271,7 @@ class TestSilverTransform:
         def transform_func(spark, df, silvers):
             return df
 
-        result = builder.add_silver_transform(
+        builder.add_silver_transform(
             name="test_silver",
             transform=transform_func,
             rules={"id": ["not_null"]},
@@ -390,7 +377,7 @@ class TestGoldTransform:
         def transform_func(spark, silvers):
             return silvers["test_silver"]
 
-        result = builder.add_gold_transform(
+        builder.add_gold_transform(
             name="test_gold",
             transform=transform_func,
             rules={"id": ["not_null"]},

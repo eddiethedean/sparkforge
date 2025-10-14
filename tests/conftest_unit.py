@@ -5,19 +5,19 @@ This module provides fixtures and configuration specifically for unit tests,
 which should use mocked dependencies and run quickly.
 """
 
+import os
 from unittest.mock import Mock
 
 import pytest
 from pyspark.sql import DataFrame, SparkSession
-import os
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F
     from mock_spark import MockDataFrame as DataFrame
+    from mock_spark import functions as F
 else:
-    from pyspark.sql import functions as F
     from pyspark.sql import DataFrame
+    from pyspark.sql import functions as F
 
 
 @pytest.fixture

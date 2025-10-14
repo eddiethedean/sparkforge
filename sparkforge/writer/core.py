@@ -20,10 +20,10 @@ writer components for comprehensive logging functionality.
 from __future__ import annotations
 
 import uuid
-from typing import Any, Dict, List
+from typing import Any, Dict
 
-from pyspark.sql import SparkSession
-
+from ..compat import SparkSession
+from ..functions import FunctionsProtocol, get_default_functions
 from ..logging import PipelineLogger
 from ..models import ExecutionResult, StepResult
 from .analytics import DataQualityAnalyzer, TrendAnalyzer
@@ -48,11 +48,11 @@ def table_exists(spark: SparkSession, database: str, table: str) -> bool:
     """
     try:
         # Use the correct method name for checking table existence
-        return bool(spark.catalog.tableExists(database, table))  # type: ignore[attr-defined]
+        return bool(spark.catalog.tableExists(database, table))
     except AttributeError:
         # Fallback for different Spark versions
         try:
-            return (
+            return bool(
                 spark.sql(f"SHOW TABLES IN {database}")
                 .filter(f"tableName = '{table}'")
                 .count()
@@ -78,8 +78,8 @@ def time_write_operation(
     Returns:
         Tuple of (rows_written, duration_secs, start_time, end_time)
     """
-    from datetime import datetime
     import time
+    from datetime import datetime
 
     start_time = datetime.now()
     start_ts = time.time()
@@ -96,7 +96,7 @@ def time_write_operation(
     return rows_written, duration_secs, start_time, end_time
 
 
-def validate_log_data(log_rows: List[LogRow]) -> None:
+def validate_log_data(log_rows: list[LogRow]) -> None:
     """
     Validate log data for quality and consistency.
 
@@ -127,8 +127,8 @@ def create_log_rows_from_execution_result(
     execution_result: ExecutionResult,
     run_id: str,
     run_mode: str = "initial",
-    metadata: dict[str, Any] | None = None,
-) -> List[LogRow]:
+    metadata: Dict[str, Any] | None = None,
+) -> list[LogRow]:
     """
     Create log rows from an execution result.
 
@@ -141,7 +141,6 @@ def create_log_rows_from_execution_result(
     Returns:
         List of log rows
     """
-    from datetime import datetime
 
     log_rows = []
 
@@ -235,6 +234,7 @@ class LogWriter:
         self,
         spark: SparkSession,
         config: WriterConfig,
+        functions: FunctionsProtocol | None = None,
         logger: PipelineLogger | None = None,
     ) -> None:
         """
@@ -243,6 +243,7 @@ class LogWriter:
         Args:
             spark: Spark session
             config: Writer configuration
+            functions: Functions protocol (optional, uses default if not provided)
             logger: Pipeline logger (optional)
 
         Raises:
@@ -250,6 +251,7 @@ class LogWriter:
         """
         self.spark = spark
         self.config = config
+        self.functions = functions if functions is not None else get_default_functions()
         if logger is None:
             self.logger = PipelineLogger("LogWriter")
         else:
@@ -295,10 +297,12 @@ class LogWriter:
     def _initialize_components(self) -> None:
         """Initialize all writer components."""
         # Data processing component
-        self.data_processor = DataProcessor(self.spark, self.logger)
+        self.data_processor = DataProcessor(self.spark, self.functions, self.logger)
 
         # Storage management component
-        self.storage_manager = StorageManager(self.spark, self.config, self.logger)
+        self.storage_manager = StorageManager(
+            self.spark, self.config, self.functions, self.logger
+        )
 
         # Performance monitoring component
         self.performance_monitor = PerformanceMonitor(self.spark, self.logger)
@@ -313,7 +317,7 @@ class LogWriter:
         execution_result: ExecutionResult,
         run_id: str | None = None,
         run_mode: str = "initial",
-        metadata: dict[str, Any] | None = None,
+        metadata: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """
         Write execution result to log table.
@@ -401,7 +405,7 @@ class LogWriter:
         step_results: Dict[str, StepResult],
         run_id: str | None = None,
         run_mode: str = "initial",
-        metadata: dict[str, Any] | None = None,
+        metadata: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """
         Write step results to log table.
@@ -471,7 +475,7 @@ class LogWriter:
 
     def write_log_rows(
         self,
-        log_rows: List[LogRow],
+        log_rows: list[LogRow],
         run_id: str | None = None,
     ) -> Dict[str, Any]:
         """
@@ -533,10 +537,10 @@ class LogWriter:
 
     def write_execution_result_batch(
         self,
-        execution_results: List[ExecutionResult],
-        run_ids: List[str] | None = None,
+        execution_results: list[ExecutionResult],
+        run_ids: list[str] | None = None,
         run_mode: str = "initial",
-        metadata: dict[str, Any] | None = None,
+        metadata: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """
         Write multiple execution results in batch.
@@ -815,15 +819,15 @@ class LogWriter:
     # Backward compatibility methods for tests
     def _write_log_rows(
         self,
-        log_rows: List[LogRow],
+        log_rows: list[LogRow],
         run_id: str,
-        metadata: dict[str, Any] | None = None,
+        metadata: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """Write log rows directly (for backward compatibility with tests)."""
         return self.storage_manager.write_batch(log_rows, self.config.write_mode)
 
     def _write_log_rows_batch(
-        self, log_rows: List[LogRow], run_id: str, batch_size: int = 100
+        self, log_rows: list[LogRow], run_id: str, batch_size: int = 100
     ) -> Dict[str, Any]:
         """Write log rows in batches (for backward compatibility with tests)."""
         results = []
@@ -839,13 +843,13 @@ class LogWriter:
             "batches": len(results),
         }
 
-    def _create_dataframe_from_log_rows(self, log_rows: List[LogRow]) -> Any:
+    def _create_dataframe_from_log_rows(self, log_rows: list[LogRow]) -> Any:
         """Create DataFrame from log rows (for backward compatibility with tests)."""
         # Convert TypedDict to regular dicts for createDataFrame
         dict_rows = [dict(row) for row in log_rows]
-        return self.spark.createDataFrame(dict_rows, schema=self.schema)  # type: ignore[type-var]
+        return self.spark.createDataFrame(dict_rows, schema=self.schema)  # type: ignore[attr-defined]
 
-    def detect_anomalies(self, log_rows: List[LogRow]) -> Dict[str, Any]:
+    def detect_anomalies(self, log_rows: list[LogRow]) -> Dict[str, Any]:
         """Detect anomalies in log data (for backward compatibility with tests)."""
         if not self.config.enable_anomaly_detection:
             return {
@@ -907,11 +911,9 @@ class LogWriter:
             }
 
     # Additional methods expected by tests
-    def validate_log_data_quality(self, log_rows: List[LogRow]) -> Dict[str, Any]:
+    def validate_log_data_quality(self, log_rows: list[LogRow]) -> Dict[str, Any]:
         """Validate log data quality (for backward compatibility with tests)."""
         try:
-            from .operations import DataProcessor
-            from ..validation.data_validation import apply_column_rules
             from ..validation.utils import get_dataframe_info
 
             if not log_rows:
@@ -927,15 +929,6 @@ class LogWriter:
 
             # Get basic info
             df_info = get_dataframe_info(df)
-
-            # Apply basic validation rules
-            from pyspark.sql import functions as F
-
-            validation_rules = {
-                "run_id": ["not_null"],
-                "phase": ["not_null"],
-                "step_name": ["not_null"],
-            }
 
             # Simple validation - assume 100% for now
             validation_rate = 100.0

@@ -12,7 +12,6 @@ import sys
 import time
 
 import pytest
-from mock_spark import MockSparkSession, MockFunctions
 
 # Add the project root to the Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -401,7 +400,6 @@ def sample_bronze_data(spark_session):
 @pytest.fixture
 def sample_bronze_rules():
     """Create sample bronze validation rules."""
-    import os
 
 
 # Use mock functions when in mock mode
@@ -420,7 +418,6 @@ else:
 @pytest.fixture
 def sample_silver_rules():
     """Create sample silver validation rules."""
-    import os
 
 
 # Use mock functions when in mock mode
@@ -439,7 +436,6 @@ else:
 @pytest.fixture
 def sample_gold_rules():
     """Create sample gold validation rules."""
-    import os
 
 
 # Use mock functions when in mock mode

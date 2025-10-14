@@ -236,7 +236,7 @@ class StepResult(BaseModel):
         table_fqn: str | None = None,
         write_mode: str | None = None,
         input_rows: int | None = None,
-    ) -> "StepResult":
+    ) -> StepResult:
         """Create a successful step result."""
         duration_secs = (end_time - start_time).total_seconds()
         return cls(
@@ -268,7 +268,7 @@ class StepResult(BaseModel):
         table_fqn: str | None = None,
         write_mode: str | None = None,
         input_rows: int | None = None,
-    ) -> "StepResult":
+    ) -> StepResult:
         """Create a failed step result."""
         duration_secs = (end_time - start_time).total_seconds()
         return cls(
@@ -331,7 +331,7 @@ class ExecutionResult(BaseModel):
     @classmethod
     def from_context_and_results(
         cls, context: ExecutionContext, step_results: list[StepResult]
-    ) -> "ExecutionResult":
+    ) -> ExecutionResult:
         """Create execution result from context and step results."""
         metrics = PipelineMetrics.from_step_results(step_results)
         success = all(result.success for result in step_results)

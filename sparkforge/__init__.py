@@ -12,12 +12,14 @@ using the proven Medallion Architecture (Bronze → Silver → Gold). Features i
 - **Multi-schema Support**: Enterprise-ready cross-schema data flows
 - **Comprehensive Error Handling**: Detailed error messages with suggestions
 - **Extensive Test Coverage**: 1,358+ comprehensive tests ensuring reliability
+- **Flexible Engine Support**: Works with PySpark or mock-spark
 
 Quick Start:
+    # Install: pip install sparkforge[pyspark]  # or sparkforge[mock]
     from the framework import PipelineBuilder
     from pyspark.sql import functions as F
 
-    # Initialize Spark
+    # Initialize Spark (works with PySpark or mock-spark)
     spark = SparkSession.builder.appName("MyPipeline").getOrCreate()
 
     # Create sample data

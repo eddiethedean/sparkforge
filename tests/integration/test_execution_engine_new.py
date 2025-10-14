@@ -5,16 +5,17 @@ This module tests the step-by-step execution functionality of the simplified
 SparkForge execution system.
 """
 
-import pytest
 import os
+
+import pytest
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F
     from mock_spark import MockDataFrame as DataFrame
+    from mock_spark import functions as F
 else:
-    from pyspark.sql import functions as F
     from pyspark.sql import DataFrame
+    from pyspark.sql import functions as F
 
 from sparkforge.errors import ValidationError
 from sparkforge.execution import ExecutionEngine, ExecutionMode, StepStatus, StepType

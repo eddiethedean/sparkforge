@@ -31,6 +31,7 @@ Example:
 """
 
 # Import all validation functions and classes for easy access
+from ..types import ColumnRules
 from .data_validation import (
     _convert_rule_to_expression,
     _convert_rules_to_expressions,
@@ -41,7 +42,6 @@ from .data_validation import (
 )
 from .pipeline_validation import StepValidator, UnifiedValidator, ValidationResult
 from .utils import get_dataframe_info, safe_divide
-from ..types import ColumnRules
 
 # Make all validation components available at package level
 __all__ = [

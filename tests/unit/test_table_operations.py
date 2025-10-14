@@ -4,18 +4,20 @@ Tests for sparkforge.table_operations module.
 This module tests all table operation utilities and functions.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 from pyspark.sql.utils import AnalysisException
+
+from sparkforge.errors import TableOperationError
 from sparkforge.table_operations import (
+    drop_table,
     fqn,
-    write_overwrite_table,
-    write_append_table,
     read_table,
     table_exists,
-    drop_table,
+    write_append_table,
+    write_overwrite_table,
 )
-from sparkforge.errors import TableOperationError
 
 
 class TestFqn:

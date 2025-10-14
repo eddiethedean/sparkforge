@@ -2,13 +2,14 @@
 Step definitions for error handling BDD tests.
 """
 
-from behave import given, when, then
+from behave import given, then, when
+
 from sparkforge.errors import (
+    DataQualityError,
     PipelineConfigurationError,
     PipelineExecutionError,
-    DataQualityError,
     ResourceError,
-    ValidationError
+    ValidationError,
 )
 
 
@@ -30,15 +31,15 @@ def step_have_data_with_quality_issues(context):
         (4, None, "david@example.com"),  # Null name
         (5, "Eve", ""),  # Empty email
     ]
-    
-    from pyspark.sql.types import StructType, StructField, StringType, IntegerType
-    
+
+    from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+
     schema = StructType([
         StructField("id", IntegerType(), True),
         StructField("name", StringType(), True),
         StructField("email", StringType(), True),
     ])
-    
+
     context.test_data = context.spark.createDataFrame(test_data, schema)
     context.quality_issues = {
         'empty_names': 1,
@@ -122,7 +123,7 @@ def step_execute_pipeline_with_quality_issues(context):
             'validation_rate': 20.0,
             'quality_issues': context.quality_issues
         }
-        
+
         # Simulate error handling
         if context.quality_validation_result['validation_rate'] < 50.0:
             raise DataQualityError(
@@ -130,7 +131,7 @@ def step_execute_pipeline_with_quality_issues(context):
                 context={'validation_rate': context.quality_validation_result['validation_rate']},
                 suggestions=['Check data sources', 'Review validation rules', 'Clean input data']
             )
-        
+
         context.pipeline_execution_success = True
     except DataQualityError as e:
         context.pipeline_execution_success = False
@@ -149,7 +150,7 @@ def step_try_execute_pipeline_with_invalid_config(context):
                 context={'issue': 'No bronze steps defined'},
                 suggestions=['Add at least one bronze step', 'Check pipeline configuration']
             )
-        
+
         context.config_validation_success = True
     except PipelineConfigurationError as e:
         context.config_validation_success = False
@@ -171,7 +172,7 @@ def step_execute_pipeline_with_resource_issues(context):
                 },
                 suggestions=['Increase memory allocation', 'Optimize pipeline', 'Use smaller datasets']
             )
-        
+
         context.resource_check_success = True
     except ResourceError as e:
         context.resource_check_success = False
@@ -190,7 +191,7 @@ def step_execute_pipeline_with_network_issues(context):
                 context={'network_requirements': context.network_requirements},
                 suggestions=['Check network connectivity', 'Verify service availability', 'Use local alternatives']
             )
-        
+
         context.network_check_success = True
     except PipelineExecutionError as e:
         context.network_check_success = False
@@ -209,7 +210,7 @@ def step_execute_pipeline_with_schema_issues(context):
                 context={'schema_changes': context.schema_changes},
                 suggestions=['Update target schema', 'Use schema evolution', 'Migrate data']
             )
-        
+
         context.schema_validation_success = True
     except ValidationError as e:
         context.schema_validation_success = False
@@ -231,7 +232,7 @@ def step_execute_pipeline_with_timeout_issues(context):
                 },
                 suggestions=['Optimize pipeline performance', 'Increase timeout limit', 'Use parallel processing']
             )
-        
+
         context.timeout_check_success = True
     except PipelineExecutionError as e:
         context.timeout_check_success = False
@@ -252,7 +253,7 @@ def step_should_receive_clear_error_message(context):
            hasattr(context, 'resource_error') or hasattr(context, 'network_error') or \
            hasattr(context, 'schema_error') or hasattr(context, 'timeout_error'), \
            "No error message received"
-    
+
     # Check that we have an error object
     error_obj = getattr(context, 'pipeline_error', None) or \
                 getattr(context, 'config_error', None) or \
@@ -260,7 +261,7 @@ def step_should_receive_clear_error_message(context):
                 getattr(context, 'network_error', None) or \
                 getattr(context, 'schema_error', None) or \
                 getattr(context, 'timeout_error', None)
-    
+
     assert error_obj is not None, "No error object received"
     assert hasattr(error_obj, 'message'), "Error object missing message attribute"
     assert len(error_obj.message) > 0, "Empty error message"
@@ -271,7 +272,7 @@ def step_error_should_include_data_quality_details(context):
     """Verify that the error includes data quality details."""
     assert hasattr(context, 'pipeline_error'), "No pipeline error received"
     assert context.pipeline_error is not None, "Pipeline error is None"
-    
+
     # Check that error includes data quality details
     assert hasattr(context.pipeline_error, 'context'), "Error missing context"
     assert 'validation_rate' in context.pipeline_error.context, "No validation rate in error context"
@@ -282,11 +283,11 @@ def step_should_get_suggestions_for_fixing_data(context):
     """Verify that suggestions for fixing data are provided."""
     assert hasattr(context, 'pipeline_error'), "No pipeline error received"
     assert context.pipeline_error is not None, "Pipeline error is None"
-    
+
     # Check that suggestions are provided
     assert hasattr(context.pipeline_error, 'suggestions'), "Error missing suggestions"
     assert len(context.pipeline_error.suggestions) > 0, "No suggestions provided"
-    
+
     # Check that suggestions are relevant
     suggestions = context.pipeline_error.suggestions
     assert any('data' in suggestion.lower() for suggestion in suggestions), \
@@ -297,7 +298,7 @@ def step_should_get_suggestions_for_fixing_data(context):
 def step_pipeline_should_continue_with_valid_data(context):
     """Verify that the pipeline continues with valid data."""
     assert context.error_handled, "Pipeline did not handle error gracefully"
-    
+
     # Check that we have valid data to continue with
     assert hasattr(context, 'quality_validation_result'), "No quality validation result"
     assert context.quality_validation_result['valid_records'] > 0, "No valid records to continue with"
@@ -316,7 +317,7 @@ def step_error_should_specify_what_is_wrong(context):
     """Verify that the error specifies what is wrong."""
     assert hasattr(context, 'config_error'), "No configuration error received"
     assert context.config_error is not None, "Configuration error is None"
-    
+
     # Check that error specifies the issue
     assert 'bronze steps' in context.config_error.message.lower() or \
            'configuration' in context.config_error.message.lower(), \
@@ -328,11 +329,11 @@ def step_should_get_suggestions_for_fixing_configuration(context):
     """Verify that suggestions for fixing configuration are provided."""
     assert hasattr(context, 'config_error'), "No configuration error received"
     assert context.config_error is not None, "Configuration error is None"
-    
+
     # Check that suggestions are provided
     assert hasattr(context.config_error, 'suggestions'), "Error missing suggestions"
     assert len(context.config_error.suggestions) > 0, "No suggestions provided"
-    
+
     # Check that suggestions are relevant
     suggestions = context.config_error.suggestions
     assert any('step' in suggestion.lower() for suggestion in suggestions), \
@@ -360,7 +361,7 @@ def step_error_should_specify_resources_needed(context):
     """Verify that the error specifies what resources are needed."""
     assert hasattr(context, 'resource_error'), "No resource error received"
     assert context.resource_error is not None, "Resource error is None"
-    
+
     # Check that error specifies resource requirements
     assert hasattr(context.resource_error, 'context'), "Error missing context"
     assert 'required' in context.resource_error.context, "No resource requirements in error context"
@@ -371,11 +372,11 @@ def step_should_get_suggestions_for_increasing_resources(context):
     """Verify that suggestions for increasing resources are provided."""
     assert hasattr(context, 'resource_error'), "No resource error received"
     assert context.resource_error is not None, "Resource error is None"
-    
+
     # Check that suggestions are provided
     assert hasattr(context.resource_error, 'suggestions'), "Error missing suggestions"
     assert len(context.resource_error.suggestions) > 0, "No suggestions provided"
-    
+
     # Check that suggestions are relevant
     suggestions = context.resource_error.suggestions
     assert any('memory' in suggestion.lower() or 'allocation' in suggestion.lower() for suggestion in suggestions), \
@@ -402,7 +403,7 @@ def step_error_should_specify_network_resources_needed(context):
     """Verify that the error specifies what network resources are needed."""
     assert hasattr(context, 'network_error'), "No connectivity error received"
     assert context.network_error is not None, "Connectivity error is None"
-    
+
     # Check that error specifies network requirements
     assert hasattr(context.network_error, 'context'), "Error missing context"
     assert 'network_requirements' in context.network_error.context, "No network requirements in error context"
@@ -413,11 +414,11 @@ def step_should_get_suggestions_for_resolving_connectivity_issues(context):
     """Verify that suggestions for resolving connectivity issues are provided."""
     assert hasattr(context, 'network_error'), "No connectivity error received"
     assert context.network_error is not None, "Connectivity error is None"
-    
+
     # Check that suggestions are provided
     assert hasattr(context.network_error, 'suggestions'), "Error missing suggestions"
     assert len(context.network_error.suggestions) > 0, "No suggestions provided"
-    
+
     # Check that suggestions are relevant
     suggestions = context.network_error.suggestions
     assert any('connectivity' in suggestion.lower() or 'network' in suggestion.lower() for suggestion in suggestions), \
@@ -446,7 +447,7 @@ def step_error_should_specify_schema_differences(context):
     """Verify that the error specifies the schema differences."""
     assert hasattr(context, 'schema_error'), "No schema error received"
     assert context.schema_error is not None, "Schema error is None"
-    
+
     # Check that error specifies schema differences
     assert hasattr(context.schema_error, 'context'), "Error missing context"
     assert 'schema_changes' in context.schema_error.context, "No schema changes in error context"
@@ -457,11 +458,11 @@ def step_should_get_suggestions_for_resolving_schema_conflicts(context):
     """Verify that suggestions for resolving schema conflicts are provided."""
     assert hasattr(context, 'schema_error'), "No schema error received"
     assert context.schema_error is not None, "Schema error is None"
-    
+
     # Check that suggestions are provided
     assert hasattr(context.schema_error, 'suggestions'), "Error missing suggestions"
     assert len(context.schema_error.suggestions) > 0, "No suggestions provided"
-    
+
     # Check that suggestions are relevant
     suggestions = context.schema_error.suggestions
     assert any('schema' in suggestion.lower() or 'evolution' in suggestion.lower() for suggestion in suggestions), \
@@ -490,7 +491,7 @@ def step_error_should_specify_timeout_duration(context):
     """Verify that the error specifies the timeout duration."""
     assert hasattr(context, 'timeout_error'), "No timeout error received"
     assert context.timeout_error is not None, "Timeout error is None"
-    
+
     # Check that error specifies timeout duration
     assert hasattr(context.timeout_error, 'context'), "Error missing context"
     assert 'timeout_threshold' in context.timeout_error.context, "No timeout threshold in error context"
@@ -501,11 +502,11 @@ def step_should_get_suggestions_for_optimizing_performance(context):
     """Verify that suggestions for optimizing performance are provided."""
     assert hasattr(context, 'timeout_error'), "No timeout error received"
     assert context.timeout_error is not None, "Timeout error is None"
-    
+
     # Check that suggestions are provided
     assert hasattr(context.timeout_error, 'suggestions'), "Error missing suggestions"
     assert len(context.timeout_error.suggestions) > 0, "No suggestions provided"
-    
+
     # Check that suggestions are relevant
     suggestions = context.timeout_error.suggestions
     assert any('performance' in suggestion.lower() or 'optimize' in suggestion.lower() for suggestion in suggestions), \
@@ -526,7 +527,7 @@ def step_errors_should_be_logged_with_full_context(context):
     """Verify that errors are logged with full context."""
     # Check that we have error context
     assert context.error_handled, "No errors were handled"
-    
+
     # For now, we'll just check that errors are handled
     # In a real implementation, this would test actual logging
     print("Error logging with full context would be tested here")
@@ -549,7 +550,7 @@ def step_errors_should_be_categorized_by_type(context):
         error_types.append(type(context.schema_error).__name__)
     if hasattr(context, 'timeout_error'):
         error_types.append(type(context.timeout_error).__name__)
-    
+
     assert len(error_types) > 0, "No error types found"
     print(f"Error types found: {error_types}")
 
@@ -571,7 +572,7 @@ def step_errors_should_include_debugging_information(context):
         error_objects.append(context.schema_error)
     if hasattr(context, 'timeout_error'):
         error_objects.append(context.timeout_error)
-    
+
     for error_obj in error_objects:
         if error_obj is not None:
             assert hasattr(error_obj, 'context'), f"Error {type(error_obj).__name__} missing context"

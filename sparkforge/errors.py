@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Union, cast
+from typing import Any, Dict, List, Optional, Union, cast
 
 
 class ErrorSeverity(Enum):
@@ -100,16 +100,7 @@ class SparkForgeError(Exception):
 
     def to_dict(
         self,
-    ) -> Dict[
-        str,
-        str
-        | int
-        | float
-        | bool
-        | list[str]
-        | dict[str, str | int | float | bool | list[str] | dict[str, str] | None]
-        | None,
-    ]:
+    ) -> Dict[str, Any]:
         """Convert error to dictionary for serialization."""
         return {
             "message": self.message,
@@ -129,7 +120,7 @@ class ConfigurationError(SparkForgeError):
     def __init__(
         self,
         message: str,
-        **kwargs: str | int | float | bool | list[str] | dict[str, str] | None,
+        **kwargs: str | int | float | bool | list[str] | Dict[str, str] | None,
     ):
         super().__init__(
             message,
@@ -170,7 +161,7 @@ class ValidationError(SparkForgeError):
     def __init__(
         self,
         message: str,
-        **kwargs: str | int | float | bool | list[str] | dict[str, str] | None,
+        **kwargs: str | int | float | bool | list[str] | Dict[str, str] | None,
     ):
         super().__init__(
             message,
@@ -211,7 +202,7 @@ class ExecutionError(SparkForgeError):
     def __init__(
         self,
         message: str,
-        **kwargs: str | int | float | bool | list[str] | dict[str, str] | None,
+        **kwargs: str | int | float | bool | list[str] | Dict[str, str] | None,
     ):
         super().__init__(
             message,
@@ -252,7 +243,7 @@ class DataError(SparkForgeError):
     def __init__(
         self,
         message: str,
-        **kwargs: str | int | float | bool | list[str] | dict[str, str] | None,
+        **kwargs: str | int | float | bool | list[str] | Dict[str, str] | None,
     ):
         super().__init__(
             message,
@@ -293,7 +284,7 @@ class SystemError(SparkForgeError):
     def __init__(
         self,
         message: str,
-        **kwargs: str | int | float | bool | list[str] | dict[str, str] | None,
+        **kwargs: str | int | float | bool | list[str] | Dict[str, str] | None,
     ):
         super().__init__(
             message,
@@ -334,7 +325,7 @@ class PerformanceError(SparkForgeError):
     def __init__(
         self,
         message: str,
-        **kwargs: str | int | float | bool | list[str] | dict[str, str] | None,
+        **kwargs: str | int | float | bool | list[str] | Dict[str, str] | None,
     ):
         super().__init__(
             message,
@@ -375,7 +366,7 @@ class ResourceError(SparkForgeError):
     def __init__(
         self,
         message: str,
-        **kwargs: str | int | float | bool | list[str] | dict[str, str] | None,
+        **kwargs: str | int | float | bool | list[str] | Dict[str, str] | None,
     ):
         super().__init__(
             message,

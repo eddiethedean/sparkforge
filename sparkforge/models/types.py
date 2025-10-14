@@ -2,9 +2,9 @@
 Type definitions and protocols for the Pipeline Builder models.
 """
 
-from typing import Any, Callable, Dict, List, Protocol, TypeVar, Union
+from typing import Callable, Dict, List, Protocol, TypeVar, Union
 
-from pyspark.sql import Column, DataFrame, SparkSession
+from ..compat import Column, DataFrame, SparkSession
 
 # Specific types for model values instead of Any
 ModelValue = Union[str, int, float, bool, List[str], Dict[str, str], None]

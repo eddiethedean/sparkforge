@@ -2,8 +2,8 @@
 Step definitions for performance monitoring BDD tests.
 """
 
-from behave import given, when, then
-from sparkforge.performance import performance_monitor, time_write_operation
+from behave import given, then, when
+
 from sparkforge.models import ExecutionResult, StepResult
 
 
@@ -24,7 +24,7 @@ def step_have_pipeline_with_multiple_steps(context):
         validation_rate=97.0,
         error_message=None
     )
-    
+
     # Add multiple step results with performance data
     context.execution_result.bronze_results = {
         'raw_events': StepResult(
@@ -37,7 +37,7 @@ def step_have_pipeline_with_multiple_steps(context):
             error_message=None
         )
     }
-    
+
     context.execution_result.silver_results = {
         'clean_events': StepResult(
             step_name='clean_events',
@@ -49,7 +49,7 @@ def step_have_pipeline_with_multiple_steps(context):
             error_message=None
         )
     }
-    
+
     context.execution_result.gold_results = {
         'analytics_events': StepResult(
             step_name='analytics_events',
@@ -157,7 +157,7 @@ def step_execute_pipeline_with_monitoring(context):
             'total_rows_processed': context.execution_result.total_rows_processed,
             'validation_rate': context.execution_result.validation_rate
         }
-        
+
         context.monitoring_success = True
     except Exception as e:
         context.monitoring_error = str(e)
@@ -175,7 +175,7 @@ def step_execute_pipeline_with_data_processing_monitoring(context):
             'processing_efficiency': context.large_dataset_metrics['processing_efficiency'],
             'bottlenecks': ['memory_allocation', 'disk_io']
         }
-        
+
         context.data_processing_monitoring_success = True
     except Exception as e:
         context.data_processing_monitoring_error = str(e)
@@ -193,7 +193,7 @@ def step_execute_pipeline_with_resource_monitoring(context):
             'disk_io': context.resource_metrics['disk_io'],
             'resource_constraints': ['memory_limit', 'cpu_cores']
         }
-        
+
         context.resource_monitoring_success = True
     except Exception as e:
         context.resource_monitoring_error = str(e)
@@ -210,7 +210,7 @@ def step_execute_pipeline_with_trend_analysis(context):
             'memory_usage': '3.0GB',
             'validation_rate': 93.5
         }
-        
+
         context.trend_analysis = {
             'current_metrics': current_metrics,
             'historical_average': {
@@ -225,7 +225,7 @@ def step_execute_pipeline_with_trend_analysis(context):
             },
             'alerts': ['Performance regression detected', 'Memory usage increased']
         }
-        
+
         context.trend_analysis_success = True
     except Exception as e:
         context.trend_analysis_error = str(e)
@@ -247,7 +247,7 @@ def step_execute_pipeline_with_parallel_monitoring(context):
                 'recommended_parallel_steps': 3
             }
         }
-        
+
         context.parallel_monitoring_success = True
     except Exception as e:
         context.parallel_monitoring_error = str(e)
@@ -269,7 +269,7 @@ def step_execute_pipeline_with_incremental_monitoring(context):
                 'time_savings_percentage': 80.0
             }
         }
-        
+
         context.incremental_monitoring_success = True
     except Exception as e:
         context.incremental_monitoring_error = str(e)
@@ -301,7 +301,7 @@ def step_generate_performance_report(context):
             ],
             'export_format': 'structured'
         }
-        
+
         context.report_generation_success = True
     except Exception as e:
         context.report_generation_error = str(e)
@@ -313,7 +313,7 @@ def step_should_receive_performance_metrics(context):
     """Verify that performance metrics are received."""
     assert context.monitoring_success, f"Performance monitoring failed: {getattr(context, 'monitoring_error', 'Unknown error')}"
     assert context.performance_metrics is not None, "No performance metrics received"
-    
+
     # Check that we have the expected metrics
     expected_metrics = ['execution_time', 'memory_usage', 'cpu_usage', 'total_rows_processed', 'validation_rate']
     for metric in expected_metrics:
@@ -348,7 +348,7 @@ def step_metrics_should_include_cpu_usage(context):
 def step_metrics_should_be_logged_for_analysis(context):
     """Verify that metrics are logged for analysis."""
     assert context.monitoring_success, f"Performance monitoring failed: {getattr(context, 'monitoring_error', 'Unknown error')}"
-    
+
     # For now, we'll just check that monitoring succeeded
     # In a real implementation, this would test actual logging
     print("Performance metrics are logged for analysis")
@@ -359,7 +359,7 @@ def step_should_receive_data_processing_metrics(context):
     """Verify that data processing metrics are received."""
     assert context.data_processing_monitoring_success, f"Data processing monitoring failed: {getattr(context, 'data_processing_monitoring_error', 'Unknown error')}"
     assert context.data_processing_metrics is not None, "No data processing metrics received"
-    
+
     # Check that we have the expected metrics
     expected_metrics = ['rows_processed_per_second', 'data_throughput', 'processing_efficiency', 'bottlenecks']
     for metric in expected_metrics:
@@ -403,7 +403,7 @@ def step_should_receive_resource_utilization_metrics(context):
     """Verify that resource utilization metrics are received."""
     assert context.resource_monitoring_success, f"Resource monitoring failed: {getattr(context, 'resource_monitoring_error', 'Unknown error')}"
     assert context.resource_monitoring_metrics is not None, "No resource monitoring metrics received"
-    
+
     # Check that we have the expected metrics
     expected_metrics = ['memory_usage_over_time', 'cpu_utilization', 'disk_io', 'resource_constraints']
     for metric in expected_metrics:
@@ -415,7 +415,7 @@ def step_metrics_should_include_memory_usage_over_time(context):
     """Verify that metrics include memory usage over time."""
     assert context.resource_monitoring_success, f"Resource monitoring failed: {getattr(context, 'resource_monitoring_error', 'Unknown error')}"
     assert 'memory_usage_over_time' in context.resource_monitoring_metrics, "No memory usage over time in metrics"
-    
+
     memory_usage = context.resource_monitoring_metrics['memory_usage_over_time']
     assert 'peak' in memory_usage, "No peak memory usage"
     assert 'average' in memory_usage, "No average memory usage"
@@ -427,7 +427,7 @@ def step_metrics_should_include_cpu_utilization(context):
     """Verify that metrics include CPU utilization."""
     assert context.resource_monitoring_success, f"Resource monitoring failed: {getattr(context, 'resource_monitoring_error', 'Unknown error')}"
     assert 'cpu_utilization' in context.resource_monitoring_metrics, "No CPU utilization in metrics"
-    
+
     cpu_utilization = context.resource_monitoring_metrics['cpu_utilization']
     assert 'peak' in cpu_utilization, "No peak CPU utilization"
     assert 'average' in cpu_utilization, "No average CPU utilization"
@@ -439,7 +439,7 @@ def step_metrics_should_include_disk_io(context):
     """Verify that metrics include disk I/O."""
     assert context.resource_monitoring_success, f"Resource monitoring failed: {getattr(context, 'resource_monitoring_error', 'Unknown error')}"
     assert 'disk_io' in context.resource_monitoring_metrics, "No disk I/O in metrics"
-    
+
     disk_io = context.resource_monitoring_metrics['disk_io']
     assert 'read_bytes' in disk_io, "No read bytes in disk I/O"
     assert 'write_bytes' in disk_io, "No write bytes in disk I/O"
@@ -459,7 +459,7 @@ def step_should_compare_performance_with_historical_data(context):
     """Verify that performance is compared with historical data."""
     assert context.trend_analysis_success, f"Trend analysis failed: {getattr(context, 'trend_analysis_error', 'Unknown error')}"
     assert context.trend_analysis is not None, "No trend analysis result"
-    
+
     # Check that we have historical comparison
     assert 'current_metrics' in context.trend_analysis, "No current metrics in trend analysis"
     assert 'historical_average' in context.trend_analysis, "No historical average in trend analysis"
@@ -470,10 +470,10 @@ def step_should_detect_significant_performance_regressions(context):
     """Verify that significant performance regressions are detected."""
     assert context.trend_analysis_success, f"Trend analysis failed: {getattr(context, 'trend_analysis_error', 'Unknown error')}"
     assert context.trend_analysis is not None, "No trend analysis result"
-    
+
     # Check that performance regressions are detected
     assert 'performance_regression' in context.trend_analysis, "No performance regression in trend analysis"
-    
+
     regression = context.trend_analysis['performance_regression']
     assert 'execution_time' in regression, "No execution time regression"
     assert 'memory_usage' in regression, "No memory usage regression"
@@ -485,7 +485,7 @@ def step_should_receive_alerts_for_performance_issues(context):
     """Verify that alerts for performance issues are received."""
     assert context.trend_analysis_success, f"Trend analysis failed: {getattr(context, 'trend_analysis_error', 'Unknown error')}"
     assert context.trend_analysis is not None, "No trend analysis result"
-    
+
     # Check that alerts are generated
     assert 'alerts' in context.trend_analysis, "No alerts in trend analysis"
     assert len(context.trend_analysis['alerts']) > 0, "No performance issue alerts generated"
@@ -496,7 +496,7 @@ def step_should_get_suggestions_for_performance_optimization(context):
     """Verify that suggestions for performance optimization are provided."""
     assert context.trend_analysis_success, f"Trend analysis failed: {getattr(context, 'trend_analysis_error', 'Unknown error')}"
     assert context.trend_analysis is not None, "No trend analysis result"
-    
+
     # Check that optimization suggestions are provided
     assert 'alerts' in context.trend_analysis, "No alerts in trend analysis"
     alerts = context.trend_analysis['alerts']
@@ -509,7 +509,7 @@ def step_should_receive_parallel_execution_metrics(context):
     """Verify that parallel execution metrics are received."""
     assert context.parallel_monitoring_success, f"Parallel monitoring failed: {getattr(context, 'parallel_monitoring_error', 'Unknown error')}"
     assert context.parallel_monitoring_metrics is not None, "No parallel monitoring metrics received"
-    
+
     # Check that we have the expected metrics
     expected_metrics = ['parallelization_efficiency', 'load_balancing', 'optimal_parallelization', 'parallel_settings']
     for metric in expected_metrics:
@@ -545,7 +545,7 @@ def step_should_receive_incremental_processing_metrics(context):
     """Verify that incremental processing metrics are received."""
     assert context.incremental_monitoring_success, f"Incremental monitoring failed: {getattr(context, 'incremental_monitoring_error', 'Unknown error')}"
     assert context.incremental_monitoring_metrics is not None, "No incremental monitoring metrics received"
-    
+
     # Check that we have the expected metrics
     expected_metrics = ['incremental_data_volume', 'processing_efficiency', 'time_savings', 'full_refresh_comparison']
     for metric in expected_metrics:
@@ -573,7 +573,7 @@ def step_metrics_should_compare_with_full_refresh_performance(context):
     """Verify that metrics compare with full refresh performance."""
     assert context.incremental_monitoring_success, f"Incremental monitoring failed: {getattr(context, 'incremental_monitoring_error', 'Unknown error')}"
     assert 'full_refresh_comparison' in context.incremental_monitoring_metrics, "No full refresh comparison in metrics"
-    
+
     comparison = context.incremental_monitoring_metrics['full_refresh_comparison']
     assert 'incremental_time' in comparison, "No incremental time in comparison"
     assert 'full_refresh_time' in comparison, "No full refresh time in comparison"
@@ -585,7 +585,7 @@ def step_should_receive_comprehensive_performance_analysis(context):
     """Verify that a comprehensive performance analysis is received."""
     assert context.report_generation_success, f"Report generation failed: {getattr(context, 'report_generation_error', 'Unknown error')}"
     assert context.performance_report is not None, "No performance report received"
-    
+
     # Check that we have the expected report sections
     expected_sections = ['execution_summary', 'trend_analysis', 'optimization_recommendations', 'export_format']
     for section in expected_sections:
@@ -597,7 +597,7 @@ def step_report_should_include_trend_analysis(context):
     """Verify that the report includes trend analysis."""
     assert context.report_generation_success, f"Report generation failed: {getattr(context, 'report_generation_error', 'Unknown error')}"
     assert 'trend_analysis' in context.performance_report, "No trend analysis in report"
-    
+
     trend_analysis = context.performance_report['trend_analysis']
     assert 'execution_time_trend' in trend_analysis, "No execution time trend in analysis"
     assert 'memory_usage_trend' in trend_analysis, "No memory usage trend in analysis"
@@ -609,7 +609,7 @@ def step_report_should_include_optimization_recommendations(context):
     """Verify that the report includes optimization recommendations."""
     assert context.report_generation_success, f"Report generation failed: {getattr(context, 'report_generation_error', 'Unknown error')}"
     assert 'optimization_recommendations' in context.performance_report, "No optimization recommendations in report"
-    
+
     recommendations = context.performance_report['optimization_recommendations']
     assert len(recommendations) > 0, "No optimization recommendations provided"
     assert all(isinstance(rec, str) for rec in recommendations), "Optimization recommendations should be strings"

@@ -6,19 +6,19 @@ This module focuses on covering missing lines and edge cases that are not
 currently covered by the existing test suite.
 """
 
+import os
 from unittest.mock import Mock
 
 import pytest
-import os
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F
     from mock_spark import MockDataFrame as DataFrame
+    from mock_spark import functions as F
     from mock_spark.functions import col
 else:
-    from pyspark.sql import functions as F
     from pyspark.sql import DataFrame
+    from pyspark.sql import functions as F
     from pyspark.sql.functions import col
 
 from sparkforge.validation import (

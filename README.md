@@ -6,8 +6,8 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://sparkforge.readthedocs.io/)
-[![Tests](https://img.shields.io/badge/tests-1358%20passed-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
-[![Coverage](https://img.shields.io/badge/coverage-85%25%2B-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
+[![Tests](https://img.shields.io/badge/tests-1400%20passed-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
+[![Coverage](https://img.shields.io/badge/coverage-83%25-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
 [![Type Safety](https://img.shields.io/badge/type%20safety-100%25-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
 [![CI/CD](https://github.com/eddiethedean/sparkforge/workflows/Tests/badge.svg)](https://github.com/eddiethedean/sparkforge/actions)
 
@@ -27,9 +27,23 @@
 ## 🚀 Quick Start
 
 ### Installation
+
+**With PySpark (for production):**
 ```bash
-pip install sparkforge
+pip install sparkforge[pyspark]
 ```
+
+**With mock-spark (for testing/development):**
+```bash
+pip install sparkforge[mock]
+```
+
+**For PySpark compatibility testing:**
+```bash
+pip install sparkforge[compat-test]
+```
+
+**Note:** SparkForge now supports both PySpark and mock-spark. Choose the installation method that best fits your use case. The framework automatically detects which engine is available.
 
 ### Quick Start Example
 ```python
@@ -194,7 +208,7 @@ rules = {
 - **Multi-schema support** for enterprise environments
 - **Performance monitoring** and optimization
 - **Comprehensive logging** and audit trails
-- **71% test coverage** with 913+ comprehensive tests
+- **83% test coverage** with 1400+ comprehensive tests
 - **100% type safety** with mypy compliance
 - **Security hardened** with zero security vulnerabilities
 
@@ -280,19 +294,19 @@ See [QUICKSTART.md](QUICKSTART.md) and [ENVIRONMENT_INFO.md](ENVIRONMENT_INFO.md
 
 ## 🧪 Testing & Quality
 
-SparkForge includes a comprehensive test suite with **1,392 tests** covering all functionality:
+SparkForge includes a comprehensive test suite with **1,400 tests** covering all functionality:
 
 ```bash
-# Run all tests with 100% pass rate (recommended)
-./run_all_tests.sh
+# Run all tests with coverage and type checking (recommended)
+make test
 
 # Run all tests (standard)
 pytest tests/ -v
 
 # Run by category
-pytest tests/unit/ -v              # Unit tests (1,077 tests)
-pytest tests/integration/ -v       # Integration tests (136 tests)
-pytest tests/system/ -v            # System tests (179 tests)
+pytest tests/unit/ -v              # Unit tests
+pytest tests/integration/ -v       # Integration tests
+pytest tests/system/ -v            # System tests
 
 # Run with coverage
 pytest tests/ --cov=sparkforge --cov-report=html
@@ -301,20 +315,21 @@ pytest tests/ --cov=sparkforge --cov-report=html
 source activate_env.sh             # Loads Python 3.8 + PySpark 3.2
 
 # Verify environment
-python test_environment.py         # Comprehensive environment check
+python scripts/test_python38_environment.py  # Comprehensive environment check
 
 # Code quality checks
-black sparkforge/                  # Format code
-mypy sparkforge/                   # Type checking
-bandit -r sparkforge/              # Security scan
+make format                        # Format code with Black and isort
+make lint                          # Run ruff and pylint
+make type-check                    # Type checking with mypy
+make security                      # Security scan with bandit
 ```
 
 **Quality Metrics**:
-- ✅ **1,358 tests passed** (97.6% pass rate, 100% with optimized runner)
-- ✅ **85%+ test coverage** across all modules
-- ✅ **100% type safety** with mypy compliance
+- ✅ **1,400 tests passed** (100% pass rate)
+- ✅ **83% test coverage** across all modules
+- ✅ **100% type safety** with mypy compliance (43 source files)
 - ✅ **Zero security vulnerabilities** (bandit clean)
-- ✅ **Code formatting** compliant (Black + isort)
+- ✅ **Code formatting** compliant (Black + isort + ruff)
 - ✅ **Python 3.8-3.11 compatible**
 
 ## 🤝 Contributing
@@ -326,20 +341,20 @@ We welcome contributions! Here's how to get started:
 2. **Clone your fork**: `git clone https://github.com/yourusername/sparkforge.git`
 3. **Setup environment**: `bash setup.sh` or see [QUICKSTART.md](QUICKSTART.md)
 4. **Activate environment**: `source activate_env.sh`
-5. **Run tests**: `./run_all_tests.sh` (100% pass rate)
+5. **Run tests**: `make test` (1,400 tests, 100% pass rate)
 6. **Create a feature branch**: `git checkout -b feature/amazing-feature`
 7. **Make your changes and add tests**
-8. **Format code**: `black sparkforge/ tests/`
+8. **Format code**: `make format`
 9. **Submit a pull request**
 
 ### Development Guidelines
-- Follow the existing code style (Black formatting + isort)
+- Follow the existing code style (Black formatting + isort + ruff)
 - Add tests for new features (aim for 90%+ coverage)
 - Ensure type safety with mypy compliance
 - Run security scan with bandit
 - Update documentation as needed
-- Ensure all tests pass: `./run_all_tests.sh`
-- Python 3.8+ required for development
+- Ensure all tests pass: `make test`
+- Python 3.8 required for development (as per project standards)
 
 ## 📊 Performance & Benchmarks
 
@@ -347,20 +362,20 @@ We welcome contributions! Here's how to get started:
 |--------|------------|-----------|-------------|
 | **Lines of Code** | 20 lines | 200+ lines | **90% reduction** |
 | **Development Time** | 30 minutes | 4+ hours | **87% faster** |
-| **Test Coverage** | 88% (702 tests) | Manual | **Comprehensive** |
+| **Test Coverage** | 83% (1,400 tests) | Manual | **Comprehensive** |
 | **Type Safety** | 100% mypy compliant | None | **Production-ready** |
 | **Security** | Zero vulnerabilities | Manual | **Enterprise-grade** |
 | **Error Handling** | Built-in + Early Validation | Manual | **Production-ready** |
 | **Debugging** | Step-by-step | Complex | **Developer-friendly** |
 | **Validation** | Automatic + Configurable | Manual | **Enterprise-grade** |
 
-## 🚀 Recent Improvements (v0.6.0)
+## 🚀 Recent Improvements (Latest)
 
 ### 🎯 **Quality & Reliability**
-- ✅ **100% type safety** - Complete mypy compliance across all modules
-- ✅ **Security hardened** - Zero vulnerabilities (replaced MD5 with SHA256)
-- ✅ **88% test coverage** - Comprehensive test suite with 702 tests
-- ✅ **Code quality** - Black formatting + isort import sorting
+- ✅ **100% type safety** - Complete mypy compliance across all 43 source files
+- ✅ **Security hardened** - Zero vulnerabilities (bandit clean)
+- ✅ **83% test coverage** - Comprehensive test suite with 1,400 tests
+- ✅ **Code quality** - Black formatting + isort + ruff linting
 - ✅ **Production ready** - All quality gates passed
 
 ### 🔧 **Enhanced Features**
@@ -368,7 +383,9 @@ We welcome contributions! Here's how to get started:
 - ✅ **String rules support** - Human-readable validation rules
 - ✅ **Comprehensive error handling** - Detailed error context and suggestions
 - ✅ **Improved documentation** - Updated docstrings with examples
+- ✅ **Mock Functions compatibility** - Enhanced mock-spark support for testing
 - ✅ **Better test alignment** - Tests now reflect actual intended behavior
+- ✅ **Optimized test runner** - Type checking only on source code, not tests
 
 ## 🏆 What Makes SparkForge Different?
 
@@ -379,7 +396,7 @@ We welcome contributions! Here's how to get started:
 - **Performance monitoring** and optimization
 - **100% type safety** with comprehensive mypy compliance
 - **Security hardened** with zero vulnerabilities
-- **88% test coverage** ensuring reliability
+- **83% test coverage** with 1,400 comprehensive tests
 
 ### ✅ **Developer-First Design**
 - **Clean, readable API** that's easy to understand

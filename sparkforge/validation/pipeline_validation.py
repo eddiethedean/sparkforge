@@ -14,7 +14,7 @@ step dependencies, and overall pipeline structure.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Dict
 
 from ..logging import PipelineLogger
 from ..models import BronzeStep, ExecutionContext, GoldStep, PipelineConfig, SilverStep
@@ -69,9 +69,9 @@ class UnifiedValidator:
     def validate_pipeline(
         self,
         config: PipelineConfig,
-        bronze_steps: dict[StepName, BronzeStep],
-        silver_steps: dict[StepName, SilverStep],
-        gold_steps: dict[StepName, GoldStep],
+        bronze_steps: Dict[StepName, BronzeStep],
+        silver_steps: Dict[StepName, SilverStep],
+        gold_steps: Dict[StepName, GoldStep],
     ) -> ValidationResult:
         """Validate the entire pipeline configuration."""
         errors: list[str] = []
@@ -156,7 +156,7 @@ class UnifiedValidator:
         return errors
 
     def _validate_bronze_steps(
-        self, bronze_steps: dict[StepName, BronzeStep]
+        self, bronze_steps: Dict[StepName, BronzeStep]
     ) -> tuple[list[str], list[str]]:
         """Validate bronze steps."""
         errors = []
@@ -174,8 +174,8 @@ class UnifiedValidator:
 
     def _validate_silver_steps(
         self,
-        silver_steps: dict[StepName, SilverStep],
-        bronze_steps: dict[StepName, BronzeStep],
+        silver_steps: Dict[StepName, SilverStep],
+        bronze_steps: Dict[StepName, BronzeStep],
     ) -> tuple[list[str], list[str]]:
         """Validate silver steps."""
         errors = []
@@ -195,8 +195,8 @@ class UnifiedValidator:
 
     def _validate_gold_steps(
         self,
-        gold_steps: dict[StepName, GoldStep],
-        silver_steps: dict[StepName, SilverStep],
+        gold_steps: Dict[StepName, GoldStep],
+        silver_steps: Dict[StepName, SilverStep],
     ) -> tuple[list[str], list[str]]:
         """Validate gold steps."""
         errors = []
@@ -215,9 +215,9 @@ class UnifiedValidator:
 
     def _validate_dependencies(
         self,
-        bronze_steps: dict[StepName, BronzeStep],
-        silver_steps: dict[StepName, SilverStep],
-        gold_steps: dict[StepName, GoldStep],
+        bronze_steps: Dict[StepName, BronzeStep],
+        silver_steps: Dict[StepName, SilverStep],
+        gold_steps: Dict[StepName, GoldStep],
     ) -> tuple[list[str], list[str]]:
         """Validate step dependencies."""
         errors = []

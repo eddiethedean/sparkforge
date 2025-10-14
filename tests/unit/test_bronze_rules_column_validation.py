@@ -7,18 +7,22 @@ in the DataFrame.
 """
 
 import os
+
 import pytest
-from pyspark.sql import SparkSession
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F
     from mock_spark import (
         IntegerType,
         StringType,
+    )
+    from mock_spark import (
         MockStructField as StructField,
+    )
+    from mock_spark import (
         MockStructType as StructType,
     )
+    from mock_spark import functions as F
     MockF = F
 else:
     from pyspark.sql import functions as F
@@ -133,8 +137,8 @@ class TestBronzeRulesColumnValidation:
 
     def test_bronze_step_with_provided_data(self, spark_session):
         """Test that bronze step works correctly with provided data."""
-        from sparkforge.models import BronzeStep, PipelineConfig
         from sparkforge.execution import ExecutionEngine
+        from sparkforge.models import BronzeStep, PipelineConfig
 
         # Create sample data with the expected columns
         schema = StructType(
@@ -230,9 +234,9 @@ class TestBronzeRulesColumnValidation:
 
     def test_bronze_step_missing_data_error(self, spark_session):
         """Test that bronze step raises clear error when no data is provided."""
-        from sparkforge.models import BronzeStep, PipelineConfig
-        from sparkforge.execution import ExecutionEngine
         from sparkforge.errors import ExecutionError
+        from sparkforge.execution import ExecutionEngine
+        from sparkforge.models import BronzeStep, PipelineConfig
 
         # Create bronze step with various column types
         bronze_step = BronzeStep(

@@ -3,22 +3,16 @@ Basic tests for sparkforge.pipeline.builder.PipelineBuilder that avoid PySpark d
 """
 
 import os
+from unittest.mock import patch
+
 import pytest
-from datetime import datetime
-from unittest.mock import patch, MagicMock
-from sparkforge.pipeline.builder import PipelineBuilder
-from sparkforge.models import (
-    BronzeStep,
-    SilverStep,
-    GoldStep,
-    PipelineConfig,
-    ValidationThresholds,
-    ParallelConfig,
-)
-from sparkforge.models.enums import PipelinePhase, ExecutionMode
+
 from sparkforge.errors import ConfigurationError, ExecutionError
 from sparkforge.logging import PipelineLogger
-from mock_spark import MockSparkSession
+from sparkforge.models import (
+    PipelineConfig,
+)
+from sparkforge.pipeline.builder import PipelineBuilder
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
@@ -186,7 +180,6 @@ class TestHelperMethods:
 
     def test_create_schema_if_not_exists_failure(self, spark_session):
         """Test _create_schema_if_not_exists with failure."""
-        from unittest.mock import patch
 
         builder = PipelineBuilder(spark=spark_session, schema="test_schema")
 
