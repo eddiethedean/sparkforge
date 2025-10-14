@@ -5,6 +5,7 @@ This module provides functions for validating data using PySpark expressions,
 including string rule conversion, column validation, and data quality assessment.
 
 # Depends on:
+#   compat
 #   errors
 #   functions
 #   logging

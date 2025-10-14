@@ -5,6 +5,7 @@ This module contains functions for timing operations, monitoring performance,
 and managing execution metrics.
 
 # Depends on:
+#   compat
 #   table_operations
 """
 

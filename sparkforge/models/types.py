@@ -1,5 +1,8 @@
 """
 Type definitions and protocols for the Pipeline Builder models.
+
+# Depends on:
+#   compat
 """
 
 from typing import Callable, Dict, List, Protocol, TypeVar, Union

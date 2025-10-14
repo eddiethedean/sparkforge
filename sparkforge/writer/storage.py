@@ -5,6 +5,8 @@ This module handles all storage-related operations including Delta Lake
 integration, table management, and data persistence.
 
 # Depends on:
+#   compat
+#   functions
 #   logging
 #   table_operations
 #   writer.exceptions

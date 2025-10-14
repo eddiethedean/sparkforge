@@ -5,6 +5,8 @@ This module contains the core data processing operations for the writer,
 including data transformation, validation, and quality checks.
 
 # Depends on:
+#   compat
+#   functions
 #   logging
 #   models.execution
 #   validation.utils

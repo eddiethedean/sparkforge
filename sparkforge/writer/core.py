@@ -5,9 +5,10 @@ This module contains the main LogWriter class that orchestrates the various
 writer components for comprehensive logging functionality.
 
 # Depends on:
+#   compat
+#   functions
 #   logging
 #   models.execution
-#   validation.data_validation
 #   validation.utils
 #   writer.analytics
 #   writer.exceptions

@@ -6,9 +6,8 @@ pipeline construction with the Medallion Architecture (Bronze → Silver → Gol
 The builder creates pipelines that can be executed with the simplified execution engine.
 
 # Depends on:
-#   dependencies.analyzer
+#   compat
 #   errors
-#   execution
 #   functions
 #   logging
 #   models.base

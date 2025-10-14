@@ -6,6 +6,7 @@ used by the writer module. It integrates with existing framework models while
 providing writer-specific functionality.
 
 # Depends on:
+#   compat
 #   models.execution
 """
 

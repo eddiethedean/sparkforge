@@ -2,6 +2,9 @@
 Utility functions for the framework validation.
 
 This module provides utility functions for data analysis and validation operations.
+
+# Depends on:
+#   compat
 """
 
 from __future__ import annotations

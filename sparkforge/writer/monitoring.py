@@ -5,6 +5,7 @@ This module handles performance monitoring, metrics collection, and
 analytics for the writer operations.
 
 # Depends on:
+#   compat
 #   logging
 #   writer.exceptions
 #   writer.models

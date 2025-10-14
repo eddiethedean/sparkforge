@@ -5,6 +5,7 @@ This module provides a clean, focused pipeline runner that delegates
 execution to the simplified execution engine.
 
 # Depends on:
+#   compat
 #   execution
 #   functions
 #   logging

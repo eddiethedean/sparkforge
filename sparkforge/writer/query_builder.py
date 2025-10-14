@@ -3,6 +3,9 @@ Query builder module for common PySpark DataFrame operations.
 
 This module provides reusable query builders and common aggregations
 to reduce code duplication across the writer modules.
+
+# Depends on:
+#   compat
 """
 
 from __future__ import annotations

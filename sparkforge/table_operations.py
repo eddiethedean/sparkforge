@@ -5,6 +5,7 @@ This module contains functions for reading, writing, and managing tables
 in the data lake.
 
 # Depends on:
+#   compat
 #   errors
 #   performance
 """

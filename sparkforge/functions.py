@@ -3,6 +3,9 @@ Functions interface for the framework.
 
 This module provides a protocol for PySpark functions that can be injected
 into framework components, allowing for better testability and flexibility.
+
+# Depends on:
+#   compat
 """
 
 from __future__ import annotations

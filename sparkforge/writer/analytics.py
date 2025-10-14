@@ -5,6 +5,7 @@ This module provides comprehensive analytics capabilities for analyzing
 pipeline execution data, detecting trends, and generating insights.
 
 # Depends on:
+#   compat
 #   logging
 #   writer.exceptions
 #   writer.query_builder

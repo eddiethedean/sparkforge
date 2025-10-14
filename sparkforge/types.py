@@ -3,6 +3,9 @@ Simplified type definitions for the framework.
 
 This module provides essential type definitions and aliases
 for better type safety without over-engineering.
+
+# Depends on:
+#   compat
 """
 
 from enum import Enum

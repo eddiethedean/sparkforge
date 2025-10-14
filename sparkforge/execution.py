@@ -41,6 +41,7 @@ Example:
     ... )
 
 # Depends on:
+#   compat
 #   errors
 #   functions
 #   logging
