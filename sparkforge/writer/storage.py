@@ -26,7 +26,7 @@ try:
 
     HAS_DELTA = True
 except ImportError:
-    DeltaTable = None  # type: ignore
+    DeltaTable = None
     HAS_DELTA = False
 
 from ..functions import FunctionsProtocol, get_default_functions
