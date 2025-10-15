@@ -6,6 +6,7 @@ and instead logs warnings and tracks parsing failures.
 """
 
 import os
+import sys
 import tempfile
 from unittest.mock import Mock, patch
 
@@ -40,7 +41,11 @@ class TestTrap10SilentTestSkip:
                     mock_logger_instance.warning.assert_called_once()
                     warning_call = mock_logger_instance.warning.call_args[0][0]
                     assert "Failed to parse file" in warning_call
-                    assert "unexpected EOF while parsing" in warning_call
+                    # Different Python versions have different error messages
+                    # Python 3.8-3.9: "unexpected EOF while parsing"
+                    # Python 3.10+: "'(' was never closed"
+                    assert ("unexpected EOF while parsing" in warning_call or 
+                            "'(' was never closed" in warning_call)
 
                     # Verify that the parsing error was tracked in violations
                     assert len(violations) == 1
@@ -77,7 +82,11 @@ class TestTrap10SilentTestSkip:
                     mock_logger_instance.warning.assert_called_once()
                     warning_call = mock_logger_instance.warning.call_args[0][0]
                     assert "Failed to parse file" in warning_call
-                    assert "unexpected EOF while parsing" in warning_call
+                    # Different Python versions have different error messages
+                    # Python 3.8-3.9: "unexpected EOF while parsing"
+                    # Python 3.10+: "'(' was never closed"
+                    assert ("unexpected EOF while parsing" in warning_call or 
+                            "'(' was never closed" in warning_call)
 
                     # Verify that the parsing error was tracked in violations
                     assert len(violations) == 1
