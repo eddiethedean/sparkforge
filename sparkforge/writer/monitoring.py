@@ -18,7 +18,7 @@ import time
 from datetime import datetime
 from typing import Any, Dict
 
-import psutil
+import psutil  # type: ignore[import-untyped]
 
 from ..compat import DataFrame, SparkSession
 from ..logging import PipelineLogger
