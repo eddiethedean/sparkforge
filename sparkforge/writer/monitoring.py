@@ -173,19 +173,19 @@ class PerformanceMonitor:
         Returns:
             Dictionary containing memory usage details
         """
-        try:
-            # Check if psutil is available
-            if not HAS_PSUTIL or psutil is None:
-                self.logger.warning("psutil not available, returning basic memory info")
-                return {
-                    "total_mb": 0.0,
-                    "available_mb": 0.0,
-                    "used_mb": 0.0,
-                    "percentage": 0.0,
-                    "spark_memory": {},
-                    "psutil_available": False,
-                }
+        # Check if psutil is available at all
+        if not HAS_PSUTIL or psutil is None:
+            self.logger.warning("psutil not available, returning basic memory info")
+            return {
+                "total_mb": 0.0,
+                "available_mb": 0.0,
+                "used_mb": 0.0,
+                "percentage": 0.0,
+                "spark_memory": {},
+                "psutil_available": False,
+            }
 
+        try:
             # Get system memory info
             memory = psutil.virtual_memory()
 
@@ -217,16 +217,7 @@ class PerformanceMonitor:
 
         except Exception as e:
             self.logger.error(f"Failed to get memory usage: {e}")
-            # Return basic info instead of raising error
-            return {
-                "total_mb": 0.0,
-                "available_mb": 0.0,
-                "used_mb": 0.0,
-                "percentage": 0.0,
-                "spark_memory": {},
-                "error": str(e),
-                "psutil_available": HAS_PSUTIL,
-            }
+            raise WriterError(f"Failed to get memory usage: {e}") from e
 
     def check_performance_thresholds(
         self, operation_metrics: Dict[str, Any]
