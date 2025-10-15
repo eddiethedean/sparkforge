@@ -461,72 +461,31 @@ except ImportError:
     # Add usage example cell
     usage_example = """## Usage Example
 
-Here's how to use the PipelineBuilder and LogWriter:"""
+Here's how to initialize PipelineBuilder and LogWriter:"""
     cells.append(create_notebook_cell(usage_example, 'markdown'))
 
-    example_code = """# Example: Create a pipeline and log execution results
-from pyspark.sql import SparkSession, functions as F
+    example_code = """# Example: Initialize PipelineBuilder and LogWriter
+from pyspark.sql import SparkSession
 
-# Initialize Spark (if not already available)
+# Initialize Spark
 spark = SparkSession.builder \\
     .appName("PipelineBuilder Example") \\
     .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \\
     .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \\
     .getOrCreate()
 
-# Create sample data
-data = [
-    ("user1", "click", 100, "2024-01-01"),
-    ("user2", "purchase", 200, "2024-01-02"),
-    ("user3", "view", 50, "2024-01-03")
-]
-df = spark.createDataFrame(data, ["user_id", "action", "value", "date"])
-
-# Create schema
-spark.sql("CREATE SCHEMA IF NOT EXISTS analytics")
-
-# Build pipeline
+# Initialize PipelineBuilder
 builder = PipelineBuilder(spark=spark, schema="analytics")
+print("✅ PipelineBuilder initialized")
 
-# Bronze layer - with string rules for convenience
-builder.with_bronze_rules(
-    name="events",
-    rules={"user_id": ["not_null"], "value": ["gt", 0]},
-    incremental_col="date"
-)
-
-# Silver layer
-builder.add_silver_transform(
-    name="clean_events",
-    source_bronze="events",
-    transform=lambda spark, df, silvers: df.filter(F.col("value") > 0),
-    rules={"value": ["gt", 0]},
-    table_name="clean_events"
-)
-
-# Gold layer
-builder.add_gold_transform(
-    name="daily_metrics",
-    transform=lambda spark, silvers: silvers["clean_events"].groupBy("action").agg(F.count("*").alias("count")),
-    rules={"count": ["gt", 0]},
-    table_name="daily_metrics",
-    source_silvers=["clean_events"]
-)
-
-# Execute pipeline
-pipeline = builder.to_pipeline()
-result = pipeline.run_initial_load(bronze_sources={"events": df})
-print(f"✅ Pipeline completed: {result.status}")
-
-# Optional: Log execution results with LogWriter
+# Initialize LogWriter
 log_config = WriterConfig(
     table_schema="analytics",
     table_name="pipeline_logs",
     write_mode=WriteMode.APPEND
 )
 log_writer = LogWriter(spark, log_config)
-log_result = log_writer.write_execution_result(result, run_mode="initial")
-print(f"📝 Logged {log_result['rows_written']} execution records")"""
+print("✅ LogWriter initialized")"""
 
     cells.append(create_notebook_cell(example_code, 'code'))
 
