@@ -181,10 +181,22 @@ def remove_sparkforge_imports(code: str) -> str:
     lines = code.split('\n')
     new_lines = []
     in_multiline_import = False
+    in_mock_spark_import = False
 
     for line in lines:
+        # Check for mock_spark imports (which we want to completely remove)
+        if re.match(r'^\s*from\s+mock_spark', line) or re.match(r'^\s*import\s+mock_spark', line):
+            # Skip mock_spark imports entirely
+            if '(' in line and ')' not in line:
+                in_mock_spark_import = True
+            continue
+        elif in_mock_spark_import:
+            # Skip continuation lines of mock_spark imports
+            if ')' in line:
+                in_mock_spark_import = False
+            continue
         # Check for any relative imports (starting with one or more dots)
-        if re.match(r'^\s*from\s+\.', line):
+        elif re.match(r'^\s*from\s+\.', line):
             # Comment out the import
             indent = len(line) - len(line.lstrip())
             comment = '# ' + line.strip() + '  # Removed: defined in notebook cells above'
@@ -219,10 +231,15 @@ def remove_sparkforge_imports(code: str) -> str:
         code,
         flags=re.MULTILINE
     )
-
-    # Remove any remaining mock_spark references
-    code = re.sub(r'from mock_spark import .*\n', '', code)
-    code = re.sub(r'import mock_spark.*\n', '', code)
+    
+    # Fix _try_import_mockspark to simply return None in standalone notebooks
+    # After removing imports, the function body is broken - replace it
+    code = re.sub(
+        r'def _try_import_mockspark\(\).*?"""Try to import mock-spark modules\.""".*?try:.*?return _DataFrame.*?except Exception:.*?return None',
+        'def _try_import_mockspark() -> (\n    tuple[type[Any], type[Any], type[Any], Any, Any, type[Exception]] | None\n):\n    """Try to import mock-spark modules."""\n    # Mock-spark not available in standalone PySpark notebook\n    return None',
+        code,
+        flags=re.DOTALL
+    )
 
     # Remove references to "sparkforge" in various contexts
     # Replace in import statements
@@ -353,16 +370,17 @@ def generate_notebook(modules: Dict[str, Dict], sorted_modules: List[str], versi
     cells = []
 
     # Title cell
-    title = f"""# PipelineBuilder v{version} - Standalone Notebook
+    title = f"""# PipelineBuilder & LogWriter v{version} - Standalone Notebook
 
-This notebook contains the complete PipelineBuilder implementation
+This notebook contains the complete PipelineBuilder and LogWriter implementation
 as a standalone, executable notebook. All dependencies are included as cells
 in the correct order.
 
 **Usage:**
 1. Run all cells from top to bottom
-2. The `PipelineBuilder` class will be available after all cells execute
-3. Use it to build and execute data pipelines
+2. The `PipelineBuilder` and `LogWriter` classes will be available after all cells execute
+3. Use PipelineBuilder to build and execute data pipelines
+4. Use LogWriter to log and analyze pipeline execution results
 
 **Note:** This is generated from version {version}. Module dependencies are
 resolved automatically from source code analysis."""
@@ -385,7 +403,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Dict, Generator, List, Optional, Protocol, Set, Tuple, TypeVar, Union, cast
+from typing import Any, Callable, Dict, Generator, List, Optional, Protocol, Set, Tuple, TypedDict, TypeVar, Union, cast
 
 # PySpark imports
 from pyspark.sql import Column, DataFrame, SparkSession, functions as F
@@ -443,10 +461,10 @@ except ImportError:
     # Add usage example cell
     usage_example = """## Usage Example
 
-Here's how to use the PipelineBuilder:"""
+Here's how to use the PipelineBuilder and LogWriter:"""
     cells.append(create_notebook_cell(usage_example, 'markdown'))
 
-    example_code = """# Example: Create a simple pipeline
+    example_code = """# Example: Create a pipeline and log execution results
 from pyspark.sql import SparkSession, functions as F
 
 # Initialize Spark (if not already available)
@@ -470,10 +488,10 @@ spark.sql("CREATE SCHEMA IF NOT EXISTS analytics")
 # Build pipeline
 builder = PipelineBuilder(spark=spark, schema="analytics")
 
-# Bronze layer
+# Bronze layer - with string rules for convenience
 builder.with_bronze_rules(
     name="events",
-    rules={"user_id": [F.col("user_id").isNotNull()]},
+    rules={"user_id": ["not_null"], "value": ["gt", 0]},
     incremental_col="date"
 )
 
@@ -482,7 +500,7 @@ builder.add_silver_transform(
     name="clean_events",
     source_bronze="events",
     transform=lambda spark, df, silvers: df.filter(F.col("value") > 0),
-    rules={"value": [F.col("value") > 0]},
+    rules={"value": ["gt", 0]},
     table_name="clean_events"
 )
 
@@ -490,7 +508,7 @@ builder.add_silver_transform(
 builder.add_gold_transform(
     name="daily_metrics",
     transform=lambda spark, silvers: silvers["clean_events"].groupBy("action").agg(F.count("*").alias("count")),
-    rules={"count": [F.col("count") > 0]},
+    rules={"count": ["gt", 0]},
     table_name="daily_metrics",
     source_silvers=["clean_events"]
 )
@@ -498,7 +516,17 @@ builder.add_gold_transform(
 # Execute pipeline
 pipeline = builder.to_pipeline()
 result = pipeline.run_initial_load(bronze_sources={"events": df})
-print(f"✅ Pipeline completed: {result.status}")"""
+print(f"✅ Pipeline completed: {result.status}")
+
+# Optional: Log execution results with LogWriter
+log_config = WriterConfig(
+    table_schema="analytics",
+    table_name="pipeline_logs",
+    write_mode=WriteMode.APPEND
+)
+log_writer = LogWriter(spark, log_config)
+log_result = log_writer.write_execution_result(result, run_mode="initial")
+print(f"📝 Logged {log_result['rows_written']} execution records")"""
 
     cells.append(create_notebook_cell(example_code, 'code'))
 
