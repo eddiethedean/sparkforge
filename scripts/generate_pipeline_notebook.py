@@ -373,23 +373,23 @@ def generate_notebook(modules: Dict[str, Dict], sorted_modules: List[str], versi
     """
     cells = []
 
-    # Title cell
+    # Title cell (as Python comments for Databricks compatibility)
     title = f"""# PipelineBuilder & LogWriter v{version} - Standalone Notebook
+#
+# This notebook contains the complete PipelineBuilder and LogWriter implementation
+# as a standalone, executable notebook. All dependencies are included as cells
+# in the correct order.
+#
+# Usage:
+# 1. Run all cells from top to bottom
+# 2. The PipelineBuilder and LogWriter classes will be available after all cells execute
+# 3. Use PipelineBuilder to build and execute data pipelines
+# 4. Use LogWriter to log and analyze pipeline execution results
+#
+# Note: This is generated from version {version}. Module dependencies are
+# resolved automatically from source code analysis."""
 
-This notebook contains the complete PipelineBuilder and LogWriter implementation
-as a standalone, executable notebook. All dependencies are included as cells
-in the correct order.
-
-**Usage:**
-1. Run all cells from top to bottom
-2. The `PipelineBuilder` and `LogWriter` classes will be available after all cells execute
-3. Use PipelineBuilder to build and execute data pipelines
-4. Use LogWriter to log and analyze pipeline execution results
-
-**Note:** This is generated from version {version}. Module dependencies are
-resolved automatically from source code analysis."""
-
-    cells.append(create_notebook_cell(title, 'markdown'))
+    cells.append(create_notebook_cell(title, 'code'))
 
     # Imports cell
     imports_code = """# External imports (PySpark, standard library)
@@ -443,14 +443,14 @@ except ImportError:
     for module_path in sorted_modules:
         info = modules[module_path]
 
-        # Create markdown header for the module
-        module_header = f"## Module: {module_path}\n\n"
+        # Create comment header for the module (as code cell for Databricks compatibility)
+        module_header = f"# Module: {module_path}\n#\n"
         if info['dependencies']:
-            module_header += f"**Dependencies:** {', '.join(sorted(info['dependencies']))}"
+            module_header += f"# Dependencies: {', '.join(sorted(info['dependencies']))}"
         else:
-            module_header += "**Dependencies:** None (base module)"
+            module_header += "# Dependencies: None (base module)"
 
-        cells.append(create_notebook_cell(module_header, 'markdown'))
+        cells.append(create_notebook_cell(module_header, 'code'))
 
         # Extract code without docstring and remove sparkforge imports
         code = extract_code_without_docstring(info['code'])
@@ -462,11 +462,11 @@ except ImportError:
         if code:
             cells.append(create_notebook_cell(code, 'code'))
 
-    # Add usage example cell
-    usage_example = """## Usage Example
-
-Here's how to initialize PipelineBuilder and LogWriter:"""
-    cells.append(create_notebook_cell(usage_example, 'markdown'))
+    # Add usage example cell (as Python comments for Databricks compatibility)
+    usage_example = """# Usage Example
+#
+# Here's how to initialize PipelineBuilder and LogWriter:"""
+    cells.append(create_notebook_cell(usage_example, 'code'))
 
     example_code = """# Example: Initialize PipelineBuilder and LogWriter
 from pyspark.sql import SparkSession
