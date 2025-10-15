@@ -73,7 +73,7 @@ Validation Requirements:
 # Import main classes for easy access
 from .pipeline import PipelineBuilder, PipelineRunner
 
-__version__ = "0.9.1"
+__version__ = "1.0.0"
 __author__ = "Odos Matthews"
 __email__ = "odosmattthewsm@gmail.com"
 __description__ = "A simplified, production-ready data pipeline builder for Apache Spark and Delta Lake"

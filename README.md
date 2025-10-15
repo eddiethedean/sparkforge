@@ -478,7 +478,7 @@ Total: 16s                  Group 3: 1s
 
 ## 🚀 Recent Improvements (Latest)
 
-### ⚡ **NEW: Smart Parallel Execution (v0.9.2+)**
+### ⚡ **NEW: Smart Parallel Execution (v1.0.0+)**
 - ✅ **Automatic parallel execution** - Independent steps run concurrently (3-5x faster!)
 - ✅ **Dependency-aware scheduling** - Automatically respects step dependencies
 - ✅ **Thread-safe execution** - Built-in protection against race conditions
