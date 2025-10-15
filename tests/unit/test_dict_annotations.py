@@ -264,17 +264,23 @@ def test_dict_vs_Dict_equivalence():
     def func_with_Dict() -> Dict[str, int]:
         return {"test": 1}
 
-    # Test that dict[...] syntax fails in Python 3.8
-    try:
+    # Test that dict[...] syntax fails in Python 3.8 but works in 3.9+
+    if sys.version_info < (3, 9):
+        # Python 3.8: dict[...] syntax should fail
+        try:
 
-        def func_with_dict() -> (
-            dict[str, int]
-        ):  # This syntax doesn't work in Python 3.8
+            def func_with_dict() -> (
+                    dict[str, int]
+            ):  # This syntax doesn't work in Python 3.8
+                return {"test": 1}
+
+            raise AssertionError("dict[str, int] syntax should fail in Python 3.8")
+        except TypeError:
+            pass  # Expected to fail
+    else:
+        # Python 3.9+: dict[...] syntax should work
+        def func_with_dict() -> dict[str, int]:
             return {"test": 1}
-
-        raise AssertionError("dict[str, int] syntax should fail in Python 3.8")
-    except TypeError:
-        pass  # Expected to fail
 
     # Dict annotation should work
     assert func_with_Dict() == {"test": 1}
