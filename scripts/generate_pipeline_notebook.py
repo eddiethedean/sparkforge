@@ -246,6 +246,10 @@ def remove_sparkforge_imports(code: str) -> str:
     code = re.sub(r'from sparkforge\.', 'from .', code)
     code = re.sub(r'import sparkforge', '# import sparkforge  # Not needed in notebook', code)
 
+    # Replace import aliases that were removed
+    # UnifiedValidator as PipelineValidator -> use UnifiedValidator directly
+    code = re.sub(r'\bPipelineValidator\b', 'UnifiedValidator', code)
+
     # Replace in docstrings and comments (but preserve technical meaning)
     code = re.sub(r'SparkForge\s+PipelineBuilder', 'PipelineBuilder', code)
     code = re.sub(r'for\s+SparkForge', 'for the framework', code)
