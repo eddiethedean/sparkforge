@@ -6,9 +6,16 @@ This module contains performance tests for key SparkForge functions
 including validation, model creation, and serialization operations.
 """
 
+import sys
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+
+# Add the performance tests directory to sys.path for imports
+performance_tests_dir = Path(__file__).parent
+if str(performance_tests_dir) not in sys.path:
+    sys.path.insert(0, str(performance_tests_dir))
 
 from sparkforge.models import (
     BronzeStep,
@@ -25,7 +32,7 @@ from sparkforge.validation import (
     validate_dataframe_schema,
 )
 
-from .performance_monitor import performance_monitor
+from performance_monitor import performance_monitor
 
 
 class TestValidationPerformance:

@@ -443,13 +443,14 @@ class TestLogWriter:
 
     def test_get_memory_usage_psutil_not_available(self, writer):
         """Test getting memory usage when psutil is not available."""
-        # Mock psutil module to not exist
-        with patch.dict("sys.modules", {"psutil": None}):
+        # Mock HAS_PSUTIL to False to simulate psutil not being available
+        with patch("sparkforge.writer.monitoring.HAS_PSUTIL", False):
             result = writer.get_memory_usage()
 
             # The method should still return some basic info even without psutil
             assert "available_mb" in result
             assert "total_mb" in result
+            assert result["psutil_available"] is False
 
     def test_get_memory_usage_exception(self, writer):
         """Test getting memory usage with exception."""

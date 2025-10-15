@@ -9,7 +9,7 @@ Pipeline configuration models.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Union
 
 from ..errors import PipelineValidationError
 from .base import BaseModel, ParallelConfig, ValidationThresholds
@@ -29,8 +29,19 @@ class PipelineConfig(BaseModel):
 
     schema: str
     thresholds: ValidationThresholds
-    parallel: ParallelConfig
+    parallel: Union[ParallelConfig, bool]
     verbose: bool = True
+    
+    def __post_init__(self) -> None:
+        """Post-initialization to convert boolean parallel to ParallelConfig."""
+        # Convert boolean parallel to ParallelConfig for backward compatibility
+        if isinstance(self.parallel, bool):
+            if self.parallel:
+                # If True, create default parallel config
+                object.__setattr__(self, 'parallel', ParallelConfig.create_default())
+            else:
+                # If False, create sequential config
+                object.__setattr__(self, 'parallel', ParallelConfig.create_sequential())
 
     @property
     def min_bronze_rate(self) -> float:

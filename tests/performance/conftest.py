@@ -12,11 +12,14 @@ from pathlib import Path
 
 import pytest
 
-# Add the project root to the path
+# Add the project root and performance tests directory to the path
 project_root = Path(__file__).parent.parent.parent
+performance_tests_dir = Path(__file__).parent
 sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(performance_tests_dir))
 
-from tests.performance.performance_monitor import performance_monitor  # noqa: E402
+# Import performance_monitor from the same directory
+from performance_monitor import performance_monitor  # noqa: E402
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -133,10 +136,9 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
     """Add performance test summary to terminal output."""
     if not config.getoption("--quiet", False):
         # Only show performance summary if we ran performance tests
-        if any(
-            "performance" in str(item.fspath)
-            for item in terminalreporter.config.getoption("--collect-only", False) or []
-        ):
+        # Check if any tests were collected from the performance directory
+        stats = terminalreporter.stats
+        if stats.get("passed") or stats.get("failed"):
             terminalreporter.write_sep("=", "Performance Test Summary")
 
             summary = performance_monitor.get_performance_summary()

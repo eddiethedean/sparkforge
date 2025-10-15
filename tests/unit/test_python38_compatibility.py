@@ -335,13 +335,20 @@ class DictTypeAnnotationTest(unittest.TestCase):
         def func_with_Dict() -> Dict[str, int]:
             return {"test": 1}
 
-        # Test that dict[...] syntax fails in Python 3.8
-        with self.assertRaises(TypeError):
+        # Test that dict[...] syntax fails in Python 3.8, but works in Python 3.9+
+        if sys.version_info < (3, 9):
+            with self.assertRaises(TypeError):
 
-            def func_with_dict() -> (
-                dict[str, int]
-            ):  # This syntax doesn't work in Python 3.8
+                def func_with_dict() -> (
+                    dict[str, int]
+                ):  # This syntax doesn't work in Python 3.8
+                    return {"test": 1}
+        else:
+            # In Python 3.9+, dict[str, int] syntax is supported
+            def func_with_dict() -> dict[str, int]:
                 return {"test": 1}
+            
+            self.assertEqual(func_with_dict(), {"test": 1})
 
         # Dict annotation should work
         self.assertEqual(func_with_Dict(), {"test": 1})

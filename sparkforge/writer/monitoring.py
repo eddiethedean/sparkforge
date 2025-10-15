@@ -18,7 +18,12 @@ import time
 from datetime import datetime
 from typing import Any, Dict
 
-import psutil  # type: ignore[import-untyped]
+try:
+    import psutil  # type: ignore[import-untyped]
+    HAS_PSUTIL = True
+except ImportError:
+    HAS_PSUTIL = False
+    psutil = None  # type: ignore[assignment]
 
 from ..compat import DataFrame, SparkSession
 from ..logging import PipelineLogger
@@ -169,6 +174,18 @@ class PerformanceMonitor:
             Dictionary containing memory usage details
         """
         try:
+            # Check if psutil is available
+            if not HAS_PSUTIL or psutil is None:
+                self.logger.warning("psutil not available, returning basic memory info")
+                return {
+                    "total_mb": 0.0,
+                    "available_mb": 0.0,
+                    "used_mb": 0.0,
+                    "percentage": 0.0,
+                    "spark_memory": {},
+                    "psutil_available": False,
+                }
+
             # Get system memory info
             memory = psutil.virtual_memory()
 
@@ -193,13 +210,23 @@ class PerformanceMonitor:
                 "used_mb": round(memory.used / (1024 * 1024), 2),
                 "percentage": memory.percent,
                 "spark_memory": spark_memory,
+                "psutil_available": True,
             }
 
             return memory_info
 
         except Exception as e:
             self.logger.error(f"Failed to get memory usage: {e}")
-            raise WriterError(f"Failed to get memory usage: {e}") from e
+            # Return basic info instead of raising error
+            return {
+                "total_mb": 0.0,
+                "available_mb": 0.0,
+                "used_mb": 0.0,
+                "percentage": 0.0,
+                "spark_memory": {},
+                "error": str(e),
+                "psutil_available": HAS_PSUTIL,
+            }
 
     def check_performance_thresholds(
         self, operation_metrics: Dict[str, Any]

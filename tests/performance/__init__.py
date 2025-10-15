@@ -8,17 +8,14 @@ This module provides performance testing infrastructure including:
 - Timing analysis
 """
 
-from .performance_monitor import PerformanceMonitor, PerformanceResult
-from .performance_tests import (
-    run_model_creation_performance_tests,
-    run_serialization_performance_tests,
-    run_validation_performance_tests,
-)
+# Import only the performance monitor to avoid circular imports
+# Performance tests will be discovered by pytest
+import sys
+from pathlib import Path
 
-__all__ = [
-    "PerformanceMonitor",
-    "PerformanceResult",
-    "run_validation_performance_tests",
-    "run_model_creation_performance_tests",
-    "run_serialization_performance_tests",
-]
+# Add this directory to sys.path for imports
+perf_dir = Path(__file__).parent
+if str(perf_dir) not in sys.path:
+    sys.path.insert(0, str(perf_dir))
+
+__all__ = []
