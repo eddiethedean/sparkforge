@@ -59,11 +59,28 @@ class PipelineReport:
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     recommendations: list[str] = field(default_factory=list)
+    execution_groups_count: int = 0
+    max_group_size: int = 0
 
     @property
     def success(self) -> bool:
         """Whether the pipeline executed successfully."""
         return self.status == PipelineStatus.COMPLETED and len(self.errors) == 0
+
+    @property
+    def successful_steps(self) -> int:
+        """Number of successful steps."""
+        return self.metrics.successful_steps
+
+    @property
+    def failed_steps(self) -> int:
+        """Number of failed steps."""
+        return self.metrics.failed_steps
+
+    @property
+    def parallel_efficiency(self) -> float:
+        """Parallel execution efficiency percentage."""
+        return self.metrics.parallel_efficiency
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert report to dictionary."""

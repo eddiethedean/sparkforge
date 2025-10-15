@@ -143,8 +143,9 @@ class TestImprovedUserExperience:
         assert builder.config.thresholds.silver == 85.0
         assert builder.config.thresholds.gold == 90.0
         assert builder.config.verbose
-        assert not builder.config.parallel.enabled
-        assert builder.config.parallel.max_workers == 1
+        # Parallel execution is now enabled by default for better performance
+        assert builder.config.parallel.enabled
+        assert builder.config.parallel.max_workers == 4
 
     def test_preset_configurations_production(self):
         """Test production preset configuration."""
@@ -154,8 +155,9 @@ class TestImprovedUserExperience:
         assert builder.config.thresholds.silver == 98.0
         assert builder.config.thresholds.gold == 99.0
         assert not builder.config.verbose
-        assert not builder.config.parallel.enabled
-        assert builder.config.parallel.max_workers == 1
+        # Parallel execution is now enabled by default for better performance
+        assert builder.config.parallel.enabled
+        assert builder.config.parallel.max_workers == 4
 
     def test_preset_configurations_testing(self):
         """Test testing preset configuration."""
@@ -165,8 +167,9 @@ class TestImprovedUserExperience:
         assert builder.config.thresholds.silver == 75.0
         assert builder.config.thresholds.gold == 80.0
         assert builder.config.verbose
-        assert not builder.config.parallel.enabled
-        assert builder.config.parallel.max_workers == 1
+        # Parallel execution is now enabled by default for better performance
+        assert builder.config.parallel.enabled
+        assert builder.config.parallel.max_workers == 4
 
     def test_validation_helper_not_null_rules(self):
         """Test not_null_rules helper method."""

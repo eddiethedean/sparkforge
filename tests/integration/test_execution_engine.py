@@ -270,6 +270,11 @@ class TestExecutionEngine:
     def mock_config(self):
         """Create a mock PipelineConfig."""
         config = Mock(spec=PipelineConfig)
+        # Mock parallel config for new parallel execution
+        parallel = Mock()
+        parallel.enabled = True
+        parallel.max_workers = 4
+        config.parallel = parallel
         return config
 
     @pytest.fixture
@@ -759,7 +764,9 @@ class TestExecutionEngine:
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
 
             steps = [bronze_step, silver_step, gold_step]
-            result = engine.execute_pipeline(steps, ExecutionMode.INITIAL)
+            # Provide bronze data in context
+            context = {"bronze1": mock_df}
+            result = engine.execute_pipeline(steps, ExecutionMode.INITIAL, context=context)
 
             # Verify execution order: bronze first, then silver, then gold
             assert len(result.steps) == 3

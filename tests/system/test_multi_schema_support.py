@@ -303,7 +303,7 @@ class TestMultiSchemaSupport:
 
         # Verify schemas
         assert self.builder.bronze_steps["raw_events"].schema == "raw_data"
-        assert self.builder.silver_steps["clean_events"].schema is None  # Uses default
+        assert self.builder.silver_steps["clean_events"].schema == "default_schema"  # Auto-assigned from builder
         assert self.builder.gold_steps["daily_metrics"].schema == "analytics"
 
     def test_schema_validation_integration(self):
@@ -381,7 +381,9 @@ class TestMultiSchemaSupport:
             table_name="daily_metrics",
         )
 
-        # All steps should have None schema (use default)
+        # All steps should use the builder's default schema
+        # Bronze steps keep None if not explicitly provided (they read from source)
         assert self.builder.bronze_steps["events"].schema is None
-        assert self.builder.silver_steps["clean_events"].schema is None
-        assert self.builder.gold_steps["daily_metrics"].schema is None
+        # Silver and Gold steps now auto-assign the builder's schema
+        assert self.builder.silver_steps["clean_events"].schema == "default_schema"
+        assert self.builder.gold_steps["daily_metrics"].schema == "default_schema"

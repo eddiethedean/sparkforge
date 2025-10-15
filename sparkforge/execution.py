@@ -8,7 +8,7 @@ Key Features:
 - **Step-by-Step Execution**: Process pipeline steps individually with detailed tracking
 - **Comprehensive Error Handling**: Detailed error messages with context and suggestions
 - **Multiple Execution Modes**: Initial load, incremental, full refresh, and validation-only
-- **Parallel Processing**: Support for parallel execution of independent steps
+- **Parallel Processing**: Smart dependency-aware parallel execution of independent steps
 - **Detailed Reporting**: Comprehensive execution reports with metrics and timing
 - **Validation Integration**: Built-in validation with configurable thresholds
 
@@ -17,6 +17,27 @@ Execution Modes:
     - INCREMENTAL: Process only new data based on watermark columns
     - FULL_REFRESH: Reprocess all data, overwriting existing results
     - VALIDATION_ONLY: Validate data without writing results
+
+Parallel Execution:
+    The engine automatically analyzes step dependencies and executes independent steps
+    in parallel across all layers (Bronze, Silver, Gold). Configure parallelism via
+    PipelineConfig.parallel settings:
+
+    - parallel.enabled: Enable/disable parallel execution (default: True)
+    - parallel.max_workers: Maximum concurrent workers (default: 4)
+
+    Example with parallel execution:
+        >>> config = PipelineConfig.create_default(schema="my_schema")
+        >>> # Parallel enabled by default with 4 workers
+        >>> engine = ExecutionEngine(spark, config)
+
+        >>> # For high-performance scenarios
+        >>> config = PipelineConfig.create_high_performance(schema="my_schema")
+        >>> # Uses 16 workers
+
+        >>> # For sequential execution
+        >>> config = PipelineConfig.create_conservative(schema="my_schema")
+        >>> # Disables parallel execution
 
 Example:
     >>> from the framework.execution import ExecutionEngine, ExecutionMode
@@ -33,7 +54,7 @@ Example:
     ...     mode=ExecutionMode.INITIAL
     ... )
     >>>
-    >>> # Execute entire pipeline
+    >>> # Execute entire pipeline with parallel execution
     >>> result = engine.execute_pipeline(
     ...     steps=[bronze_step, silver_step, gold_step],
     ...     sources={"events": source_df},
@@ -42,6 +63,7 @@ Example:
 
 # Depends on:
 #   compat
+#   dependencies
 #   errors
 #   functions
 #   logging
@@ -53,13 +75,16 @@ Example:
 
 from __future__ import annotations
 
+import threading
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Dict
 
 from .compat import DataFrame, SparkSession
+from .dependencies import DependencyAnalyzer
 from .errors import ExecutionError
 from .functions import FunctionsProtocol
 from .logging import PipelineLogger
@@ -126,6 +151,9 @@ class ExecutionResult:
     status: str = "running"
     steps: list[StepExecutionResult] | None = None
     error: str | None = None
+    parallel_efficiency: float = 0.0
+    execution_groups_count: int = 0
+    max_group_size: int = 0
 
     def __post_init__(self) -> None:
         if self.steps is None:
@@ -280,15 +308,34 @@ class ExecutionEngine:
         context: Dict[str, DataFrame] | None = None,
     ) -> ExecutionResult:
         """
-        Execute a complete pipeline.
+        Execute a complete pipeline with smart dependency-aware parallel execution.
+
+        This method automatically analyzes step dependencies and executes independent
+        steps in parallel across all layers (Bronze, Silver, Gold). Steps within each
+        execution group run concurrently using ThreadPoolExecutor, while groups are
+        executed sequentially to respect dependencies.
+
+        Parallelism is controlled by the PipelineConfig.parallel settings:
+        - If parallel.enabled is True, uses parallel.max_workers (default: 4)
+        - If parallel.enabled is False, executes sequentially (max_workers=1)
+        - The max_workers parameter is ignored; config settings take precedence
 
         Args:
             steps: List of steps to execute
-            mode: Execution mode
-            max_workers: Maximum number of parallel workers
+            mode: Execution mode (INITIAL, INCREMENTAL, FULL_REFRESH, VALIDATION_ONLY)
+            max_workers: Deprecated - use PipelineConfig.parallel.max_workers instead
+            context: Optional initial execution context with DataFrames
 
         Returns:
-            ExecutionResult with execution details
+            ExecutionResult with execution details and parallel execution metrics
+
+        Example:
+            >>> # Default config enables parallel execution with 4 workers
+            >>> config = PipelineConfig.create_default(schema="my_schema")
+            >>> engine = ExecutionEngine(spark, config)
+            >>> result = engine.execute_pipeline(steps=[bronze, silver1, silver2, gold])
+            >>> print(f"Parallel efficiency: {result.parallel_efficiency:.2f}")
+            >>> print(f"Execution groups: {result.execution_groups_count}")
         """
         execution_id = str(uuid.uuid4())
         start_time = datetime.now()
@@ -303,110 +350,185 @@ class ExecutionEngine:
         try:
             self.logger.info(f"Starting pipeline execution: {execution_id}")
 
-            # Group steps by type for execution
-            bronze_steps = [s for s in steps if isinstance(s, BronzeStep)]
-            silver_steps = [s for s in steps if isinstance(s, SilverStep)]
-            gold_steps = [s for s in steps if isinstance(s, GoldStep)]
-
             # Validate context parameter
             if context is None:
                 context = {}
             elif not isinstance(context, dict):
                 raise TypeError(f"context must be a dictionary, got {type(context)}")
 
-            # Execute bronze steps first
-            for step in bronze_steps:
-                try:
-                    step_result = self.execute_step(step, context, mode)
-                except Exception as e:
-                    # Create a failed step result for tracking
-                    step_result = StepExecutionResult(
-                        step_name=step.name,
-                        step_type=StepType.BRONZE,
-                        status=StepStatus.FAILED,
-                        error=str(e),
-                        start_time=datetime.now(),
-                        end_time=datetime.now(),
-                        duration=0.0,
+            # Group steps by type for dependency analysis
+            bronze_steps = [s for s in steps if isinstance(s, BronzeStep)]
+            silver_steps = [s for s in steps if isinstance(s, SilverStep)]
+            gold_steps = [s for s in steps if isinstance(s, GoldStep)]
+
+            # Build dependency graph and get execution groups
+            analyzer = DependencyAnalyzer()
+            analysis = analyzer.analyze_dependencies(
+                bronze_steps={s.name: s for s in bronze_steps},
+                silver_steps={s.name: s for s in silver_steps},
+                gold_steps={s.name: s for s in gold_steps},
+            )
+
+            execution_groups = analysis.execution_groups
+            result.execution_groups_count = len(execution_groups)
+            result.max_group_size = max(len(group) for group in execution_groups) if execution_groups else 0
+
+            # Log dependency analysis results
+            self.logger.info(
+                f"Dependency analysis complete: {len(execution_groups)} execution groups, "
+                f"max group size: {result.max_group_size}"
+            )
+
+            # Determine worker count from config
+            if self.config.parallel.enabled:
+                workers = self.config.parallel.max_workers
+                self.logger.info(f"Parallel execution enabled with {workers} workers")
+            else:
+                workers = 1
+                self.logger.info("Sequential execution mode")
+
+            # Thread-safe context management
+            context_lock = threading.Lock()
+
+            # Create a mapping of step names to step objects
+            step_map = {s.name: s for s in steps}
+
+            # Track timing for parallel efficiency calculation
+            group_timings = []
+
+            # Execute each group in parallel
+            for group_idx, group in enumerate(execution_groups):
+                group_start = datetime.now()
+                self.logger.info(
+                    f"Executing group {group_idx + 1}/{len(execution_groups)}: "
+                    f"{len(group)} steps - {', '.join(group)}"
+                )
+
+                if workers > 1:
+                    # Parallel execution
+                    with ThreadPoolExecutor(max_workers=workers) as executor:
+                        futures = {}
+                        for step_name in group:
+                            if step_name not in step_map:
+                                self.logger.warning(
+                                    f"Step {step_name} in execution group but not found in step list"
+                                )
+                                continue
+
+                            step = step_map[step_name]
+                            future = executor.submit(
+                                self._execute_step_safe, step, context, mode, context_lock
+                            )
+                            futures[future] = step_name
+
+                        # Wait for all steps in group to complete
+                        for future in as_completed(futures):
+                            step_name = futures[future]
+                            try:
+                                step_result = future.result()
+                                if result.steps is not None:
+                                    result.steps.append(step_result)
+
+                                if step_result.status == StepStatus.FAILED:
+                                    self.logger.error(
+                                        f"Step {step_name} failed: {step_result.error}"
+                                    )
+                            except Exception as e:
+                                self.logger.error(
+                                    f"Exception executing step {step_name}: {e}"
+                                )
+                                # Determine correct step type
+                                step_obj = step_map.get(step_name)
+                                if step_obj is not None and isinstance(step_obj, BronzeStep):
+                                    step_type_enum = StepType.BRONZE
+                                elif step_obj is not None and isinstance(step_obj, SilverStep):
+                                    step_type_enum = StepType.SILVER
+                                elif step_obj is not None and isinstance(step_obj, GoldStep):
+                                    step_type_enum = StepType.GOLD
+                                else:
+                                    step_type_enum = StepType.BRONZE  # fallback
+
+                                # Create failed step result
+                                step_result = StepExecutionResult(
+                                    step_name=step_name,
+                                    step_type=step_type_enum,
+                                    status=StepStatus.FAILED,
+                                    error=str(e),
+                                    start_time=datetime.now(),
+                                    end_time=datetime.now(),
+                                    duration=0.0,
+                                )
+                                if result.steps is not None:
+                                    result.steps.append(step_result)
+                else:
+                    # Sequential execution (workers == 1)
+                    for step_name in group:
+                        if step_name not in step_map:
+                            self.logger.warning(
+                                f"Step {step_name} in execution group but not found in step list"
+                            )
+                            continue
+
+                        step = step_map[step_name]
+                        try:
+                            step_result = self._execute_step_safe(
+                                step, context, mode, context_lock
+                            )
+                            if result.steps is not None:
+                                result.steps.append(step_result)
+
+                            if step_result.status == StepStatus.FAILED:
+                                self.logger.error(
+                                    f"Step {step_name} failed: {step_result.error}"
+                                )
+                        except Exception as e:
+                            self.logger.error(f"Exception executing step {step_name}: {e}")
+                            # Determine correct step type
+                            step_obj = step_map.get(step_name)
+                            if step_obj is not None and isinstance(step_obj, BronzeStep):
+                                step_type_enum = StepType.BRONZE
+                            elif step_obj is not None and isinstance(step_obj, SilverStep):
+                                step_type_enum = StepType.SILVER
+                            elif step_obj is not None and isinstance(step_obj, GoldStep):
+                                step_type_enum = StepType.GOLD
+                            else:
+                                step_type_enum = StepType.BRONZE  # fallback
+
+                            step_result = StepExecutionResult(
+                                step_name=step_name,
+                                step_type=step_type_enum,
+                                status=StepStatus.FAILED,
+                                error=str(e),
+                                start_time=datetime.now(),
+                                end_time=datetime.now(),
+                                duration=0.0,
+                            )
+                            if result.steps is not None:
+                                result.steps.append(step_result)
+
+                group_end = datetime.now()
+                group_duration = (group_end - group_start).total_seconds()
+                group_timings.append((len(group), group_duration))
+                self.logger.info(
+                    f"Group {group_idx + 1} completed in {group_duration:.2f}s"
+                )
+
+            # Calculate parallel efficiency
+            if result.steps:
+                total_step_time = sum(
+                    s.duration for s in result.steps if s.duration is not None
+                )
+                total_wall_time = (datetime.now() - start_time).total_seconds()
+
+                if total_wall_time > 0 and workers > 1:
+                    # Efficiency = (total sequential time / total parallel time) / workers
+                    # This gives a ratio of how well we utilized parallelism
+                    ideal_parallel_time = total_step_time / workers
+                    result.parallel_efficiency = min(
+                        (ideal_parallel_time / total_wall_time) * 100, 100.0
                     )
-
-                if result.steps is not None:
-                    result.steps.append(step_result)
-
-                if step_result.status == StepStatus.COMPLETED:
-                    # Bronze steps don't write to tables, they only validate data
-                    # The validated data is available in the step result's output_df
-                    # For now, we'll skip adding to context since bronze steps are validation-only
-                    # In a real pipeline, you might want to store the validated data somewhere
-                    pass
-
-            # Execute silver steps
-            for silver_step in silver_steps:
-                try:
-                    step_result = self.execute_step(silver_step, context, mode)
-                except Exception as e:
-                    # Create a failed step result for tracking
-                    step_result = StepExecutionResult(
-                        step_name=silver_step.name,
-                        step_type=StepType.SILVER,
-                        status=StepStatus.FAILED,
-                        error=str(e),
-                        start_time=datetime.now(),
-                        end_time=datetime.now(),
-                        duration=0.0,
-                    )
-
-                if result.steps is not None:
-                    result.steps.append(step_result)
-
-                if step_result.status == StepStatus.COMPLETED:
-                    table_name = getattr(silver_step, "table_name", silver_step.name)
-                    schema = getattr(silver_step, "schema", None)
-
-                    # Validate schema is provided
-                    if schema is None:
-                        self.logger.error(
-                            f"Silver step '{silver_step.name}' completed but has no schema. "
-                            f"Cannot read from table. Skipping context update."
-                        )
-                    else:
-                        context[silver_step.name] = self.spark.table(
-                            fqn(schema, table_name)
-                        )
-
-            # Execute gold steps
-            for gold_step in gold_steps:
-                try:
-                    step_result = self.execute_step(gold_step, context, mode)
-                except Exception as e:
-                    # Create a failed step result for tracking
-                    step_result = StepExecutionResult(
-                        step_name=gold_step.name,
-                        step_type=StepType.GOLD,
-                        status=StepStatus.FAILED,
-                        error=str(e),
-                        start_time=datetime.now(),
-                        end_time=datetime.now(),
-                        duration=0.0,
-                    )
-
-                if result.steps is not None:
-                    result.steps.append(step_result)
-
-                if step_result.status == StepStatus.COMPLETED:
-                    table_name = getattr(gold_step, "table_name", gold_step.name)
-                    schema = getattr(gold_step, "schema", None)
-
-                    # Validate schema is provided
-                    if schema is None:
-                        self.logger.error(
-                            f"Gold step '{gold_step.name}' completed but has no schema. "
-                            f"Cannot read from table. Skipping context update."
-                        )
-                    else:
-                        context[gold_step.name] = self.spark.table(
-                            fqn(schema, table_name)
-                        )
+                else:
+                    result.parallel_efficiency = 100.0  # Sequential execution is 100% efficient
 
             # Determine overall pipeline status based on step results
             if result.steps is None:
@@ -421,7 +543,10 @@ class ExecutionEngine:
                 )
             else:
                 result.status = "completed"
-                self.logger.info(f"Completed pipeline execution: {execution_id}")
+                self.logger.info(
+                    f"Completed pipeline execution: {execution_id} - "
+                    f"Parallel efficiency: {result.parallel_efficiency:.1f}%"
+                )
 
             result.end_time = datetime.now()
 
@@ -431,6 +556,53 @@ class ExecutionEngine:
             result.end_time = datetime.now()
             self.logger.error(f"Pipeline execution failed: {e}")
             raise ExecutionError(f"Pipeline execution failed: {e}") from e
+
+        return result
+
+    def _execute_step_safe(
+        self,
+        step: BronzeStep | SilverStep | GoldStep,
+        context: Dict[str, DataFrame],
+        mode: ExecutionMode,
+        context_lock: threading.Lock,
+    ) -> StepExecutionResult:
+        """
+        Execute a step with thread-safe context access.
+
+        This method wraps execute_step() to provide thread-safe access to the
+        shared execution context when running steps in parallel.
+
+        Args:
+            step: The step to execute
+            context: Shared execution context with available DataFrames
+            mode: Execution mode
+            context_lock: Threading lock for thread-safe context access
+
+        Returns:
+            StepExecutionResult with execution details
+        """
+        # Read from context with lock to get a snapshot
+        with context_lock:
+            local_context = dict(context)
+
+        # Execute step (this can happen in parallel without lock)
+        result = self.execute_step(step, local_context, mode)
+
+        # Write to context with lock (for Silver/Gold steps that write tables)
+        if result.status == StepStatus.COMPLETED and not isinstance(step, BronzeStep):
+            with context_lock:
+                # Get table name and schema from step
+                table_name = getattr(step, "table_name", step.name)
+                schema = getattr(step, "schema", None)
+
+                if schema is not None:
+                    # Add the step's output table to context for downstream steps
+                    context[step.name] = self.spark.table(fqn(schema, table_name))
+                else:
+                    self.logger.warning(
+                        f"Step '{step.name}' completed but has no schema. "
+                        f"Cannot add to context for downstream steps."
+                    )
 
         return result
 

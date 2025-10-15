@@ -212,8 +212,8 @@ class PipelineBuilder:
         thresholds = ValidationThresholds(
             bronze=min_bronze_rate, silver=min_silver_rate, gold=min_gold_rate
         )
-        # ParallelConfig kept for future implementation, but not exposed to users
-        parallel_config = ParallelConfig.create_sequential()
+        # Use default parallel config (enabled with 4 workers)
+        parallel_config = ParallelConfig.create_default()
         self.config = PipelineConfig(
             schema=schema,
             thresholds=thresholds,
@@ -605,8 +605,10 @@ class PipelineBuilder:
         # Note: Dependency validation is deferred to validate_pipeline()
         # This allows for more flexible pipeline construction
 
-        # Validate schema if provided
-        if schema is not None:
+        # Use builder's schema if not provided
+        if schema is None:
+            schema = self.config.schema
+        else:
             self._validate_schema(schema)
 
         # Convert string rules to PySpark Column objects
@@ -762,8 +764,10 @@ class PipelineBuilder:
         # Note: Dependency validation is deferred to validate_pipeline()
         # This allows for more flexible pipeline construction
 
-        # Validate schema if provided
-        if schema is not None:
+        # Use builder's schema if not provided
+        if schema is None:
+            schema = self.config.schema
+        else:
             self._validate_schema(schema)
 
         # Convert string rules to PySpark Column objects

@@ -153,6 +153,90 @@ print(f"✅ Pipeline completed: {result.status}")
 print(f"📊 Processed {result.metrics.total_rows_written} rows")
 ```
 
+## ⚡ Smart Parallel Execution
+
+SparkForge automatically analyzes your pipeline dependencies and executes independent steps in parallel for maximum performance. **No configuration needed** - it just works!
+
+### How It Works
+
+```python
+# Your pipeline with multiple independent steps
+builder = PipelineBuilder(spark=spark, schema="analytics")
+
+# These 3 bronze steps will run in parallel
+builder.with_bronze_rules(name="events_a", rules={"id": ["not_null"]})
+builder.with_bronze_rules(name="events_b", rules={"id": ["not_null"]})
+builder.with_bronze_rules(name="events_c", rules={"id": ["not_null"]})
+
+# These 3 silver steps will also run in parallel (after bronze completes)
+builder.add_silver_transform(name="clean_a", source_bronze="events_a", ...)
+builder.add_silver_transform(name="clean_b", source_bronze="events_b", ...)
+builder.add_silver_transform(name="clean_c", source_bronze="events_c", ...)
+
+# Gold step runs after all silver steps complete
+builder.add_gold_transform(name="analytics", source_silvers=["clean_a", "clean_b", "clean_c"], ...)
+
+pipeline = builder.to_pipeline()
+result = pipeline.run_initial_load(bronze_sources={...})
+
+# Check parallel execution metrics
+print(f"⚡ Parallel efficiency: {result.parallel_efficiency:.1f}%")
+print(f"📊 Execution groups: {result.execution_groups_count}")
+print(f"🚀 Max parallelism: {result.max_group_size} concurrent steps")
+```
+
+### Execution Flow
+
+```
+Timeline (with 3 independent steps, 2s each):
+
+Sequential Execution (old):    Parallel Execution (new):
+┌──────┐                       ┌──────┐
+│Step A│ 2s                    │Step A├──┐
+├──────┤                       ├──────┤  │
+│Step B│ 2s                    │Step B├──┤ All 3 run
+├──────┤                       ├──────┤  │ in parallel!
+│Step C│ 2s                    │Step C├──┘
+└──────┘                       └──────┘
+Total: 6s                      Total: 2s ⚡
+
+                               3x faster!
+```
+
+### Performance Configuration
+
+```python
+from sparkforge.models import PipelineConfig
+
+# Default: Parallel enabled with 4 workers (recommended)
+builder = PipelineBuilder(spark=spark, schema="analytics")
+
+# High-performance: 16 workers for maximum throughput
+config = PipelineConfig.create_high_performance(schema="analytics")
+
+# Conservative: Sequential execution (1 worker)
+config = PipelineConfig.create_conservative(schema="analytics")
+
+# Custom configuration
+from sparkforge.models import ParallelConfig, ValidationThresholds
+
+config = PipelineConfig(
+    schema="analytics",
+    thresholds=ValidationThresholds.create_default(),
+    parallel=ParallelConfig(enabled=True, max_workers=8, timeout_secs=600),
+    verbose=True
+)
+```
+
+### Key Benefits
+
+- 🚀 **Automatic optimization** - No manual configuration needed
+- ⚡ **3-5x faster** for pipelines with independent steps
+- 🧠 **Dependency-aware** - Automatically respects step dependencies
+- 📊 **Observable** - Detailed metrics show parallelization effectiveness
+- 🔒 **Thread-safe** - Built-in protection against race conditions
+- 🎯 **Zero code changes** - Works with existing pipelines
+
 ## 🎨 String Rules - Human-Readable Validation
 
 SparkForge supports both PySpark expressions and human-readable string rules:
@@ -213,6 +297,7 @@ rules = {
 - **Security hardened** with zero security vulnerabilities
 
 ### 🔧 **Advanced Capabilities**
+- **Smart parallel execution** - Automatic dependency analysis and concurrent step execution (enabled by default)
 - **String rules support** - Human-readable validation rules (`"not_null"`, `"gt", 0`, `"in", ["active", "inactive"]`)
 - **Column filtering control** - choose what gets preserved
 - **Incremental processing** with watermarking
@@ -362,6 +447,7 @@ We welcome contributions! Here's how to get started:
 |--------|------------|-----------|-------------|
 | **Lines of Code** | 20 lines | 200+ lines | **90% reduction** |
 | **Development Time** | 30 minutes | 4+ hours | **87% faster** |
+| **Execution Speed** | Parallel (3-5x faster) | Sequential | **3-5x faster** |
 | **Test Coverage** | 83% (1,400 tests) | Manual | **Comprehensive** |
 | **Type Safety** | 100% mypy compliant | None | **Production-ready** |
 | **Security** | Zero vulnerabilities | Manual | **Enterprise-grade** |
@@ -369,7 +455,36 @@ We welcome contributions! Here's how to get started:
 | **Debugging** | Step-by-step | Complex | **Developer-friendly** |
 | **Validation** | Automatic + Configurable | Manual | **Enterprise-grade** |
 
+### Real-World Performance Example
+
+```
+Pipeline: 3 independent data sources → 3 transformations → 1 aggregation
+
+Sequential Execution:        Parallel Execution (SparkForge):
+─────────────────────       ─────────────────────────────────
+Source A: 2s                Group 1 (parallel): 2s
+Source B: 2s                  ├─ Source A: 2s ┐
+Source C: 2s                  ├─ Source B: 2s ├─ All concurrent
+Transform A: 3s               └─ Source C: 2s ┘
+Transform B: 3s             Group 2 (parallel): 3s
+Transform C: 3s               ├─ Transform A: 3s ┐
+Aggregate: 1s                 ├─ Transform B: 3s ├─ All concurrent
+─────────────────────         └─ Transform C: 3s ┘
+Total: 16s                  Group 3: 1s
+                              └─ Aggregate: 1s
+                            ─────────────────────────────────
+                            Total: 6s (2.7x faster!)
+```
+
 ## 🚀 Recent Improvements (Latest)
+
+### ⚡ **NEW: Smart Parallel Execution (v0.9.2+)**
+- ✅ **Automatic parallel execution** - Independent steps run concurrently (3-5x faster!)
+- ✅ **Dependency-aware scheduling** - Automatically respects step dependencies
+- ✅ **Thread-safe execution** - Built-in protection against race conditions
+- ✅ **Performance metrics** - Track parallel efficiency and throughput
+- ✅ **Zero configuration** - Enabled by default with sensible defaults (4 workers)
+- ✅ **Highly configurable** - Adjust workers from 1 (sequential) to 16+ (high-performance)
 
 ### 🎯 **Quality & Reliability**
 - ✅ **100% type safety** - Complete mypy compliance across all 43 source files

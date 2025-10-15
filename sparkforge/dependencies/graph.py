@@ -115,15 +115,22 @@ class DependencyGraph:
         return cycles
 
     def topological_sort(self) -> list[str]:
-        """Perform topological sort of the dependency graph."""
+        """
+        Perform topological sort of the dependency graph.
+
+        Returns nodes in an order such that dependencies come before dependents.
+        Uses reverse adjacency list since add_dependency(A, B) means A depends on B,
+        so B must come before A in the sort.
+        """
         in_degree = dict.fromkeys(self.nodes, 0)
 
-        # Calculate in-degrees
+        # Calculate in-degrees using reverse adjacency
+        # If A depends on B, then B->A edge exists in reverse list
         for node in self.nodes:
-            for neighbor in self._adjacency_list[node]:
-                in_degree[neighbor] += 1
+            for dependent in self._reverse_adjacency_list[node]:
+                in_degree[dependent] += 1
 
-        # Find nodes with no incoming edges
+        # Find nodes with no incoming edges (no dependencies)
         queue = deque([node for node, degree in in_degree.items() if degree == 0])
         result = []
 
@@ -131,11 +138,11 @@ class DependencyGraph:
             node = queue.popleft()
             result.append(node)
 
-            # Remove this node and update in-degrees
-            for neighbor in self._adjacency_list[node]:
-                in_degree[neighbor] -= 1
-                if in_degree[neighbor] == 0:
-                    queue.append(neighbor)
+            # Process nodes that depend on this one
+            for dependent in self._reverse_adjacency_list[node]:
+                in_degree[dependent] -= 1
+                if in_degree[dependent] == 0:
+                    queue.append(dependent)
 
         return result
 

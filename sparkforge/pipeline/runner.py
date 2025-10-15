@@ -206,9 +206,12 @@ class SimplePipelineRunner:
                 successful_steps=len(successful_steps),
                 failed_steps=len(failed_steps),
                 total_duration=duration,
+                parallel_efficiency=execution_result.parallel_efficiency,
             ),
             errors=[s.error for s in failed_steps if s.error],
             warnings=[],
+            execution_groups_count=execution_result.execution_groups_count,
+            max_group_size=execution_result.max_group_size,
         )
 
     def _create_error_report(
