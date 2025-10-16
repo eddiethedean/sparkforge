@@ -78,7 +78,7 @@ class LogRow(TypedDict):
     schema: str
 
     # Step-level information
-    phase: Literal["bronze", "silver", "gold"]
+    phase: Literal["bronze", "silver", "gold", "pipeline"]
     step_name: str
     step_type: str
 

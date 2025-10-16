@@ -19,7 +19,7 @@ from datetime import datetime
 from typing import Any, Dict
 
 try:
-    import psutil  # type: ignore[import-untyped]
+    import psutil
     HAS_PSUTIL = True
 except ImportError:
     HAS_PSUTIL = False

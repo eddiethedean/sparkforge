@@ -189,6 +189,19 @@ class SimplePipelineRunner:
         successful_steps = [s for s in steps if s.status.value == "completed"]
         failed_steps = [s for s in steps if s.status.value == "failed"]
 
+        # Import StepType for layer filtering
+        from ..execution import StepType
+
+        # Aggregate row counts from step results
+        total_rows_processed = sum(s.rows_processed or 0 for s in steps)
+        # For rows_written, only count Silver/Gold steps (those with output_table)
+        total_rows_written = sum(s.rows_processed or 0 for s in steps if s.output_table is not None)
+
+        # Calculate durations by layer
+        bronze_duration = sum(s.duration or 0 for s in steps if s.step_type == StepType.BRONZE)
+        silver_duration = sum(s.duration or 0 for s in steps if s.step_type == StepType.SILVER)
+        gold_duration = sum(s.duration or 0 for s in steps if s.step_type == StepType.GOLD)
+
         return PipelineReport(
             pipeline_id=pipeline_id,
             execution_id=execution_result.execution_id,
@@ -206,6 +219,11 @@ class SimplePipelineRunner:
                 successful_steps=len(successful_steps),
                 failed_steps=len(failed_steps),
                 total_duration=duration,
+                bronze_duration=bronze_duration,
+                silver_duration=silver_duration,
+                gold_duration=gold_duration,
+                total_rows_processed=total_rows_processed,
+                total_rows_written=total_rows_written,
                 parallel_efficiency=execution_result.parallel_efficiency,
             ),
             errors=[s.error for s in failed_steps if s.error],

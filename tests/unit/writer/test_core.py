@@ -52,7 +52,7 @@ class TestLogWriter:
     @pytest.fixture
     def writer(self, mock_spark, valid_config, mock_logger):
         """LogWriter instance with mocked dependencies."""
-        return LogWriter(mock_spark, valid_config, logger=mock_logger)
+        return LogWriter(mock_spark, config=valid_config, logger=mock_logger)
 
     @pytest.fixture
     def mock_execution_result(self):
@@ -71,7 +71,7 @@ class TestLogWriter:
 
     def test_init_valid_config(self, mock_spark, valid_config, mock_logger):
         """Test LogWriter initialization with valid config."""
-        writer = LogWriter(mock_spark, valid_config, logger=mock_logger)
+        writer = LogWriter(mock_spark, config=valid_config, logger=mock_logger)
 
         assert writer.spark == mock_spark
         assert writer.config == valid_config
@@ -82,7 +82,7 @@ class TestLogWriter:
     def test_init_invalid_config(self, mock_spark, invalid_config, mock_logger):
         """Test LogWriter initialization with invalid config."""
         with pytest.raises(WriterConfigurationError):
-            LogWriter(mock_spark, invalid_config, logger=mock_logger)
+            LogWriter(mock_spark, config=invalid_config, logger=mock_logger)
 
     def test_init_default_logger(self, mock_spark, valid_config):
         """Test LogWriter initialization with default logger."""
@@ -90,7 +90,7 @@ class TestLogWriter:
             mock_logger_instance = Mock()
             mock_logger_class.return_value = mock_logger_instance
 
-            writer = LogWriter(mock_spark, valid_config)
+            writer = LogWriter(mock_spark, config=valid_config)
 
             assert writer.logger == mock_logger_instance
             mock_logger_class.assert_called_once_with("LogWriter")
@@ -113,7 +113,7 @@ class TestLogWriter:
         mock_log_rows = [{"test": "data"}]
 
         # Create writer
-        writer = LogWriter(mock_spark, valid_config, mock_logger)
+        writer = LogWriter(mock_spark, config=valid_config, logger=mock_logger)
 
         # Mock the data processor and storage manager
         with patch.object(
@@ -153,7 +153,7 @@ class TestLogWriter:
         self, mock_spark, valid_config, mock_logger
     ):
         """Test execution result writing with invalid input."""
-        writer = LogWriter(mock_spark, valid_config, mock_logger)
+        writer = LogWriter(mock_spark, config=valid_config, logger=mock_logger)
 
         # The new implementation doesn't validate input type, so this test should pass
         # or we need to add validation to the LogWriter
@@ -173,7 +173,7 @@ class TestLogWriter:
             "test-pipeline"  # Add required attribute
         )
 
-        writer = LogWriter(mock_spark, valid_config, mock_logger)
+        writer = LogWriter(mock_spark, config=valid_config, logger=mock_logger)
 
         # Mock the data processor to raise validation error
         with patch.object(
@@ -203,7 +203,7 @@ class TestLogWriter:
         mock_step_results = {"step1": mock_step_result}
 
         # Create writer
-        writer = LogWriter(mock_spark, valid_config, mock_logger)
+        writer = LogWriter(mock_spark, config=valid_config, logger=mock_logger)
 
         # Mock the storage manager
         with patch.object(writer.storage_manager, "write_batch") as mock_write_batch:
@@ -227,7 +227,7 @@ class TestLogWriter:
         # Setup mocks
         mock_log_rows = [{"test": "data"}]
 
-        writer = LogWriter(mock_spark, valid_config, mock_logger)
+        writer = LogWriter(mock_spark, config=valid_config, logger=mock_logger)
 
         # Mock the storage manager
         with patch.object(writer.storage_manager, "write_batch") as mock_write_batch:
@@ -257,7 +257,7 @@ class TestLogWriter:
         # Setup mocks
         mock_log_rows = [{"test": "data"}]
 
-        writer = LogWriter(mock_spark, valid_config, mock_logger)
+        writer = LogWriter(mock_spark, config=valid_config, logger=mock_logger)
 
         # Mock the storage manager to raise validation error
         with patch.object(writer.storage_manager, "write_batch") as mock_write_batch:
@@ -268,7 +268,7 @@ class TestLogWriter:
 
     def test_get_metrics(self, mock_spark, valid_config, mock_logger):
         """Test getting writer metrics."""
-        writer = LogWriter(mock_spark, valid_config, mock_logger)
+        writer = LogWriter(mock_spark, config=valid_config, logger=mock_logger)
 
         metrics = writer.get_metrics()
 
@@ -285,7 +285,7 @@ class TestLogWriter:
 
     def test_reset_metrics(self, mock_spark, valid_config, mock_logger):
         """Test resetting writer metrics."""
-        writer = LogWriter(mock_spark, valid_config, mock_logger)
+        writer = LogWriter(mock_spark, config=valid_config, logger=mock_logger)
 
         # Modify metrics
         writer.metrics["total_writes"] = 5
@@ -305,7 +305,7 @@ class TestLogWriter:
         mock_df.show.return_value = None
         mock_spark.table.return_value = mock_df
 
-        writer = LogWriter(mock_spark, valid_config, mock_logger)
+        writer = LogWriter(mock_spark, config=valid_config, logger=mock_logger)
 
         # Call method
         writer.show_logs(limit=10)
@@ -321,7 +321,7 @@ class TestLogWriter:
         mock_df.show.return_value = None
         mock_spark.table.return_value = mock_df
 
-        writer = LogWriter(mock_spark, valid_config, mock_logger)
+        writer = LogWriter(mock_spark, config=valid_config, logger=mock_logger)
 
         # Call method
         writer.show_logs()
@@ -332,7 +332,7 @@ class TestLogWriter:
 
     def test_get_table_info(self, mock_spark, valid_config, mock_logger):
         """Test getting table info."""
-        writer = LogWriter(mock_spark, valid_config, mock_logger)
+        writer = LogWriter(mock_spark, config=valid_config, logger=mock_logger)
 
         # Mock the storage manager to return proper table info
         with patch.object(writer.storage_manager, "get_table_info") as mock_get_info:

@@ -27,9 +27,10 @@ from ..compat import SparkSession
 from ..functions import FunctionsProtocol, get_default_functions
 from ..logging import PipelineLogger
 from ..models import ExecutionResult, StepResult
+from ..pipeline.models import PipelineReport
 from .analytics import DataQualityAnalyzer, TrendAnalyzer
 from .exceptions import WriterConfigurationError, WriterError
-from .models import LogRow, WriterConfig, WriterMetrics, create_log_schema
+from .models import LogRow, WriteMode, WriterConfig, WriterMetrics, create_log_schema
 from .monitoring import AnalyticsEngine, PerformanceMonitor
 from .operations import DataProcessor
 from .storage import StorageManager
@@ -234,7 +235,9 @@ class LogWriter:
     def __init__(
         self,
         spark: SparkSession,
-        config: WriterConfig,
+        schema: str | None = None,
+        table_name: str | None = None,
+        config: WriterConfig | None = None,
         functions: FunctionsProtocol | None = None,
         logger: PipelineLogger | None = None,
     ) -> None:
@@ -243,15 +246,51 @@ class LogWriter:
 
         Args:
             spark: Spark session
-            config: Writer configuration
+            schema: Database schema name (simplified API)
+            table_name: Table name (simplified API)
+            config: Writer configuration (deprecated, use schema and table_name instead)
             functions: Functions protocol (optional, uses default if not provided)
             logger: Pipeline logger (optional)
 
         Raises:
             WriterConfigurationError: If configuration is invalid
+
+        Example (new simplified API):
+            >>> writer = LogWriter(spark, schema="analytics", table_name="pipeline_logs")
+
+        Example (old API, deprecated):
+            >>> config = WriterConfig(table_schema="analytics", table_name="pipeline_logs")
+            >>> writer = LogWriter(spark, config=config)
         """
         self.spark = spark
-        self.config = config
+
+        # Handle both old and new API
+        if config is not None:
+            # Old API: config provided
+            import warnings
+            warnings.warn(
+                "Passing WriterConfig is deprecated. Use LogWriter(spark, schema='...', table_name='...') instead.",
+                DeprecationWarning,
+                stacklevel=2
+            )
+            self.config = config
+        elif schema is not None and table_name is not None:
+            # New API: schema and table_name provided
+            self.config = WriterConfig(
+                table_schema=schema,
+                table_name=table_name,
+                write_mode=WriteMode.APPEND
+            )
+        else:
+            raise WriterConfigurationError(
+                "Must provide either (schema and table_name) or config parameter",
+                config_errors=["Missing required parameters"],
+                suggestions=[
+                    "Use: LogWriter(spark, schema='my_schema', table_name='my_table')",
+                    "Or: LogWriter(spark, config=WriterConfig(...))"
+                ]
+            )
+
         self.functions = functions if functions is not None else get_default_functions()
         if logger is None:
             self.logger = PipelineLogger("LogWriter")
@@ -955,3 +994,259 @@ class LogWriter:
                 "issues": [str(e)],
                 "error": str(e),
             }
+
+    # ========================================================================
+    # New simplified API methods for working with PipelineReport
+    # ========================================================================
+
+    def _convert_report_to_log_rows(
+        self,
+        report: PipelineReport,
+        run_id: str | None = None
+    ) -> list[LogRow]:
+        """
+        Convert a PipelineReport to log rows for storage.
+
+        This method extracts data from a PipelineReport and creates log rows
+        compatible with the log table schema.
+
+        Args:
+            report: PipelineReport to convert
+            run_id: Optional run ID (generated if not provided)
+
+        Returns:
+            List of LogRow dictionaries ready for storage
+        """
+
+        if run_id is None:
+            run_id = str(uuid.uuid4())
+
+        # Create a single summary row for the entire pipeline execution
+        log_row: LogRow = {
+            # Run-level information
+            "run_id": run_id,
+            "run_mode": report.mode.value,  # "initial", "incremental", etc.
+            "run_started_at": report.start_time,
+            "run_ended_at": report.end_time,
+
+            # Execution context
+            "execution_id": report.execution_id,
+            "pipeline_id": report.pipeline_id,
+            "schema": self.config.table_schema,
+
+            # Step-level information (summary)
+            "phase": "pipeline",  # Overall pipeline summary
+            "step_name": "pipeline_summary",
+            "step_type": "pipeline",
+
+            # Timing information
+            "start_time": report.start_time,
+            "end_time": report.end_time,
+            "duration_secs": report.duration_seconds,
+
+            # Table information (N/A for summary)
+            "table_fqn": None,
+            "write_mode": None,
+
+            # Data metrics from report.metrics
+            "rows_processed": report.metrics.total_rows_processed,
+            "rows_written": report.metrics.total_rows_written,
+            "input_rows": report.metrics.total_rows_processed,
+            "output_rows": report.metrics.total_rows_written,
+
+            # Validation metrics
+            "valid_rows": 0,  # Not tracked in PipelineReport
+            "invalid_rows": 0,  # Not tracked in PipelineReport
+            "validation_rate": report.metrics.avg_validation_rate,
+
+            # Execution status
+            "success": report.success,
+            "error_message": ", ".join(report.errors) if report.errors else None,
+
+            # Performance metrics
+            "memory_usage_mb": None,  # Not tracked in PipelineReport
+            "cpu_usage_percent": None,  # Not tracked in PipelineReport
+
+            # Metadata
+            "metadata": {
+                "total_steps": report.metrics.total_steps,
+                "successful_steps": report.metrics.successful_steps,
+                "failed_steps": report.metrics.failed_steps,
+                "skipped_steps": report.metrics.skipped_steps,
+                "bronze_duration": report.metrics.bronze_duration,
+                "silver_duration": report.metrics.silver_duration,
+                "gold_duration": report.metrics.gold_duration,
+                "parallel_efficiency": report.metrics.parallel_efficiency,
+                "execution_groups_count": report.execution_groups_count,
+                "max_group_size": report.max_group_size,
+                "warnings": report.warnings,
+                "recommendations": report.recommendations,
+                "cache_hit_rate": report.metrics.cache_hit_rate,
+                "error_count": report.metrics.error_count,
+                "retry_count": report.metrics.retry_count,
+            }
+        }
+
+        return [log_row]
+
+    def create_table(
+        self,
+        report: PipelineReport,
+        run_id: str | None = None
+    ) -> Dict[str, Any]:
+        """
+        Create or overwrite the log table with data from a PipelineReport.
+
+        This method creates the log table if it doesn't exist, and writes
+        the report data using OVERWRITE mode (replacing any existing data).
+
+        Args:
+            report: PipelineReport to write
+            run_id: Optional run ID (generated if not provided)
+
+        Returns:
+            Dictionary with write results including:
+                - success: Whether the operation succeeded
+                - run_id: The run identifier used
+                - rows_written: Number of rows written
+                - table_fqn: Fully qualified table name
+
+        Example:
+            >>> writer = LogWriter(spark, schema="analytics", table_name="logs")
+            >>> result = writer.create_table(pipeline_report)
+            >>> print(f"Created table with {result['rows_written']} rows")
+        """
+        operation_id = str(uuid.uuid4())
+        if run_id is None:
+            run_id = str(uuid.uuid4())
+
+        try:
+            # Start performance monitoring
+            self.performance_monitor.start_operation(operation_id, "create_table")
+
+            # Log operation start
+            self.logger.info(f"📊 Creating log table {self.table_fqn} for run {run_id}")
+
+            # Convert report to log rows
+            log_rows = self._convert_report_to_log_rows(report, run_id)
+
+            # Create table if not exists
+            self.storage_manager.create_table_if_not_exists(self.schema)
+
+            # Write to storage with OVERWRITE mode
+            write_result = self.storage_manager.write_batch(
+                log_rows, WriteMode.OVERWRITE
+            )
+
+            # Update metrics
+            self._update_metrics(write_result, True)
+
+            # End performance monitoring
+            operation_metrics = self.performance_monitor.end_operation(
+                operation_id, True, write_result.get("rows_written", 0)
+            )
+
+            result = {
+                "success": True,
+                "run_id": run_id,
+                "operation_id": operation_id,
+                "rows_written": write_result.get("rows_written", 0),
+                "table_fqn": self.table_fqn,
+                "write_result": write_result,
+                "operation_metrics": operation_metrics,
+            }
+
+            self.logger.info(
+                f"✅ Successfully created log table {self.table_fqn} with "
+                f"{result['rows_written']} row(s) for run {run_id}"
+            )
+            return result
+
+        except Exception as e:
+            # End performance monitoring with failure
+            self.performance_monitor.end_operation(operation_id, False, 0, str(e))
+            self._update_metrics({}, False)
+
+            self.logger.error(f"❌ Failed to create log table for run {run_id}: {e}")
+            raise
+
+    def append(
+        self,
+        report: PipelineReport,
+        run_id: str | None = None
+    ) -> Dict[str, Any]:
+        """
+        Append data from a PipelineReport to the log table.
+
+        This method appends the report data to an existing log table. If the
+        table doesn't exist, it will be created first.
+
+        Args:
+            report: PipelineReport to append
+            run_id: Optional run ID (generated if not provided)
+
+        Returns:
+            Dictionary with write results including:
+                - success: Whether the operation succeeded
+                - run_id: The run identifier used
+                - rows_written: Number of rows written
+                - table_fqn: Fully qualified table name
+
+        Example:
+            >>> writer = LogWriter(spark, schema="analytics", table_name="logs")
+            >>> result = writer.append(pipeline_report)
+            >>> print(f"Appended {result['rows_written']} rows to {result['table_fqn']}")
+        """
+        operation_id = str(uuid.uuid4())
+        if run_id is None:
+            run_id = str(uuid.uuid4())
+
+        try:
+            # Start performance monitoring
+            self.performance_monitor.start_operation(operation_id, "append")
+
+            # Log operation start
+            self.logger.info(f"📊 Appending to log table {self.table_fqn} for run {run_id}")
+
+            # Convert report to log rows
+            log_rows = self._convert_report_to_log_rows(report, run_id)
+
+            # Create table if not exists (for first append)
+            self.storage_manager.create_table_if_not_exists(self.schema)
+
+            # Write to storage with APPEND mode
+            write_result = self.storage_manager.write_batch(
+                log_rows, WriteMode.APPEND
+            )
+
+            # Update metrics
+            self._update_metrics(write_result, True)
+
+            # End performance monitoring
+            operation_metrics = self.performance_monitor.end_operation(
+                operation_id, True, write_result.get("rows_written", 0)
+            )
+
+            result = {
+                "success": True,
+                "run_id": run_id,
+                "operation_id": operation_id,
+                "rows_written": write_result.get("rows_written", 0),
+                "table_fqn": self.table_fqn,
+                "write_result": write_result,
+                "operation_metrics": operation_metrics,
+            }
+
+            self.logger.info(
+                f"✅ Successfully appended {result['rows_written']} row(s) to "
+                f"{self.table_fqn} for run {run_id}"
+            )
+            return result
+
+        except Exception as e:
+            # End performance monitoring with failure
+            self.performance_monitor.end_operation(operation_id, False, 0, str(e))
+            self._update_metrics({}, False)
+
+            self.logger.error(f"❌ Failed to append to log table for run {run_id}: {e}")
+            raise

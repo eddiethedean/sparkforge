@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sparkforge"
-version = "1.0.0"
+version = "1.1.0"
 description = "A simplified, production-ready data pipeline builder for Apache Spark and Delta Lake"
 readme = "README.md"
 license = {text = "MIT"}

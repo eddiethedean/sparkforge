@@ -9,7 +9,7 @@ Pipeline configuration models.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Union
+from typing import Any
 
 from ..errors import PipelineValidationError
 from .base import BaseModel, ParallelConfig, ValidationThresholds
@@ -29,9 +29,9 @@ class PipelineConfig(BaseModel):
 
     schema: str
     thresholds: ValidationThresholds
-    parallel: Union[ParallelConfig, bool]
+    parallel: ParallelConfig | bool
     verbose: bool = True
-    
+
     def __post_init__(self) -> None:
         """Post-initialization to convert boolean parallel to ParallelConfig."""
         # Convert boolean parallel to ParallelConfig for backward compatibility
@@ -61,12 +61,20 @@ class PipelineConfig(BaseModel):
     @property
     def enable_parallel_silver(self) -> bool:
         """Get parallel silver execution setting."""
-        return self.parallel.enabled
+        # After __post_init__, parallel is always ParallelConfig
+        if isinstance(self.parallel, ParallelConfig):
+            return self.parallel.enabled
+        # Fallback for mock configs in tests
+        return bool(self.parallel)
 
     @property
     def max_parallel_workers(self) -> int:
         """Get max parallel workers setting."""
-        return self.parallel.max_workers
+        # After __post_init__, parallel is always ParallelConfig
+        if isinstance(self.parallel, ParallelConfig):
+            return self.parallel.max_workers
+        # Fallback for mock configs in tests
+        return 4
 
     @property
     def enable_caching(self) -> bool:
@@ -83,7 +91,9 @@ class PipelineConfig(BaseModel):
         if not self.schema or not isinstance(self.schema, str):
             raise PipelineValidationError("Schema name must be a non-empty string")
         self.thresholds.validate()
-        self.parallel.validate()
+        # After __post_init__, parallel is always ParallelConfig
+        if isinstance(self.parallel, ParallelConfig):
+            self.parallel.validate()
 
     @classmethod
     def create_default(cls, schema: str) -> PipelineConfig:

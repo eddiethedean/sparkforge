@@ -6,7 +6,7 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://sparkforge.readthedocs.io/)
-[![Tests](https://img.shields.io/badge/tests-1400%20passed-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
+[![Tests](https://img.shields.io/badge/tests-1284%20passed-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
 [![Coverage](https://img.shields.io/badge/coverage-83%25-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
 [![Type Safety](https://img.shields.io/badge/type%20safety-100%25-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
 [![CI/CD](https://github.com/eddiethedean/sparkforge/workflows/Tests/badge.svg)](https://github.com/eddiethedean/sparkforge/actions)
@@ -292,7 +292,7 @@ rules = {
 - **Multi-schema support** for enterprise environments
 - **Performance monitoring** and optimization
 - **Comprehensive logging** and audit trails
-- **83% test coverage** with 1400+ comprehensive tests
+- **83% test coverage** with 1,284 comprehensive tests
 - **100% type safety** with mypy compliance
 - **Security hardened** with zero security vulnerabilities
 
@@ -321,6 +321,81 @@ rules = {
 - **[E-commerce Analytics](examples/usecases/ecommerce_analytics.py)** - Order processing, customer insights
 - **[IoT Sensor Data](examples/usecases/iot_sensor_pipeline.py)** - Real-time sensor processing
 - **[Business Intelligence](examples/usecases/step_by_step_debugging.py)** - KPI dashboards, reporting
+
+## 📊 LogWriter - Pipeline Execution Tracking
+
+Track and analyze your pipeline executions with the simplified LogWriter API:
+
+### Quick Example
+
+```python
+from sparkforge import PipelineBuilder, LogWriter
+
+# Build and run your pipeline
+builder = PipelineBuilder(spark, schema="analytics")
+# ... add steps ...
+pipeline = builder.to_pipeline()
+report = pipeline.run_initial_load(bronze_sources={"events": df})
+
+# Initialize LogWriter (simple API - just schema and table name!)
+writer = LogWriter(spark, schema="logs", table_name="pipeline_execution")
+
+# Create log table from first report
+writer.create_table(report)
+
+# Append subsequent runs
+report2 = pipeline.run_incremental(bronze_sources={"events": df2})
+writer.append(report2)
+
+# Query your logs
+logs = spark.table("logs.pipeline_execution")
+logs.show()
+```
+
+### Key Features
+
+- ✅ **Simple initialization** - Just provide `schema` and `table_name`
+- ✅ **Works with PipelineReport** - Direct integration with pipeline results
+- ✅ **Easy methods** - `create_table()` and `append()` for intuitive workflow
+- ✅ **Comprehensive metrics** - Tracks rows processed, durations, success rates
+- ✅ **Detailed metadata** - Layer durations, parallel efficiency, warnings, recommendations
+- ✅ **Emoji-rich output** - Visual feedback during execution (📊✅❌)
+
+### What Gets Logged
+
+Each pipeline execution is logged with:
+- **Run information**: run_id, mode (initial/incremental), timestamps
+- **Execution metrics**: total steps, successful/failed counts, durations by layer
+- **Data metrics**: rows processed, rows written, validation rates
+- **Performance**: parallel efficiency, execution groups, max parallelism
+- **Status**: success/failure, error messages, warnings, recommendations
+
+### Example Log Query
+
+```python
+# Get recent pipeline runs
+recent_runs = spark.sql("""
+    SELECT run_id, run_mode, success, rows_written, duration_secs
+    FROM logs.pipeline_execution
+    WHERE run_started_at >= current_date() - 7
+    ORDER BY run_started_at DESC
+""")
+
+# Analyze performance trends
+performance = spark.sql("""
+    SELECT 
+        DATE(run_started_at) as date,
+        COUNT(*) as runs,
+        AVG(duration_secs) as avg_duration,
+        SUM(rows_written) as total_rows
+    FROM logs.pipeline_execution
+    WHERE success = true
+    GROUP BY DATE(run_started_at)
+    ORDER BY date DESC
+""")
+```
+
+See **[examples/specialized/logwriter_simple_example.py](examples/specialized/logwriter_simple_example.py)** for a complete working example.
 
 ## 🛠️ Installation & Setup
 
@@ -379,7 +454,7 @@ See [QUICKSTART.md](QUICKSTART.md) and [ENVIRONMENT_INFO.md](ENVIRONMENT_INFO.md
 
 ## 🧪 Testing & Quality
 
-SparkForge includes a comprehensive test suite with **1,400 tests** covering all functionality:
+SparkForge includes a comprehensive test suite with **1,284 tests** covering all functionality:
 
 ```bash
 # Run all tests with coverage and type checking (recommended)
@@ -410,7 +485,7 @@ make security                      # Security scan with bandit
 ```
 
 **Quality Metrics**:
-- ✅ **1,400 tests passed** (100% pass rate)
+- ✅ **1,284 tests passed** (100% pass rate)
 - ✅ **83% test coverage** across all modules
 - ✅ **100% type safety** with mypy compliance (43 source files)
 - ✅ **Zero security vulnerabilities** (bandit clean)
@@ -426,7 +501,7 @@ We welcome contributions! Here's how to get started:
 2. **Clone your fork**: `git clone https://github.com/yourusername/sparkforge.git`
 3. **Setup environment**: `bash setup.sh` or see [QUICKSTART.md](QUICKSTART.md)
 4. **Activate environment**: `source activate_env.sh`
-5. **Run tests**: `make test` (1,400 tests, 100% pass rate)
+5. **Run tests**: `make test` (1,284 tests, 100% pass rate)
 6. **Create a feature branch**: `git checkout -b feature/amazing-feature`
 7. **Make your changes and add tests**
 8. **Format code**: `make format`
@@ -489,7 +564,7 @@ Total: 16s                  Group 3: 1s
 ### 🎯 **Quality & Reliability**
 - ✅ **100% type safety** - Complete mypy compliance across all 43 source files
 - ✅ **Security hardened** - Zero vulnerabilities (bandit clean)
-- ✅ **83% test coverage** - Comprehensive test suite with 1,400 tests
+- ✅ **83% test coverage** - Comprehensive test suite with 1,284 tests
 - ✅ **Code quality** - Black formatting + isort + ruff linting
 - ✅ **Production ready** - All quality gates passed
 
@@ -511,7 +586,7 @@ Total: 16s                  Group 3: 1s
 - **Performance monitoring** and optimization
 - **100% type safety** with comprehensive mypy compliance
 - **Security hardened** with zero vulnerabilities
-- **83% test coverage** with 1,400 comprehensive tests
+- **83% test coverage** with 1,284 comprehensive tests
 
 ### ✅ **Developer-First Design**
 - **Clean, readable API** that's easy to understand

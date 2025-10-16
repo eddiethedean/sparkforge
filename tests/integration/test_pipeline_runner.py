@@ -557,3 +557,364 @@ class TestSimplePipelineRunner:
         assert report.metrics.successful_steps == 0
         assert report.metrics.failed_steps == 0
         # Success rate calculation would be 0.0 for empty pipeline
+
+    def test_report_metrics_row_counts_accuracy(self, mock_spark, mock_config):
+        """Test that report accurately aggregates row counts from step results."""
+        runner = SimplePipelineRunner(mock_spark, mock_config)
+
+        start_time = datetime(2024, 1, 15, 10, 30, 0)
+        end_time = datetime(2024, 1, 15, 10, 35, 0)
+
+        # Create step results with specific row counts
+        execution_result = ExecutionResult(
+            execution_id="test_execution",
+            mode=ExecutionMode.INITIAL,
+            start_time=start_time,
+            end_time=end_time,
+            status="completed",
+            steps=[
+                StepExecutionResult(
+                    step_name="bronze_events",
+                    step_type=StepType.BRONZE,
+                    status=StepStatus.COMPLETED,
+                    start_time=start_time,
+                    end_time=end_time,
+                    rows_processed=1000,  # Bronze processes but doesn't write
+                    output_table=None,  # Bronze doesn't write to tables
+                    duration=2.5,
+                ),
+                StepExecutionResult(
+                    step_name="silver_enriched",
+                    step_type=StepType.SILVER,
+                    status=StepStatus.COMPLETED,
+                    start_time=start_time,
+                    end_time=end_time,
+                    rows_processed=856,
+                    output_table="analytics.silver_enriched",
+                    duration=3.2,
+                ),
+                StepExecutionResult(
+                    step_name="gold_summary",
+                    step_type=StepType.GOLD,
+                    status=StepStatus.COMPLETED,
+                    start_time=start_time,
+                    end_time=end_time,
+                    rows_processed=42,
+                    output_table="analytics.gold_summary",
+                    duration=1.8,
+                ),
+            ],
+        )
+
+        report = runner._create_pipeline_report(
+            pipeline_id="test_pipeline",
+            mode=PipelineMode.INITIAL,
+            start_time=start_time,
+            execution_result=execution_result,
+        )
+
+        # Verify row counts are accurately aggregated
+        assert report.metrics.total_rows_processed == 1898  # 1000 + 856 + 42
+        # Only Silver and Gold write to tables (have output_table)
+        assert report.metrics.total_rows_written == 898  # 856 + 42
+        assert report.metrics.total_rows_written != 0  # Should not be zero!
+
+    def test_report_metrics_duration_by_layer_accuracy(self, mock_spark, mock_config):
+        """Test that report accurately calculates durations by layer."""
+        runner = SimplePipelineRunner(mock_spark, mock_config)
+
+        start_time = datetime(2024, 1, 15, 10, 30, 0)
+        end_time = datetime(2024, 1, 15, 10, 40, 0)
+
+        # Create steps with durations by not passing end_time, letting duration be set directly
+        execution_result = ExecutionResult(
+            execution_id="test_execution",
+            mode=ExecutionMode.INITIAL,
+            start_time=start_time,
+            end_time=end_time,
+            status="completed",
+            steps=[
+                # Two Bronze steps
+                StepExecutionResult(
+                    step_name="bronze_events",
+                    step_type=StepType.BRONZE,
+                    status=StepStatus.COMPLETED,
+                    start_time=start_time,
+                    end_time=None,  # Let duration be set directly
+                    duration=2.5,
+                    rows_processed=1000,
+                ),
+                StepExecutionResult(
+                    step_name="bronze_users",
+                    step_type=StepType.BRONZE,
+                    status=StepStatus.COMPLETED,
+                    start_time=start_time,
+                    end_time=None,
+                    duration=1.5,
+                    rows_processed=500,
+                ),
+                # Three Silver steps
+                StepExecutionResult(
+                    step_name="silver_events",
+                    step_type=StepType.SILVER,
+                    status=StepStatus.COMPLETED,
+                    start_time=start_time,
+                    end_time=None,
+                    duration=3.2,
+                    rows_processed=856,
+                    output_table="analytics.silver_events",
+                ),
+                StepExecutionResult(
+                    step_name="silver_users",
+                    step_type=StepType.SILVER,
+                    status=StepStatus.COMPLETED,
+                    start_time=start_time,
+                    end_time=None,
+                    duration=2.8,
+                    rows_processed=450,
+                    output_table="analytics.silver_users",
+                ),
+                StepExecutionResult(
+                    step_name="silver_joined",
+                    step_type=StepType.SILVER,
+                    status=StepStatus.COMPLETED,
+                    start_time=start_time,
+                    end_time=None,
+                    duration=4.1,
+                    rows_processed=800,
+                    output_table="analytics.silver_joined",
+                ),
+                # One Gold step
+                StepExecutionResult(
+                    step_name="gold_summary",
+                    step_type=StepType.GOLD,
+                    status=StepStatus.COMPLETED,
+                    start_time=start_time,
+                    end_time=None,
+                    duration=5.3,
+                    rows_processed=42,
+                    output_table="analytics.gold_summary",
+                ),
+            ],
+        )
+
+        report = runner._create_pipeline_report(
+            pipeline_id="test_pipeline",
+            mode=PipelineMode.INITIAL,
+            start_time=start_time,
+            execution_result=execution_result,
+        )
+
+        # Verify durations by layer
+        assert report.metrics.bronze_duration == 4.0  # 2.5 + 1.5
+        assert report.metrics.silver_duration == 10.1  # 3.2 + 2.8 + 4.1
+        assert report.metrics.gold_duration == 5.3  # 5.3
+        assert report.metrics.total_duration == 600.0  # 10 minutes
+
+    def test_report_metrics_with_failed_steps(self, mock_spark, mock_config):
+        """Test that report correctly handles row counts when some steps fail."""
+        runner = SimplePipelineRunner(mock_spark, mock_config)
+
+        start_time = datetime(2024, 1, 15, 10, 30, 0)
+        end_time = datetime(2024, 1, 15, 10, 35, 0)
+
+        execution_result = ExecutionResult(
+            execution_id="test_execution",
+            mode=ExecutionMode.INITIAL,
+            start_time=start_time,
+            end_time=end_time,
+            status="completed",
+            steps=[
+                StepExecutionResult(
+                    step_name="bronze_events",
+                    step_type=StepType.BRONZE,
+                    status=StepStatus.COMPLETED,
+                    start_time=start_time,
+                    end_time=end_time,
+                    rows_processed=1000,
+                    duration=2.5,
+                ),
+                StepExecutionResult(
+                    step_name="silver_enriched",
+                    step_type=StepType.SILVER,
+                    status=StepStatus.FAILED,
+                    start_time=start_time,
+                    end_time=end_time,
+                    rows_processed=None,  # Failed step has no rows
+                    output_table=None,
+                    duration=1.0,
+                    error="Transformation failed",
+                ),
+                StepExecutionResult(
+                    step_name="gold_summary",
+                    step_type=StepType.GOLD,
+                    status=StepStatus.COMPLETED,
+                    start_time=start_time,
+                    end_time=end_time,
+                    rows_processed=42,
+                    output_table="analytics.gold_summary",
+                    duration=1.8,
+                ),
+            ],
+        )
+
+        report = runner._create_pipeline_report(
+            pipeline_id="test_pipeline",
+            mode=PipelineMode.INITIAL,
+            start_time=start_time,
+            execution_result=execution_result,
+        )
+
+        # Verify row counts handle None values from failed steps
+        assert report.metrics.total_rows_processed == 1042  # 1000 + 0 + 42
+        assert report.metrics.total_rows_written == 42  # Only gold completed with table
+        assert report.metrics.failed_steps == 1
+        assert report.metrics.successful_steps == 2
+
+    def test_report_metrics_with_no_rows_processed(self, mock_spark, mock_config):
+        """Test that report handles steps with zero rows gracefully."""
+        runner = SimplePipelineRunner(mock_spark, mock_config)
+
+        start_time = datetime(2024, 1, 15, 10, 30, 0)
+        end_time = datetime(2024, 1, 15, 10, 35, 0)
+
+        execution_result = ExecutionResult(
+            execution_id="test_execution",
+            mode=ExecutionMode.INITIAL,
+            start_time=start_time,
+            end_time=end_time,
+            status="completed",
+            steps=[
+                StepExecutionResult(
+                    step_name="bronze_empty",
+                    step_type=StepType.BRONZE,
+                    status=StepStatus.COMPLETED,
+                    start_time=start_time,
+                    end_time=end_time,
+                    rows_processed=0,  # Empty dataset
+                    duration=1.0,
+                ),
+                StepExecutionResult(
+                    step_name="silver_empty",
+                    step_type=StepType.SILVER,
+                    status=StepStatus.COMPLETED,
+                    start_time=start_time,
+                    end_time=end_time,
+                    rows_processed=0,
+                    output_table="analytics.silver_empty",
+                    duration=1.0,
+                ),
+            ],
+        )
+
+        report = runner._create_pipeline_report(
+            pipeline_id="test_pipeline",
+            mode=PipelineMode.INITIAL,
+            start_time=start_time,
+            execution_result=execution_result,
+        )
+
+        # Verify zero row counts are handled correctly
+        assert report.metrics.total_rows_processed == 0
+        assert report.metrics.total_rows_written == 0
+        assert report.metrics.successful_steps == 2
+
+    def test_report_metrics_mixed_layers_comprehensive(self, mock_spark, mock_config):
+        """Comprehensive test with all layer types and various row counts."""
+        runner = SimplePipelineRunner(mock_spark, mock_config)
+
+        start_time = datetime(2024, 1, 15, 10, 30, 0)
+        end_time = datetime(2024, 1, 15, 10, 45, 0)
+
+        execution_result = ExecutionResult(
+            execution_id="test_execution",
+            mode=ExecutionMode.INITIAL,
+            start_time=start_time,
+            end_time=end_time,
+            status="completed",
+            steps=[
+                # Bronze layer: processes 10,000 rows total
+                StepExecutionResult(
+                    step_name="bronze_transactions",
+                    step_type=StepType.BRONZE,
+                    status=StepStatus.COMPLETED,
+                    start_time=start_time,
+                    end_time=None,  # Let duration be set directly
+                    rows_processed=7500,
+                    duration=3.5,
+                ),
+                StepExecutionResult(
+                    step_name="bronze_customers",
+                    step_type=StepType.BRONZE,
+                    status=StepStatus.COMPLETED,
+                    start_time=start_time,
+                    end_time=None,
+                    rows_processed=2500,
+                    duration=1.5,
+                ),
+                # Silver layer: writes 8,000 rows total
+                StepExecutionResult(
+                    step_name="silver_transactions",
+                    step_type=StepType.SILVER,
+                    status=StepStatus.COMPLETED,
+                    start_time=start_time,
+                    end_time=None,
+                    rows_processed=6000,
+                    output_table="analytics.silver_transactions",
+                    duration=5.0,
+                ),
+                StepExecutionResult(
+                    step_name="silver_customers",
+                    step_type=StepType.SILVER,
+                    status=StepStatus.COMPLETED,
+                    start_time=start_time,
+                    end_time=None,
+                    rows_processed=2000,
+                    output_table="analytics.silver_customers",
+                    duration=3.0,
+                ),
+                # Gold layer: writes 150 rows total
+                StepExecutionResult(
+                    step_name="gold_daily_summary",
+                    step_type=StepType.GOLD,
+                    status=StepStatus.COMPLETED,
+                    start_time=start_time,
+                    end_time=None,
+                    rows_processed=100,
+                    output_table="analytics.gold_daily_summary",
+                    duration=4.5,
+                ),
+                StepExecutionResult(
+                    step_name="gold_customer_metrics",
+                    step_type=StepType.GOLD,
+                    status=StepStatus.COMPLETED,
+                    start_time=start_time,
+                    end_time=None,
+                    rows_processed=50,
+                    output_table="analytics.gold_customer_metrics",
+                    duration=2.5,
+                ),
+            ],
+        )
+
+        report = runner._create_pipeline_report(
+            pipeline_id="test_pipeline",
+            mode=PipelineMode.INITIAL,
+            start_time=start_time,
+            execution_result=execution_result,
+        )
+
+        # Verify comprehensive metrics
+        assert report.metrics.total_rows_processed == 18150  # Sum of all rows
+        assert report.metrics.total_rows_written == 8150  # Silver + Gold only
+        assert report.metrics.total_steps == 6
+        assert report.metrics.successful_steps == 6
+        assert report.metrics.failed_steps == 0
+        
+        # Verify layer durations
+        assert report.metrics.bronze_duration == 5.0  # 3.5 + 1.5
+        assert report.metrics.silver_duration == 8.0  # 5.0 + 3.0
+        assert report.metrics.gold_duration == 7.0  # 4.5 + 2.5
+        
+        # Verify total duration is based on wall-clock time
+        assert report.metrics.total_duration == 900.0  # 15 minutes

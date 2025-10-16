@@ -113,7 +113,7 @@ __all__ = [
 ]
 
 # Version information
-__version__ = "0.8.0"
+__version__ = "1.1.0"
 __author__ = "Framework Team"
 
 # Depends on:

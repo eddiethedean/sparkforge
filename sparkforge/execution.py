@@ -237,6 +237,16 @@ class ExecutionEngine:
         )
 
         try:
+            # Get emoji icon for step type
+            step_icons = {
+                StepType.BRONZE: "🥉",
+                StepType.SILVER: "🥈",
+                StepType.GOLD: "🏆"
+            }
+            step_icon = step_icons.get(step_type, "📊")
+
+            # Print start message with emoji
+            print(f"{step_icon} Executing {step_type.value.upper()} step: {step.name}")
             self.logger.info(f"Executing {step_type.value} step: {step.name}")
 
             # Execute the step based on type
@@ -288,6 +298,18 @@ class ExecutionEngine:
             result.end_time = datetime.now()
             result.duration = (result.end_time - result.start_time).total_seconds()
 
+            # Print detailed completion message with emojis
+            row_count = result.rows_processed or 0
+            duration_str = f"{result.duration:.2f}s"
+
+            if isinstance(step, BronzeStep):
+                # Bronze: show rows processed
+                print(f"✅ {step_icon} {step_type.value.upper()} step '{step.name}' completed - {row_count:,} rows processed in {duration_str}")
+            else:
+                # Silver/Gold: show rows written and table name
+                table_info = f" to {result.output_table}" if result.output_table else ""
+                print(f"✅ {step_icon} {step_type.value.upper()} step '{step.name}' completed - {row_count:,} rows written{table_info} in {duration_str}")
+
             self.logger.info(f"Completed {step_type.value} step: {step.name}")
 
         except Exception as e:
@@ -295,6 +317,19 @@ class ExecutionEngine:
             result.error = str(e)
             result.end_time = datetime.now()
             result.duration = (result.end_time - result.start_time).total_seconds()
+
+            # Get emoji icon for step type
+            step_icons = {
+                StepType.BRONZE: "🥉",
+                StepType.SILVER: "🥈",
+                StepType.GOLD: "🏆"
+            }
+            step_icon = step_icons.get(step_type, "📊")
+
+            # Print failure message with emoji
+            duration_str = f"{result.duration:.2f}s"
+            print(f"❌ {step_icon} {step_type.value.upper()} step '{step.name}' FAILED in {duration_str} - {str(e)}")
+
             self.logger.error(f"Failed {step_type.value} step {step.name}: {e}")
             raise ExecutionError(f"Step execution failed: {e}") from e
 
@@ -380,12 +415,19 @@ class ExecutionEngine:
             )
 
             # Determine worker count from config
-            if self.config.parallel.enabled:
-                workers = self.config.parallel.max_workers
-                self.logger.info(f"Parallel execution enabled with {workers} workers")
+            # After PipelineConfig.__post_init__, parallel is always ParallelConfig
+            # (unless mocked in tests, so we check with hasattr for test compatibility)
+            if hasattr(self.config.parallel, 'enabled'):
+                if self.config.parallel.enabled:
+                    workers = self.config.parallel.max_workers
+                    self.logger.info(f"Parallel execution enabled with {workers} workers")
+                else:
+                    workers = 1
+                    self.logger.info("Sequential execution mode")
             else:
+                # Fallback for tests with mock configs
                 workers = 1
-                self.logger.info("Sequential execution mode")
+                self.logger.info("Sequential execution mode (default)")
 
             # Thread-safe context management
             context_lock = threading.Lock()
