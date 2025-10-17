@@ -36,36 +36,6 @@ from .operations import DataProcessor
 from .storage import StorageManager
 
 
-def table_exists(spark: SparkSession, database: str, table: str) -> bool:
-    """
-    Check if a table exists in the specified database.
-
-    Args:
-        spark: SparkSession
-        database: Database name
-        table: Table name
-
-    Returns:
-        True if table exists, False otherwise
-    """
-    try:
-        # Use the correct method name for checking table existence
-        return bool(spark.catalog.tableExists(database, table))
-    except AttributeError:
-        # Fallback for different Spark versions
-        try:
-            return bool(
-                spark.sql(f"SHOW TABLES IN {database}")
-                .filter(f"tableName = '{table}'")
-                .count()
-                > 0
-            )
-        except Exception:
-            return False
-    except Exception:
-        return False
-
-
 def time_write_operation(
     operation_func: Any, *args: Any, **kwargs: Any
 ) -> tuple[int, float, Any, Any]:

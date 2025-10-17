@@ -5,7 +5,8 @@ Simple unit tests for writer core using Mock Spark.
 import pytest
 from mock_spark.errors import AnalysisException
 
-from sparkforge.writer.core import LogWriter, table_exists
+from sparkforge.writer.core import LogWriter
+from sparkforge.table_operations import table_exists
 from sparkforge.writer.models import LogLevel, WriteMode, WriterConfig
 
 
@@ -84,18 +85,18 @@ class TestWriterCoreSimple:
         spark_session.storage.create_table("test_schema", "test_table", schema_fields)
 
         # Test table exists
-        assert table_exists(spark_session, "test_schema", "test_table")
+        assert table_exists(spark_session, "test_schema.test_table")
 
         # Test table doesn't exist
-        assert not table_exists(spark_session, "test_schema", "nonexistent_table")
-        assert not table_exists(spark_session, "nonexistent_schema", "test_table")
+        assert not table_exists(spark_session, "test_schema.nonexistent_table")
+        assert not table_exists(spark_session, "nonexistent_schema.test_table")
 
     def test_table_exists_function_invalid_parameters(self, spark_session):
         """Test table_exists function with invalid parameters."""
         # The table_exists function doesn't validate parameters, so these won't raise
         # Let's test that it handles None gracefully
         try:
-            result = table_exists(None, "test_schema", "test_table")
+            result = table_exists(None, "test_schema.test_table")
             # If it doesn't raise, that's also valid behavior
             assert result is False  # None spark should return False
         except Exception:
@@ -103,14 +104,14 @@ class TestWriterCoreSimple:
             pass
 
         try:
-            result = table_exists(spark_session, None, "test_table")
-            assert result is False  # None schema should return False
+            result = table_exists(spark_session, None)
+            assert result is False  # None fqn should return False
         except Exception:
             pass
 
         try:
-            result = table_exists(spark_session, "test_schema", None)
-            assert result is False  # None table should return False
+            result = table_exists(spark_session, "")
+            assert result is False  # Empty fqn should return False
         except Exception:
             pass
 

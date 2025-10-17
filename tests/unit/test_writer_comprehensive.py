@@ -13,7 +13,8 @@ from mock_spark import (
 
 from sparkforge.logging import PipelineLogger
 from sparkforge.models import ExecutionMode, ExecutionResult, PipelinePhase, StepResult
-from sparkforge.writer.core import LogWriter, table_exists, time_write_operation
+from sparkforge.writer.core import LogWriter, time_write_operation
+from sparkforge.table_operations import table_exists
 from sparkforge.writer.exceptions import WriterConfigurationError
 from sparkforge.writer.models import (
     LogLevel,
@@ -70,7 +71,7 @@ class TestWriterComprehensive:
     def test_table_exists_function(self, mock_spark_session):
         """Test table_exists utility function."""
         # Test with non-existent table
-        assert not table_exists(mock_spark_session, "test_schema", "non_existent_table")
+        assert not table_exists(mock_spark_session, "test_schema.non_existent_table")
 
         # Test with existing table
         mock_spark_session.catalog.createDatabase("test_schema")
@@ -79,7 +80,7 @@ class TestWriterComprehensive:
         df = mock_spark_session.createDataFrame(data, schema)
         df.write.mode("overwrite").saveAsTable("test_schema.existing_table")
 
-        assert table_exists(mock_spark_session, "test_schema", "existing_table")
+        assert table_exists(mock_spark_session, "test_schema.existing_table")
 
     def test_time_write_operation_function(self, mock_spark_session):
         """Test time_write_operation utility function."""
