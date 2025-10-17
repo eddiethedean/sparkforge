@@ -25,7 +25,7 @@ class PipelineLogger:
 
     def __init__(
         self,
-        name: str = "PipelineFramework",
+        name: str = "PipelineRunner",
         level: int = logging.INFO,
         log_file: Optional[str] = None,
         verbose: bool = True,
@@ -118,11 +118,40 @@ class PipelineLogger:
         self.info(f"🚀 Starting {stage.upper()} step: {step}")
 
     def step_complete(
-        self, stage: str, step: str, duration: float, rows: int = 0
+        self,
+        stage: str,
+        step: str,
+        duration: float,
+        rows_processed: int = 0,
+        rows_written: Optional[int] = None,
+        invalid_rows: Optional[int] = None,
+        validation_rate: Optional[float] = None
     ) -> None:
         """Log step completion."""
+        # Build the info string
+        info_parts = [f"{duration:.2f}s"]
+
+        # Add rows processed
+        info_parts.append(f"{rows_processed:,} rows processed")
+
+        # Add rows written if different from processed or if specified
+        if rows_written is not None and rows_written != rows_processed:
+            info_parts.append(f"{rows_written:,} written")
+
+        # Add invalid rows if any (safely handle non-int types for mocking compatibility)
+        try:
+            if invalid_rows is not None and isinstance(invalid_rows, (int, float)) and invalid_rows > 0:
+                info_parts.append(f"{invalid_rows:,} invalid")
+        except (TypeError, AttributeError):
+            # Handle Mock objects or other edge cases gracefully
+            pass
+
+        # Add validation rate
+        if validation_rate is not None:
+            info_parts.append(f"validation: {validation_rate:.1f}%")
+
         self.info(
-            f"✅ Completed {stage.upper()} step: {step} ({duration:.2f}s, {rows:,} rows)"
+            f"✅ Completed {stage.upper()} step: {step} ({', '.join(info_parts)})"
         )
 
     def step_failed(
@@ -228,7 +257,7 @@ def set_logger(logger: PipelineLogger) -> None:
 
 
 def create_logger(
-    name: str = "PipelineFramework",
+    name: str = "PipelineRunner",
     level: int = logging.INFO,
     log_file: Optional[str] = None,
     verbose: bool = True,

@@ -2,11 +2,11 @@
 
 > **The modern data pipeline framework for Apache Spark & Delta Lake**
 
-[![PyPI version](https://img.shields.io/pypi/v/sparkforge.svg)](https://pypi.org/project/sparkforge/)
+[![PyPI version](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://pypi.org/project/sparkforge/)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://sparkforge.readthedocs.io/)
-[![Tests](https://img.shields.io/badge/tests-1284%20passed-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
+[![Tests](https://img.shields.io/badge/tests-1441%20passed-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
 [![Coverage](https://img.shields.io/badge/coverage-83%25-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
 [![Type Safety](https://img.shields.io/badge/type%20safety-100%25-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
 [![CI/CD](https://github.com/eddiethedean/sparkforge/workflows/Tests/badge.svg)](https://github.com/eddiethedean/sparkforge/actions)
@@ -292,7 +292,7 @@ rules = {
 - **Multi-schema support** for enterprise environments
 - **Performance monitoring** and optimization
 - **Comprehensive logging** and audit trails
-- **83% test coverage** with 1,284 comprehensive tests
+- **83% test coverage** with 1,441 comprehensive tests
 - **100% type safety** with mypy compliance
 - **Security hardened** with zero security vulnerabilities
 
@@ -308,19 +308,19 @@ rules = {
 ## 📚 Examples & Use Cases
 
 ### 🎯 **Core Examples**
-- **[Hello World](examples/core/hello_world.py)** - 3-line pipeline introduction
-- **[Basic Pipeline](examples/core/basic_pipeline.py)** - Complete Bronze → Silver → Gold flow
-- **[Step-by-Step Debugging](examples/core/step_by_step_execution.py)** - Debug individual steps
+- **[Hello World](https://github.com/eddiethedean/sparkforge/blob/main/examples/core/hello_world.py)** - 3-line pipeline introduction
+- **[Basic Pipeline](https://github.com/eddiethedean/sparkforge/blob/main/examples/core/basic_pipeline.py)** - Complete Bronze → Silver → Gold flow
+- **[Step-by-Step Debugging](https://github.com/eddiethedean/sparkforge/blob/main/examples/core/step_by_step_execution.py)** - Debug individual steps
 
 ### 🚀 **Advanced Features**
-- **[Auto-Inference](examples/advanced/auto_infer_source_bronze_simple.py)** - Automatic dependency detection
-- **[Multi-Schema Support](examples/advanced/multi_schema_pipeline.py)** - Cross-schema data flows
-- **[Column Filtering](examples/specialized/column_filtering_behavior.py)** - Control data preservation
+- **[Auto-Inference](https://github.com/eddiethedean/sparkforge/blob/main/examples/advanced/auto_infer_source_bronze_simple.py)** - Automatic dependency detection
+- **[Multi-Schema Support](https://github.com/eddiethedean/sparkforge/blob/main/examples/advanced/multi_schema_pipeline.py)** - Cross-schema data flows
+- **[Column Filtering](https://github.com/eddiethedean/sparkforge/blob/main/examples/specialized/column_filtering_behavior.py)** - Control data preservation
 
 ### 🏢 **Real-World Use Cases**
-- **[E-commerce Analytics](examples/usecases/ecommerce_analytics.py)** - Order processing, customer insights
-- **[IoT Sensor Data](examples/usecases/iot_sensor_pipeline.py)** - Real-time sensor processing
-- **[Business Intelligence](examples/usecases/step_by_step_debugging.py)** - KPI dashboards, reporting
+- **[E-commerce Analytics](https://github.com/eddiethedean/sparkforge/blob/main/examples/usecases/ecommerce_analytics.py)** - Order processing, customer insights
+- **[IoT Sensor Data](https://github.com/eddiethedean/sparkforge/blob/main/examples/usecases/iot_sensor_pipeline.py)** - Real-time sensor processing
+- **[Business Intelligence](https://github.com/eddiethedean/sparkforge/blob/main/examples/usecases/step_by_step_debugging.py)** - KPI dashboards, reporting
 
 ## 📊 LogWriter - Pipeline Execution Tracking
 
@@ -395,7 +395,7 @@ performance = spark.sql("""
 """)
 ```
 
-See **[examples/specialized/logwriter_simple_example.py](examples/specialized/logwriter_simple_example.py)** for a complete working example.
+See **[examples/specialized/logwriter_simple_example.py](https://github.com/eddiethedean/sparkforge/blob/main/examples/specialized/logwriter_simple_example.py)** for a complete working example.
 
 ## 🛠️ Installation & Setup
 
@@ -437,7 +437,7 @@ python test_environment.py
 bash setup.sh  # Automated setup for development environment
 ```
 
-See [QUICKSTART.md](QUICKSTART.md) and [ENVIRONMENT_INFO.md](ENVIRONMENT_INFO.md) for detailed setup instructions.
+See [QUICKSTART.md](https://github.com/eddiethedean/sparkforge/blob/main/QUICKSTART.md) for detailed setup instructions.
 
 ## 📖 Documentation
 
@@ -454,7 +454,7 @@ See [QUICKSTART.md](QUICKSTART.md) and [ENVIRONMENT_INFO.md](ENVIRONMENT_INFO.md
 
 ## 🧪 Testing & Quality
 
-SparkForge includes a comprehensive test suite with **1,284 tests** covering all functionality:
+SparkForge includes a comprehensive test suite with **1,441 tests** covering all functionality:
 
 ```bash
 # Run all tests with coverage and type checking (recommended)
@@ -485,7 +485,7 @@ make security                      # Security scan with bandit
 ```
 
 **Quality Metrics**:
-- ✅ **1,284 tests passed** (100% pass rate)
+- ✅ **1,441 tests passed** (100% pass rate)
 - ✅ **83% test coverage** across all modules
 - ✅ **100% type safety** with mypy compliance (43 source files)
 - ✅ **Zero security vulnerabilities** (bandit clean)
@@ -499,9 +499,9 @@ We welcome contributions! Here's how to get started:
 ### Quick Start for Contributors
 1. **Fork the repository**
 2. **Clone your fork**: `git clone https://github.com/yourusername/sparkforge.git`
-3. **Setup environment**: `bash setup.sh` or see [QUICKSTART.md](QUICKSTART.md)
+3. **Setup environment**: `bash setup.sh` or see [QUICKSTART.md](https://github.com/eddiethedean/sparkforge/blob/main/QUICKSTART.md)
 4. **Activate environment**: `source activate_env.sh`
-5. **Run tests**: `make test` (1,284 tests, 100% pass rate)
+5. **Run tests**: `make test` (1,441 tests, 100% pass rate)
 6. **Create a feature branch**: `git checkout -b feature/amazing-feature`
 7. **Make your changes and add tests**
 8. **Format code**: `make format`
@@ -551,12 +551,27 @@ Total: 16s                  Group 3: 1s
                             Total: 6s (2.7x faster!)
 ```
 
-## 🚀 Recent Improvements (Latest)
+## 🚀 What's New in v1.2.0
 
-### ⚡ **NEW: Smart Parallel Execution (v1.0.0+)**
+### 📊 **NEW: Enhanced Logging with Rich Metrics**
+- ✅ **Unified logging format** - Consistent timestamps, emojis, and formatting
+- ✅ **Detailed metrics** - Rows processed, rows written, invalid counts, validation rates
+- ✅ **Visual indicators** - 🚀 Starting, ✅ Completed, ❌ Failed with clear status
+- ✅ **Smart formatting** - Bronze shows "processed", Silver/Gold show "written"
+- ✅ **Execution insights** - Duration tracking, parallel efficiency, group information
+
+```
+13:08:09 - PipelineRunner - INFO - 🚀 Starting BRONZE step: bronze_events
+13:08:09 - PipelineRunner - INFO - ✅ Completed BRONZE step: bronze_events (0.51s, 1,000 rows processed, validation: 100.0%)
+13:08:12 - PipelineRunner - INFO - 🚀 Starting SILVER step: silver_purchases
+13:08:13 - PipelineRunner - INFO - ✅ Completed SILVER step: silver_purchases (0.81s, 350 rows processed, 4 invalid, validation: 98.9%)
+```
+
+### ⚡ **Smart Parallel Execution (Enhanced)**
 - ✅ **Automatic parallel execution** - Independent steps run concurrently (3-5x faster!)
 - ✅ **Dependency-aware scheduling** - Automatically respects step dependencies
 - ✅ **Thread-safe execution** - Built-in protection against race conditions
+- ✅ **Real-time parallel logging** - See concurrent step execution in action
 - ✅ **Performance metrics** - Track parallel efficiency and throughput
 - ✅ **Zero configuration** - Enabled by default with sensible defaults (4 workers)
 - ✅ **Highly configurable** - Adjust workers from 1 (sequential) to 16+ (high-performance)
@@ -564,7 +579,7 @@ Total: 16s                  Group 3: 1s
 ### 🎯 **Quality & Reliability**
 - ✅ **100% type safety** - Complete mypy compliance across all 43 source files
 - ✅ **Security hardened** - Zero vulnerabilities (bandit clean)
-- ✅ **83% test coverage** - Comprehensive test suite with 1,284 tests
+- ✅ **83% test coverage** - Comprehensive test suite with 1,441 tests
 - ✅ **Code quality** - Black formatting + isort + ruff linting
 - ✅ **Production ready** - All quality gates passed
 
@@ -602,7 +617,7 @@ Total: 16s                  Group 3: 1s
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/eddiethedean/sparkforge/blob/main/LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 

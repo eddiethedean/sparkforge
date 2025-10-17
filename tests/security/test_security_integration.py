@@ -23,8 +23,8 @@ try:
 except ImportError:
     HAS_YAML = False
 
-from tests.security.compliance_checker import ComplianceChecker, ComplianceStandard
-from tests.security.security_monitoring import (
+from .compliance_checker import ComplianceChecker, ComplianceStandard
+from .security_monitoring import (
     SecurityEvent,
     SecurityEventType,
     SecurityMonitor,
@@ -32,8 +32,8 @@ from tests.security.security_monitoring import (
 )
 
 # Import security components
-from tests.security.security_tests import SecurityTestSuite
-from tests.security.vulnerability_scanner import VulnerabilityScanner
+from .security_tests import SecurityTestSuite
+from .vulnerability_scanner import VulnerabilityScanner
 
 
 class TestSecurityIntegration:

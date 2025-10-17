@@ -266,9 +266,12 @@ class TestTableExists:
         # Create a proper AnalysisException - newer PySpark versions have different constructors
         try:
             analysis_exception = AnalysisException("Table not found")
+            is_analysis_exception = True
         except (TypeError, AssertionError):
-            # Fallback for compatibility
-            analysis_exception = Exception("Table not found")
+            # Fallback for compatibility - mock AnalysisException to trigger debug logging
+            # We patch the exception check in table_operations to recognize our mock
+            analysis_exception = AnalysisException.__new__(AnalysisException)
+            is_analysis_exception = True
         
         mock_spark.table.side_effect = analysis_exception
 
@@ -276,6 +279,7 @@ class TestTableExists:
             result = table_exists(mock_spark, "test_schema.test_table")
 
             assert result is False
+            # Should log debug message for AnalysisException
             mock_logger.debug.assert_called_once_with(
                 "Table test_schema.test_table does not exist (AnalysisException)"
             )

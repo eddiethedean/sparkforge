@@ -24,28 +24,36 @@ This directory contains Jupyter notebooks for interactive learning with SparkFor
 - Understand step-by-step debugging
 - **Time**: 15-20 minutes
 
-### 2. Progressive Learning (`02_progressive_examples.ipynb`)
+### 2. **NEW!** v1.2.0 Features (`02_v1.2.0_logging_and_parallel_execution.ipynb`)
+**Explore the latest features!**
+- Enhanced logging with rich metrics and emojis
+- Parallel execution with concurrent step processing
+- Detailed step-level results by layer
+- Performance metrics and monitoring
+- **Time**: 20-30 minutes
+
+### 3. Progressive Learning (`03_progressive_examples.ipynb`)
 **Build complexity gradually**
 - Start with Bronze-only pipelines
 - Add Silver transformations step by step
 - Finish with complete Gold analytics
 - **Time**: 30-45 minutes
 
-### 3. E-commerce Analytics (`03_ecommerce_analytics.ipynb`)
+### 4. E-commerce Analytics (`04_ecommerce_analytics.ipynb`)
 **Real business use case**
 - Build a complete e-commerce pipeline
 - Customer segmentation and analytics
 - Sales performance tracking
 - **Time**: 45-60 minutes
 
-### 4. IoT Data Processing (`04_iot_data_processing.ipynb`)
+### 5. IoT Data Processing (`05_iot_data_processing.ipynb`)
 **Advanced time-series processing**
 - Sensor data ingestion and validation
 - Anomaly detection algorithms
 - Real-time analytics and alerting
 - **Time**: 60-90 minutes
 
-### 5. Business Intelligence (`05_business_intelligence.ipynb`)
+### 6. Business Intelligence (`06_business_intelligence.ipynb`)
 **Executive dashboards and KPIs**
 - Build comprehensive BI analytics
 - Customer lifetime value analysis
@@ -56,15 +64,16 @@ This directory contains Jupyter notebooks for interactive learning with SparkFor
 
 ### Beginner (Start Here)
 1. **Hello World** → Learn the basics
-2. **Progressive Examples** → Build complexity gradually
+2. **v1.2.0 Features** → Explore new logging and parallel execution ⭐ NEW
+3. **Progressive Examples** → Build complexity gradually
 
 ### Intermediate
-3. **E-commerce Analytics** → Real business use case
-4. **Decision Trees** → Learn configuration choices
+4. **E-commerce Analytics** → Real business use case
+5. **Decision Trees** → Learn configuration choices
 
 ### Advanced
-5. **IoT Data Processing** → Advanced time-series
-6. **Business Intelligence** → Complex analytics
+6. **IoT Data Processing** → Advanced time-series
+7. **Business Intelligence** → Complex analytics
 
 ## Tips for Success
 

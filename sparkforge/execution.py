@@ -237,17 +237,8 @@ class ExecutionEngine:
         )
 
         try:
-            # Get emoji icon for step type
-            step_icons = {
-                StepType.BRONZE: "🥉",
-                StepType.SILVER: "🥈",
-                StepType.GOLD: "🏆"
-            }
-            step_icon = step_icons.get(step_type, "📊")
-
-            # Print start message with emoji
-            print(f"{step_icon} Executing {step_type.value.upper()} step: {step.name}")
-            self.logger.info(f"Executing {step_type.value} step: {step.name}")
+            # Use logger's step_start method for consistent formatting with emoji and uppercase
+            self.logger.step_start(step_type.value, step.name)
 
             # Execute the step based on type
             if isinstance(step, BronzeStep):
@@ -258,16 +249,22 @@ class ExecutionEngine:
                 output_df = self._execute_gold_step(step, context)
 
             # Apply validation if not in validation-only mode
+            validation_rate = None
+            invalid_rows = None
             if mode != ExecutionMode.VALIDATION_ONLY:
                 # All step types (Bronze, Silver, Gold) have rules attribute
                 if step.rules:
-                    output_df, _, _ = apply_column_rules(
+                    output_df, _, validation_stats = apply_column_rules(
                         output_df,
                         step.rules,
                         "pipeline",
                         step.name,
                         functions=self.functions,
                     )
+                    # Capture validation stats for logging (handle different return types for test mocking)
+                    if validation_stats is not None:
+                        validation_rate = getattr(validation_stats, 'validation_rate', None)
+                        invalid_rows = getattr(validation_stats, 'invalid_rows', None)
 
             # Write output if not in validation-only mode
             # Note: Bronze steps only validate data, they don't write to tables
@@ -298,19 +295,21 @@ class ExecutionEngine:
             result.end_time = datetime.now()
             result.duration = (result.end_time - result.start_time).total_seconds()
 
-            # Print detailed completion message with emojis
-            row_count = result.rows_processed or 0
-            duration_str = f"{result.duration:.2f}s"
+            # Use logger's step_complete method for consistent formatting with emoji and uppercase
+            rows_processed = result.rows_processed or 0
+            # For Silver/Gold steps, rows_written equals rows_processed (since we write the output)
+            # For Bronze steps, rows_written is None (they don't write to tables)
+            rows_written = rows_processed if not isinstance(step, BronzeStep) else None
 
-            if isinstance(step, BronzeStep):
-                # Bronze: show rows processed
-                print(f"✅ {step_icon} {step_type.value.upper()} step '{step.name}' completed - {row_count:,} rows processed in {duration_str}")
-            else:
-                # Silver/Gold: show rows written and table name
-                table_info = f" to {result.output_table}" if result.output_table else ""
-                print(f"✅ {step_icon} {step_type.value.upper()} step '{step.name}' completed - {row_count:,} rows written{table_info} in {duration_str}")
-
-            self.logger.info(f"Completed {step_type.value} step: {step.name}")
+            self.logger.step_complete(
+                step_type.value,
+                step.name,
+                result.duration,
+                rows_processed=rows_processed,
+                rows_written=rows_written,
+                invalid_rows=invalid_rows,
+                validation_rate=validation_rate
+            )
 
         except Exception as e:
             result.status = StepStatus.FAILED
@@ -318,19 +317,8 @@ class ExecutionEngine:
             result.end_time = datetime.now()
             result.duration = (result.end_time - result.start_time).total_seconds()
 
-            # Get emoji icon for step type
-            step_icons = {
-                StepType.BRONZE: "🥉",
-                StepType.SILVER: "🥈",
-                StepType.GOLD: "🏆"
-            }
-            step_icon = step_icons.get(step_type, "📊")
-
-            # Print failure message with emoji
-            duration_str = f"{result.duration:.2f}s"
-            print(f"❌ {step_icon} {step_type.value.upper()} step '{step.name}' FAILED in {duration_str} - {str(e)}")
-
-            self.logger.error(f"Failed {step_type.value} step {step.name}: {e}")
+            # Use logger's step_failed method for consistent formatting with emoji and uppercase
+            self.logger.step_failed(step_type.value, step.name, str(e), result.duration)
             raise ExecutionError(f"Step execution failed: {e}") from e
 
         return result
@@ -416,14 +404,23 @@ class ExecutionEngine:
 
             # Determine worker count from config
             # After PipelineConfig.__post_init__, parallel is always ParallelConfig
-            # (unless mocked in tests, so we check with hasattr for test compatibility)
-            if hasattr(self.config.parallel, 'enabled'):
+            # But handle mocked configs gracefully
+            from .models import ParallelConfig
+
+            if isinstance(self.config.parallel, ParallelConfig):
                 if self.config.parallel.enabled:
                     workers = self.config.parallel.max_workers
                     self.logger.info(f"Parallel execution enabled with {workers} workers")
                 else:
                     workers = 1
                     self.logger.info("Sequential execution mode")
+            elif hasattr(self.config.parallel, 'enabled'):
+                # Handle Mock or other types with enabled attribute
+                enabled = getattr(self.config.parallel, 'enabled', True)
+                if enabled:
+                    workers = getattr(self.config.parallel, 'max_workers', 4)
+                else:
+                    workers = 1
             else:
                 # Fallback for tests with mock configs
                 workers = 1

@@ -19,11 +19,11 @@ from datetime import datetime
 from typing import Any, Dict
 
 try:
-    import psutil
+    import psutil  # type: ignore[import-untyped]
     HAS_PSUTIL = True
 except ImportError:
     HAS_PSUTIL = False
-    psutil = None  # type: ignore[assignment]
+    psutil = None  # type: ignore[assignment, unused-ignore]
 
 from ..compat import DataFrame, SparkSession
 from ..logging import PipelineLogger

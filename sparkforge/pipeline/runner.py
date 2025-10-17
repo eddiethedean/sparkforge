@@ -192,6 +192,38 @@ class SimplePipelineRunner:
         # Import StepType for layer filtering
         from ..execution import StepType
 
+        # Organize step results by layer (bronze/silver/gold)
+        bronze_results = {}
+        silver_results = {}
+        gold_results = {}
+
+        for step_result in steps:
+            step_info = {
+                "status": step_result.status.value,
+                "duration": step_result.duration,
+                "rows_processed": step_result.rows_processed,
+                "output_table": step_result.output_table,
+                "start_time": step_result.start_time.isoformat(),
+                "end_time": step_result.end_time.isoformat() if step_result.end_time else None,
+            }
+
+            # Add error if present
+            if step_result.error:
+                step_info["error"] = step_result.error
+
+            # Add dataframe if available in context (for users who want to access output)
+            if hasattr(execution_result, 'context') and execution_result.context:
+                if step_result.step_name in execution_result.context:
+                    step_info["dataframe"] = execution_result.context[step_result.step_name]
+
+            # Categorize by step type
+            if step_result.step_type.value == "bronze":
+                bronze_results[step_result.step_name] = step_info
+            elif step_result.step_type.value == "silver":
+                silver_results[step_result.step_name] = step_info
+            elif step_result.step_type.value == "gold":
+                gold_results[step_result.step_name] = step_info
+
         # Aggregate row counts from step results
         total_rows_processed = sum(s.rows_processed or 0 for s in steps)
         # For rows_written, only count Silver/Gold steps (those with output_table)
@@ -226,6 +258,9 @@ class SimplePipelineRunner:
                 total_rows_written=total_rows_written,
                 parallel_efficiency=execution_result.parallel_efficiency,
             ),
+            bronze_results=bronze_results,
+            silver_results=silver_results,
+            gold_results=gold_results,
             errors=[s.error for s in failed_steps if s.error],
             warnings=[],
             execution_groups_count=execution_result.execution_groups_count,

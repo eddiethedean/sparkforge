@@ -152,9 +152,9 @@ class TestPipelineLoggerComprehensive:
         logger = PipelineLogger()
 
         with patch.object(logger.logger, "info") as mock_info:
-            logger.step_complete("bronze", "user_events", 45.2, 1000)
+            logger.step_complete("bronze", "user_events", 45.2, rows_processed=1000)
             mock_info.assert_called_once_with(
-                "✅ Completed BRONZE step: user_events (45.20s, 1,000 rows)"
+                "✅ Completed BRONZE step: user_events (45.20s, 1,000 rows processed)"
             )
 
     def test_step_complete_no_rows(self):
@@ -164,7 +164,7 @@ class TestPipelineLoggerComprehensive:
         with patch.object(logger.logger, "info") as mock_info:
             logger.step_complete("silver", "enriched_events", 30.1)
             mock_info.assert_called_once_with(
-                "✅ Completed SILVER step: enriched_events (30.10s, 0 rows)"
+                "✅ Completed SILVER step: enriched_events (30.10s, 0 rows processed)"
             )
 
     def test_step_failed(self):
@@ -381,7 +381,7 @@ class TestGlobalLoggerFunctions:
         logger = get_logger()
 
         assert isinstance(logger, PipelineLogger)
-        assert logger.name == "PipelineFramework"
+        assert logger.name == "PipelineRunner"
 
     def test_set_logger(self):
         """Test setting custom logger."""
@@ -397,7 +397,7 @@ class TestGlobalLoggerFunctions:
         logger = create_logger()
 
         assert isinstance(logger, PipelineLogger)
-        assert logger.name == "PipelineFramework"
+        assert logger.name == "PipelineRunner"
 
     def test_create_logger_custom(self):
         """Test creating logger with custom parameters."""

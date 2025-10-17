@@ -10,7 +10,7 @@ import sys
 import tempfile
 from unittest.mock import Mock, patch
 
-from tests.unit.test_python38_compatibility import Python38CompatibilityTest
+from .test_python38_compatibility import Python38CompatibilityTest
 
 
 class TestTrap10SilentTestSkip:
@@ -197,8 +197,9 @@ class TestTrap10SilentTestSkip:
                     test_instance._find_dict_type_annotations()
 
                     # Verify that logging.getLogger was called with the correct module name
+                    # Note: When imported with relative import, the module name is without 'tests.' prefix
                     mock_logger.assert_called_once_with(
-                        "tests.unit.test_python38_compatibility"
+                        "unit.test_python38_compatibility"
                     )
 
         finally:

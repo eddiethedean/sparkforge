@@ -22,7 +22,7 @@ copyright = "2024, SparkForge Team"
 author = "SparkForge Team"
 
 # The full version, including alpha/beta/rc tags
-release = "0.6.0"
+release = "1.2.0"
 
 # -- General configuration ---------------------------------------------------
 

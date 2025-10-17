@@ -25,6 +25,101 @@ All notable changes to SparkForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-10-17
+
+### 📊 Enhanced Logging & Monitoring
+
+#### Added
+- **Unified logging format** with consistent timestamps and formatting across all messages
+- **Rich metrics logging** including:
+  - Rows processed and rows written
+  - Invalid row counts
+  - Validation rates (percentage)
+  - Execution durations
+- **Visual indicators** with emojis for better readability:
+  - 🚀 Starting steps
+  - ✅ Completed steps
+  - ❌ Failed steps
+  - 📦 Execution groups
+- **Smart formatting** that differentiates:
+  - Bronze steps: Show "rows processed" (validation only, no writes)
+  - Silver/Gold steps: Show "rows written" and "rows processed" separately
+- **Parallel execution visibility** in logs:
+  - Group-based execution logging
+  - Interleaved logs from concurrent steps
+  - Parallel efficiency metrics
+  
+#### Logging Methods
+- `logger.step_start(step_type, step_name)` - Consistent step start logging
+- `logger.step_complete(step_type, step_name, duration, rows_processed, rows_written, invalid_rows, validation_rate)` - Detailed completion logging
+- `logger.step_failed(step_type, step_name, error, duration)` - Standardized error logging
+
+### ⚡ Parallel Execution Enhancements
+
+#### Improved
+- **Real-time parallel logging** - See concurrent step execution with interleaved log messages
+- **Enhanced execution reporting** with:
+  - `execution_groups_count` - Number of parallel execution groups
+  - `max_group_size` - Maximum concurrent steps in any group
+  - `parallel_efficiency` - Percentage efficiency of parallelization
+- **Better dependency analysis** logging and visibility
+
+### 📈 Pipeline Report Improvements
+
+#### Added
+- **Detailed step results by layer**:
+  - `bronze_results` - Dictionary of bronze step results
+  - `silver_results` - Dictionary of silver step results
+  - `gold_results` - Dictionary of gold step results
+- **Per-step information** including:
+  - Status, duration, rows processed
+  - Output table names
+  - Start and end timestamps
+  - Error messages (if failed)
+
+### 🧪 Testing & Quality
+
+#### Added
+- **157 new tests** bringing total to **1,441 tests** (was 1,284)
+- Enhanced test coverage for logging functionality
+- Updated test assertions for new logging format
+- Fixed test compatibility issues
+
+#### Improved
+- All tests passing (1,441 passed, 3 skipped)
+- 100% mypy type checking compliance
+- Zero ruff linter warnings (only config deprecation notice)
+- Enhanced mock compatibility
+
+### 🎨 Demo Scripts
+
+#### Added
+- `scripts/demo_logging.py` - Showcases new uniform logging format
+- `scripts/demo_parallel_timing.py` - Demonstrates concurrent vs sequential execution with real timing
+- `scripts/demo_logwriter.py` - Shows LogWriter creating and appending to log tables
+
+### 📝 Documentation
+
+#### Updated
+- README.md with v1.2.0 features and enhanced logging examples
+- Badge updates: version 1.2.0, 1,441 tests
+- Performance comparison table with logging improvements
+- Added "What's New in v1.2.0" section
+
+### 🔧 Bug Fixes
+- Fixed import paths in security and unit tests
+- Resolved merge conflicts from parallel development streams
+- Fixed AnalysisException handling in table operations tests
+- Improved performance test mocking compatibility
+
+### Breaking Changes
+None - fully backward compatible with v1.1.0
+
+### Migration Notes
+No migration needed - all existing code continues to work. New logging features are automatically applied.
+
+---
+
 ## [0.8.0] - 2025-09-30
 
 ### Added
