@@ -31,13 +31,14 @@ def run_all_tests():
 
     start_time = time.time()
 
-    # Run all tests
-    print("📊 Running all tests...")
-    test_cmd = [
+    # Run main tests (excluding performance tests)
+    print("📊 Running main tests (unit, integration, system)...")
+    main_test_cmd = [
         sys.executable,
         "-m",
         "pytest",
         "tests/",
+        "--ignore=tests/performance",
         "-v",
         "--tb=short",
         "--durations=10",
@@ -46,7 +47,20 @@ def run_all_tests():
         "--cov-report=html:htmlcov_all",
     ]
 
-    result = subprocess.run(test_cmd, env=env, capture_output=True, text=True)
+    main_result = subprocess.run(main_test_cmd, env=env, capture_output=True, text=True)
+
+    # Run performance tests separately
+    print("⚡ Running performance tests...")
+    perf_test_cmd = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "tests/performance/",
+        "-v",
+        "--tb=short",
+    ]
+
+    perf_result = subprocess.run(perf_test_cmd, env=env, capture_output=True, text=True)
 
     # Skip mypy type checking on tests (not needed)
     # Only run mypy on source code
@@ -71,12 +85,19 @@ def run_all_tests():
     print("📊 COMPLETE TEST SUITE RESULTS")
     print("=" * 50)
 
-    if result.returncode == 0:
-        print("✅ All tests: PASSED")
+    if main_result.returncode == 0:
+        print("✅ Main tests: PASSED")
     else:
-        print("❌ All tests: FAILED")
-        print(result.stdout)
-        print(result.stderr)
+        print("❌ Main tests: FAILED")
+        print(main_result.stdout)
+        print(main_result.stderr)
+
+    if perf_result.returncode == 0:
+        print("✅ Performance tests: PASSED")
+    else:
+        print("❌ Performance tests: FAILED")
+        print(perf_result.stdout)
+        print(perf_result.stderr)
 
     if mypy_source_result.returncode == 0:
         print("✅ Source code mypy: PASSED")
@@ -88,7 +109,7 @@ def run_all_tests():
     print(f"⏱️  Total duration: {duration:.2f}s")
 
     # Return success if all checks passed
-    return result.returncode == 0 and mypy_source_result.returncode == 0
+    return main_result.returncode == 0 and perf_result.returncode == 0 and mypy_source_result.returncode == 0
 
 
 if __name__ == "__main__":
