@@ -509,9 +509,13 @@ class TestLogWriter:
 
             result = writer.validate_log_data_quality(log_rows)
 
-            assert result["quality_passed"] is True
-            assert result["validation_rate"] == 100.0
-            assert result["threshold_met"] is True
+            # Check new DataQualityReport structure
+            assert result["is_valid"] is True
+            assert result["total_rows"] == 2
+            assert isinstance(result["null_counts"], dict)
+            assert isinstance(result["validation_issues"], list)
+            assert result["failed_executions"] == 0
+            assert isinstance(result["data_quality_score"], float)
 
     def test_validate_log_data_quality_failure(self, writer):
         """Test data quality validation failure."""
@@ -551,10 +555,13 @@ class TestLogWriter:
 
             result = writer.validate_log_data_quality(log_rows)
 
-            # The method is hardcoded to return 100% validation rate
-            assert result["quality_passed"] is True
-            assert result["validation_rate"] == 100.0
-            assert result["threshold_met"] is True
+            # Check new DataQualityReport structure
+            assert result["is_valid"] is True
+            assert result["total_rows"] == 1
+            assert isinstance(result["null_counts"], dict)
+            assert isinstance(result["validation_issues"], list)
+            assert result["failed_executions"] == 0
+            assert isinstance(result["data_quality_score"], float)
 
     def test_detect_anomalies_success(self, writer):
         """Test successful anomaly detection."""
@@ -577,11 +584,17 @@ class TestLogWriter:
 
         result = writer.detect_anomalies(log_rows)
 
-        # The method may not detect anomalies with this simple data
-        assert "anomalies_detected" in result
-        assert "anomaly_count" in result
-        assert "anomalies" in result
-        assert "analysis_timestamp" in result
+        # Check new AnomalyReport structure
+        assert "performance_anomalies" in result
+        assert "quality_anomalies" in result
+        assert "anomaly_score" in result
+        assert "total_anomalies" in result
+        assert "total_executions" in result
+        assert isinstance(result["performance_anomalies"], list)
+        assert isinstance(result["quality_anomalies"], list)
+        assert isinstance(result["anomaly_score"], float)
+        assert isinstance(result["total_anomalies"], int)
+        assert isinstance(result["total_executions"], int)
 
     def test_detect_anomalies_disabled(self, writer):
         """Test anomaly detection when disabled."""
@@ -591,8 +604,13 @@ class TestLogWriter:
 
         result = writer.detect_anomalies(log_rows)
 
-        assert result["anomalies_detected"] is False
-        assert result["reason"] == "Anomaly detection disabled"
+        # Check new AnomalyReport structure for disabled case
+        assert "performance_anomalies" in result
+        assert "quality_anomalies" in result
+        assert result["total_anomalies"] == 0
+        assert result["total_executions"] == 0
+        assert len(result["performance_anomalies"]) == 0
+        assert len(result["quality_anomalies"]) == 0
 
     def test_optimize_table_success(self, writer):
         """Test successful table optimization."""

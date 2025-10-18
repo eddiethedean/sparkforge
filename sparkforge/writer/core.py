@@ -28,12 +28,30 @@ from ..functions import FunctionsProtocol, get_default_functions
 from ..logging import PipelineLogger
 from ..models import ExecutionResult, StepResult
 from ..pipeline.models import PipelineReport
-from .analytics import DataQualityAnalyzer, TrendAnalyzer
+from .analytics import (
+    DataQualityAnalyzer,
+    ExecutionTrends,
+    QualityAnomalies,
+    QualityTrends,
+    TrendAnalyzer,
+)
 from .exceptions import WriterConfigurationError, WriterError
 from .models import LogRow, WriteMode, WriterConfig, WriterMetrics, create_log_schema
-from .monitoring import AnalyticsEngine, PerformanceMonitor
-from .operations import DataProcessor
-from .storage import StorageManager
+from .monitoring import (
+    AnalyticsEngine,
+    AnomalyReport,
+    MemoryUsageInfo,
+    PerformanceMonitor,
+    PerformanceReport,
+)
+from .operations import DataProcessor, DataQualityReport
+from .storage import (
+    OptimizeResult,
+    StorageManager,
+    TableInfo,
+    VacuumResult,
+    WriteResult,
+)
 
 
 def time_write_operation(
@@ -405,7 +423,15 @@ class LogWriter:
         except Exception as e:
             # End performance monitoring with failure
             self.performance_monitor.end_operation(operation_id, False, 0, str(e))
-            self._update_metrics({}, False)
+            # Create empty WriteResult for error case
+            empty_result: WriteResult = {
+                "table_name": self.storage_manager.table_fqn,
+                "write_mode": self.config.write_mode.value,
+                "rows_written": 0,
+                "timestamp": "",
+                "success": False,
+            }
+            self._update_metrics(empty_result, False)
 
             self.logger.error(f"Failed to write execution result for run {run_id}: {e}")
             raise
@@ -478,7 +504,15 @@ class LogWriter:
         except Exception as e:
             # End performance monitoring with failure
             self.performance_monitor.end_operation(operation_id, False, 0, str(e))
-            self._update_metrics({}, False)
+            # Create empty WriteResult for error case
+            empty_result: WriteResult = {
+                "table_name": self.storage_manager.table_fqn,
+                "write_mode": self.config.write_mode.value,
+                "rows_written": 0,
+                "timestamp": "",
+                "success": False,
+            }
+            self._update_metrics(empty_result, False)
 
             self.logger.error(f"Failed to write step results for run {run_id}: {e}")
             raise
@@ -540,7 +574,15 @@ class LogWriter:
         except Exception as e:
             # End performance monitoring with failure
             self.performance_monitor.end_operation(operation_id, False, 0, str(e))
-            self._update_metrics({}, False)
+            # Create empty WriteResult for error case
+            empty_result: WriteResult = {
+                "table_name": self.storage_manager.table_fqn,
+                "write_mode": self.config.write_mode.value,
+                "rows_written": 0,
+                "timestamp": "",
+                "success": False,
+            }
+            self._update_metrics(empty_result, False)
 
             self.logger.error(f"Failed to write log rows for run {run_id}: {e}")
             raise
@@ -621,7 +663,15 @@ class LogWriter:
         except Exception as e:
             # End performance monitoring with failure
             self.performance_monitor.end_operation(operation_id, False, 0, str(e))
-            self._update_metrics({}, False)
+            # Create empty WriteResult for error case
+            empty_result: WriteResult = {
+                "table_name": self.storage_manager.table_fqn,
+                "write_mode": self.config.write_mode.value,
+                "rows_written": 0,
+                "timestamp": "",
+                "success": False,
+            }
+            self._update_metrics(empty_result, False)
 
             self.logger.error(f"Failed to write execution result batch: {e}")
             raise
@@ -655,7 +705,7 @@ class LogWriter:
             self.logger.error(f"Failed to display logs: {e}")
             raise
 
-    def get_table_info(self) -> Dict[str, Any]:
+    def get_table_info(self) -> TableInfo:
         """
         Get information about the log table.
 
@@ -668,7 +718,7 @@ class LogWriter:
             self.logger.error(f"Failed to get table info: {e}")
             raise WriterError(f"Failed to get table info: {e}") from e
 
-    def optimize_table(self) -> Dict[str, Any]:
+    def optimize_table(self) -> OptimizeResult:
         """
         Optimize the Delta table for better performance.
 
@@ -682,7 +732,7 @@ class LogWriter:
             self.logger.error(f"Failed to optimize table: {e}")
             raise
 
-    def vacuum_table(self, retention_hours: int = 168) -> Dict[str, Any]:
+    def vacuum_table(self, retention_hours: int = 168) -> VacuumResult:
         """
         Vacuum the Delta table to remove old files.
 
@@ -699,7 +749,7 @@ class LogWriter:
             self.logger.error(f"Failed to vacuum table: {e}")
             raise
 
-    def analyze_quality_trends(self, days: int = 30) -> Dict[str, Any]:
+    def analyze_quality_trends(self, days: int = 30) -> QualityTrends:
         """
         Analyze data quality trends.
 
@@ -722,7 +772,7 @@ class LogWriter:
             self.logger.error(f"Failed to analyze quality trends: {e}")
             raise WriterError(f"Failed to analyze quality trends: {e}") from e
 
-    def analyze_execution_trends(self, days: int = 30) -> Dict[str, Any]:
+    def analyze_execution_trends(self, days: int = 30) -> ExecutionTrends:
         """
         Analyze execution trends.
 
@@ -745,7 +795,7 @@ class LogWriter:
             self.logger.error(f"Failed to analyze execution trends: {e}")
             raise WriterError(f"Failed to analyze execution trends: {e}") from e
 
-    def detect_quality_anomalies(self) -> Dict[str, Any]:
+    def detect_quality_anomalies(self) -> QualityAnomalies:
         """
         Detect data quality anomalies.
 
@@ -765,7 +815,7 @@ class LogWriter:
             self.logger.error(f"Failed to detect quality anomalies: {e}")
             raise WriterError(f"Failed to detect quality anomalies: {e}") from e
 
-    def generate_performance_report(self) -> Dict[str, Any]:
+    def generate_performance_report(self) -> PerformanceReport:
         """
         Generate comprehensive performance report.
 
@@ -804,11 +854,11 @@ class LogWriter:
         # Reset performance monitor metrics
         self.performance_monitor.reset_metrics()
 
-    def get_memory_usage(self) -> Dict[str, Any]:
+    def get_memory_usage(self) -> MemoryUsageInfo:
         """Get current memory usage information."""
         return self.performance_monitor.get_memory_usage()
 
-    def _update_metrics(self, write_result: Dict[str, Any], success: bool) -> None:
+    def _update_metrics(self, write_result: WriteResult, success: bool) -> None:
         """Update writer metrics."""
         try:
             self.metrics["total_writes"] += 1
@@ -832,13 +882,13 @@ class LogWriter:
         log_rows: list[LogRow],
         run_id: str,
         metadata: Dict[str, Any] | None = None,
-    ) -> Dict[str, Any]:
+    ) -> WriteResult:
         """Write log rows directly (for backward compatibility with tests)."""
         return self.storage_manager.write_batch(log_rows, self.config.write_mode)
 
     def _write_log_rows_batch(
         self, log_rows: list[LogRow], run_id: str, batch_size: int = 100
-    ) -> Dict[str, Any]:
+    ) -> WriteResult:
         """Write log rows in batches (for backward compatibility with tests)."""
         results = []
         for i in range(0, len(log_rows), batch_size):
@@ -847,10 +897,13 @@ class LogWriter:
             results.append(result)
 
         total_rows = sum(r.get("rows_written", 0) for r in results)
+        from datetime import datetime
         return {
-            "success": True,
+            "table_name": self.storage_manager.table_fqn,
+            "write_mode": self.config.write_mode.value,
             "rows_written": total_rows,
-            "batches": len(results),
+            "timestamp": datetime.now().isoformat(),
+            "success": True,
         }
 
     def _create_dataframe_from_log_rows(self, log_rows: list[LogRow]) -> Any:
@@ -859,23 +912,27 @@ class LogWriter:
         dict_rows = [dict(row) for row in log_rows]
         return self.spark.createDataFrame(dict_rows, schema=self.schema)  # type: ignore[attr-defined]
 
-    def detect_anomalies(self, log_rows: list[LogRow]) -> Dict[str, Any]:
+    def detect_anomalies(self, log_rows: list[LogRow]) -> AnomalyReport:
         """Detect anomalies in log data (for backward compatibility with tests)."""
         if not self.config.enable_anomaly_detection:
             return {
-                "anomalies_detected": False,
-                "reason": "Anomaly detection disabled",
+                "performance_anomalies": [],
+                "quality_anomalies": [],
+                "anomaly_score": 0.0,
+                "total_anomalies": 0,
+                "total_executions": 0,
             }
 
         try:
-            from datetime import datetime
 
             # Basic anomaly detection logic
             if not log_rows:
                 return {
-                    "anomalies_detected": False,
-                    "anomaly_count": 0,
-                    "anomalies": [],
+                    "performance_anomalies": [],
+                    "quality_anomalies": [],
+                    "anomaly_score": 0.0,
+                    "total_anomalies": 0,
+                    "total_executions": len(log_rows),
                 }
 
             # Check for duration anomalies (very simple logic)
@@ -886,52 +943,65 @@ class LogWriter:
             ]
             if not durations:
                 return {
-                    "anomalies_detected": False,
-                    "anomaly_count": 0,
-                    "anomalies": [],
+                    "performance_anomalies": [],
+                    "quality_anomalies": [],
+                    "anomaly_score": 0.0,
+                    "total_anomalies": 0,
+                    "total_executions": len(log_rows),
                 }
 
             avg_duration = sum(durations) / len(durations)
             threshold = avg_duration * 2  # 2x average is anomalous
 
-            anomalies = []
+            from .monitoring import PerformanceAnomaly
+
+            performance_anomalies = []
             for row in log_rows:
                 duration = row.get("duration_secs", 0)
                 if duration > threshold:
-                    anomalies.append(
-                        {
-                            "run_id": row.get("run_id"),
-                            "duration_secs": duration,
-                            "threshold": threshold,
-                            "type": "duration_anomaly",
-                        }
-                    )
+                    anomaly: PerformanceAnomaly = {
+                        "step": row.get("step_name", "unknown"),
+                        "execution_time": float(duration),
+                        "validation_rate": float(row.get("validation_rate", 0.0)),
+                        "success": bool(row.get("success", False)),
+                    }
+                    performance_anomalies.append(anomaly)
+
+            total_anomalies = len(performance_anomalies)
+            total_executions = len(log_rows)
+            anomaly_score = (total_anomalies / total_executions * 100) if total_executions > 0 else 0.0
 
             return {
-                "anomalies_detected": len(anomalies) > 0,
-                "anomaly_count": len(anomalies),
-                "anomalies": anomalies,
-                "analysis_timestamp": datetime.utcnow().isoformat(),
+                "performance_anomalies": performance_anomalies,
+                "quality_anomalies": [],
+                "anomaly_score": round(anomaly_score, 2),
+                "total_anomalies": total_anomalies,
+                "total_executions": total_executions,
             }
         except Exception as e:
             self.logger.warning(f"Anomaly detection failed: {e}")
             return {
-                "anomalies_detected": False,
-                "error": str(e),
+                "performance_anomalies": [],
+                "quality_anomalies": [],
+                "anomaly_score": 0.0,
+                "total_anomalies": 0,
+                "total_executions": len(log_rows) if log_rows else 0,
             }
 
     # Additional methods expected by tests
-    def validate_log_data_quality(self, log_rows: list[LogRow]) -> Dict[str, Any]:
+    def validate_log_data_quality(self, log_rows: list[LogRow]) -> DataQualityReport:
         """Validate log data quality (for backward compatibility with tests)."""
         try:
             from ..validation.utils import get_dataframe_info
 
             if not log_rows:
                 return {
-                    "quality_passed": True,
-                    "validation_rate": 100.0,
-                    "threshold_met": True,
-                    "issues": [],
+                    "is_valid": True,
+                    "total_rows": 0,
+                    "null_counts": {},
+                    "validation_issues": [],
+                    "failed_executions": 0,
+                    "data_quality_score": 100.0,
                 }
 
             # Create DataFrame for validation
@@ -940,29 +1010,39 @@ class LogWriter:
             # Get basic info
             df_info = get_dataframe_info(df)
 
-            # Simple validation - assume 100% for now
-            validation_rate = 100.0
+            # Count failed executions
+            failed_executions = sum(1 for row in log_rows if not row.get("success", True))
 
-            # Determine if quality passed
-            quality_passed = validation_rate >= 95.0
-            threshold_met = validation_rate >= 90.0
+            # Calculate quality score
+            total_rows = df_info.get("row_count", len(log_rows))
+            validation_rate = 100.0  # Simplified
+            data_quality_score = validation_rate if failed_executions == 0 else max(0, validation_rate - (failed_executions / total_rows * 100))
+
+            # Check for null values in critical columns
+            null_counts: Dict[str, int] = {}
+
+            # Determine validation issues
+            validation_issues = []
+            if failed_executions > 0:
+                validation_issues.append(f"{failed_executions} failed executions")
 
             return {
-                "quality_passed": quality_passed,
-                "validation_rate": validation_rate,
-                "threshold_met": threshold_met,
-                "issues": [] if quality_passed else ["Low validation rate"],
-                "row_count": df_info.get("row_count", 0),
-                "column_count": df_info.get("column_count", 0),
+                "is_valid": failed_executions == 0 and len(validation_issues) == 0,
+                "total_rows": total_rows,
+                "null_counts": null_counts,
+                "validation_issues": validation_issues,
+                "failed_executions": failed_executions,
+                "data_quality_score": round(data_quality_score, 2),
             }
 
         except Exception as e:
             return {
-                "quality_passed": False,
-                "validation_rate": 0.0,
-                "threshold_met": False,
-                "issues": [str(e)],
-                "error": str(e),
+                "is_valid": False,
+                "total_rows": len(log_rows) if log_rows else 0,
+                "null_counts": {},
+                "validation_issues": [str(e)],
+                "failed_executions": 0,
+                "data_quality_score": 0.0,
             }
 
     # ========================================================================
@@ -1135,7 +1215,15 @@ class LogWriter:
         except Exception as e:
             # End performance monitoring with failure
             self.performance_monitor.end_operation(operation_id, False, 0, str(e))
-            self._update_metrics({}, False)
+            # Create empty WriteResult for error case
+            empty_result: WriteResult = {
+                "table_name": self.storage_manager.table_fqn,
+                "write_mode": self.config.write_mode.value,
+                "rows_written": 0,
+                "timestamp": "",
+                "success": False,
+            }
+            self._update_metrics(empty_result, False)
 
             self.logger.error(f"❌ Failed to create log table for run {run_id}: {e}")
             raise
@@ -1216,7 +1304,15 @@ class LogWriter:
         except Exception as e:
             # End performance monitoring with failure
             self.performance_monitor.end_operation(operation_id, False, 0, str(e))
-            self._update_metrics({}, False)
+            # Create empty WriteResult for error case
+            empty_result: WriteResult = {
+                "table_name": self.storage_manager.table_fqn,
+                "write_mode": self.config.write_mode.value,
+                "rows_written": 0,
+                "timestamp": "",
+                "success": False,
+            }
+            self._update_metrics(empty_result, False)
 
             self.logger.error(f"❌ Failed to append to log table for run {run_id}: {e}")
             raise

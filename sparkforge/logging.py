@@ -9,7 +9,7 @@ import logging
 import sys
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Any, Dict, Generator, List, Optional, Union
+from typing import Dict, Generator, List, Optional, Union
 
 
 class PipelineLogger:
@@ -73,27 +73,27 @@ class PipelineLogger:
             self.logger.addHandler(file_handler)
 
     # Basic logging methods
-    def debug(self, message: str, **kwargs: Any) -> None:
+    def debug(self, message: str, **kwargs: Union[str, int, float, bool, None]) -> None:
         """Log debug message."""
         self.logger.debug(self._format_message(message, kwargs))
 
-    def info(self, message: str, **kwargs: Any) -> None:
+    def info(self, message: str, **kwargs: Union[str, int, float, bool, None]) -> None:
         """Log info message."""
         self.logger.info(self._format_message(message, kwargs))
 
-    def warning(self, message: str, **kwargs: Any) -> None:
+    def warning(self, message: str, **kwargs: Union[str, int, float, bool, None]) -> None:
         """Log warning message."""
         self.logger.warning(self._format_message(message, kwargs))
 
-    def error(self, message: str, **kwargs: Any) -> None:
+    def error(self, message: str, **kwargs: Union[str, int, float, bool, None]) -> None:
         """Log error message."""
         self.logger.error(self._format_message(message, kwargs))
 
-    def critical(self, message: str, **kwargs: Any) -> None:
+    def critical(self, message: str, **kwargs: Union[str, int, float, bool, None]) -> None:
         """Log critical message."""
         self.logger.critical(self._format_message(message, kwargs))
 
-    def _format_message(self, message: str, kwargs: Dict[str, Any]) -> str:
+    def _format_message(self, message: str, kwargs: Dict[str, Union[str, int, float, bool, None]]) -> str:
         """Format message with context."""
         if not kwargs:
             return message

@@ -14,7 +14,7 @@ pipeline execution data, detecting trends, and generating insights.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Any, Dict
+from typing import Dict, Literal, TypedDict, Union, cast
 
 from ..compat import DataFrame, F, SparkSession
 from ..logging import PipelineLogger
@@ -23,6 +23,167 @@ from .query_builder import QueryBuilder
 
 # Alias for convenience
 col = F.col
+
+
+# ============================================================================
+# TypedDict Definitions
+# ============================================================================
+
+
+class AnalysisPeriod(TypedDict):
+    """Analysis period structure."""
+
+    start_date: str
+    end_date: str
+    days_analyzed: int
+
+
+class DailyQualityTrend(TypedDict):
+    """Daily quality trend data point."""
+
+    date: str
+    total_executions: int
+    avg_validation_rate: float
+    min_validation_rate: float
+    max_validation_rate: float
+    stddev_validation_rate: float
+    high_quality_executions: int
+    low_quality_executions: int
+    quality_score: str
+
+
+class OverallQualityMetrics(TypedDict):
+    """Overall quality metrics."""
+
+    total_executions: int
+    avg_validation_rate: float
+    min_validation_rate: float
+    max_validation_rate: float
+    stddev_validation_rate: float
+
+
+class DegradationAlert(TypedDict):
+    """Quality degradation alert."""
+
+    type: str
+    message: str
+    severity: Literal["high", "medium", "low"]
+
+
+class QualityTrends(TypedDict):
+    """Quality trends analysis structure."""
+
+    analysis_period: AnalysisPeriod
+    daily_trends: list[DailyQualityTrend]
+    overall_metrics: OverallQualityMetrics
+    degradation_alerts: list[DegradationAlert]
+    quality_grade: str
+
+
+class ValidationAnomaly(TypedDict):
+    """Validation anomaly data point."""
+
+    step: str
+    phase: str
+    validation_rate: float
+    valid_rows: int
+    invalid_rows: int
+    timestamp: str
+
+
+class StepAnomaly(TypedDict):
+    """Step-level anomaly data point."""
+
+    step: str
+    execution_count: int
+    avg_validation_rate: float
+    min_validation_rate: float
+    stddev_validation_rate: float
+    anomaly_score: float
+
+
+class TemporalAnomaly(TypedDict):
+    """Temporal anomaly data point."""
+
+    date: str
+    daily_avg_validation_rate: float
+    prev_avg_validation_rate: float
+    quality_change: float
+
+
+class AnomalySummary(TypedDict):
+    """Anomaly summary statistics."""
+
+    total_validation_anomalies: int
+    total_step_anomalies: int
+    total_temporal_anomalies: int
+    overall_anomaly_score: float
+
+
+class QualityAnomalies(TypedDict):
+    """Quality anomalies analysis structure."""
+
+    validation_anomalies: list[ValidationAnomaly]
+    step_anomalies: list[StepAnomaly]
+    temporal_anomalies: list[TemporalAnomaly]
+    anomaly_summary: AnomalySummary
+
+
+class VolumeTrendPoint(TypedDict):
+    """Volume trend data point."""
+
+    date: str
+    daily_executions: int
+    successful_executions: int
+    failed_executions: int
+    success_rate: float
+    avg_execution_time: float
+    total_rows_written: int
+
+
+class PhaseTrendPoint(TypedDict):
+    """Phase trend data point."""
+
+    phase: str
+    execution_count: int
+    avg_execution_time: float
+    avg_validation_rate: float
+    total_rows_written: int
+    success_rate: float
+
+
+class StepTrendPoint(TypedDict):
+    """Step trend data point."""
+
+    step: str
+    execution_count: int
+    avg_execution_time: float
+    avg_validation_rate: float
+    stddev_execution_time: float
+    min_execution_time: float
+    max_execution_time: float
+    performance_grade: str
+
+
+class TrendIndicators(TypedDict):
+    """Trend indicators."""
+
+    execution_volume_trend: str
+    success_rate_trend: str
+    recent_executions: int
+    historical_avg_executions: float
+    recent_success_rate: float
+    historical_success_rate: float
+
+
+class ExecutionTrends(TypedDict):
+    """Execution trends analysis structure."""
+
+    analysis_period: AnalysisPeriod
+    volume_trends: list[VolumeTrendPoint]
+    phase_trends: list[PhaseTrendPoint]
+    step_trends: list[StepTrendPoint]
+    trend_indicators: TrendIndicators
 
 
 class DataQualityAnalyzer:
@@ -36,7 +197,7 @@ class DataQualityAnalyzer:
         else:
             self.logger = logger
 
-    def analyze_quality_trends(self, df: DataFrame, days: int = 30) -> Dict[str, Any]:
+    def analyze_quality_trends(self, df: DataFrame, days: int = 30) -> QualityTrends:
         """
         Analyze data quality trends over time.
 
@@ -127,13 +288,13 @@ class DataQualityAnalyzer:
             }
 
             self.logger.info("Data quality trends analysis completed")
-            return analysis_result
+            return cast(QualityTrends, analysis_result)
 
         except Exception as e:
             self.logger.error(f"Failed to analyze quality trends: {e}")
             raise WriterError(f"Failed to analyze quality trends: {e}") from e
 
-    def detect_quality_anomalies(self, df: DataFrame) -> Dict[str, Any]:
+    def detect_quality_anomalies(self, df: DataFrame) -> QualityAnomalies:
         """
         Detect data quality anomalies.
 
@@ -238,13 +399,13 @@ class DataQualityAnalyzer:
             self.logger.info(
                 f"Quality anomaly detection completed: {len(validation_anomalies)} validation anomalies found"
             )
-            return anomaly_result
+            return cast(QualityAnomalies, anomaly_result)
 
         except Exception as e:
             self.logger.error(f"Failed to detect quality anomalies: {e}")
             raise WriterError(f"Failed to detect quality anomalies: {e}") from e
 
-    def _calculate_quality_score(self, row: Dict[str, Any]) -> str:
+    def _calculate_quality_score(self, row: Dict[str, Union[int, float]]) -> str:
         """Calculate quality score for a row."""
         avg_rate = row["avg_validation_rate"]
         if avg_rate >= 95.0:
@@ -267,7 +428,7 @@ class DataQualityAnalyzer:
         else:
             return "D"
 
-    def _calculate_anomaly_score(self, row: Dict[str, Any]) -> float:
+    def _calculate_anomaly_score(self, row: Dict[str, Union[int, float]]) -> float:
         """Calculate anomaly score for a step."""
         avg_rate = row["avg_validation_rate"]
         stddev_rate = row["stddev_validation_rate"]
@@ -305,7 +466,7 @@ class TrendAnalyzer:
         else:
             self.logger = logger
 
-    def analyze_execution_trends(self, df: DataFrame, days: int = 30) -> Dict[str, Any]:
+    def analyze_execution_trends(self, df: DataFrame, days: int = 30) -> ExecutionTrends:
         """
         Analyze execution trends over time.
 
@@ -398,18 +559,25 @@ class TrendAnalyzer:
             }
 
             self.logger.info("Execution trends analysis completed")
-            return analysis_result
+            return cast(ExecutionTrends, analysis_result)
 
         except Exception as e:
             self.logger.error(f"Failed to analyze execution trends: {e}")
             raise WriterError(f"Failed to analyze execution trends: {e}") from e
 
     def _calculate_trend_indicators(
-        self, volume_trends: list[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, volume_trends: list[Dict[str, Union[int, float]]]
+    ) -> TrendIndicators:
         """Calculate trend indicators from volume trends."""
         if len(volume_trends) < 2:
-            return {"trend": "insufficient_data"}
+            return {
+                "execution_volume_trend": "insufficient_data",
+                "success_rate_trend": "insufficient_data",
+                "recent_executions": 0,
+                "historical_avg_executions": 0.0,
+                "recent_success_rate": 0.0,
+                "historical_success_rate": 0.0,
+            }
 
         # Calculate execution volume trend
         recent_executions = volume_trends[-1]["daily_executions"]
@@ -454,13 +622,13 @@ class TrendAnalyzer:
         return {
             "execution_volume_trend": execution_trend,
             "success_rate_trend": success_trend,
-            "recent_executions": recent_executions,
+            "recent_executions": int(recent_executions),
             "historical_avg_executions": round(historical_avg, 2),
             "recent_success_rate": round(recent_success_rate, 2),
             "historical_success_rate": round(historical_success_rate, 2),
         }
 
-    def _calculate_performance_grade(self, row: Dict[str, Any]) -> str:
+    def _calculate_performance_grade(self, row: Dict[str, Union[int, float]]) -> str:
         """Calculate performance grade for a step."""
         avg_time = row["avg_execution_time"]
         stddev_time = row["stddev_execution_time"]

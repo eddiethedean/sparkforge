@@ -10,7 +10,7 @@ into framework components, allowing for better testability and flexibility.
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Protocol
 
 from .compat import Column
 
@@ -26,11 +26,11 @@ class FunctionsProtocol(Protocol):
         """Create an expression from a string."""
         ...
 
-    def lit(self, value: Any) -> Column:
+    def lit(self, value: str | int | float | bool | None) -> Column:
         """Create a literal column."""
         ...
 
-    def when(self, condition: Column, value: Any) -> Column:
+    def when(self, condition: Column, value: str | int | float | bool | None) -> Column:
         """Create a conditional expression."""
         ...
 

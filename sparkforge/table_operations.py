@@ -13,7 +13,6 @@ in the data lake.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from .compat import AnalysisException, DataFrame, SparkSession
 from .errors import TableOperationError
@@ -42,7 +41,7 @@ def fqn(schema: str, table: str) -> str:
 
 
 @time_operation("table write (overwrite)")
-def write_overwrite_table(df: DataFrame, fqn: str, **options: Any) -> int:
+def write_overwrite_table(df: DataFrame, fqn: str, **options: str | int | float | bool) -> int:
     """
     Write DataFrame to table in overwrite mode.
 
@@ -80,7 +79,7 @@ def write_overwrite_table(df: DataFrame, fqn: str, **options: Any) -> int:
 
 
 @time_operation("table write (append)")
-def write_append_table(df: DataFrame, fqn: str, **options: Any) -> int:
+def write_append_table(df: DataFrame, fqn: str, **options: str | int | float | bool) -> int:
     """
     Write DataFrame to table in append mode.
 

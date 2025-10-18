@@ -16,9 +16,9 @@ integration, table management, and data persistence.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict
+from typing import Dict, TypedDict, Union, cast
 
-from ..compat import DataFrame, SparkSession
+from ..compat import DataFrame, SparkSession, types
 
 # Handle optional Delta Lake dependency
 try:
@@ -34,6 +34,79 @@ from ..logging import PipelineLogger
 from ..table_operations import table_exists
 from .exceptions import WriterTableError
 from .models import LogRow, WriteMode, WriterConfig, create_log_schema
+
+# ============================================================================
+# TypedDict Definitions
+# ============================================================================
+
+
+class WriteResult(TypedDict):
+    """Write operation result structure."""
+
+    table_name: str
+    write_mode: str
+    rows_written: int
+    timestamp: str
+    success: bool
+
+
+class OptimizeResultSkipped(TypedDict):
+    """Optimize operation result when skipped."""
+
+    table_name: str
+    optimization_completed: bool  # False
+    skipped: bool  # True
+    reason: str
+    timestamp: str
+
+
+class TableInfo(TypedDict, total=False):
+    """Table information structure."""
+
+    table_name: str
+    row_count: int
+    details: list[dict[str, str | int | float | bool | None]]
+    history_count: int
+    last_modified: str | None
+    history: list[dict[str, str | int | float | bool | None]]
+    timestamp: str
+
+
+class OptimizeResultCompleted(TypedDict):
+    """Optimize operation result when completed."""
+
+    table_name: str
+    optimization_completed: bool  # True
+    timestamp: str
+    table_info: TableInfo
+
+
+# Union type for optimize result
+OptimizeResult = Union[OptimizeResultSkipped, OptimizeResultCompleted]
+
+
+class VacuumResultSkipped(TypedDict):
+    """Vacuum operation result when skipped."""
+
+    table_name: str
+    vacuum_completed: bool  # False
+    skipped: bool  # True
+    reason: str
+    retention_hours: int
+    timestamp: str
+
+
+class VacuumResultCompleted(TypedDict):
+    """Vacuum operation result when completed."""
+
+    table_name: str
+    vacuum_completed: bool  # True
+    retention_hours: int
+    timestamp: str
+
+
+# Union type for vacuum result
+VacuumResult = Union[VacuumResultSkipped, VacuumResultCompleted]
 
 
 class StorageManager:
@@ -56,7 +129,7 @@ class StorageManager:
             self.logger = logger
         self.table_fqn = f"{config.table_schema}.{config.table_name}"
 
-    def create_table_if_not_exists(self, schema: Any) -> None:
+    def create_table_if_not_exists(self, schema: types.StructType) -> None:
         """
         Create the log table if it doesn't exist.
 
@@ -103,7 +176,7 @@ class StorageManager:
         df: DataFrame,
         write_mode: WriteMode = WriteMode.APPEND,
         partition_columns: list[str] | None = None,
-    ) -> Dict[str, Any]:
+    ) -> WriteResult:
         """
         Write DataFrame to the log table.
 
@@ -152,7 +225,7 @@ class StorageManager:
             }
 
             self.logger.info(f"Successfully wrote {row_count} rows to {self.table_fqn}")
-            return write_result
+            return cast(WriteResult, write_result)
 
         except Exception as e:
             # Safely get row count for error context
@@ -176,7 +249,7 @@ class StorageManager:
 
     def write_batch(
         self, log_rows: list[LogRow], write_mode: WriteMode = WriteMode.APPEND
-    ) -> Dict[str, Any]:
+    ) -> WriteResult:
         """
         Write a batch of log rows to the table.
 
@@ -200,7 +273,7 @@ class StorageManager:
             self.logger.error(f"Failed to write batch: {e}")
             raise
 
-    def optimize_table(self) -> Dict[str, Any]:
+    def optimize_table(self) -> OptimizeResult:
         """
         Optimize the Delta table for better performance.
 
@@ -242,7 +315,7 @@ class StorageManager:
             }
 
             self.logger.info(f"Table optimization completed: {self.table_fqn}")
-            return optimization_result
+            return cast(OptimizeResult, optimization_result)
 
         except Exception as e:
             self.logger.error(f"Failed to optimize table {self.table_fqn}: {e}")
@@ -257,7 +330,7 @@ class StorageManager:
                 ],
             ) from e
 
-    def vacuum_table(self, retention_hours: int = 168) -> Dict[str, Any]:
+    def vacuum_table(self, retention_hours: int = 168) -> VacuumResult:
         """
         Vacuum the Delta table to remove old files.
 
@@ -297,7 +370,7 @@ class StorageManager:
             }
 
             self.logger.info(f"Table vacuum completed: {self.table_fqn}")
-            return vacuum_result
+            return cast(VacuumResult, vacuum_result)
 
         except Exception as e:
             self.logger.error(f"Failed to vacuum table {self.table_fqn}: {e}")
@@ -312,7 +385,7 @@ class StorageManager:
                 ],
             ) from e
 
-    def get_table_info(self) -> Dict[str, Any]:
+    def get_table_info(self) -> TableInfo:
         """
         Get information about the log table.
 
@@ -366,7 +439,7 @@ class StorageManager:
             }
 
             self.logger.info(f"Table info retrieved: {row_count} rows")
-            return table_info
+            return cast(TableInfo, table_info)
 
         except Exception as e:
             self.logger.error(f"Failed to get table info for {self.table_fqn}: {e}")
@@ -377,7 +450,7 @@ class StorageManager:
             ) from e
 
     def query_logs(
-        self, limit: int | None = None, filters: Dict[str, Any] | None = None
+        self, limit: int | None = None, filters: Union[Dict[str, Union[str, int, float, bool]], None] = None
     ) -> DataFrame:
         """
         Query logs from the table.

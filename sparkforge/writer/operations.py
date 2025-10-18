@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import Any, Dict
+from typing import Dict, TypedDict, Union, cast
 
 from ..compat import DataFrame, SparkSession
 from ..functions import FunctionsProtocol, get_default_functions
@@ -32,6 +32,21 @@ from .models import (
     create_log_schema,
     validate_log_data,
 )
+
+# ============================================================================
+# TypedDict Definitions
+# ============================================================================
+
+
+class DataQualityReport(TypedDict):
+    """Data quality validation report."""
+
+    is_valid: bool
+    total_rows: int
+    null_counts: Dict[str, int]
+    validation_issues: list[str]
+    failed_executions: int
+    data_quality_score: float
 
 
 class DataProcessor:
@@ -53,7 +68,7 @@ class DataProcessor:
         execution_result: ExecutionResult,
         run_id: str,
         run_mode: str = "initial",
-        metadata: Dict[str, Any] | None = None,
+        metadata: Union[Dict[str, Union[str, int, float, bool]], None] = None,
     ) -> list[LogRow]:
         """
         Process execution result into log rows.
@@ -104,7 +119,7 @@ class DataProcessor:
         step_results: Dict[str, StepResult],
         run_id: str,
         run_mode: str = "initial",
-        metadata: Dict[str, Any] | None = None,
+        metadata: Union[Dict[str, Union[str, int, float, bool]], None] = None,
     ) -> list[LogRow]:
         """
         Process step results into log rows.
@@ -231,7 +246,7 @@ class DataProcessor:
             self.logger.error(f"Failed to create DataFrame from log rows: {e}")
             raise
 
-    def validate_data_quality(self, df: DataFrame) -> Dict[str, Any]:
+    def validate_data_quality(self, df: DataFrame) -> DataQualityReport:
         """
         Validate data quality of the DataFrame.
 
@@ -288,7 +303,7 @@ class DataProcessor:
             self.logger.info(
                 f"Data quality validation completed: {validation_result['is_valid']}"
             )
-            return validation_result
+            return cast(DataQualityReport, validation_result)
 
         except Exception as e:
             self.logger.error(f"Failed to validate data quality: {e}")
@@ -296,7 +311,7 @@ class DataProcessor:
 
     def _calculate_quality_score(
         self,
-        df_info: Dict[str, Any],
+        df_info: Dict[str, Union[int, str]],
         null_counts: Dict[str, int],
         validation_issues: list[str],
         failed_executions: int,

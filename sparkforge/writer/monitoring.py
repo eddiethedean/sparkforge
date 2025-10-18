@@ -16,10 +16,10 @@ from __future__ import annotations
 
 import time
 from datetime import datetime
-from typing import Any, Dict
+from typing import Dict, TypedDict, cast
 
 try:
-    import psutil  # type: ignore[import-untyped]
+    import psutil
     HAS_PSUTIL = True
 except ImportError:
     HAS_PSUTIL = False
@@ -30,6 +30,142 @@ from ..logging import PipelineLogger
 from .exceptions import WriterError
 from .models import WriterMetrics
 from .query_builder import QueryBuilder
+
+# ============================================================================
+# TypedDict Definitions
+# ============================================================================
+
+
+class OperationMetrics(TypedDict):
+    """Metrics for a single operation."""
+
+    operation_id: str
+    success: bool
+    duration_secs: float
+    rows_written: int
+    memory_usage_mb: float
+    error_message: str | None
+    timestamp: str
+
+
+class SparkMemoryInfo(TypedDict, total=False):
+    """Spark memory configuration."""
+
+    executor_memory: str
+    driver_memory: str
+
+
+class MemoryUsageInfo(TypedDict):
+    """Memory usage information structure."""
+
+    total_mb: float
+    available_mb: float
+    used_mb: float
+    percentage: float
+    spark_memory: SparkMemoryInfo
+    psutil_available: bool
+
+
+class SuccessRateTrend(TypedDict):
+    """Success rate trend data point."""
+
+    date: str
+    success_rate: float
+    avg_validation_rate: float
+    avg_execution_time: float
+
+
+class PerformanceByPhase(TypedDict):
+    """Performance metrics by phase."""
+
+    phase: str
+    avg_execution_time: float
+    avg_validation_rate: float
+    execution_count: int
+
+
+class DataQualityTrend(TypedDict):
+    """Data quality trend data point."""
+
+    date: str
+    avg_validation_rate: float
+    min_validation_rate: float
+    max_validation_rate: float
+
+
+class PerformanceTrends(TypedDict):
+    """Execution trends analysis structure."""
+
+    success_rate_trend: list[SuccessRateTrend]
+    performance_by_phase: list[PerformanceByPhase]
+    data_quality_trend: list[DataQualityTrend]
+
+
+class PerformanceAnomaly(TypedDict):
+    """Performance anomaly data point."""
+
+    step: str
+    execution_time: float
+    validation_rate: float
+    success: bool
+
+
+class QualityAnomaly(TypedDict):
+    """Quality anomaly data point."""
+
+    step: str
+    validation_rate: float
+    valid_rows: int
+    invalid_rows: int
+
+
+class AnomalyReport(TypedDict):
+    """Anomaly detection results structure."""
+
+    performance_anomalies: list[PerformanceAnomaly]
+    quality_anomalies: list[QualityAnomaly]
+    anomaly_score: float
+    total_anomalies: int
+    total_executions: int
+
+
+class OverallStatistics(TypedDict):
+    """Overall performance statistics."""
+
+    total_executions: int
+    successful_executions: int
+    success_rate: float
+    avg_execution_time: float
+    avg_validation_rate: float
+    total_rows_written: int
+
+
+class PhaseStatistics(TypedDict):
+    """Phase-wise performance statistics."""
+
+    phase: str
+    execution_count: int
+    avg_execution_time: float
+    avg_validation_rate: float
+    total_rows_written: int
+
+
+class RecentPerformance(TypedDict):
+    """Recent performance data point."""
+
+    date: str
+    daily_executions: int
+    avg_execution_time: float
+    avg_validation_rate: float
+
+
+class PerformanceReport(TypedDict):
+    """Comprehensive performance report structure."""
+
+    overall_statistics: OverallStatistics
+    phase_statistics: list[PhaseStatistics]
+    recent_performance: list[RecentPerformance]
+    generated_at: str
 
 
 class PerformanceMonitor:
@@ -81,7 +217,7 @@ class PerformanceMonitor:
         success: bool,
         rows_written: int = 0,
         error_message: str | None = None,
-    ) -> Dict[str, Any]:
+    ) -> OperationMetrics:
         """
         End monitoring an operation and update metrics.
 
@@ -97,7 +233,16 @@ class PerformanceMonitor:
         try:
             if operation_id not in self.operation_start_times:
                 self.logger.warning(f"Operation {operation_id} was not being monitored")
-                return {}
+                # Return empty metrics matching the TypedDict
+                return {
+                    "operation_id": operation_id,
+                    "success": False,
+                    "duration_secs": 0.0,
+                    "rows_written": 0,
+                    "memory_usage_mb": 0.0,
+                    "error_message": "Operation was not being monitored",
+                    "timestamp": datetime.now().isoformat(),
+                }
 
             # Calculate duration
             start_time = self.operation_start_times[operation_id]
@@ -141,7 +286,7 @@ class PerformanceMonitor:
             self.logger.info(
                 f"Completed monitoring {operation_id}: {duration:.2f}s, {rows_written} rows"
             )
-            return operation_metrics
+            return cast(OperationMetrics, operation_metrics)
 
         except Exception as e:
             self.logger.error(f"Failed to end monitoring operation {operation_id}: {e}")
@@ -166,7 +311,7 @@ class PerformanceMonitor:
         }
         self.logger.info("Performance metrics reset")
 
-    def get_memory_usage(self) -> Dict[str, Any]:
+    def get_memory_usage(self) -> MemoryUsageInfo:
         """
         Get current memory usage information.
 
@@ -213,14 +358,14 @@ class PerformanceMonitor:
                 "psutil_available": True,
             }
 
-            return memory_info
+            return cast(MemoryUsageInfo, memory_info)
 
         except Exception as e:
             self.logger.error(f"Failed to get memory usage: {e}")
             raise WriterError(f"Failed to get memory usage: {e}") from e
 
     def check_performance_thresholds(
-        self, operation_metrics: Dict[str, Any]
+        self, operation_metrics: OperationMetrics
     ) -> list[str]:
         """
         Check if performance thresholds are exceeded.
@@ -268,7 +413,7 @@ class AnalyticsEngine:
         else:
             self.logger = logger
 
-    def analyze_execution_trends(self, df: DataFrame) -> Dict[str, Any]:
+    def analyze_execution_trends(self, df: DataFrame) -> PerformanceTrends:
         """
         Analyze execution trends from log data.
 
@@ -330,13 +475,13 @@ class AnalyticsEngine:
             ]
 
             self.logger.info("Execution trends analysis completed")
-            return trends
+            return cast(PerformanceTrends, trends)
 
         except Exception as e:
             self.logger.error(f"Failed to analyze execution trends: {e}")
             raise WriterError(f"Failed to analyze execution trends: {e}") from e
 
-    def detect_anomalies(self, df: DataFrame) -> Dict[str, Any]:
+    def detect_anomalies(self, df: DataFrame) -> AnomalyReport:
         """
         Detect anomalies in execution data.
 
@@ -349,7 +494,13 @@ class AnalyticsEngine:
         try:
             self.logger.info("Detecting anomalies in execution data")
 
-            anomalies: Dict[str, Any] = {}
+            anomalies: AnomalyReport = {
+                "performance_anomalies": [],
+                "quality_anomalies": [],
+                "anomaly_score": 0.0,
+                "total_anomalies": 0,
+                "total_executions": 0,
+            }
 
             # Calculate performance thresholds using query builder
             performance_stats = QueryBuilder.calculate_statistics(df, "execution_time")
@@ -413,7 +564,7 @@ class AnalyticsEngine:
             self.logger.error(f"Failed to detect anomalies: {e}")
             raise WriterError(f"Failed to detect anomalies: {e}") from e
 
-    def generate_performance_report(self, df: DataFrame) -> Dict[str, Any]:
+    def generate_performance_report(self, df: DataFrame) -> PerformanceReport:
         """
         Generate comprehensive performance report.
 
@@ -478,7 +629,7 @@ class AnalyticsEngine:
             }
 
             self.logger.info("Performance report generated successfully")
-            return report
+            return cast(PerformanceReport, report)
 
         except Exception as e:
             self.logger.error(f"Failed to generate performance report: {e}")

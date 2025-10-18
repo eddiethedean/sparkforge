@@ -13,16 +13,91 @@ for pipeline execution.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict
+from typing import TypedDict
 
 from .models import StageStats
 from .performance import format_duration
 from .validation import safe_divide
 
+# ============================================================================
+# TypedDict Definitions
+# ============================================================================
+
+
+class ValidationReport(TypedDict):
+    """Validation report structure."""
+
+    stage: str | None
+    step: str | None
+    total_rows: int
+    valid_rows: int
+    invalid_rows: int
+    validation_rate: float
+    duration_secs: float
+    start_at: datetime
+    end_at: datetime
+
+
+class TransformReport(TypedDict):
+    """Transform operation report structure."""
+
+    input_rows: int
+    output_rows: int
+    duration_secs: float
+    skipped: bool
+    start_at: datetime
+    end_at: datetime
+
+
+class WriteReport(TypedDict):
+    """Write operation report structure."""
+
+    mode: str
+    rows_written: int
+    duration_secs: float
+    table_fqn: str
+    skipped: bool
+    start_at: datetime
+    end_at: datetime
+
+
+class ExecutionSummary(TypedDict):
+    """Execution summary nested structure."""
+
+    total_steps: int
+    successful_steps: int
+    failed_steps: int
+    success_rate: float
+    failure_rate: float
+
+
+class PerformanceMetrics(TypedDict):
+    """Performance metrics nested structure."""
+
+    total_duration_secs: float
+    formatted_duration: str
+    avg_validation_rate: float
+
+
+class DataMetrics(TypedDict):
+    """Data metrics nested structure."""
+
+    total_rows_processed: int
+    total_rows_written: int
+    processing_efficiency: float
+
+
+class SummaryReport(TypedDict):
+    """Complete summary report structure."""
+
+    execution_summary: ExecutionSummary
+    performance_metrics: PerformanceMetrics
+    data_metrics: DataMetrics
+
 
 def create_validation_dict(
     stats: StageStats | None, *, start_at: datetime, end_at: datetime
-) -> Dict[str, Any]:
+) -> ValidationReport:
     """
     Create validation dictionary for reporting.
 
@@ -68,7 +143,7 @@ def create_transform_dict(
     *,
     start_at: datetime,
     end_at: datetime,
-) -> Dict[str, Any]:
+) -> TransformReport:
     """
     Create transform dictionary for reporting.
 
@@ -102,7 +177,7 @@ def create_write_dict(
     *,
     start_at: datetime,
     end_at: datetime,
-) -> Dict[str, Any]:
+) -> WriteReport:
     """
     Create write dictionary for reporting.
 
@@ -137,7 +212,7 @@ def create_summary_report(
     total_rows_processed: int,
     total_rows_written: int,
     avg_validation_rate: float,
-) -> Dict[str, Any]:
+) -> SummaryReport:
     """
     Create a summary report for pipeline execution.
 
