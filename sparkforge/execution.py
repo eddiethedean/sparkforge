@@ -371,8 +371,7 @@ class ExecutionEngine:
         )
 
         try:
-            self.logger.info(f"Starting pipeline execution: {execution_id}")
-
+            # Logging is handled by the runner to avoid duplicate messages
             # Validate context parameter
             if context is None:
                 context = {}

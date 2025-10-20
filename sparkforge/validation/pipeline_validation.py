@@ -106,11 +106,7 @@ class UnifiedValidator:
 
         is_valid = len(errors) == 0
 
-        if is_valid:
-            self.logger.info("Pipeline validation passed")
-        else:
-            self.logger.error(f"Pipeline validation failed with {len(errors)} errors")
-
+        # Logging is handled by the builder to avoid duplicate messages
         return ValidationResult(
             is_valid=is_valid,
             errors=errors,
