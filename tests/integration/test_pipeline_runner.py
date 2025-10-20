@@ -910,11 +910,11 @@ class TestSimplePipelineRunner:
         assert report.metrics.total_steps == 6
         assert report.metrics.successful_steps == 6
         assert report.metrics.failed_steps == 0
-        
+
         # Verify layer durations
         assert report.metrics.bronze_duration == 5.0  # 3.5 + 1.5
         assert report.metrics.silver_duration == 8.0  # 5.0 + 3.0
         assert report.metrics.gold_duration == 7.0  # 4.5 + 2.5
-        
+
         # Verify total duration is based on wall-clock time
         assert report.metrics.total_duration == 900.0  # 15 minutes

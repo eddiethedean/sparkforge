@@ -5,7 +5,7 @@ This shows how parallel execution saves time compared to sequential.
 """
 
 import time
-from datetime import datetime
+
 from sparkforge.logging import PipelineLogger
 
 print("\n" + "="*80)
@@ -23,8 +23,8 @@ def simulate_step(step_type, step_name, duration, rows, parallel=True):
     time.sleep(duration)  # Simulate processing time
     elapsed = time.time() - start
     logger.step_complete(
-        step_type, 
-        step_name, 
+        step_type,
+        step_name,
         elapsed,
         rows_processed=rows,
         rows_written=rows if step_type != "bronze" else None,

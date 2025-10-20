@@ -17,6 +17,8 @@ performance_tests_dir = Path(__file__).parent
 if str(performance_tests_dir) not in sys.path:
     sys.path.insert(0, str(performance_tests_dir))
 
+from performance_monitor import performance_monitor
+
 from sparkforge.models import (
     BronzeStep,
     GoldStep,
@@ -26,13 +28,10 @@ from sparkforge.models import (
     ValidationThresholds,
 )
 from sparkforge.validation import (
-    assess_data_quality,
     get_dataframe_info,
     safe_divide,
     validate_dataframe_schema,
 )
-
-from performance_monitor import performance_monitor
 
 
 class TestValidationPerformance:

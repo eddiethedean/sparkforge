@@ -5,8 +5,8 @@ Simple unit tests for writer core using Mock Spark.
 import pytest
 from mock_spark.errors import AnalysisException
 
-from sparkforge.writer.core import LogWriter
 from sparkforge.table_operations import table_exists
+from sparkforge.writer.core import LogWriter
 from sparkforge.writer.models import LogLevel, WriteMode, WriterConfig
 
 

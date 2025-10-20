@@ -272,7 +272,7 @@ class TestTableExists:
             # We patch the exception check in table_operations to recognize our mock
             analysis_exception = AnalysisException.__new__(AnalysisException)
             is_analysis_exception = True
-        
+
         mock_spark.table.side_effect = analysis_exception
 
         with patch("sparkforge.table_operations.logger") as mock_logger:

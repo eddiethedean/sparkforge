@@ -41,7 +41,7 @@ class SimpleDictCheckTest(unittest.TestCase):
             # In Python 3.9+, dict[str, int] syntax is supported
             def func_with_dict() -> dict[str, int]:
                 return {"test": 1}
-            
+
             self.assertEqual(func_with_dict(), {"test": 1})
 
         # Dict annotation should work

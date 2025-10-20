@@ -6,10 +6,18 @@ This shows how execution results are persisted across multiple pipeline runs.
 
 import time
 from datetime import datetime
-from mock_spark import MockSparkSession, MockStructField, MockStructType, StringType, IntegerType
 
-from sparkforge.execution import ExecutionEngine, ExecutionMode, ExecutionResult, StepExecutionResult, StepType, StepStatus
-from sparkforge.models import BronzeStep, SilverStep, GoldStep, PipelineConfig
+from mock_spark import (
+    MockSparkSession,
+)
+
+from sparkforge.execution import (
+    ExecutionMode,
+    ExecutionResult,
+    StepExecutionResult,
+    StepStatus,
+    StepType,
+)
 from sparkforge.writer import LogWriter
 
 print("\n" + "="*80)
@@ -89,11 +97,11 @@ run1_results = [
 ]
 
 print("📊 Pipeline executed successfully!")
-print(f"   - 2 Bronze steps completed")
-print(f"   - 2 Silver steps completed")
-print(f"   - 1 Gold step completed")
-print(f"   - Total duration: 3.23s")
-print(f"   - Total rows processed: 2,500")
+print("   - 2 Bronze steps completed")
+print("   - 2 Silver steps completed")
+print("   - 1 Gold step completed")
+print("   - Total duration: 3.23s")
+print("   - Total rows processed: 2,500")
 
 print("\n💾 Writing Run 1 results to log table...")
 try:
@@ -107,7 +115,7 @@ try:
         status="completed",
         steps=run1_results,
     )
-    
+
     writer.write_execution_result(
         execution_result=run1_execution,
         run_id="run_001",
@@ -181,11 +189,11 @@ run2_results = [
 ]
 
 print("⚠️  Pipeline completed with failures!")
-print(f"   - 2 Bronze steps completed")
-print(f"   - 1 Silver step completed")
-print(f"   - 1 Silver step FAILED (validation error)")
-print(f"   - 1 Gold step SKIPPED (dependency failed)")
-print(f"   - Total duration: 1.97s")
+print("   - 2 Bronze steps completed")
+print("   - 1 Silver step completed")
+print("   - 1 Silver step FAILED (validation error)")
+print("   - 1 Gold step SKIPPED (dependency failed)")
+print("   - Total duration: 1.97s")
 
 print("\n💾 Appending Run 2 results to log table...")
 try:
@@ -199,7 +207,7 @@ try:
         status="failed",
         steps=run2_results,
     )
-    
+
     writer.write_execution_result(
         execution_result=run2_execution,
         run_id="run_002",

@@ -61,7 +61,7 @@ class TestReportingCoverage:
         # Test function exists and can be called
         if hasattr(reporting, "generate_execution_report"):
             try:
-                func = getattr(reporting, "generate_execution_report")
+                func = reporting.generate_execution_report
                 report = func(execution_data)
                 assert report is not None
                 assert isinstance(report, (str, dict))
@@ -84,7 +84,7 @@ class TestReportingCoverage:
         # Test function exists and can be called
         if hasattr(reporting, "generate_quality_report"):
             try:
-                func = getattr(reporting, "generate_quality_report")
+                func = reporting.generate_quality_report
                 report = func(quality_data)
                 assert report is not None
                 assert isinstance(report, (str, dict))
@@ -108,7 +108,7 @@ class TestReportingCoverage:
         # Test function exists and can be called
         if hasattr(reporting, "generate_performance_report"):
             try:
-                func = getattr(reporting, "generate_performance_report")
+                func = reporting.generate_performance_report
                 report = func(performance_data)
                 assert report is not None
                 assert isinstance(report, (str, dict))
@@ -133,7 +133,7 @@ class TestReportingCoverage:
         # Test function exists and can be called
         if hasattr(reporting, "generate_error_report"):
             try:
-                func = getattr(reporting, "generate_error_report")
+                func = reporting.generate_error_report
                 report = func(error_data)
                 assert report is not None
                 assert isinstance(report, (str, dict))
@@ -156,7 +156,7 @@ class TestReportingCoverage:
         # Test function exists and can be called
         if hasattr(reporting, "format_report"):
             try:
-                func = getattr(reporting, "format_report")
+                func = reporting.format_report
                 formatted_report = func(report_data)
                 assert formatted_report is not None
                 assert isinstance(formatted_report, str)
@@ -174,7 +174,7 @@ class TestReportingCoverage:
         if hasattr(reporting, "save_report"):
             try:
                 with patch("builtins.open", Mock()):
-                    func = getattr(reporting, "save_report")
+                    func = reporting.save_report
                     result = func(report_content, file_path)
                     assert result is not None
             except Exception:
@@ -190,7 +190,7 @@ class TestReportingCoverage:
         if hasattr(reporting, "print_report"):
             try:
                 with patch("builtins.print"):
-                    func = getattr(reporting, "print_report")
+                    func = reporting.print_report
                     result = func(report_content)
                     assert result is not None
             except Exception:
@@ -222,7 +222,7 @@ class TestReportingCoverage:
         # Test functions with invalid input
         if hasattr(reporting, "generate_execution_report"):
             try:
-                func = getattr(reporting, "generate_execution_report")
+                func = reporting.generate_execution_report
                 result = func(invalid_data)
                 # Should either return a default report or raise an exception
                 assert result is not None or True  # Either works

@@ -6,7 +6,9 @@ This example shows how to use the simplified LogWriter interface
 to log pipeline execution results.
 """
 
-from pyspark.sql import SparkSession, functions as F
+from pyspark.sql import SparkSession
+from pyspark.sql import functions as F
+
 from sparkforge.pipeline import PipelineBuilder
 from sparkforge.writer import LogWriter
 
@@ -95,7 +97,7 @@ def main():
         print("\n🚀 Running pipeline (initial load)...")
         report = pipeline.run_initial_load(bronze_sources={"events": source_df})
 
-        print(f"\n📈 Pipeline Results:")
+        print("\n📈 Pipeline Results:")
         print(f"   Status: {report.status.value}")
         print(f"   Total steps: {report.metrics.total_steps}")
         print(f"   Successful steps: {report.metrics.successful_steps}")
@@ -108,14 +110,14 @@ def main():
         # Step 4: Initialize LogWriter with simple API
         # ====================================================================
         print("\n📝 Initializing LogWriter (simple API)...")
-        
+
         # OLD WAY (deprecated):
         # config = WriterConfig(table_schema="logs", table_name="pipeline_execution")
         # writer = LogWriter(spark, config)
-        
+
         # NEW WAY (simple):
         writer = LogWriter(spark, schema="logs", table_name="pipeline_execution")
-        
+
         print("✅ LogWriter initialized")
 
         # ====================================================================
@@ -123,8 +125,8 @@ def main():
         # ====================================================================
         print("\n📊 Creating log table with report...")
         result = writer.create_table(report)
-        
-        print(f"✅ Log table created:")
+
+        print("✅ Log table created:")
         print(f"   Table: {result['table_fqn']}")
         print(f"   Rows written: {result['rows_written']}")
         print(f"   Run ID: {result['run_id']}")
@@ -133,23 +135,23 @@ def main():
         # Step 6: Run pipeline again (incremental) and append
         # ====================================================================
         print("\n🔄 Running incremental pipeline...")
-        
+
         # Create new incremental data
         incremental_data = [
             ("user4", "signup", 500, "2024-01-15 11:00:00"),
             ("user5", "login", 75, "2024-01-15 11:05:00"),
         ]
-        
+
         incremental_df = spark.createDataFrame(
             incremental_data, ["user_id", "action", "value", "timestamp"]
         )
         incremental_df = incremental_df.withColumn(
             "timestamp", F.to_timestamp("timestamp")
         )
-        
+
         report2 = pipeline.run_incremental(bronze_sources={"events": incremental_df})
-        
-        print(f"\n📈 Incremental Results:")
+
+        print("\n📈 Incremental Results:")
         print(f"   Status: {report2.status.value}")
         print(f"   Rows processed: {report2.metrics.total_rows_processed:,}")
         print(f"   Rows written: {report2.metrics.total_rows_written:,}")
@@ -157,8 +159,8 @@ def main():
         # Append to log table
         print("\n📝 Appending report to log table...")
         result2 = writer.append(report2)
-        
-        print(f"✅ Report appended:")
+
+        print("✅ Report appended:")
         print(f"   Rows written: {result2['rows_written']}")
         print(f"   Run ID: {result2['run_id']}")
 
@@ -167,7 +169,7 @@ def main():
         # ====================================================================
         print("\n🔍 Querying log table...")
         logs_df = spark.table("logs.pipeline_execution")
-        
+
         print(f"\n📊 Log Table Contents ({logs_df.count()} rows):")
         logs_df.select(
             "run_id",

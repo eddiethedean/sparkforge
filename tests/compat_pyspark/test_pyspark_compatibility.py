@@ -166,7 +166,6 @@ class TestPySparkCompatibility:
         """Test error handling with PySpark."""
         from pyspark.sql import SparkSession
 
-        from sparkforge.errors import ValidationError
 
         spark = SparkSession.builder.appName("Test").master("local[1]").getOrCreate()
 
@@ -185,7 +184,7 @@ class TestPySparkCompatibility:
 
         # This should return valid and invalid DataFrames with statistics
         valid_df, invalid_df, stats = apply_column_rules(df, rules, stage="test", step="test")
-        
+
         # Check that we found invalid rows
         assert invalid_df.count() > 0
         assert stats.invalid_rows > 0
@@ -224,15 +223,15 @@ class TestPySparkCompatibility:
         spark = SparkSession.builder.appName("Test").master("local[1]").getOrCreate()
 
         table_name = "test_table"
-        
+
         # Clean up any existing table and its data
         try:
             spark.sql(f"DROP TABLE IF EXISTS {table_name}")
         except Exception:
             pass
         try:
-            import shutil
             import os
+            import shutil
             warehouse_dir = os.path.join(os.getcwd(), "spark-warehouse", table_name)
             if os.path.exists(warehouse_dir):
                 shutil.rmtree(warehouse_dir, ignore_errors=True)

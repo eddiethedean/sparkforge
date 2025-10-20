@@ -21,31 +21,31 @@ logger.info("🚀 Pipeline built successfully with 2 bronze, 2 silver, 1 gold st
 
 # Bronze step 1 - validates but doesn't write
 logger.step_start("bronze", "bronze_events")
-logger.step_complete("bronze", "bronze_events", 1.23, 
-                    rows_processed=1000, rows_written=None, 
+logger.step_complete("bronze", "bronze_events", 1.23,
+                    rows_processed=1000, rows_written=None,
                     invalid_rows=0, validation_rate=100.0)
 
 # Bronze step 2 - has some invalid rows
 logger.step_start("bronze", "bronze_profiles")
-logger.step_complete("bronze", "bronze_profiles", 0.87, 
+logger.step_complete("bronze", "bronze_profiles", 0.87,
                     rows_processed=500, rows_written=None,
                     invalid_rows=8, validation_rate=98.4)
 
 # Silver step 1 - processes and writes
 logger.step_start("silver", "silver_purchase_events")
-logger.step_complete("silver", "silver_purchase_events", 2.15, 
+logger.step_complete("silver", "silver_purchase_events", 2.15,
                     rows_processed=350, rows_written=350,
                     invalid_rows=0, validation_rate=100.0)
 
 # Silver step 2 - has some invalid rows
 logger.step_start("silver", "silver_customer_profiles")
-logger.step_complete("silver", "silver_customer_profiles", 1.92, 
+logger.step_complete("silver", "silver_customer_profiles", 1.92,
                     rows_processed=500, rows_written=496,
                     invalid_rows=4, validation_rate=99.2)
 
 # Gold step
 logger.step_start("gold", "gold_customer_summary")
-logger.step_complete("gold", "gold_customer_summary", 3.45, 
+logger.step_complete("gold", "gold_customer_summary", 3.45,
                     rows_processed=150, rows_written=150,
                     invalid_rows=0, validation_rate=100.0)
 

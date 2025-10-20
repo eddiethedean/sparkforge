@@ -88,18 +88,18 @@ class MockFunctions:
         # mock_spark doesn't have date_trunc, so we return a mock column
         # that represents the truncated date
         from mock_spark import Column
-        
+
         class MockDateTruncColumn(Column):
             """Mock column for date_trunc operation."""
-            
+
             def __init__(self, format: str, col: Any) -> None:
                 self.format = format
                 self.col = col
                 super().__init__()
-            
+
             def __repr__(self) -> str:
                 return f"date_trunc({self.format}, {self.col})"
-        
+
         return MockDateTruncColumn(format, col)
 
     def dayofweek(self, col: str | Any) -> Any:

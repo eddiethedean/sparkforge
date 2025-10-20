@@ -4,12 +4,18 @@ Demo showing concurrent execution with interleaved logging.
 This simulates a real pipeline with parallel execution enabled.
 """
 
-import time
 from datetime import datetime
-from mock_spark import MockSparkSession, MockStructField, MockStructType, StringType, IntegerType
+
+from mock_spark import (
+    IntegerType,
+    MockSparkSession,
+    MockStructField,
+    MockStructType,
+    StringType,
+)
 
 from sparkforge.execution import ExecutionEngine, ExecutionMode
-from sparkforge.models import BronzeStep, SilverStep, GoldStep, PipelineConfig
+from sparkforge.models import BronzeStep, GoldStep, PipelineConfig, SilverStep
 
 print("\n" + "="*80)
 print("DEMO: CONCURRENT PIPELINE EXECUTION WITH PARALLEL LOGGING")
@@ -53,7 +59,7 @@ bronze_events = BronzeStep(
 )
 
 bronze_profiles = BronzeStep(
-    name="bronze_profiles", 
+    name="bronze_profiles",
     rules={"profile_id": ["not_null"]},
 )
 
@@ -118,10 +124,10 @@ try:
             "bronze_profiles": profiles_df,
         }
     )
-    
+
     end_time = datetime.now()
     duration = (end_time - start_time).total_seconds()
-    
+
     print("\n" + "="*80)
     print("📊 EXECUTION SUMMARY")
     print("="*80)
@@ -131,7 +137,7 @@ try:
     print(f"Max Group Size: {result.max_group_size}")
     print(f"Parallel Efficiency: {result.parallel_efficiency:.1f}%")
     print(f"\nSteps Completed: {len([s for s in result.steps if s.status.value == 'completed'])}/{len(result.steps)}")
-    
+
     print("\n" + "="*80)
     print("KEY OBSERVATIONS:")
     print("="*80)
@@ -142,7 +148,7 @@ try:
     print("✅ Each step completes independently")
     print("✅ Total time is less than sequential execution would take")
     print("="*80 + "\n")
-    
+
 except Exception as e:
     print(f"\n❌ Error: {e}")
     import traceback

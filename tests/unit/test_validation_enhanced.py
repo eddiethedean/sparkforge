@@ -216,7 +216,7 @@ class TestValidationWithMockFunctions:
 
         # Test with invalid column names - should raise ValidationError
         from sparkforge.errors import ValidationError
-        
+
         invalid_rules = {"nonexistent_column": ["not_null"]}
         with pytest.raises(ValidationError):
             assess_data_quality(self.mock_df, invalid_rules, self.mock_functions)

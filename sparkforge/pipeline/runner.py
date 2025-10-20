@@ -141,26 +141,38 @@ class SimplePipelineRunner:
 
     def run_incremental(
         self,
-        steps: list[BronzeStep | SilverStep | GoldStep],
         bronze_sources: Dict[str, DataFrame] | None = None,
     ) -> PipelineReport:
         """Run incremental pipeline."""
+        steps = (
+            list(self.bronze_steps.values())
+            + list(self.silver_steps.values())
+            + list(self.gold_steps.values())
+        )
         return self.run_pipeline(steps, PipelineMode.INCREMENTAL, bronze_sources)
 
     def run_full_refresh(
         self,
-        steps: list[BronzeStep | SilverStep | GoldStep],
         bronze_sources: Dict[str, DataFrame] | None = None,
     ) -> PipelineReport:
         """Run full refresh pipeline."""
+        steps = (
+            list(self.bronze_steps.values())
+            + list(self.silver_steps.values())
+            + list(self.gold_steps.values())
+        )
         return self.run_pipeline(steps, PipelineMode.FULL_REFRESH, bronze_sources)
 
     def run_validation_only(
         self,
-        steps: list[BronzeStep | SilverStep | GoldStep],
         bronze_sources: Dict[str, DataFrame] | None = None,
     ) -> PipelineReport:
         """Run validation-only pipeline."""
+        steps = (
+            list(self.bronze_steps.values())
+            + list(self.silver_steps.values())
+            + list(self.gold_steps.values())
+        )
         return self.run_pipeline(steps, PipelineMode.VALIDATION_ONLY, bronze_sources)
 
     def _convert_mode(self, mode: PipelineMode) -> ExecutionMode:

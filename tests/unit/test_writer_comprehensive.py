@@ -13,8 +13,8 @@ from mock_spark import (
 
 from sparkforge.logging import PipelineLogger
 from sparkforge.models import ExecutionMode, ExecutionResult, PipelinePhase, StepResult
-from sparkforge.writer.core import LogWriter, time_write_operation
 from sparkforge.table_operations import table_exists
+from sparkforge.writer.core import LogWriter, time_write_operation
 from sparkforge.writer.exceptions import WriterConfigurationError
 from sparkforge.writer.models import (
     LogLevel,

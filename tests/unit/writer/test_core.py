@@ -662,7 +662,7 @@ class TestLogWriter:
             writer.storage_manager, "query_logs"
         ) as mock_query:
             mock_query.return_value = None  # Mock DataFrame
-            
+
             with patch.object(
                 writer.quality_analyzer, "analyze_quality_trends"
             ) as mock_analyze:
@@ -685,7 +685,7 @@ class TestLogWriter:
             writer.storage_manager, "query_logs"
         ) as mock_query:
             mock_query.return_value = None  # Mock DataFrame
-            
+
             with patch.object(
                 writer.trend_analyzer, "analyze_execution_trends"
             ) as mock_analyze:

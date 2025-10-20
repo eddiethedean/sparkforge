@@ -231,7 +231,7 @@ def remove_sparkforge_imports(code: str) -> str:
         code,
         flags=re.MULTILINE
     )
-    
+
     # Fix _try_import_mockspark to simply return None in standalone notebooks
     # After removing imports, the function body is broken - replace it
     code = re.sub(

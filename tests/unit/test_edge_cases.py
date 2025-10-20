@@ -323,7 +323,7 @@ class TestEdgeCases:
     def test_pipeline_builder_edge_cases(self, mock_spark_session):
         """Test PipelineBuilder edge cases."""
         from sparkforge.errors import ConfigurationError
-        
+
         # Test with invalid schema name
         with pytest.raises(ConfigurationError):
             PipelineBuilder(spark=mock_spark_session, schema="")
