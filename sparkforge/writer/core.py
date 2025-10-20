@@ -21,6 +21,7 @@ writer components for comprehensive logging functionality.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import Any, Dict
 
 from ..compat import SparkSession
@@ -1057,87 +1058,188 @@ class LogWriter:
         """
         Convert a PipelineReport to log rows for storage.
 
-        This method extracts data from a PipelineReport and creates log rows
-        compatible with the log table schema.
+        This method extracts data from a PipelineReport and creates one log row
+        per pipeline step (bronze, silver, gold) with step-specific metrics.
 
         Args:
             report: PipelineReport to convert
             run_id: Optional run ID (generated if not provided)
 
         Returns:
-            List of LogRow dictionaries ready for storage
+            List of LogRow dictionaries ready for storage (one per step)
         """
 
         if run_id is None:
             run_id = str(uuid.uuid4())
 
-        # Create a single summary row for the entire pipeline execution
-        log_row: LogRow = {
-            # Run-level information
-            "run_id": run_id,
-            "run_mode": report.mode.value,  # "initial", "incremental", etc.
-            "run_started_at": report.start_time,
-            "run_ended_at": report.end_time,
+        log_rows: list[LogRow] = []
 
-            # Execution context
-            "execution_id": report.execution_id,
-            "pipeline_id": report.pipeline_id,
-            "schema": self.config.table_schema,
+        # Helper function to parse datetime strings
+        def parse_datetime(dt_str: str | None) -> datetime | None:
+            if dt_str is None:
+                return None
+            try:
+                return datetime.fromisoformat(dt_str)
+            except (ValueError, AttributeError):
+                return None
 
-            # Step-level information (summary)
-            "phase": "pipeline",  # Overall pipeline summary
-            "step_name": "pipeline_summary",
-            "step_type": "pipeline",
+        # Process bronze steps
+        for step_name, step_info in report.bronze_results.items():
+            bronze_log_row: LogRow = {
+                # Run-level information
+                "run_id": run_id,
+                "run_mode": report.mode.value,
+                "run_started_at": report.start_time,
+                "run_ended_at": report.end_time,
 
-            # Timing information
-            "start_time": report.start_time,
-            "end_time": report.end_time,
-            "duration_secs": report.duration_seconds,
+                # Execution context
+                "execution_id": report.execution_id,
+                "pipeline_id": report.pipeline_id,
+                "schema": self.config.table_schema,
 
-            # Table information (N/A for summary)
-            "table_fqn": None,
-            "write_mode": None,
+                # Step-level information
+                "phase": "bronze",
+                "step_name": step_name,
+                "step_type": "bronze",
 
-            # Data metrics from report.metrics
-            "rows_processed": report.metrics.total_rows_processed,
-            "rows_written": report.metrics.total_rows_written,
-            "input_rows": report.metrics.total_rows_processed,
-            "output_rows": report.metrics.total_rows_written,
+                # Timing information
+                "start_time": parse_datetime(step_info.get("start_time")),
+                "end_time": parse_datetime(step_info.get("end_time")),
+                "duration_secs": float(step_info.get("duration", 0.0)),
 
-            # Validation metrics
-            "valid_rows": 0,  # Not tracked in PipelineReport
-            "invalid_rows": 0,  # Not tracked in PipelineReport
-            "validation_rate": report.metrics.avg_validation_rate,
+                # Table information
+                "table_fqn": step_info.get("output_table"),
+                "write_mode": None,
 
-            # Execution status
-            "success": report.success,
-            "error_message": ", ".join(report.errors) if report.errors else None,
+                # Data metrics
+                "rows_processed": int(step_info.get("rows_processed", 0)),
+                "rows_written": int(step_info.get("rows_processed", 0)),
+                "input_rows": int(step_info.get("rows_processed", 0)),
+                "output_rows": int(step_info.get("rows_processed", 0)),
 
-            # Performance metrics
-            "memory_usage_mb": None,  # Not tracked in PipelineReport
-            "cpu_usage_percent": None,  # Not tracked in PipelineReport
+                # Validation metrics
+                "valid_rows": 0,
+                "invalid_rows": 0,
+                "validation_rate": 100.0,
 
-            # Metadata
-            "metadata": {
-                "total_steps": report.metrics.total_steps,
-                "successful_steps": report.metrics.successful_steps,
-                "failed_steps": report.metrics.failed_steps,
-                "skipped_steps": report.metrics.skipped_steps,
-                "bronze_duration": report.metrics.bronze_duration,
-                "silver_duration": report.metrics.silver_duration,
-                "gold_duration": report.metrics.gold_duration,
-                "parallel_efficiency": report.metrics.parallel_efficiency,
-                "execution_groups_count": report.execution_groups_count,
-                "max_group_size": report.max_group_size,
-                "warnings": report.warnings,
-                "recommendations": report.recommendations,
-                "cache_hit_rate": report.metrics.cache_hit_rate,
-                "error_count": report.metrics.error_count,
-                "retry_count": report.metrics.retry_count,
+                # Execution status
+                "success": step_info.get("status") == "completed",
+                "error_message": step_info.get("error"),
+
+                # Performance metrics
+                "memory_usage_mb": None,
+                "cpu_usage_percent": None,
+
+                # Metadata
+                "metadata": {}
             }
-        }
+            log_rows.append(bronze_log_row)
 
-        return [log_row]
+        # Process silver steps
+        for step_name, step_info in report.silver_results.items():
+            silver_log_row: LogRow = {
+                # Run-level information
+                "run_id": run_id,
+                "run_mode": report.mode.value,
+                "run_started_at": report.start_time,
+                "run_ended_at": report.end_time,
+
+                # Execution context
+                "execution_id": report.execution_id,
+                "pipeline_id": report.pipeline_id,
+                "schema": self.config.table_schema,
+
+                # Step-level information
+                "phase": "silver",
+                "step_name": step_name,
+                "step_type": "silver",
+
+                # Timing information
+                "start_time": parse_datetime(step_info.get("start_time")),
+                "end_time": parse_datetime(step_info.get("end_time")),
+                "duration_secs": float(step_info.get("duration", 0.0)),
+
+                # Table information
+                "table_fqn": step_info.get("output_table"),
+                "write_mode": None,
+
+                # Data metrics
+                "rows_processed": int(step_info.get("rows_processed", 0)),
+                "rows_written": int(step_info.get("rows_processed", 0)),
+                "input_rows": int(step_info.get("rows_processed", 0)),
+                "output_rows": int(step_info.get("rows_processed", 0)),
+
+                # Validation metrics
+                "valid_rows": 0,
+                "invalid_rows": 0,
+                "validation_rate": 100.0,
+
+                # Execution status
+                "success": step_info.get("status") == "completed",
+                "error_message": step_info.get("error"),
+
+                # Performance metrics
+                "memory_usage_mb": None,
+                "cpu_usage_percent": None,
+
+                # Metadata
+                "metadata": {}
+            }
+            log_rows.append(silver_log_row)
+
+        # Process gold steps
+        for step_name, step_info in report.gold_results.items():
+            gold_log_row: LogRow = {
+                # Run-level information
+                "run_id": run_id,
+                "run_mode": report.mode.value,
+                "run_started_at": report.start_time,
+                "run_ended_at": report.end_time,
+
+                # Execution context
+                "execution_id": report.execution_id,
+                "pipeline_id": report.pipeline_id,
+                "schema": self.config.table_schema,
+
+                # Step-level information
+                "phase": "gold",
+                "step_name": step_name,
+                "step_type": "gold",
+
+                # Timing information
+                "start_time": parse_datetime(step_info.get("start_time")),
+                "end_time": parse_datetime(step_info.get("end_time")),
+                "duration_secs": float(step_info.get("duration", 0.0)),
+
+                # Table information
+                "table_fqn": step_info.get("output_table"),
+                "write_mode": None,
+
+                # Data metrics
+                "rows_processed": int(step_info.get("rows_processed", 0)),
+                "rows_written": int(step_info.get("rows_processed", 0)),
+                "input_rows": int(step_info.get("rows_processed", 0)),
+                "output_rows": int(step_info.get("rows_processed", 0)),
+
+                # Validation metrics
+                "valid_rows": 0,
+                "invalid_rows": 0,
+                "validation_rate": 100.0,
+
+                # Execution status
+                "success": step_info.get("status") == "completed",
+                "error_message": step_info.get("error"),
+
+                # Performance metrics
+                "memory_usage_mb": None,
+                "cpu_usage_percent": None,
+
+                # Metadata
+                "metadata": {}
+            }
+            log_rows.append(gold_log_row)
+
+        return log_rows
 
     def create_table(
         self,

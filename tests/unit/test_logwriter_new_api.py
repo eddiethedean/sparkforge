@@ -103,44 +103,99 @@ class TestConvertReportToLogRows:
                 avg_validation_rate=98.5,
                 parallel_efficiency=85.0,
             ),
+            bronze_results={
+                "bronze_step_1": {
+                    "status": "completed",
+                    "duration": 50.0,
+                    "rows_processed": 3000,
+                    "output_table": "bronze.table1",
+                    "start_time": "2024-01-15T10:00:00",
+                    "end_time": "2024-01-15T10:00:50",
+                },
+                "bronze_step_2": {
+                    "status": "completed",
+                    "duration": 50.0,
+                    "rows_processed": 2000,
+                    "output_table": "bronze.table2",
+                    "start_time": "2024-01-15T10:00:50",
+                    "end_time": "2024-01-15T10:01:40",
+                }
+            },
+            silver_results={
+                "silver_step_1": {
+                    "status": "completed",
+                    "duration": 60.0,
+                    "rows_processed": 2500,
+                    "output_table": "silver.table1",
+                    "start_time": "2024-01-15T10:01:40",
+                    "end_time": "2024-01-15T10:02:40",
+                },
+                "silver_step_2": {
+                    "status": "completed",
+                    "duration": 60.0,
+                    "rows_processed": 1500,
+                    "output_table": "silver.table2",
+                    "start_time": "2024-01-15T10:02:40",
+                    "end_time": "2024-01-15T10:03:40",
+                }
+            },
+            gold_results={
+                "gold_step_1": {
+                    "status": "completed",
+                    "duration": 80.0,
+                    "rows_processed": 1000,
+                    "output_table": "gold.table1",
+                    "start_time": "2024-01-15T10:03:40",
+                    "end_time": "2024-01-15T10:05:00",
+                }
+            },
             errors=[],
             warnings=["Minor warning"],
             recommendations=["Consider optimization"],
         )
 
     def test_convert_report_creates_log_row(self, writer, sample_report):
-        """Test that converting a report creates a valid log row."""
+        """Test that converting a report creates log rows per step."""
         log_rows = writer._convert_report_to_log_rows(sample_report, run_id="run_123")
 
-        assert len(log_rows) == 1
-        log_row = log_rows[0]
+        # Should have 5 rows: 2 bronze + 2 silver + 1 gold
+        assert len(log_rows) == 5
 
-        # Verify run-level information
-        assert log_row["run_id"] == "run_123"
-        assert log_row["run_mode"] == "initial"
-        assert log_row["run_started_at"] == sample_report.start_time
-        assert log_row["run_ended_at"] == sample_report.end_time
+        # Verify all rows have consistent run-level information
+        for log_row in log_rows:
+            assert log_row["run_id"] == "run_123"
+            assert log_row["run_mode"] == "initial"
+            assert log_row["run_started_at"] == sample_report.start_time
+            assert log_row["run_ended_at"] == sample_report.end_time
+            assert log_row["execution_id"] == "exec_123"
+            assert log_row["pipeline_id"] == "test_pipeline"
+            assert log_row["schema"] == "test"
 
-        # Verify execution context
-        assert log_row["execution_id"] == "exec_123"
-        assert log_row["pipeline_id"] == "test_pipeline"
-        assert log_row["schema"] == "test"
+        # Verify first bronze step
+        bronze_row = log_rows[0]
+        assert bronze_row["phase"] == "bronze"
+        assert bronze_row["step_name"] == "bronze_step_1"
+        assert bronze_row["step_type"] == "bronze"
+        assert bronze_row["duration_secs"] == 50.0
+        assert bronze_row["rows_processed"] == 3000
+        assert bronze_row["table_fqn"] == "bronze.table1"
+        assert bronze_row["success"] is True
 
-        # Verify step-level (summary)
-        assert log_row["phase"] == "pipeline"
-        assert log_row["step_name"] == "pipeline_summary"
+        # Verify first silver step
+        silver_row = log_rows[2]
+        assert silver_row["phase"] == "silver"
+        assert silver_row["step_name"] == "silver_step_1"
+        assert silver_row["step_type"] == "silver"
+        assert silver_row["duration_secs"] == 60.0
+        assert silver_row["rows_processed"] == 2500
 
-        # Verify timing
-        assert log_row["duration_secs"] == 300.0
-
-        # Verify metrics
-        assert log_row["rows_processed"] == 10000
-        assert log_row["rows_written"] == 9500
-        assert log_row["validation_rate"] == 98.5
-
-        # Verify status
-        assert log_row["success"] is True
-        assert log_row["error_message"] is None
+        # Verify gold step
+        gold_row = log_rows[4]
+        assert gold_row["phase"] == "gold"
+        assert gold_row["step_name"] == "gold_step_1"
+        assert gold_row["step_type"] == "gold"
+        assert gold_row["duration_secs"] == 80.0
+        assert gold_row["rows_processed"] == 1000
 
     def test_convert_report_with_errors(self, writer):
         """Test converting a report with errors."""
@@ -158,38 +213,71 @@ class TestConvertReportToLogRows:
                 failed_steps=1,
                 total_duration=60.0,
             ),
+            bronze_results={
+                "bronze_step_1": {
+                    "status": "completed",
+                    "duration": 20.0,
+                    "rows_processed": 100,
+                    "output_table": "bronze.table1",
+                    "start_time": "2024-01-15T10:00:00",
+                    "end_time": "2024-01-15T10:00:20",
+                }
+            },
+            silver_results={
+                "silver_step_1": {
+                    "status": "failed",
+                    "duration": 15.0,
+                    "rows_processed": 0,
+                    "output_table": None,
+                    "start_time": "2024-01-15T10:00:20",
+                    "end_time": "2024-01-15T10:00:35",
+                    "error": "Connection timeout"
+                }
+            },
             errors=["Step failed", "Connection timeout"],
         )
 
         log_rows = writer._convert_report_to_log_rows(report)
-        log_row = log_rows[0]
+        
+        # Should have 2 rows: 1 bronze + 1 silver
+        assert len(log_rows) == 2
 
-        assert log_row["success"] is False
-        assert log_row["error_message"] == "Step failed, Connection timeout"
+        # Check successful bronze step
+        bronze_row = log_rows[0]
+        assert bronze_row["success"] is True
+        assert bronze_row["error_message"] is None
+
+        # Check failed silver step
+        silver_row = log_rows[1]
+        assert silver_row["success"] is False
+        assert silver_row["error_message"] == "Connection timeout"
 
     def test_convert_report_generates_run_id_if_not_provided(self, writer, sample_report):
         """Test that run_id is generated if not provided."""
         log_rows = writer._convert_report_to_log_rows(sample_report)
-        log_row = log_rows[0]
-
-        assert "run_id" in log_row
-        assert len(log_row["run_id"]) > 0  # UUID should be generated
+        
+        # Check that all rows have the same generated run_id
+        assert len(log_rows) > 0
+        run_ids = set(row["run_id"] for row in log_rows)
+        assert len(run_ids) == 1  # All rows should have same run_id
+        
+        run_id = log_rows[0]["run_id"]
+        assert len(run_id) > 0  # UUID should be generated
 
     def test_convert_report_includes_metadata(self, writer, sample_report):
-        """Test that metadata includes all necessary fields."""
+        """Test that step-level rows are created (metadata moved to step-level)."""
         log_rows = writer._convert_report_to_log_rows(sample_report)
-        log_row = log_rows[0]
-        metadata = log_row["metadata"]
-
-        assert metadata["total_steps"] == 5
-        assert metadata["successful_steps"] == 5
-        assert metadata["failed_steps"] == 0
-        assert metadata["bronze_duration"] == 100.0
-        assert metadata["silver_duration"] == 120.0
-        assert metadata["gold_duration"] == 80.0
-        assert metadata["parallel_efficiency"] == 85.0
-        assert metadata["warnings"] == ["Minor warning"]
-        assert metadata["recommendations"] == ["Consider optimization"]
+        
+        # Should have 5 step rows
+        assert len(log_rows) == 5
+        
+        # Each row should have step-specific data
+        for log_row in log_rows:
+            assert "phase" in log_row
+            assert log_row["phase"] in ["bronze", "silver", "gold"]
+            assert "step_name" in log_row
+            assert "duration_secs" in log_row
+            assert "rows_processed" in log_row
 
 
 class TestCreateTableMethod:
@@ -214,7 +302,7 @@ class TestCreateTableMethod:
                                 # Setup mock storage manager
                                 mock_storage = MockStorage.return_value
                                 mock_storage.write_batch.return_value = {
-                                    "rows_written": 1,
+                                    "rows_written": 3,  # 3 steps: 1 bronze + 1 silver + 1 gold
                                     "success": True
                                 }
                                 writer.storage_manager = mock_storage
@@ -247,6 +335,36 @@ class TestCreateTableMethod:
                 total_rows_processed=5000,
                 total_rows_written=4800,
             ),
+            bronze_results={
+                "bronze_step": {
+                    "status": "completed",
+                    "duration": 100.0,
+                    "rows_processed": 2000,
+                    "output_table": "bronze.test",
+                    "start_time": "2024-01-15T10:00:00",
+                    "end_time": "2024-01-15T10:01:40",
+                }
+            },
+            silver_results={
+                "silver_step": {
+                    "status": "completed",
+                    "duration": 100.0,
+                    "rows_processed": 1800,
+                    "output_table": "silver.test",
+                    "start_time": "2024-01-15T10:01:40",
+                    "end_time": "2024-01-15T10:03:20",
+                }
+            },
+            gold_results={
+                "gold_step": {
+                    "status": "completed",
+                    "duration": 100.0,
+                    "rows_processed": 1000,
+                    "output_table": "gold.test",
+                    "start_time": "2024-01-15T10:03:20",
+                    "end_time": "2024-01-15T10:05:00",
+                }
+            },
         )
 
     def test_create_table_calls_storage_with_overwrite(self, writer, sample_report):
@@ -264,7 +382,7 @@ class TestCreateTableMethod:
 
         assert result["success"] is True
         assert result["run_id"] == "run_789"
-        assert result["rows_written"] == 1
+        assert result["rows_written"] == 3  # 3 steps: 1 bronze + 1 silver + 1 gold
         assert result["table_fqn"] == "test.logs"
 
     def test_create_table_generates_run_id_if_not_provided(self, writer, sample_report):
@@ -297,7 +415,7 @@ class TestAppendMethod:
                                 # Setup mock storage manager
                                 mock_storage = MockStorage.return_value
                                 mock_storage.write_batch.return_value = {
-                                    "rows_written": 1,
+                                    "rows_written": 2,  # 2 steps: 1 silver + 1 gold
                                     "success": True
                                 }
                                 writer.storage_manager = mock_storage
@@ -330,6 +448,26 @@ class TestAppendMethod:
                 total_rows_processed=1000,
                 total_rows_written=950,
             ),
+            silver_results={
+                "silver_step": {
+                    "status": "completed",
+                    "duration": 60.0,
+                    "rows_processed": 500,
+                    "output_table": "silver.incremental",
+                    "start_time": "2024-01-15T11:00:00",
+                    "end_time": "2024-01-15T11:01:00",
+                }
+            },
+            gold_results={
+                "gold_step": {
+                    "status": "completed",
+                    "duration": 60.0,
+                    "rows_processed": 450,
+                    "output_table": "gold.incremental",
+                    "start_time": "2024-01-15T11:01:00",
+                    "end_time": "2024-01-15T11:02:00",
+                }
+            },
         )
 
     def test_append_calls_storage_with_append_mode(self, writer, sample_report):
@@ -347,7 +485,7 @@ class TestAppendMethod:
 
         assert result["success"] is True
         assert result["run_id"] == "run_append_2"
-        assert result["rows_written"] == 1
+        assert result["rows_written"] == 2  # 2 steps: 1 silver + 1 gold
         assert result["table_fqn"] == "test.logs"
 
     def test_append_multiple_times(self, writer, sample_report):
