@@ -111,6 +111,10 @@ class TestConvertReportToLogRows:
                     "output_table": "bronze.table1",
                     "start_time": "2024-01-15T10:00:00",
                     "end_time": "2024-01-15T10:00:50",
+                    "write_mode": "append",
+                    "validation_rate": 98.0,
+                    "rows_written": 3000,
+                    "input_rows": 3000,
                 },
                 "bronze_step_2": {
                     "status": "completed",
@@ -119,6 +123,10 @@ class TestConvertReportToLogRows:
                     "output_table": "bronze.table2",
                     "start_time": "2024-01-15T10:00:50",
                     "end_time": "2024-01-15T10:01:40",
+                    "write_mode": "append",
+                    "validation_rate": 99.5,
+                    "rows_written": 2000,
+                    "input_rows": 2000,
                 }
             },
             silver_results={
@@ -129,6 +137,10 @@ class TestConvertReportToLogRows:
                     "output_table": "silver.table1",
                     "start_time": "2024-01-15T10:01:40",
                     "end_time": "2024-01-15T10:02:40",
+                    "write_mode": "overwrite",
+                    "validation_rate": 97.0,
+                    "rows_written": 2500,
+                    "input_rows": 2500,
                 },
                 "silver_step_2": {
                     "status": "completed",
@@ -137,6 +149,10 @@ class TestConvertReportToLogRows:
                     "output_table": "silver.table2",
                     "start_time": "2024-01-15T10:02:40",
                     "end_time": "2024-01-15T10:03:40",
+                    "write_mode": "append",
+                    "validation_rate": 100.0,
+                    "rows_written": 1500,
+                    "input_rows": 1500,
                 }
             },
             gold_results={
@@ -147,6 +163,10 @@ class TestConvertReportToLogRows:
                     "output_table": "gold.table1",
                     "start_time": "2024-01-15T10:03:40",
                     "end_time": "2024-01-15T10:05:00",
+                    "write_mode": "overwrite",
+                    "validation_rate": 100.0,
+                    "rows_written": 1000,
+                    "input_rows": 1000,
                 }
             },
             errors=[],
@@ -180,6 +200,13 @@ class TestConvertReportToLogRows:
         assert bronze_row["rows_processed"] == 3000
         assert bronze_row["table_fqn"] == "bronze.table1"
         assert bronze_row["success"] is True
+        # Verify new fields
+        assert bronze_row["write_mode"] == "append"
+        assert bronze_row["validation_rate"] == 98.0
+        assert bronze_row["valid_rows"] == 2940  # 3000 * 98.0 / 100
+        assert bronze_row["invalid_rows"] == 60  # 3000 - 2940
+        assert bronze_row["rows_written"] == 3000
+        assert bronze_row["input_rows"] == 3000
 
         # Verify first silver step
         silver_row = log_rows[2]
@@ -188,6 +215,10 @@ class TestConvertReportToLogRows:
         assert silver_row["step_type"] == "silver"
         assert silver_row["duration_secs"] == 60.0
         assert silver_row["rows_processed"] == 2500
+        assert silver_row["write_mode"] == "overwrite"
+        assert silver_row["validation_rate"] == 97.0
+        assert silver_row["valid_rows"] == 2425  # 2500 * 97.0 / 100
+        assert silver_row["invalid_rows"] == 75  # 2500 - 2425
 
         # Verify gold step
         gold_row = log_rows[4]
@@ -196,6 +227,10 @@ class TestConvertReportToLogRows:
         assert gold_row["step_type"] == "gold"
         assert gold_row["duration_secs"] == 80.0
         assert gold_row["rows_processed"] == 1000
+        assert gold_row["write_mode"] == "overwrite"
+        assert gold_row["validation_rate"] == 100.0
+        assert gold_row["valid_rows"] == 1000
+        assert gold_row["invalid_rows"] == 0
 
     def test_convert_report_with_errors(self, writer):
         """Test converting a report with errors."""
@@ -221,6 +256,10 @@ class TestConvertReportToLogRows:
                     "output_table": "bronze.table1",
                     "start_time": "2024-01-15T10:00:00",
                     "end_time": "2024-01-15T10:00:20",
+                    "write_mode": "append",
+                    "validation_rate": 100.0,
+                    "rows_written": 100,
+                    "input_rows": 100,
                 }
             },
             silver_results={
@@ -231,7 +270,11 @@ class TestConvertReportToLogRows:
                     "output_table": None,
                     "start_time": "2024-01-15T10:00:20",
                     "end_time": "2024-01-15T10:00:35",
-                    "error": "Connection timeout"
+                    "error": "Connection timeout",
+                    "write_mode": None,
+                    "validation_rate": 0.0,
+                    "rows_written": 0,
+                    "input_rows": 0,
                 }
             },
             errors=["Step failed", "Connection timeout"],
@@ -343,6 +386,10 @@ class TestCreateTableMethod:
                     "output_table": "bronze.test",
                     "start_time": "2024-01-15T10:00:00",
                     "end_time": "2024-01-15T10:01:40",
+                    "write_mode": "append",
+                    "validation_rate": 99.0,
+                    "rows_written": 2000,
+                    "input_rows": 2000,
                 }
             },
             silver_results={
@@ -353,6 +400,10 @@ class TestCreateTableMethod:
                     "output_table": "silver.test",
                     "start_time": "2024-01-15T10:01:40",
                     "end_time": "2024-01-15T10:03:20",
+                    "write_mode": "overwrite",
+                    "validation_rate": 98.5,
+                    "rows_written": 1800,
+                    "input_rows": 1800,
                 }
             },
             gold_results={
@@ -363,6 +414,10 @@ class TestCreateTableMethod:
                     "output_table": "gold.test",
                     "start_time": "2024-01-15T10:03:20",
                     "end_time": "2024-01-15T10:05:00",
+                    "write_mode": "overwrite",
+                    "validation_rate": 100.0,
+                    "rows_written": 1000,
+                    "input_rows": 1000,
                 }
             },
         )
@@ -456,6 +511,10 @@ class TestAppendMethod:
                     "output_table": "silver.incremental",
                     "start_time": "2024-01-15T11:00:00",
                     "end_time": "2024-01-15T11:01:00",
+                    "write_mode": "append",
+                    "validation_rate": 99.0,
+                    "rows_written": 500,
+                    "input_rows": 500,
                 }
             },
             gold_results={
@@ -466,6 +525,10 @@ class TestAppendMethod:
                     "output_table": "gold.incremental",
                     "start_time": "2024-01-15T11:01:00",
                     "end_time": "2024-01-15T11:02:00",
+                    "write_mode": "append",
+                    "validation_rate": 100.0,
+                    "rows_written": 450,
+                    "input_rows": 450,
                 }
             },
         )

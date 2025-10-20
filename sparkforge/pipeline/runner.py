@@ -241,6 +241,10 @@ class SimplePipelineRunner:
                 "output_table": step_result.output_table,
                 "start_time": step_result.start_time.isoformat(),
                 "end_time": step_result.end_time.isoformat() if step_result.end_time else None,
+                "write_mode": step_result.write_mode,
+                "validation_rate": step_result.validation_rate,
+                "rows_written": step_result.rows_written,
+                "input_rows": step_result.input_rows,
             }
 
             # Add error if present

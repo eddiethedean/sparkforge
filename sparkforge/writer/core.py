@@ -1085,6 +1085,12 @@ class LogWriter:
 
         # Process bronze steps
         for step_name, step_info in report.bronze_results.items():
+            # Calculate valid/invalid rows from validation rate
+            rows_processed = int(step_info.get("rows_processed", 0))
+            validation_rate = float(step_info.get("validation_rate", 100.0))
+            valid_rows = int(rows_processed * validation_rate / 100.0)
+            invalid_rows = rows_processed - valid_rows
+
             bronze_log_row: LogRow = {
                 # Run-level information
                 "run_id": run_id,
@@ -1109,18 +1115,18 @@ class LogWriter:
 
                 # Table information
                 "table_fqn": step_info.get("output_table"),
-                "write_mode": None,
+                "write_mode": step_info.get("write_mode"),
 
                 # Data metrics
-                "rows_processed": int(step_info.get("rows_processed", 0)),
-                "rows_written": int(step_info.get("rows_processed", 0)),
-                "input_rows": int(step_info.get("rows_processed", 0)),
-                "output_rows": int(step_info.get("rows_processed", 0)),
+                "rows_processed": rows_processed,
+                "rows_written": int(step_info.get("rows_written") or rows_processed),
+                "input_rows": int(step_info.get("input_rows") or rows_processed),
+                "output_rows": int(step_info.get("rows_written") or rows_processed),
 
                 # Validation metrics
-                "valid_rows": 0,
-                "invalid_rows": 0,
-                "validation_rate": 100.0,
+                "valid_rows": valid_rows,
+                "invalid_rows": invalid_rows,
+                "validation_rate": validation_rate,
 
                 # Execution status
                 "success": step_info.get("status") == "completed",
@@ -1137,6 +1143,12 @@ class LogWriter:
 
         # Process silver steps
         for step_name, step_info in report.silver_results.items():
+            # Calculate valid/invalid rows from validation rate
+            rows_processed = int(step_info.get("rows_processed", 0))
+            validation_rate = float(step_info.get("validation_rate", 100.0))
+            valid_rows = int(rows_processed * validation_rate / 100.0)
+            invalid_rows = rows_processed - valid_rows
+
             silver_log_row: LogRow = {
                 # Run-level information
                 "run_id": run_id,
@@ -1161,18 +1173,18 @@ class LogWriter:
 
                 # Table information
                 "table_fqn": step_info.get("output_table"),
-                "write_mode": None,
+                "write_mode": step_info.get("write_mode"),
 
                 # Data metrics
-                "rows_processed": int(step_info.get("rows_processed", 0)),
-                "rows_written": int(step_info.get("rows_processed", 0)),
-                "input_rows": int(step_info.get("rows_processed", 0)),
-                "output_rows": int(step_info.get("rows_processed", 0)),
+                "rows_processed": rows_processed,
+                "rows_written": int(step_info.get("rows_written") or rows_processed),
+                "input_rows": int(step_info.get("input_rows") or rows_processed),
+                "output_rows": int(step_info.get("rows_written") or rows_processed),
 
                 # Validation metrics
-                "valid_rows": 0,
-                "invalid_rows": 0,
-                "validation_rate": 100.0,
+                "valid_rows": valid_rows,
+                "invalid_rows": invalid_rows,
+                "validation_rate": validation_rate,
 
                 # Execution status
                 "success": step_info.get("status") == "completed",
@@ -1189,6 +1201,12 @@ class LogWriter:
 
         # Process gold steps
         for step_name, step_info in report.gold_results.items():
+            # Calculate valid/invalid rows from validation rate
+            rows_processed = int(step_info.get("rows_processed", 0))
+            validation_rate = float(step_info.get("validation_rate", 100.0))
+            valid_rows = int(rows_processed * validation_rate / 100.0)
+            invalid_rows = rows_processed - valid_rows
+
             gold_log_row: LogRow = {
                 # Run-level information
                 "run_id": run_id,
@@ -1213,18 +1231,18 @@ class LogWriter:
 
                 # Table information
                 "table_fqn": step_info.get("output_table"),
-                "write_mode": None,
+                "write_mode": step_info.get("write_mode"),
 
                 # Data metrics
-                "rows_processed": int(step_info.get("rows_processed", 0)),
-                "rows_written": int(step_info.get("rows_processed", 0)),
-                "input_rows": int(step_info.get("rows_processed", 0)),
-                "output_rows": int(step_info.get("rows_processed", 0)),
+                "rows_processed": rows_processed,
+                "rows_written": int(step_info.get("rows_written") or rows_processed),
+                "input_rows": int(step_info.get("input_rows") or rows_processed),
+                "output_rows": int(step_info.get("rows_written") or rows_processed),
 
                 # Validation metrics
-                "valid_rows": 0,
-                "invalid_rows": 0,
-                "validation_rate": 100.0,
+                "valid_rows": valid_rows,
+                "invalid_rows": invalid_rows,
+                "validation_rate": validation_rate,
 
                 # Execution status
                 "success": step_info.get("status") == "completed",

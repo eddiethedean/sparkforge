@@ -133,6 +133,10 @@ class StepExecutionResult:
     error: str | None = None
     rows_processed: int | None = None
     output_table: str | None = None
+    write_mode: str | None = None
+    validation_rate: float = 100.0
+    rows_written: int | None = None
+    input_rows: int | None = None
 
     def __post_init__(self) -> None:
         if self.end_time and self.start_time:
@@ -249,8 +253,8 @@ class ExecutionEngine:
                 output_df = self._execute_gold_step(step, context)
 
             # Apply validation if not in validation-only mode
-            validation_rate = None
-            invalid_rows = None
+            validation_rate = 100.0
+            invalid_rows = 0
             if mode != ExecutionMode.VALIDATION_ONLY:
                 # All step types (Bronze, Silver, Gold) have rules attribute
                 if step.rules:
@@ -263,8 +267,8 @@ class ExecutionEngine:
                     )
                     # Capture validation stats for logging (handle different return types for test mocking)
                     if validation_stats is not None:
-                        validation_rate = getattr(validation_stats, 'validation_rate', None)
-                        invalid_rows = getattr(validation_stats, 'invalid_rows', None)
+                        validation_rate = getattr(validation_stats, 'validation_rate', 100.0)
+                        invalid_rows = getattr(validation_stats, 'invalid_rows', 0)
 
             # Write output if not in validation-only mode
             # Note: Bronze steps only validate data, they don't write to tables
@@ -295,12 +299,18 @@ class ExecutionEngine:
             result.end_time = datetime.now()
             result.duration = (result.end_time - result.start_time).total_seconds()
 
-            # Use logger's step_complete method for consistent formatting with emoji and uppercase
+            # Populate result fields
             rows_processed = result.rows_processed or 0
             # For Silver/Gold steps, rows_written equals rows_processed (since we write the output)
             # For Bronze steps, rows_written is None (they don't write to tables)
             rows_written = rows_processed if not isinstance(step, BronzeStep) else None
 
+            result.rows_written = rows_written
+            result.input_rows = rows_processed
+            result.validation_rate = validation_rate if validation_rate is not None else 100.0
+            result.write_mode = "overwrite" if mode != ExecutionMode.VALIDATION_ONLY and not isinstance(step, BronzeStep) else None
+
+            # Use logger's step_complete method for consistent formatting with emoji and uppercase
             self.logger.step_complete(
                 step_type.value,
                 step.name,
