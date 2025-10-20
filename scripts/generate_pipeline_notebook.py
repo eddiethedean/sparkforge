@@ -328,10 +328,15 @@ def extract_code_without_docstring(code: str) -> str:
     return '\n'.join(result_lines)
 
 
-def create_notebook_cell(code: str, cell_type: str = 'code', metadata: Dict = None) -> Dict:
+def create_notebook_cell(code: str, cell_type: str = 'code', metadata: Dict = None, collapsed: bool = True) -> Dict:
     """Create a Jupyter notebook cell."""
     if metadata is None:
         metadata = {}
+
+    # Add collapsed metadata for code cells (unless explicitly set to False)
+    if cell_type == 'code' and collapsed:
+        metadata['collapsed'] = True
+        metadata['jupyter'] = {'source_hidden': True}
 
     # Format source with proper newlines for Jupyter
     # Each line should end with \n except the last line
@@ -443,14 +448,12 @@ except ImportError:
     for module_path in sorted_modules:
         info = modules[module_path]
 
-        # Create comment header for the module (as code cell for Databricks compatibility)
+        # Create comment header for the module
         module_header = f"# Module: {module_path}\n#\n"
         if info['dependencies']:
-            module_header += f"# Dependencies: {', '.join(sorted(info['dependencies']))}"
+            module_header += f"# Dependencies: {', '.join(sorted(info['dependencies']))}\n\n"
         else:
-            module_header += "# Dependencies: None (base module)"
-
-        cells.append(create_notebook_cell(module_header, 'code'))
+            module_header += "# Dependencies: None (base module)\n\n"
 
         # Extract code without docstring and remove sparkforge imports
         code = extract_code_without_docstring(info['code'])
@@ -460,15 +463,16 @@ except ImportError:
         code = code.strip()
 
         if code:
-            cells.append(create_notebook_cell(code, 'code'))
+            # Combine header and code in one cell
+            combined_code = module_header + code
+            cells.append(create_notebook_cell(combined_code, 'code'))
 
     # Add usage example cell (as Python comments for Databricks compatibility)
-    usage_example = """# Usage Example
+    example_code = """# Usage Example
 #
-# Here's how to initialize PipelineBuilder and LogWriter:"""
-    cells.append(create_notebook_cell(usage_example, 'code'))
+# Here's how to initialize PipelineBuilder and LogWriter:
 
-    example_code = """# Example: Initialize PipelineBuilder and LogWriter
+# Example: Initialize PipelineBuilder and LogWriter
 from pyspark.sql import SparkSession
 
 # Initialize Spark
@@ -482,16 +486,11 @@ spark = SparkSession.builder \\
 builder = PipelineBuilder(spark=spark, schema="analytics")
 print("✅ PipelineBuilder initialized")
 
-# Initialize LogWriter
-log_config = WriterConfig(
-    table_schema="analytics",
-    table_name="pipeline_logs",
-    write_mode=WriteMode.APPEND
-)
-log_writer = LogWriter(spark, log_config)
+# Initialize LogWriter (simplified API)
+log_writer = LogWriter(spark, schema="analytics", table_name="pipeline_logs")
 print("✅ LogWriter initialized")"""
 
-    cells.append(create_notebook_cell(example_code, 'code'))
+    cells.append(create_notebook_cell(example_code, 'code', collapsed=False))
 
     # Create notebook structure
     notebook = {
