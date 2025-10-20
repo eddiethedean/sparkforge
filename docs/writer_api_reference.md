@@ -22,15 +22,18 @@ The main class for writing pipeline execution logs to Delta tables.
 
 ```python
 from sparkforge.writer import LogWriter
-from sparkforge.writer.models import WriterConfig
 
-# Initialize with configuration
+# Initialize with simplified API (recommended)
+writer = LogWriter(spark, schema="analytics", table_name="pipeline_logs")
+
+# Legacy API (deprecated)
+from sparkforge.writer.models import WriterConfig, WriteMode
 config = WriterConfig(
     table_schema="analytics",
     table_name="pipeline_logs",
     write_mode=WriteMode.APPEND
 )
-writer = LogWriter(spark_session, config)
+writer = LogWriter(spark, config=config)  # Shows deprecation warning
 ```
 
 #### Constructor
@@ -38,14 +41,20 @@ writer = LogWriter(spark_session, config)
 ```python
 LogWriter(
     spark: SparkSession,
-    config: WriterConfig,
+    schema: str | None = None,
+    table_name: str | None = None,
+    config: WriterConfig | None = None,
+    functions: FunctionsProtocol | None = None,
     logger: PipelineLogger | None = None
 )
 ```
 
 **Parameters:**
 - `spark`: SparkSession instance for DataFrame operations
-- `config`: WriterConfig instance with configuration options
+- `schema`: Database schema name (recommended - use with table_name)
+- `table_name`: Table name (recommended - use with schema)
+- `config`: WriterConfig instance (deprecated - use schema and table_name instead)
+- `functions`: Optional FunctionsProtocol for PySpark operations
 - `logger`: Optional PipelineLogger instance (defaults to new instance)
 
 #### Methods

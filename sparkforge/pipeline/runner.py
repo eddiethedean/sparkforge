@@ -143,7 +143,15 @@ class SimplePipelineRunner:
         self,
         bronze_sources: Dict[str, DataFrame] | None = None,
     ) -> PipelineReport:
-        """Run incremental pipeline."""
+        """
+        Run incremental pipeline with all stored steps.
+
+        Args:
+            bronze_sources: Optional dictionary mapping bronze step names to DataFrames
+
+        Returns:
+            PipelineReport with execution results
+        """
         steps = (
             list(self.bronze_steps.values())
             + list(self.silver_steps.values())
@@ -155,7 +163,15 @@ class SimplePipelineRunner:
         self,
         bronze_sources: Dict[str, DataFrame] | None = None,
     ) -> PipelineReport:
-        """Run full refresh pipeline."""
+        """
+        Run full refresh pipeline with all stored steps.
+
+        Args:
+            bronze_sources: Optional dictionary mapping bronze step names to DataFrames
+
+        Returns:
+            PipelineReport with execution results
+        """
         steps = (
             list(self.bronze_steps.values())
             + list(self.silver_steps.values())
@@ -167,7 +183,15 @@ class SimplePipelineRunner:
         self,
         bronze_sources: Dict[str, DataFrame] | None = None,
     ) -> PipelineReport:
-        """Run validation-only pipeline."""
+        """
+        Run validation-only pipeline with all stored steps.
+
+        Args:
+            bronze_sources: Optional dictionary mapping bronze step names to DataFrames
+
+        Returns:
+            PipelineReport with execution results
+        """
         steps = (
             list(self.bronze_steps.values())
             + list(self.silver_steps.values())

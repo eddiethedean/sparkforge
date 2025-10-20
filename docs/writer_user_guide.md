@@ -24,30 +24,21 @@ The Writer module is included with SparkForge. No additional installation is req
 
 ```python
 from sparkforge.writer import LogWriter
-from sparkforge.writer.models import WriterConfig, WriteMode
 ```
 
 ### Quick Start
 
-Here's a simple example to get you started:
+Here's a simple example to get you started with the **simplified API (v1.3+)**:
 
 ```python
 from pyspark.sql import SparkSession
 from sparkforge.writer import LogWriter
-from sparkforge.writer.models import WriterConfig, WriteMode
 
 # Initialize Spark session
 spark = SparkSession.builder.appName("WriterExample").getOrCreate()
 
-# Create basic configuration
-config = WriterConfig(
-    table_schema="analytics",
-    table_name="pipeline_logs",
-    write_mode=WriteMode.APPEND
-)
-
-# Initialize writer
-writer = LogWriter(spark, config)
+# Initialize writer with simplified API (recommended)
+writer = LogWriter(spark, schema="analytics", table_name="pipeline_logs")
 
 # Write some log data
 log_rows = [

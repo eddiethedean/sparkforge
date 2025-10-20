@@ -2,7 +2,7 @@
 
 > **The modern data pipeline framework for Apache Spark & Delta Lake**
 
-[![PyPI version](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://pypi.org/project/sparkforge/)
+[![PyPI version](https://img.shields.io/badge/version-1.3.2-blue.svg)](https://pypi.org/project/sparkforge/)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://sparkforge.readthedocs.io/)

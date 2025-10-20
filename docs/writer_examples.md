@@ -6,12 +6,10 @@
 ```python
 from pyspark.sql import SparkSession
 from sparkforge.writer import LogWriter
-from sparkforge.writer.models import WriterConfig, WriteMode
 
-# Initialize
+# Initialize with simplified API
 spark = SparkSession.builder.appName("BasicExample").getOrCreate()
-config = WriterConfig(table_schema="analytics", table_name="logs")
-writer = LogWriter(spark, config)
+writer = LogWriter(spark, schema="analytics", table_name="logs")
 
 # Write logs
 log_rows = [{"run_id": "test", "phase": "bronze", "duration_secs": 10.0}]
@@ -45,10 +43,8 @@ print(f"Processed {result['total_executions']} executions")
 
 ### Data Quality Validation
 ```python
-# Enable quality validation
-config = WriterConfig(table_schema="analytics", table_name="logs",
-                     log_data_quality_results=True, min_validation_rate=95.0)
-writer = LogWriter(spark, config)
+# Initialize writer
+writer = LogWriter(spark, schema="analytics", table_name="logs")
 
 # Validate quality
 quality_result = writer.validate_log_data_quality(log_rows)
@@ -58,9 +54,8 @@ if quality_result['quality_passed']:
 
 ### Anomaly Detection
 ```python
-# Enable anomaly detection
-config = WriterConfig(enable_anomaly_detection=True)
-writer = LogWriter(spark, config)
+# Initialize writer
+writer = LogWriter(spark, schema="analytics", table_name="logs")
 
 # Detect anomalies
 anomaly_result = writer.detect_anomalies(log_rows)
@@ -96,29 +91,36 @@ print(f"Exported {export['records_exported']} records")
 
 ## Configuration Examples
 
-### High Performance Configuration
+**Note:** The simplified API is recommended for most use cases. WriterConfig is still supported but deprecated.
+
+### Simplified API (Recommended)
 ```python
+# Simple initialization - uses sensible defaults
+writer = LogWriter(spark, schema="analytics", table_name="logs")
+```
+
+### Legacy WriterConfig API (Deprecated)
+
+If you need advanced configuration options, you can still use WriterConfig:
+
+#### High Performance Configuration
+```python
+from sparkforge.writer.models import WriterConfig, WriteMode
+
 config = WriterConfig(
     table_schema="analytics", table_name="logs",
     batch_size=5000, parallel_write_threads=8, memory_fraction=0.8,
     enable_optimization=True
 )
+writer = LogWriter(spark, config=config)  # Shows deprecation warning
 ```
 
-### Data Quality Focused
-```python
-config = WriterConfig(
-    table_schema="analytics", table_name="logs",
-    log_data_quality_results=True, enable_anomaly_detection=True,
-    min_validation_rate=98.0, max_invalid_rows_percent=2.0
-)
-```
-
-### Production Ready
+#### Production Ready
 ```python
 config = WriterConfig(
     table_schema="analytics", table_name="logs",
     write_mode=WriteMode.APPEND, max_retries=5, retry_delay_secs=2.0,
     enable_schema_evolution=True, auto_optimize_schema=True
 )
+writer = LogWriter(spark, config=config)
 ```
