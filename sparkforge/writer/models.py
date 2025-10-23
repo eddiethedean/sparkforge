@@ -25,7 +25,12 @@ BooleanType = types.BooleanType
 FloatType = types.FloatType
 IntegerType = types.IntegerType
 StringType = types.StringType
-StructField = types.StructField
+# Use the appropriate StructField based on the engine
+import os
+if os.environ.get("SPARKFORGE_ENGINE") == "mock":
+    StructField = types.MockStructField
+else:
+    StructField = types.StructField
 StructType = types.StructType
 TimestampType = types.TimestampType
 
@@ -435,7 +440,13 @@ def create_log_rows_from_execution_result(
         List[LogRow]: List of log rows for each step
     """
     rows = []
-    for step_result in execution_result.step_results:
+    # Combine all step results from bronze, silver, and gold layers
+    all_results = {}
+    all_results.update(execution_result.bronze_results)
+    all_results.update(execution_result.silver_results)
+    all_results.update(execution_result.gold_results)
+    
+    for step_name, step_result in all_results.items():
         row = create_log_row_from_step_result(
             step_result=step_result,
             execution_context=execution_result.context,
@@ -444,6 +455,101 @@ def create_log_rows_from_execution_result(
             metadata=metadata,
         )
         rows.append(row)
+    return rows
+
+
+def create_log_rows_from_pipeline_report(
+    pipeline_report: "PipelineReport",
+    run_id: str,
+    run_mode: str,
+    metadata: Dict[str, Any] | None = None,
+) -> list[LogRow]:
+    """
+    Create multiple LogRows from a PipelineReport.
+
+    Args:
+        pipeline_report: The pipeline report to convert
+        run_id: Unique run identifier
+        run_mode: Mode of the run
+        metadata: Additional metadata
+
+    Returns:
+        List[LogRow]: List of log rows for each step
+    """
+    rows = []
+    
+    # Create a main log row for the pipeline execution
+    main_row: LogRow = {
+        "run_id": run_id,
+        "run_mode": run_mode,  # type: ignore[typeddict-item]
+        "run_started_at": pipeline_report.start_time,
+        "run_ended_at": pipeline_report.end_time,
+        "execution_id": pipeline_report.execution_id,
+        "pipeline_id": pipeline_report.pipeline_id,
+        "schema": "default",  # PipelineReport doesn't have schema
+        "phase": "pipeline",
+        "step_name": "pipeline_execution",
+        "step_type": "pipeline",
+        "start_time": pipeline_report.start_time,
+        "end_time": pipeline_report.end_time,
+        "duration_secs": pipeline_report.duration_seconds,
+        "table_fqn": None,
+        "write_mode": None,
+        "input_rows": 0,
+        "output_rows": 0,
+        "rows_written": 0,
+        "rows_processed": 0,
+        "valid_rows": 0,
+        "invalid_rows": 0,
+        "validation_rate": 100.0,
+        "success": pipeline_report.success,
+        "error_message": pipeline_report.errors[0] if pipeline_report.errors else None,
+        "memory_usage_mb": None,
+        "cpu_usage_percent": None,
+        "metadata": metadata or {},
+    }
+    rows.append(main_row)
+    
+    # Add step results from bronze, silver, and gold layers
+    all_results = {}
+    all_results.update(pipeline_report.bronze_results)
+    all_results.update(pipeline_report.silver_results)
+    all_results.update(pipeline_report.gold_results)
+    
+    for step_name, step_data in all_results.items():
+        # Create a simplified step row since we don't have full StepResult objects
+        step_row: LogRow = {
+            "run_id": run_id,
+            "run_mode": run_mode,  # type: ignore[typeddict-item]
+            "run_started_at": pipeline_report.start_time,
+            "run_ended_at": pipeline_report.end_time,
+            "execution_id": pipeline_report.execution_id,
+            "pipeline_id": pipeline_report.pipeline_id,
+            "schema": "default",
+            "phase": "bronze" if step_name in pipeline_report.bronze_results else 
+                    "silver" if step_name in pipeline_report.silver_results else "gold",
+            "step_name": step_name,
+            "step_type": "transform",
+            "start_time": pipeline_report.start_time,
+            "end_time": pipeline_report.end_time,
+            "duration_secs": 0.0,  # Not available in PipelineReport
+            "table_fqn": None,
+            "write_mode": None,
+            "input_rows": 0,
+            "output_rows": 0,
+            "rows_written": 0,
+            "rows_processed": 0,
+            "valid_rows": 0,
+            "invalid_rows": 0,
+            "validation_rate": 100.0,
+            "success": True,  # Assume success if in results
+            "error_message": None,
+            "memory_usage_mb": None,
+            "cpu_usage_percent": None,
+            "metadata": metadata or {},
+        }
+        rows.append(step_row)
+    
     return rows
 
 

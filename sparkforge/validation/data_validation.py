@@ -28,12 +28,47 @@ logger = PipelineLogger("DataValidation")
 
 
 def _convert_rule_to_expression(
-    rule: str, column_name: str, functions: FunctionsProtocol | None = None
+    rule: str | list, column_name: str, functions: FunctionsProtocol | None = None
 ) -> Column:
     """Convert a string rule to a PySpark Column expression."""
     if functions is None:
         functions = get_default_functions()
 
+    # Handle list-based rules like ["gt", 0]
+    if isinstance(rule, list):
+        if len(rule) == 0:
+            return functions.lit(True)  # Empty rule means no validation
+        elif len(rule) == 1:
+            return _convert_rule_to_expression(rule[0], column_name, functions)
+        elif len(rule) == 2:
+            op, value = rule
+            if op == "gt":
+                return functions.col(column_name) > value
+            elif op == "gte":
+                return functions.col(column_name) >= value
+            elif op == "lt":
+                return functions.col(column_name) < value
+            elif op == "lte":
+                return functions.col(column_name) <= value
+            elif op == "eq":
+                return functions.col(column_name) == value
+            elif op == "ne":
+                return functions.col(column_name) != value
+            else:
+                # For unknown operators, assume it's a valid PySpark expression
+                return functions.expr(f"{column_name} {op} {value}")
+        elif len(rule) == 3:
+            op, min_val, max_val = rule
+            if op == "between":
+                return functions.col(column_name).between(min_val, max_val)
+            else:
+                # For unknown operators, assume it's a valid PySpark expression
+                return functions.expr(f"{column_name} {op} {min_val} {max_val}")
+        else:
+            # For complex rules, assume it's a valid PySpark expression
+            return functions.expr(str(rule))
+    
+    # Handle string-based rules
     if rule == "not_null":
         return functions.col(column_name).isNotNull()
     elif rule == "positive":
@@ -59,7 +94,7 @@ def _convert_rules_to_expressions(
     for column_name, rule_list in rules.items():
         converted_rule_list: list[str | Column] = []
         for rule in rule_list:
-            if isinstance(rule, str):
+            if isinstance(rule, (str, list)):
                 converted_rule_list.append(
                     _convert_rule_to_expression(rule, column_name, functions)
                 )

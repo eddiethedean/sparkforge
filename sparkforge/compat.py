@@ -43,7 +43,7 @@ def _try_import_mockspark() -> (
     """Try to import mock-spark modules."""
     try:
         from mock_spark import (  # type: ignore
-            Column as _Column,
+            MockColumn as _Column,
         )
         from mock_spark import (  # type: ignore
             MockDataFrame as _DataFrame,
