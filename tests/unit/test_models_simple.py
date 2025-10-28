@@ -19,8 +19,8 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
 else:
     from pyspark.sql import functions as F
 
-from sparkforge.errors import ValidationError
-from sparkforge.models import (
+from pipeline_builder.errors import ValidationError
+from pipeline_builder.models import (
     BaseModel,
     BronzeStep,
     ExecutionContext,
@@ -37,9 +37,13 @@ from sparkforge.models import (
     ValidationThresholds,
     WriteMode,
 )
-from sparkforge.models.exceptions import PipelineConfigurationError
-from sparkforge.pipeline.models import PipelineMode, PipelineReport, PipelineStatus
-from sparkforge.types import StepStatus, StepType
+from pipeline_builder.models.exceptions import PipelineConfigurationError
+from pipeline_builder.pipeline.models import (
+    PipelineMode,
+    PipelineReport,
+    PipelineStatus,
+)
+from pipeline_builder.types import StepStatus, StepType
 
 
 class TestBaseModel:

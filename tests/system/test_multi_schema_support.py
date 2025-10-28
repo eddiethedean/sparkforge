@@ -22,8 +22,8 @@ else:
     from pyspark.sql import functions as F
 from pyspark.sql.types import StringType, StructField, StructType
 
-from sparkforge.errors import StepError
-from sparkforge.pipeline.builder import PipelineBuilder
+from pipeline_builder.errors import StepError
+from pipeline_builder.pipeline.builder import PipelineBuilder
 
 
 class TestMultiSchemaSupport:
@@ -303,7 +303,9 @@ class TestMultiSchemaSupport:
 
         # Verify schemas
         assert self.builder.bronze_steps["raw_events"].schema == "raw_data"
-        assert self.builder.silver_steps["clean_events"].schema == "default_schema"  # Auto-assigned from builder
+        assert (
+            self.builder.silver_steps["clean_events"].schema == "default_schema"
+        )  # Auto-assigned from builder
         assert self.builder.gold_steps["daily_metrics"].schema == "analytics"
 
     def test_schema_validation_integration(self):

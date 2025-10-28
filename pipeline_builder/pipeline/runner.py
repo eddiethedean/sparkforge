@@ -240,7 +240,9 @@ class SimplePipelineRunner:
                 "rows_processed": step_result.rows_processed,
                 "output_table": step_result.output_table,
                 "start_time": step_result.start_time.isoformat(),
-                "end_time": step_result.end_time.isoformat() if step_result.end_time else None,
+                "end_time": step_result.end_time.isoformat()
+                if step_result.end_time
+                else None,
                 "write_mode": step_result.write_mode,
                 "validation_rate": step_result.validation_rate,
                 "rows_written": step_result.rows_written,
@@ -252,9 +254,11 @@ class SimplePipelineRunner:
                 step_info["error"] = step_result.error
 
             # Add dataframe if available in context (for users who want to access output)
-            if hasattr(execution_result, 'context') and execution_result.context:
+            if hasattr(execution_result, "context") and execution_result.context:
                 if step_result.step_name in execution_result.context:
-                    step_info["dataframe"] = execution_result.context[step_result.step_name]
+                    step_info["dataframe"] = execution_result.context[
+                        step_result.step_name
+                    ]
 
             # Categorize by step type
             if step_result.step_type.value == "bronze":
@@ -267,12 +271,20 @@ class SimplePipelineRunner:
         # Aggregate row counts from step results
         total_rows_processed = sum(s.rows_processed or 0 for s in steps)
         # For rows_written, only count Silver/Gold steps (those with output_table)
-        total_rows_written = sum(s.rows_processed or 0 for s in steps if s.output_table is not None)
+        total_rows_written = sum(
+            s.rows_processed or 0 for s in steps if s.output_table is not None
+        )
 
         # Calculate durations by layer
-        bronze_duration = sum(s.duration or 0 for s in steps if s.step_type == StepType.BRONZE)
-        silver_duration = sum(s.duration or 0 for s in steps if s.step_type == StepType.SILVER)
-        gold_duration = sum(s.duration or 0 for s in steps if s.step_type == StepType.GOLD)
+        bronze_duration = sum(
+            s.duration or 0 for s in steps if s.step_type == StepType.BRONZE
+        )
+        silver_duration = sum(
+            s.duration or 0 for s in steps if s.step_type == StepType.SILVER
+        )
+        gold_duration = sum(
+            s.duration or 0 for s in steps if s.step_type == StepType.GOLD
+        )
 
         return PipelineReport(
             pipeline_id=pipeline_id,

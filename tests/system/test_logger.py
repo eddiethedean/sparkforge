@@ -10,7 +10,7 @@ import os
 import tempfile
 import unittest
 
-from sparkforge.logging import (
+from pipeline_builder.logging import (
     PipelineLogger,
     get_global_logger,
     reset_global_logger,

@@ -28,6 +28,7 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
         MockStructType as StructType,
     )
     from mock_spark import functions as F
+
     MockF = F
 else:
     from pyspark.sql import functions as F
@@ -38,10 +39,11 @@ else:
         StructType,
         TimestampType,
     )
+
     MockF = None
 
-from sparkforge import PipelineBuilder
-from sparkforge.errors import StepError
+from pipeline_builder import PipelineBuilder
+from pipeline_builder.errors import StepError
 
 
 class TestImprovedUserExperience:
@@ -50,7 +52,11 @@ class TestImprovedUserExperience:
     @pytest.fixture(autouse=True)
     def setup_test(self, spark_session):
         """Set up for each test."""
-        self.builder = PipelineBuilder(spark=spark_session, schema="test_schema", functions=MockF if MockF else None)
+        self.builder = PipelineBuilder(
+            spark=spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
         self.mock_silver_transform = (
             lambda spark, bronze_df, prior_silvers: bronze_df.withColumn(
                 "new_col", F.lit(1)
@@ -173,7 +179,9 @@ class TestImprovedUserExperience:
 
     def test_validation_helper_not_null_rules(self):
         """Test not_null_rules helper method."""
-        rules = PipelineBuilder.not_null_rules(["user_id", "timestamp", "value"], functions=F)
+        rules = PipelineBuilder.not_null_rules(
+            ["user_id", "timestamp", "value"], functions=F
+        )
 
         expected = {
             "user_id": [F.col("user_id").isNotNull()],
@@ -199,7 +207,9 @@ class TestImprovedUserExperience:
 
     def test_validation_helper_string_not_empty_rules(self):
         """Test string_not_empty_rules helper method."""
-        rules = PipelineBuilder.string_not_empty_rules(["name", "category"], functions=F)
+        rules = PipelineBuilder.string_not_empty_rules(
+            ["name", "category"], functions=F
+        )
 
         assert len(rules) == 2
         for col in ["name", "category"]:
@@ -208,7 +218,9 @@ class TestImprovedUserExperience:
 
     def test_validation_helper_timestamp_rules(self):
         """Test timestamp_rules helper method."""
-        rules = PipelineBuilder.timestamp_rules(["created_at", "updated_at"], functions=F)
+        rules = PipelineBuilder.timestamp_rules(
+            ["created_at", "updated_at"], functions=F
+        )
 
         assert len(rules) == 2
         for col in ["created_at", "updated_at"]:

@@ -218,7 +218,7 @@ behave features/new_feature.feature
    pip install -e .
    
    # Check Python path
-   python -c "import sparkforge"
+   python -c "import pipeline_builder"
    ```
 
 3. **Test Failures**

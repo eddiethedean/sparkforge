@@ -22,8 +22,8 @@ from pyspark.sql.types import (
     StructType,
 )
 
-from sparkforge.errors import ValidationError
-from sparkforge.validation import (
+from pipeline_builder.errors import ValidationError
+from pipeline_builder.validation import (
     _convert_rule_to_expression,
     _convert_rules_to_expressions,
     and_all_rules,
@@ -177,7 +177,12 @@ class TestApplyColumnRules:
         }
 
         valid_df, invalid_df, stats = apply_column_rules(
-            sample_dataframe, rules, "test", "test_step", filter_columns_by_rules=True, functions=F
+            sample_dataframe,
+            rules,
+            "test",
+            "test_step",
+            filter_columns_by_rules=True,
+            functions=F,
         )
 
         assert (
@@ -224,7 +229,12 @@ class TestApplyColumnRules:
         }
 
         valid_df, invalid_df, stats = apply_column_rules(
-            sample_dataframe, rules, "test", "test_step", filter_columns_by_rules=True, functions=F
+            sample_dataframe,
+            rules,
+            "test",
+            "test_step",
+            filter_columns_by_rules=True,
+            functions=F,
         )
 
         # Only user1 and user2 should pass all rules
@@ -296,7 +306,9 @@ class TestConvertRuleToExpression:
 
     def test_custom_expression_rule(self):
         """Test custom expression rule conversion."""
-        result = _convert_rule_to_expression("col('test_column') > 10", "test_column", F)
+        result = _convert_rule_to_expression(
+            "col('test_column') > 10", "test_column", F
+        )
         # This should return a Column expression
         assert hasattr(result, "__gt__")
 
@@ -367,7 +379,9 @@ class TestApplyValidationRules:
             "age": ["positive"],
             "score": ["non_negative"],
         }
-        result = apply_column_rules(sample_dataframe, rules, "bronze", "test_step", functions=F)
+        result = apply_column_rules(
+            sample_dataframe, rules, "bronze", "test_step", functions=F
+        )
 
         assert result is not None
         assert len(result) == 3  # Should return tuple of (df, df, stats)

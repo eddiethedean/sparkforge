@@ -6,8 +6,8 @@ This module tests all reporting utilities and functions.
 
 from datetime import datetime
 
-from sparkforge.models import StageStats
-from sparkforge.reporting import (
+from pipeline_builder.models import StageStats
+from pipeline_builder.reporting import (
     create_summary_report,
     create_transform_dict,
     create_validation_dict,

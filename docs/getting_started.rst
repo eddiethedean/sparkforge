@@ -1,14 +1,16 @@
-Getting Started with SparkForge
-================================
+Getting Started with PipelineBuilder
+=====================================
 
-A quick start guide to get you up and running with SparkForge in minutes.
+A quick start guide to get you up and running with PipelineBuilder in minutes.
 
 Installation
 ------------
 
 .. code-block:: bash
 
-   pip install sparkforge
+   git clone https://github.com/eddiethedean/sparkforge.git
+   cd sparkforge
+   pip install -e .
 
 Your First Pipeline
 -------------------
@@ -21,7 +23,7 @@ Let's build a simple e-commerce analytics pipeline:
 
 .. code-block:: python
 
-   from sparkforge import PipelineBuilder
+   from pipeline_builder import PipelineBuilder
    from pyspark.sql import functions as F
    from pyspark.sql import SparkSession
 
@@ -311,7 +313,7 @@ Monitor Performance
 
 .. code-block:: python
 
-   from sparkforge.performance import performance_monitor
+   from pipeline_builder.performance import performance_monitor
 
    with performance_monitor("pipeline_execution"):
        result = pipeline.run_incremental(bronze_sources={"events": events_df})

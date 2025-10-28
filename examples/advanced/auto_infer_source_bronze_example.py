@@ -9,7 +9,7 @@ parameter when adding silver transforms, making the API more convenient.
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 
 
 def main():

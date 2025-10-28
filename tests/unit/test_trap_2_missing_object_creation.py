@@ -11,14 +11,16 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from sparkforge.pipeline.builder import PipelineBuilder
+from pipeline_builder.pipeline.builder import PipelineBuilder
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
     from mock_spark import functions as F
+
     MockF = F
 else:
     from pyspark.sql import functions as F
+
     MockF = None
 
 
@@ -42,7 +44,7 @@ class TestTrap2MissingObjectCreation:
 
         # Mock the PipelineRunner to track if it's created
         with patch(
-            "sparkforge.pipeline.builder.PipelineRunner"
+            "pipeline_builder.pipeline.builder.PipelineRunner"
         ) as mock_pipeline_runner:
             # Call to_pipeline()
             runner = builder.to_pipeline()
@@ -85,7 +87,7 @@ class TestTrap2MissingObjectCreation:
             return obj
 
         with patch(
-            "sparkforge.pipeline.builder.PipelineRunner",
+            "pipeline_builder.pipeline.builder.PipelineRunner",
             side_effect=track_pipeline_runner,
         ):
             # Call to_pipeline()
@@ -121,7 +123,7 @@ class TestTrap2MissingObjectCreation:
         )
 
         with patch(
-            "sparkforge.pipeline.builder.PipelineRunner"
+            "pipeline_builder.pipeline.builder.PipelineRunner"
         ) as mock_pipeline_runner:
             # Call to_pipeline() - should succeed
             runner = builder.to_pipeline()
@@ -149,7 +151,7 @@ class TestTrap2MissingObjectCreation:
         pipeline_runner_mock = Mock()
 
         with patch(
-            "sparkforge.pipeline.builder.PipelineRunner",
+            "pipeline_builder.pipeline.builder.PipelineRunner",
             return_value=pipeline_runner_mock,
         ):
             # Call to_pipeline()

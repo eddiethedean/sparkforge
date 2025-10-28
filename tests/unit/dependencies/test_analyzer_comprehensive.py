@@ -7,14 +7,14 @@ This module tests all dependency analysis functionality, strategies, cycle detec
 
 import unittest
 
-from sparkforge.dependencies import (
+from pipeline_builder.dependencies import (
     AnalysisStrategy,
     DependencyAnalysisResult,
     DependencyAnalyzer,
     ExecutionMode,
 )
-from sparkforge.logging import PipelineLogger
-from sparkforge.models import BronzeStep, GoldStep, SilverStep
+from pipeline_builder.logging import PipelineLogger
+from pipeline_builder.models import BronzeStep, GoldStep, SilverStep
 
 
 class TestAnalysisStrategy(unittest.TestCase):
@@ -41,7 +41,7 @@ class TestDependencyAnalysisResult(unittest.TestCase):
 
     def test_analysis_result_creation(self):
         """Test analysis result creation."""
-        from sparkforge.dependencies.graph import DependencyGraph
+        from pipeline_builder.dependencies.graph import DependencyGraph
 
         graph = DependencyGraph()
         execution_groups = [["step1"], ["step2", "step3"]]
@@ -68,7 +68,7 @@ class TestDependencyAnalysisResult(unittest.TestCase):
 
     def test_get_total_execution_time(self):
         """Test total execution time calculation."""
-        from sparkforge.dependencies.graph import DependencyGraph
+        from pipeline_builder.dependencies.graph import DependencyGraph
 
         result = DependencyAnalysisResult(
             graph=DependencyGraph(),
@@ -84,7 +84,7 @@ class TestDependencyAnalysisResult(unittest.TestCase):
 
     def test_get_parallelization_ratio(self):
         """Test parallelization ratio calculation."""
-        from sparkforge.dependencies.graph import DependencyGraph
+        from pipeline_builder.dependencies.graph import DependencyGraph
 
         result = DependencyAnalysisResult(
             graph=DependencyGraph(),
@@ -173,7 +173,7 @@ class TestDependencyAnalyzer(unittest.TestCase):
 
     def test_analyze_dependencies_with_bronze_steps(self):
         """Test dependency analysis with bronze steps."""
-        from sparkforge.models import BronzeStep
+        from pipeline_builder.models import BronzeStep
 
         bronze_steps = {
             "bronze1": BronzeStep(name="bronze1", rules={"id": ["not_null"]})
@@ -187,7 +187,7 @@ class TestDependencyAnalyzer(unittest.TestCase):
 
     def test_analyze_dependencies_with_gold_steps(self):
         """Test dependency analysis with gold steps."""
-        from sparkforge.models import GoldStep
+        from pipeline_builder.models import GoldStep
 
         gold_steps = {
             "gold1": GoldStep(
@@ -293,7 +293,7 @@ class TestDependencyAnalyzerIntegration(unittest.TestCase):
     def test_different_strategies_comparison(self):
         """Test different analysis strategies produce different results."""
         # Create analyzers with different strategies
-        from sparkforge.dependencies.analyzer import (
+        from pipeline_builder.dependencies.analyzer import (
             AnalysisStrategy,
             DependencyAnalyzer,
         )

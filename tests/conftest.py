@@ -49,19 +49,23 @@ def reset_global_state():
     """Reset global state before and after each test to prevent pollution."""
     # Reset before test
     try:
-        from sparkforge.logging import reset_global_logger
+        from pipeline_builder.logging import reset_global_logger
+
         reset_global_logger()
     except Exception:
         pass
 
     # Clear any cached Spark modules
     import sys
-    [k for k in sys.modules.keys() if 'pyspark' in k.lower() and '_jvm' not in k]
+
+    [k for k in sys.modules.keys() if "pyspark" in k.lower() and "_jvm" not in k]
     # Don't remove modules, just ensure SparkContext is clean
     try:
-        from sparkforge.compat import compat_name
+        from pipeline_builder.compat import compat_name
+
         if compat_name() == "pyspark":
             from pyspark import SparkContext
+
             if SparkContext._active_spark_context is not None:
                 # Don't stop it as other tests might need it
                 pass
@@ -72,7 +76,8 @@ def reset_global_state():
 
     # Reset after test
     try:
-        from sparkforge.logging import reset_global_logger
+        from pipeline_builder.logging import reset_global_logger
+
         reset_global_logger()
     except Exception:
         pass
@@ -355,6 +360,7 @@ def isolated_spark_session():
 
         # Create the spark session using the main fixture
         from conftest import spark_session_fixture
+
         spark = spark_session_fixture()
 
         # Create isolated test database
@@ -736,7 +742,11 @@ def test_config():
 
     Returns a PipelineConfig object for testing.
     """
-    from sparkforge.models import ParallelConfig, PipelineConfig, ValidationThresholds
+    from pipeline_builder.models import (
+        ParallelConfig,
+        PipelineConfig,
+        ValidationThresholds,
+    )
 
     return PipelineConfig(
         schema="test_schema",

@@ -5,12 +5,12 @@ System tests for complete pipeline execution using Mock Spark.
 import pytest
 from mock_spark.errors import AnalysisException
 
-from sparkforge.execution import ExecutionEngine
-from sparkforge.models import ParallelConfig, PipelineConfig, ValidationThresholds
-from sparkforge.pipeline.builder import PipelineBuilder
-from sparkforge.validation.pipeline_validation import UnifiedValidator
-from sparkforge.writer.core import LogWriter
-from sparkforge.writer.models import LogLevel, WriteMode, WriterConfig
+from pipeline_builder.execution import ExecutionEngine
+from pipeline_builder.models import ParallelConfig, PipelineConfig, ValidationThresholds
+from pipeline_builder.pipeline.builder import PipelineBuilder
+from pipeline_builder.validation.pipeline_validation import UnifiedValidator
+from pipeline_builder.writer.core import LogWriter
+from pipeline_builder.writer.models import LogLevel, WriteMode, WriterConfig
 
 
 class TestCompletePipeline:

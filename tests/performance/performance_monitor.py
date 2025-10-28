@@ -12,7 +12,7 @@ import time
 import tracemalloc
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Generator, List, Optional, Tuple
 
 import psutil
 
@@ -90,7 +90,7 @@ class PerformanceMonitor:
             json.dump(baseline_data, f, indent=2)
 
     @contextmanager
-    def measure_performance(self, function_name: str, iterations: int = 1):
+    def measure_performance(self, function_name: str, iterations: int = 1) -> Generator[PerformanceResult, None, None]:
         """Context manager for measuring function performance."""
         # Start memory tracing
         tracemalloc.start()
@@ -137,7 +137,7 @@ class PerformanceMonitor:
         function_name: str,
         iterations: int = 1,
         args: Tuple = (),
-        kwargs: Dict[str, Any] = None,
+        kwargs: Optional[Dict[str, Any]] = None,
     ) -> PerformanceResult:
         """Run a performance test on a function."""
         if kwargs is None:
@@ -146,8 +146,7 @@ class PerformanceMonitor:
         with self.measure_performance(function_name, iterations) as result:
             for _ in range(iterations):
                 function(*args, **kwargs)
-
-        return result
+            return result
 
     def check_regression(
         self, function_name: str, tolerance: float = 0.2
@@ -241,7 +240,7 @@ class PerformanceMonitor:
         function_name: str,
         iterations: int = 100,
         args: Tuple = (),
-        kwargs: Dict[str, Any] = None,
+        kwargs: Optional[Dict[str, Any]] = None,
         warmup_iterations: int = 10,
     ) -> PerformanceResult:
         """Benchmark a function with warmup and multiple iterations."""

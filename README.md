@@ -1,8 +1,7 @@
-# SparkForge ⚡
+# Pipeline Builder ⚡
 
 > **The modern data pipeline framework for Apache Spark & Delta Lake**
 
-[![PyPI version](https://img.shields.io/badge/version-1.3.3-blue.svg)](https://pypi.org/project/sparkforge/)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://sparkforge.readthedocs.io/)
@@ -11,11 +10,11 @@
 [![Type Safety](https://img.shields.io/badge/type%20safety-100%25-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
 [![CI/CD](https://github.com/eddiethedean/sparkforge/workflows/Tests/badge.svg)](https://github.com/eddiethedean/sparkforge/actions)
 
-**SparkForge** is a production-ready data pipeline framework that transforms complex Spark + Delta Lake development into clean, maintainable code. Built on the proven Medallion Architecture (Bronze → Silver → Gold), it eliminates boilerplate while providing enterprise-grade features.
+**Pipeline Builder** is a production-ready data pipeline framework that transforms complex Spark + Delta Lake development into clean, maintainable code. Built on the proven Medallion Architecture (Bronze → Silver → Gold), it eliminates boilerplate while providing enterprise-grade features.
 
-## ✨ Why SparkForge?
+## ✨ Why Pipeline Builder?
 
-| **Before SparkForge** | **With SparkForge** |
+| **Before Pipeline Builder** | **With Pipeline Builder** |
 |----------------------|-------------------|
 | 200+ lines of complex Spark code | 20 lines of clean, readable code |
 | Manual dependency management | Automatic inference & validation |
@@ -28,26 +27,31 @@
 
 ### Installation
 
-**With PySpark (for production):**
+**Install from repository:**
 ```bash
-pip install sparkforge[pyspark]
+# Clone the repository
+git clone https://github.com/eddiethedean/sparkforge.git
+cd sparkforge
+
+# Install in development mode
+pip install -e ".[pyspark]"
 ```
 
-**With mock-spark (for testing/development):**
+**For testing/development with mock-spark:**
 ```bash
-pip install sparkforge[mock]
+pip install -e ".[mock]"
 ```
 
 **For PySpark compatibility testing:**
 ```bash
-pip install sparkforge[compat-test]
+pip install -e ".[compat-test]"
 ```
 
-**Note:** SparkForge now supports both PySpark and mock-spark. Choose the installation method that best fits your use case. The framework automatically detects which engine is available.
+**Note:** PipelineBuilder now supports both PySpark and mock-spark. Choose the installation method that best fits your use case. The framework automatically detects which engine is available.
 
 ### Quick Start Example
 ```python
-from sparkforge.pipeline.builder import PipelineBuilder
+from pipeline_builder.pipeline.builder import PipelineBuilder
 from pyspark.sql import SparkSession, functions as F
 
 # Initialize Spark
@@ -77,7 +81,7 @@ results["summary"].show()
 
 ### Your First Pipeline
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 from pyspark.sql import SparkSession, functions as F
 
 # Initialize Spark
@@ -155,7 +159,7 @@ print(f"📊 Processed {result.metrics.total_rows_written} rows")
 
 ## ⚡ Smart Parallel Execution
 
-SparkForge automatically analyzes your pipeline dependencies and executes independent steps in parallel for maximum performance. **No configuration needed** - it just works!
+PipelineBuilder automatically analyzes your pipeline dependencies and executes independent steps in parallel for maximum performance. **No configuration needed** - it just works!
 
 ### How It Works
 
@@ -206,7 +210,7 @@ Total: 6s                      Total: 2s ⚡
 ### Performance Configuration
 
 ```python
-from sparkforge.models import PipelineConfig
+from pipeline_builder.models import PipelineConfig
 
 # Default: Parallel enabled with 4 workers (recommended)
 builder = PipelineBuilder(spark=spark, schema="analytics")
@@ -218,7 +222,7 @@ config = PipelineConfig.create_high_performance(schema="analytics")
 config = PipelineConfig.create_conservative(schema="analytics")
 
 # Custom configuration
-from sparkforge.models import ParallelConfig, ValidationThresholds
+from pipeline_builder.models import ParallelConfig, ValidationThresholds
 
 config = PipelineConfig(
     schema="analytics",
@@ -239,7 +243,7 @@ config = PipelineConfig(
 
 ## 🎨 String Rules - Human-Readable Validation
 
-SparkForge supports both PySpark expressions and human-readable string rules:
+PipelineBuilder supports both PySpark expressions and human-readable string rules:
 
 ```python
 # String rules (automatically converted to PySpark expressions)
@@ -308,19 +312,19 @@ rules = {
 ## 📚 Examples & Use Cases
 
 ### 🎯 **Core Examples**
-- **[Hello World](https://github.com/eddiethedean/sparkforge/blob/main/examples/core/hello_world.py)** - 3-line pipeline introduction
-- **[Basic Pipeline](https://github.com/eddiethedean/sparkforge/blob/main/examples/core/basic_pipeline.py)** - Complete Bronze → Silver → Gold flow
-- **[Step-by-Step Debugging](https://github.com/eddiethedean/sparkforge/blob/main/examples/core/step_by_step_execution.py)** - Debug individual steps
+- **[Hello World](https://github.com/eddiethedean/pipeline_builder/blob/main/examples/core/hello_world.py)** - 3-line pipeline introduction
+- **[Basic Pipeline](https://github.com/eddiethedean/pipeline_builder/blob/main/examples/core/basic_pipeline.py)** - Complete Bronze → Silver → Gold flow
+- **[Step-by-Step Debugging](https://github.com/eddiethedean/pipeline_builder/blob/main/examples/core/step_by_step_execution.py)** - Debug individual steps
 
 ### 🚀 **Advanced Features**
-- **[Auto-Inference](https://github.com/eddiethedean/sparkforge/blob/main/examples/advanced/auto_infer_source_bronze_simple.py)** - Automatic dependency detection
-- **[Multi-Schema Support](https://github.com/eddiethedean/sparkforge/blob/main/examples/advanced/multi_schema_pipeline.py)** - Cross-schema data flows
-- **[Column Filtering](https://github.com/eddiethedean/sparkforge/blob/main/examples/specialized/column_filtering_behavior.py)** - Control data preservation
+- **[Auto-Inference](https://github.com/eddiethedean/pipeline_builder/blob/main/examples/advanced/auto_infer_source_bronze_simple.py)** - Automatic dependency detection
+- **[Multi-Schema Support](https://github.com/eddiethedean/pipeline_builder/blob/main/examples/advanced/multi_schema_pipeline.py)** - Cross-schema data flows
+- **[Column Filtering](https://github.com/eddiethedean/pipeline_builder/blob/main/examples/specialized/column_filtering_behavior.py)** - Control data preservation
 
 ### 🏢 **Real-World Use Cases**
-- **[E-commerce Analytics](https://github.com/eddiethedean/sparkforge/blob/main/examples/usecases/ecommerce_analytics.py)** - Order processing, customer insights
-- **[IoT Sensor Data](https://github.com/eddiethedean/sparkforge/blob/main/examples/usecases/iot_sensor_pipeline.py)** - Real-time sensor processing
-- **[Business Intelligence](https://github.com/eddiethedean/sparkforge/blob/main/examples/usecases/step_by_step_debugging.py)** - KPI dashboards, reporting
+- **[E-commerce Analytics](https://github.com/eddiethedean/pipeline_builder/blob/main/examples/usecases/ecommerce_analytics.py)** - Order processing, customer insights
+- **[IoT Sensor Data](https://github.com/eddiethedean/pipeline_builder/blob/main/examples/usecases/iot_sensor_pipeline.py)** - Real-time sensor processing
+- **[Business Intelligence](https://github.com/eddiethedean/pipeline_builder/blob/main/examples/usecases/step_by_step_debugging.py)** - KPI dashboards, reporting
 
 ## 📊 LogWriter - Pipeline Execution Tracking
 
@@ -329,7 +333,7 @@ Track and analyze your pipeline executions with the simplified LogWriter API:
 ### Quick Example
 
 ```python
-from sparkforge import PipelineBuilder, LogWriter
+from pipeline_builder import PipelineBuilder, LogWriter
 
 # Build and run your pipeline
 builder = PipelineBuilder(spark, schema="analytics")
@@ -395,23 +399,27 @@ performance = spark.sql("""
 """)
 ```
 
-See **[examples/specialized/logwriter_simple_example.py](https://github.com/eddiethedean/sparkforge/blob/main/examples/specialized/logwriter_simple_example.py)** for a complete working example.
+See **[examples/specialized/logwriter_simple_example.py](https://github.com/eddiethedean/pipeline_builder/blob/main/examples/specialized/logwriter_simple_example.py)** for a complete working example.
 
 ## 🛠️ Installation & Setup
 
 ### Prerequisites
 - **Python 3.8+** (tested with 3.8, 3.9, 3.10, 3.11)
 - **Java 8+** (for PySpark)
-- **PySpark 3.2.4+**
+- **PySpark 3.4+**
 - **Delta Lake 1.2.0+**
 
 ### Quick Install
 ```bash
-# Install from PyPI
-pip install sparkforge
+# Clone the repository
+git clone https://github.com/eddiethedean/sparkforge.git
+cd sparkforge
+
+# Install in development mode
+pip install -e .
 
 # Verify installation
-python -c "import sparkforge; print(f'SparkForge {sparkforge.__version__} installed!')"
+python -c "import pipeline_builder; print(f'PipelineBuilder {pipeline_builder.__version__} installed!')"
 ```
 
 ### Development Install
@@ -420,7 +428,7 @@ python -c "import sparkforge; print(f'SparkForge {sparkforge.__version__} instal
 git clone https://github.com/eddiethedean/sparkforge.git
 cd sparkforge
 
-# Setup Python 3.8 environment with PySpark 3.2
+# Setup Python 3.8 environment with PySpark 3.4
 python3.8 -m venv venv38
 source venv38/bin/activate
 pip install --upgrade pip
@@ -442,19 +450,19 @@ See [QUICKSTART.md](https://github.com/eddiethedean/sparkforge/blob/main/QUICKST
 ## 📖 Documentation
 
 ### 📚 **Complete Documentation**
-- **[📖 Full Documentation](https://sparkforge.readthedocs.io/)** - Comprehensive guides and API reference
-- **[⚡ 5-Minute Quick Start](https://sparkforge.readthedocs.io/en/latest/quick_start_5_min.html)** - Get running fast
-- **[🎯 User Guide](https://sparkforge.readthedocs.io/en/latest/user_guide.html)** - Complete feature walkthrough
-- **[🔧 API Reference](https://sparkforge.readthedocs.io/en/latest/api_reference.html)** - Detailed API documentation
+- **[📖 Full Documentation](https://pipeline_builder.readthedocs.io/)** - Comprehensive guides and API reference
+- **[⚡ 5-Minute Quick Start](https://pipeline_builder.readthedocs.io/en/latest/quick_start_5_min.html)** - Get running fast
+- **[🎯 User Guide](https://pipeline_builder.readthedocs.io/en/latest/user_guide.html)** - Complete feature walkthrough
+- **[🔧 API Reference](https://pipeline_builder.readthedocs.io/en/latest/api_reference.html)** - Detailed API documentation
 
 ### 🎯 **Use Case Guides**
-- **[🛒 E-commerce Analytics](https://sparkforge.readthedocs.io/en/latest/usecase_ecommerce.html)** - Order processing, customer analytics
-- **[📡 IoT Data Processing](https://sparkforge.readthedocs.io/en/latest/usecase_iot.html)** - Sensor data, anomaly detection
-- **[📊 Business Intelligence](https://sparkforge.readthedocs.io/en/latest/usecase_bi.html)** - Dashboards, KPIs, reporting
+- **[🛒 E-commerce Analytics](https://pipeline_builder.readthedocs.io/en/latest/usecase_ecommerce.html)** - Order processing, customer analytics
+- **[📡 IoT Data Processing](https://pipeline_builder.readthedocs.io/en/latest/usecase_iot.html)** - Sensor data, anomaly detection
+- **[📊 Business Intelligence](https://pipeline_builder.readthedocs.io/en/latest/usecase_bi.html)** - Dashboards, KPIs, reporting
 
 ## 🧪 Testing & Quality
 
-SparkForge includes a comprehensive test suite with **1,441 tests** covering all functionality:
+PipelineBuilder includes a comprehensive test suite with **1,441 tests** covering all functionality:
 
 ```bash
 # Run all tests with coverage and type checking (recommended)
@@ -469,10 +477,10 @@ pytest tests/integration/ -v       # Integration tests
 pytest tests/system/ -v            # System tests
 
 # Run with coverage
-pytest tests/ --cov=sparkforge --cov-report=html
+pytest tests/ --cov=pipeline_builder --cov-report=html
 
 # Activate environment
-source activate_env.sh             # Loads Python 3.8 + PySpark 3.2
+source activate_env.sh             # Loads Python 3.8 + PySpark 3.4
 
 # Verify environment
 python scripts/test_python38_environment.py  # Comprehensive environment check
@@ -498,8 +506,8 @@ We welcome contributions! Here's how to get started:
 
 ### Quick Start for Contributors
 1. **Fork the repository**
-2. **Clone your fork**: `git clone https://github.com/yourusername/sparkforge.git`
-3. **Setup environment**: `bash setup.sh` or see [QUICKSTART.md](https://github.com/eddiethedean/sparkforge/blob/main/QUICKSTART.md)
+2. **Clone your fork**: `git clone https://github.com/yourusername/pipeline_builder.git`
+3. **Setup environment**: `bash setup.sh` or see [QUICKSTART.md](https://github.com/eddiethedean/pipeline_builder/blob/main/QUICKSTART.md)
 4. **Activate environment**: `source activate_env.sh`
 5. **Run tests**: `make test` (1,441 tests, 100% pass rate)
 6. **Create a feature branch**: `git checkout -b feature/amazing-feature`
@@ -518,7 +526,7 @@ We welcome contributions! Here's how to get started:
 
 ## 📊 Performance & Benchmarks
 
-| Metric | SparkForge | Raw Spark | Improvement |
+| Metric | PipelineBuilder | Raw Spark | Improvement |
 |--------|------------|-----------|-------------|
 | **Lines of Code** | 20 lines | 200+ lines | **90% reduction** |
 | **Development Time** | 30 minutes | 4+ hours | **87% faster** |
@@ -535,7 +543,7 @@ We welcome contributions! Here's how to get started:
 ```
 Pipeline: 3 independent data sources → 3 transformations → 1 aggregation
 
-Sequential Execution:        Parallel Execution (SparkForge):
+Sequential Execution:        Parallel Execution (PipelineBuilder):
 ─────────────────────       ─────────────────────────────────
 Source A: 2s                Group 1 (parallel): 2s
 Source B: 2s                  ├─ Source A: 2s ┐
@@ -592,7 +600,7 @@ Total: 16s                  Group 3: 1s
 - ✅ **Better test alignment** - Tests now reflect actual intended behavior
 - ✅ **Optimized test runner** - Type checking only on source code, not tests
 
-## 🏆 What Makes SparkForge Different?
+## 🏆 What Makes PipelineBuilder Different?
 
 ### ✅ **Built for Production**
 - **Enterprise-grade error handling** with detailed context
@@ -617,7 +625,7 @@ Total: 16s                  Group 3: 1s
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/eddiethedean/sparkforge/blob/main/LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/eddiethedean/pipeline_builder/blob/main/LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
@@ -632,6 +640,6 @@ This project is licensed under the MIT License - see the [LICENSE](https://githu
 
 **Made with ❤️ for the data engineering community**
 
-[⭐ Star us on GitHub](https://github.com/eddiethedean/sparkforge) • [📖 Read the docs](https://sparkforge.readthedocs.io/) • [🐛 Report issues](https://github.com/eddiethedean/sparkforge/issues) • [💬 Join discussions](https://github.com/eddiethedean/sparkforge/discussions)
+[⭐ Star us on GitHub](https://github.com/eddiethedean/pipeline_builder) • [📖 Read the docs](https://pipeline_builder.readthedocs.io/) • [🐛 Report issues](https://github.com/eddiethedean/pipeline_builder/issues) • [💬 Join discussions](https://github.com/eddiethedean/pipeline_builder/discussions)
 
 </div>

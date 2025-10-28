@@ -21,8 +21,8 @@ This guide provides comprehensive strategies for optimizing SparkForge pipeline 
 SparkForge includes comprehensive performance monitoring capabilities:
 
 ```python
-from sparkforge.pipeline.builder import PipelineBuilder
-from sparkforge.models import ValidationThresholds, ParallelConfig
+from pipeline_builder.pipeline.builder import PipelineBuilder
+from pipeline_builder.models import ValidationThresholds, ParallelConfig
 
 # Enable performance monitoring
 config = PipelineConfig(
@@ -228,7 +228,7 @@ Optimize garbage collection for long-running pipelines:
 Configure parallel processing for optimal performance:
 
 ```python
-from sparkforge.models import ParallelConfig
+from pipeline_builder.models import ParallelConfig
 
 # Optimal parallel configuration
 parallel_config = ParallelConfig(
@@ -373,7 +373,7 @@ Create custom performance tests:
 
 ```python
 import time
-from sparkforge.pipeline.builder import PipelineBuilder
+from pipeline_builder.pipeline.builder import PipelineBuilder
 
 def performance_test():
     start_time = time.time()
@@ -446,7 +446,7 @@ print(f"Peak memory usage: {history.peak_memory_mb}MB")
 ```python
 # Enable detailed logging
 import logging
-logging.getLogger("sparkforge").setLevel(logging.DEBUG)
+logging.getLogger("pipeline_builder").setLevel(logging.DEBUG)
 
 # Get detailed performance breakdown
 performance_breakdown = builder.get_performance_breakdown()

@@ -12,11 +12,11 @@ This guide explains the major refactoring of the SparkForge pipeline system to i
 - Difficult to maintain and extend
 
 **After:** Modular pipeline system
-- `sparkforge.pipeline.PipelineBuilder` - Clean pipeline construction
-- `sparkforge.pipeline.PipelineRunner` - Focused execution engine
-- `sparkforge.pipeline.StepExecutor` - Individual step execution
-- `sparkforge.pipeline.PipelineValidator` - Validation system
-- `sparkforge.pipeline.PipelineMonitor` - Monitoring and metrics
+- `pipeline_builder.pipeline.PipelineBuilder` - Clean pipeline construction
+- `pipeline_builder.pipeline.PipelineRunner` - Focused execution engine
+- `pipeline_builder.pipeline.StepExecutor` - Individual step execution
+- `pipeline_builder.pipeline.PipelineValidator` - Validation system
+- `pipeline_builder.pipeline.PipelineMonitor` - Monitoring and metrics
 
 ### **2. Clean Separation of Concerns**
 
@@ -108,7 +108,7 @@ The API remains **100% backward compatible**. No code changes are required:
 
 ```python
 # This still works exactly the same
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 
 builder = PipelineBuilder(spark=spark, schema="my_schema")
 builder.with_bronze_rules(name="events", rules={...})
@@ -122,9 +122,9 @@ result = pipeline.initial_load(bronze_sources={"events": df})
 You can now use the modular components directly:
 
 ```python
-from sparkforge.pipeline import PipelineBuilder, PipelineRunner, PipelineValidator
-from sparkforge.execution import ExecutionEngine
-from sparkforge.dependencies import DependencyAnalyzer
+from pipeline_builder.pipeline import PipelineBuilder, PipelineRunner, PipelineValidator
+from pipeline_builder.execution import ExecutionEngine
+from pipeline_builder.dependencies import DependencyAnalyzer
 
 # Use individual components
 validator = PipelineValidator()
@@ -166,7 +166,7 @@ dependency_analyzer = DependencyAnalyzer()
 ## 📝 **File Structure**
 
 ```
-sparkforge/
+pipeline_builder/
 ├── pipeline/                    # New modular pipeline system
 │   ├── __init__.py             # Public API
 │   ├── builder.py              # PipelineBuilder (400 lines)

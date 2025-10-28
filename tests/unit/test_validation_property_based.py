@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Property-based tests for sparkforge/validation.py module using Hypothesis.
+Property-based tests for pipeline_builder/validation.py module using Hypothesis.
 
 This module tests validation functions with generated data to ensure robustness
 and catch edge cases that might be missed by traditional unit tests.
@@ -12,7 +12,7 @@ from unittest.mock import Mock
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from sparkforge.validation import safe_divide, validate_dataframe_schema
+from pipeline_builder.validation import safe_divide, validate_dataframe_schema
 
 
 class TestValidationPropertyBased:

@@ -3,7 +3,7 @@
 
 ## Phase 1: Create TypedDict Definitions
 
-### 1.1 Reporting TypedDicts (`sparkforge/reporting.py`)
+### 1.1 Reporting TypedDicts (`pipeline_builder/reporting.py`)
 
 Create TypedDict classes for report structures:
 
@@ -12,7 +12,7 @@ Create TypedDict classes for report structures:
 - `WriteReport` - for `create_write_dict` return type
 - `SummaryReport` - for `create_summary_report` return type (nested structure with execution_summary, performance_metrics, data_metrics)
 
-### 1.2 Monitoring TypedDicts (`sparkforge/writer/monitoring.py`)
+### 1.2 Monitoring TypedDicts (`pipeline_builder/writer/monitoring.py`)
 
 Create TypedDict classes for monitoring structures:
 
@@ -22,7 +22,7 @@ Create TypedDict classes for monitoring structures:
 - `AnomalyReport` - for `detect_anomalies` return type (line 339)
 - `PerformanceReport` - for `generate_performance_report` return type (line 416)
 
-### 1.3 Analytics TypedDicts (`sparkforge/writer/analytics.py`)
+### 1.3 Analytics TypedDicts (`pipeline_builder/writer/analytics.py`)
 
 Create TypedDict classes:
 
@@ -31,7 +31,7 @@ Create TypedDict classes:
 - `ExecutionTrends` - for `analyze_execution_trends` return type (line 308)
 - `VolumeTrends` - for `_analyze_volume_trends` return type (line 408)
 
-### 1.4 Storage TypedDicts (`sparkforge/writer/storage.py`)
+### 1.4 Storage TypedDicts (`pipeline_builder/writer/storage.py`)
 
 Create TypedDict classes:
 
@@ -40,13 +40,13 @@ Create TypedDict classes:
 - `VacuumResult` - for `vacuum_table` return type (line 260)
 - `TableInfo` - for `get_table_info` return type (line 315)
 
-### 1.5 Operations TypedDicts (`sparkforge/writer/operations.py`)
+### 1.5 Operations TypedDicts (`pipeline_builder/writer/operations.py`)
 
 Create TypedDict classes:
 
 - `DataQualityReport` - for `validate_data_quality` return type (line 234)
 
-### 1.6 Core Writer TypedDicts (`sparkforge/writer/core.py`)
+### 1.6 Core Writer TypedDicts (`pipeline_builder/writer/core.py`)
 
 Create TypedDict classes:
 

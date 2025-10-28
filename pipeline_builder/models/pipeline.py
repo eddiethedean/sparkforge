@@ -38,10 +38,10 @@ class PipelineConfig(BaseModel):
         if isinstance(self.parallel, bool):
             if self.parallel:
                 # If True, create default parallel config
-                object.__setattr__(self, 'parallel', ParallelConfig.create_default())
+                object.__setattr__(self, "parallel", ParallelConfig.create_default())
             else:
                 # If False, create sequential config
-                object.__setattr__(self, 'parallel', ParallelConfig.create_sequential())
+                object.__setattr__(self, "parallel", ParallelConfig.create_sequential())
 
     @property
     def min_bronze_rate(self) -> float:

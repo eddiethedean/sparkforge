@@ -11,7 +11,7 @@ This guide explains the code organization improvements made to SparkForge to red
 - `UnifiedExecutionEngine` - Advanced execution with cross-layer support
 
 **After:** Single unified execution system
-- `sparkforge.execution.Engine` - Consolidated execution engine
+- `pipeline_builder.execution.Engine` - Consolidated execution engine
 - Pluggable execution strategies (Sequential, Parallel, Adaptive)
 - Better error handling and resource management
 
@@ -22,7 +22,7 @@ This guide explains the code organization improvements made to SparkForge to red
 - `UnifiedDependencyAnalyzer` - Cross-layer dependencies
 
 **After:** Single unified dependency analyzer
-- `sparkforge.dependencies.DependencyAnalyzer` - Handles all step types
+- `pipeline_builder.dependencies.DependencyAnalyzer` - Handles all step types
 - Cleaner graph representation
 - Better cycle detection and resolution
 
@@ -44,8 +44,8 @@ This guide explains the code organization improvements made to SparkForge to red
 
 **Old Code:**
 ```python
-from sparkforge.execution_engine import ExecutionEngine, ExecutionConfig
-from sparkforge.unified_execution_engine import UnifiedExecutionEngine
+from pipeline_builder.execution_engine import ExecutionEngine, ExecutionConfig
+from pipeline_builder.unified_execution_engine import UnifiedExecutionEngine
 
 # Old way - two different engines
 engine = ExecutionEngine(spark, logger, thresholds, schema)
@@ -54,7 +54,7 @@ unified_engine = UnifiedExecutionEngine(spark, config, logger)
 
 **New Code:**
 ```python
-from sparkforge import UnifiedExecutionEngine, ExecutionConfig, ExecutionMode
+from pipeline_builder import UnifiedExecutionEngine, ExecutionConfig, ExecutionMode
 
 # New way - single unified engine
 config = ExecutionConfig(
@@ -69,8 +69,8 @@ engine = UnifiedExecutionEngine(spark, logger, config)
 
 **Old Code:**
 ```python
-from sparkforge.dependency_analyzer import DependencyAnalyzer
-from sparkforge.unified_dependency_analyzer import UnifiedDependencyAnalyzer
+from pipeline_builder.dependency_analyzer import DependencyAnalyzer
+from pipeline_builder.unified_dependency_analyzer import UnifiedDependencyAnalyzer
 
 # Old way - two different analyzers
 analyzer = DependencyAnalyzer(strategy, logger)
@@ -79,7 +79,7 @@ unified_analyzer = UnifiedDependencyAnalyzer(logger)
 
 **New Code:**
 ```python
-from sparkforge import UnifiedDependencyAnalyzer, AnalysisStrategy
+from pipeline_builder import UnifiedDependencyAnalyzer, AnalysisStrategy
 
 # New way - single unified analyzer
 analyzer = UnifiedDependencyAnalyzer(
@@ -101,7 +101,7 @@ except Exception as e:
 
 **New Code:**
 ```python
-from sparkforge.execution import ExecutionError, StepExecutionError
+from pipeline_builder.execution import ExecutionError, StepExecutionError
 
 # New way - specific error handling
 try:
@@ -116,7 +116,7 @@ except ExecutionError as e:
 ## 📁 **New Module Structure**
 
 ```
-sparkforge/
+pipeline_builder/
 ├── execution/              # Unified execution system
 │   ├── __init__.py
 │   ├── engine.py          # Main execution engine

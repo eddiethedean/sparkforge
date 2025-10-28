@@ -10,8 +10,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from sparkforge.pipeline.models import PipelineMode, PipelineStatus
-from sparkforge.pipeline.monitor import PipelineMonitor, SimplePipelineMonitor
+from pipeline_builder.pipeline.models import PipelineMode, PipelineStatus
+from pipeline_builder.pipeline.monitor import PipelineMonitor, SimplePipelineMonitor
 
 
 class TestSimplePipelineMonitor:
@@ -75,7 +75,7 @@ class TestSimplePipelineMonitor:
 
         assert report.metrics.total_steps == 0
 
-    @patch("sparkforge.pipeline.monitor.datetime")
+    @patch("pipeline_builder.pipeline.monitor.datetime")
     def test_start_execution_with_mocked_time(self, mock_datetime):
         """Test start execution with mocked datetime."""
         fixed_time = datetime(2024, 1, 15, 10, 30, 0)
@@ -251,7 +251,7 @@ class TestSimplePipelineMonitor:
         # Finish execution
         monitor.finish_execution(success=True)
 
-    @patch("sparkforge.pipeline.monitor.datetime")
+    @patch("pipeline_builder.pipeline.monitor.datetime")
     def test_finish_execution_with_mocked_time(self, mock_datetime):
         """Test finish execution with mocked datetime."""
         start_time = datetime(2024, 1, 15, 10, 30, 0)

@@ -1,5 +1,5 @@
 """
-Comprehensive tests for sparkforge.writer.core module.
+Comprehensive tests for pipeline_builder.writer.core module.
 """
 
 from datetime import datetime
@@ -11,12 +11,17 @@ from mock_spark import (
     MockStructType,
 )
 
-from sparkforge.logging import PipelineLogger
-from sparkforge.models import ExecutionMode, ExecutionResult, PipelinePhase, StepResult
-from sparkforge.table_operations import table_exists
-from sparkforge.writer.core import LogWriter, time_write_operation
-from sparkforge.writer.exceptions import WriterConfigurationError
-from sparkforge.writer.models import (
+from pipeline_builder.logging import PipelineLogger
+from pipeline_builder.models import (
+    ExecutionMode,
+    ExecutionResult,
+    PipelinePhase,
+    StepResult,
+)
+from pipeline_builder.table_operations import table_exists
+from pipeline_builder.writer.core import LogWriter, time_write_operation
+from pipeline_builder.writer.exceptions import WriterConfigurationError
+from pipeline_builder.writer.models import (
     LogLevel,
     LogRow,
     WriteMode,
@@ -29,7 +34,7 @@ def create_execution_result(
     mode: ExecutionMode = ExecutionMode.INITIAL,
 ) -> ExecutionResult:
     """Helper function to create ExecutionResult objects for testing."""
-    from sparkforge.models import ExecutionContext, PipelineMetrics
+    from pipeline_builder.models import ExecutionContext, PipelineMetrics
 
     context = ExecutionContext(
         execution_id=execution_id, mode=mode, start_time=datetime.now()
@@ -208,7 +213,7 @@ class TestWriterComprehensive:
         writer = LogWriter(spark=mock_spark_session, config=config)
 
         # Create execution result
-        from sparkforge.models import ExecutionContext, PipelineMetrics
+        from pipeline_builder.models import ExecutionContext, PipelineMetrics
 
         context = ExecutionContext(
             execution_id="test-execution-123",

@@ -16,8 +16,8 @@ from pyspark.sql.types import (
     StructType,
 )
 
-from sparkforge.models import PipelineConfig
-from sparkforge.pipeline.builder import PipelineBuilder
+from pipeline_builder.models import PipelineConfig
+from pipeline_builder.pipeline.builder import PipelineBuilder
 
 
 def main():

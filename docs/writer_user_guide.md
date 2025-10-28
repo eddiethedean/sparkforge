@@ -23,7 +23,7 @@ The SparkForge Writer module is a powerful tool for logging and analyzing pipeli
 The Writer module is included with SparkForge. No additional installation is required.
 
 ```python
-from sparkforge.writer import LogWriter
+from pipeline_builder.writer import LogWriter
 ```
 
 ### Quick Start
@@ -32,7 +32,7 @@ Here's a simple example to get you started with the **simplified API (v1.3+)**:
 
 ```python
 from pyspark.sql import SparkSession
-from sparkforge.writer import LogWriter
+from pipeline_builder.writer import LogWriter
 
 # Initialize Spark session
 spark = SparkSession.builder.appName("WriterExample").getOrCreate()
@@ -63,7 +63,7 @@ print(f"Success: {result['success']}, Rows written: {result['rows_written']}")
 The most common use case is writing complete pipeline execution results:
 
 ```python
-from sparkforge.models import ExecutionResult, ExecutionContext, StepResult, ExecutionMode
+from pipeline_builder.models import ExecutionResult, ExecutionContext, StepResult, ExecutionMode
 from datetime import datetime
 
 # Create execution context
@@ -688,7 +688,7 @@ config.parallel_write_threads = 4  # Increase threads
 #### Enable Debug Logging
 
 ```python
-from sparkforge.logging import PipelineLogger
+from pipeline_builder.logging import PipelineLogger
 
 # Create logger with debug level
 logger = PipelineLogger("WriterDebug", level="DEBUG")

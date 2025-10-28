@@ -8,13 +8,12 @@ and operations instead of mocks.
 NOTE: These tests require real Spark and will be skipped in mock mode.
 """
 
-
 import os
 
 import pytest
 
 # Real Spark tests - simplified for mock-spark
-# These tests focus on sparkforge functionality, not pyspark internals
+# These tests focus on pipeline_builder functionality, not pyspark internals
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
@@ -24,7 +23,7 @@ else:
 from pyspark.sql.types import StringType, StructField, StructType
 
 # Import the actual functions we're testing
-from sparkforge.validation import (
+from pipeline_builder.validation import (
     and_all_rules,
     assess_data_quality,
     get_dataframe_info,
@@ -226,9 +225,7 @@ class TestRealSparkOperations:
 
         # Test left join
         left_joined_df = users_df.join(events_df, "user_id", "left")
-        assert (
-            left_joined_df.count() >= 3
-        )  # At least the joined records
+        assert left_joined_df.count() >= 3  # At least the joined records
 
         # Test aggregation after join
         user_activity = (

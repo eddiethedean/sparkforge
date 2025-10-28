@@ -19,9 +19,14 @@ else:
     from pyspark.sql import DataFrame
     from pyspark.sql import functions as F
 
-from sparkforge.execution import ExecutionEngine, ExecutionMode, StepStatus, StepType
-from sparkforge.logging import PipelineLogger
-from sparkforge.models import (
+from pipeline_builder.execution import (
+    ExecutionEngine,
+    ExecutionMode,
+    StepStatus,
+    StepType,
+)
+from pipeline_builder.logging import PipelineLogger
+from pipeline_builder.models import (
     BronzeStep,
     GoldStep,
     ParallelConfig,
@@ -220,7 +225,7 @@ class TestStepExecutionFlow:
 
     def test_step_execution_result_flow(self, spark_session):
         """Test that step execution results are properly created."""
-        from sparkforge.execution import StepExecutionResult
+        from pipeline_builder.execution import StepExecutionResult
 
         # Test result creation
         result = StepExecutionResult(

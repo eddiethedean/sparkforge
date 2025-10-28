@@ -18,9 +18,9 @@
 # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # # SOFTWARE.
 
-# SparkForge User Guide
+# PipelineBuilder User Guide
 
-A comprehensive guide to building robust data pipelines with SparkForge's Bronze → Silver → Gold architecture.
+A comprehensive guide to building robust data pipelines with PipelineBuilder's Bronze → Silver → Gold architecture.
 
 ## Table of Contents
 
@@ -47,13 +47,13 @@ A comprehensive guide to building robust data pipelines with SparkForge's Bronze
 ### Installation
 
 ```bash
-pip install sparkforge
+pip install pipeline_builder
 ```
 
 ### Basic Pipeline
 
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 from pyspark.sql import functions as F
 
 # Initialize Spark
@@ -105,7 +105,7 @@ print(f"Pipeline completed: {result.success}")
 
 ### Medallion Architecture
 
-SparkForge implements the Bronze → Silver → Gold data architecture:
+PipelineBuilder implements the Bronze → Silver → Gold data architecture:
 
 - **Bronze Layer**: Raw data ingestion with basic validation
 - **Silver Layer**: Cleaned and enriched data with business logic
@@ -199,7 +199,7 @@ builder.add_gold_transform(
 
 ## Multi-Schema Support
 
-SparkForge supports cross-schema data flows, enabling sophisticated data architectures for multi-tenant applications, environment separation, and data lake implementations.
+PipelineBuilder supports cross-schema data flows, enabling sophisticated data architectures for multi-tenant applications, environment separation, and data lake implementations.
 
 ### Overview
 
@@ -214,7 +214,7 @@ Multi-schema support allows you to:
 All pipeline methods support an optional `schema` parameter:
 
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 
 builder = PipelineBuilder(spark=spark, schema="default")
 
@@ -268,7 +268,7 @@ builder.add_gold_transform(
 
 ### Schema Validation
 
-SparkForge automatically validates schemas when provided:
+PipelineBuilder automatically validates schemas when provided:
 
 ```python
 # This will validate that 'raw_data' schema exists
@@ -522,7 +522,7 @@ validation rules defined. This behavior can be controlled with the `filter_colum
 parameter:
 
 ```python
-from sparkforge.validation import apply_column_rules
+from pipeline_builder.validation import apply_column_rules
 
 # Default behavior: Only keep columns with rules
 valid_df, invalid_df, stats = apply_column_rules(
@@ -694,7 +694,7 @@ print(f"Bronze validation rate: {bronze_stats.validation_rate:.2f}%")
 ### Structured Logging
 
 ```python
-from sparkforge import LogWriter
+from pipeline_builder import LogWriter
 
 # Configure logging
 log_writer = LogWriter(
@@ -710,7 +710,7 @@ log_writer.log_pipeline_execution(result)
 ### Performance Monitoring
 
 ```python
-from sparkforge.performance import performance_monitor, time_operation
+from pipeline_builder.performance import performance_monitor, time_operation
 
 # Context manager
 with performance_monitor("data_processing", max_duration=300):
@@ -724,14 +724,14 @@ def my_transform(spark, df):
 
 ## Enterprise Security
 
-SparkForge includes comprehensive security features to protect your data pipelines from common vulnerabilities and ensure compliance.
+PipelineBuilder includes comprehensive security features to protect your data pipelines from common vulnerabilities and ensure compliance.
 
 ### Automatic Security Features
 
 Security is enabled by default and works transparently:
 
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 
 # Security is automatically enabled - no configuration needed
 builder = PipelineBuilder(spark=spark, schema="my_schema")
@@ -748,7 +748,7 @@ builder.with_bronze_rules(
 Automatic validation of all user inputs:
 
 ```python
-from sparkforge import SecurityConfig, get_security_manager
+from pipeline_builder import SecurityConfig, get_security_manager
 
 # Configure security settings
 security_config = SecurityConfig(
@@ -794,7 +794,7 @@ rules = {
 Role-based access control for pipeline operations:
 
 ```python
-from sparkforge.security import AccessLevel
+from pipeline_builder.security import AccessLevel
 
 # Grant permissions
 security_manager.grant_permission("user1", AccessLevel.READ, "my_schema.events")
@@ -826,14 +826,14 @@ audit_logs = security_manager.get_audit_logs(
 
 ## Performance Optimization
 
-SparkForge includes intelligent performance optimization features that work automatically to improve pipeline execution speed and resource utilization.
+PipelineBuilder includes intelligent performance optimization features that work automatically to improve pipeline execution speed and resource utilization.
 
 ### Automatic Performance Caching
 
 Validation results are automatically cached to avoid redundant computations:
 
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 
 # Caching is enabled automatically - no configuration needed
 builder = PipelineBuilder(spark=spark, schema="my_schema")
@@ -850,7 +850,7 @@ builder.with_bronze_rules(
 Configure caching behavior for optimal performance:
 
 ```python
-from sparkforge import CacheConfig, get_performance_cache, CacheStrategy
+from pipeline_builder import CacheConfig, get_performance_cache, CacheStrategy
 
 # Configure performance cache
 cache_config = CacheConfig(
@@ -885,14 +885,14 @@ cache.invalidate("validation_result_key")  # Remove specific entry
 
 ## Advanced Parallel Execution
 
-SparkForge includes advanced parallel execution capabilities with dynamic worker allocation and intelligent task scheduling.
+PipelineBuilder includes advanced parallel execution capabilities with dynamic worker allocation and intelligent task scheduling.
 
 ### Dynamic Worker Allocation
 
 Automatically adjust the number of parallel workers based on workload and system resources:
 
 ```python
-from sparkforge import DynamicParallelExecutor, ExecutionTask, TaskPriority
+from pipeline_builder import DynamicParallelExecutor, ExecutionTask, TaskPriority
 
 # Create dynamic executor
 executor = DynamicParallelExecutor()
@@ -923,7 +923,7 @@ print(f"Executed {result['metrics']['successful_tasks']} tasks successfully!")
 Intelligent task scheduling based on priority and dependencies:
 
 ```python
-from sparkforge import create_execution_task, TaskPriority
+from pipeline_builder import create_execution_task, TaskPriority
 
 # Create tasks with priorities
 critical_task = create_execution_task(
@@ -1029,7 +1029,7 @@ builder.add_silver_transform(
 ### Custom Configuration
 
 ```python
-from sparkforge.models import ValidationThresholds, ParallelConfig
+from pipeline_builder.models import ValidationThresholds, ParallelConfig
 
 # Custom validation thresholds
 thresholds = ValidationThresholds(bronze=90.0, silver=95.0, gold=98.0)
@@ -1138,7 +1138,7 @@ builder = PipelineBuilder(
 ### E-commerce Analytics Pipeline
 
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 from pyspark.sql import functions as F
 
 # Initialize
@@ -1231,7 +1231,7 @@ builder.add_silver_transform(
 
 ## Conclusion
 
-SparkForge provides a powerful, flexible framework for building robust data pipelines with the Bronze → Silver → Gold architecture. This guide covers the essential concepts and features you need to get started and build production-ready data pipelines.
+PipelineBuilder provides a powerful, flexible framework for building robust data pipelines with the Bronze → Silver → Gold architecture. This guide covers the essential concepts and features you need to get started and build production-ready data pipelines.
 
 For more information, see the [API Reference](README.md#api-reference) and [Examples](examples/) directory.
 

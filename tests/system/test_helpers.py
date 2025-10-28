@@ -20,7 +20,7 @@ else:
     from pyspark.sql import DataFrame
     from pyspark.sql import functions as F
 
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 
 
 class TestDataGenerator:
@@ -188,21 +188,21 @@ class TestAssertions:
     def assert_pipeline_success(result) -> None:
         """Assert that a pipeline execution was successful."""
         assert result.status.value == "completed", f"Pipeline failed: {result.status}"
-        assert (
-            result.metrics.failed_steps == 0
-        ), f"Failed steps: {result.metrics.failed_steps}"
+        assert result.metrics.failed_steps == 0, (
+            f"Failed steps: {result.metrics.failed_steps}"
+        )
         assert result.metrics.successful_steps > 0, "No successful steps"
 
     @staticmethod
     def assert_pipeline_failure(result, expected_failed_steps: int = None) -> None:
         """Assert that a pipeline execution failed as expected."""
-        assert (
-            result.status.value == "failed"
-        ), f"Pipeline should have failed: {result.status}"
+        assert result.status.value == "failed", (
+            f"Pipeline should have failed: {result.status}"
+        )
         if expected_failed_steps is not None:
-            assert (
-                result.metrics.failed_steps == expected_failed_steps
-            ), f"Expected {expected_failed_steps} failed steps, got {result.metrics.failed_steps}"
+            assert result.metrics.failed_steps == expected_failed_steps, (
+                f"Expected {expected_failed_steps} failed steps, got {result.metrics.failed_steps}"
+            )
 
     @staticmethod
     def assert_dataframe_has_columns(
@@ -246,9 +246,9 @@ class TestPerformance:
     @staticmethod
     def assert_execution_time_under(execution_time: float, max_seconds: float) -> None:
         """Assert that execution time is under a threshold."""
-        assert (
-            execution_time < max_seconds
-        ), f"Execution time {execution_time:.2f}s exceeded threshold {max_seconds}s"
+        assert execution_time < max_seconds, (
+            f"Execution time {execution_time:.2f}s exceeded threshold {max_seconds}s"
+        )
 
 
 # Pytest markers for better test organization

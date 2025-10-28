@@ -12,10 +12,11 @@ This module provides performance testing infrastructure including:
 # Performance tests will be discovered by pytest
 import sys
 from pathlib import Path
+from typing import List
 
 # Add this directory to sys.path for imports
 perf_dir = Path(__file__).parent
 if str(perf_dir) not in sys.path:
     sys.path.insert(0, str(perf_dir))
 
-__all__ = []
+__all__: List[str] = []

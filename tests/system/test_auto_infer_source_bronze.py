@@ -17,8 +17,8 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
 else:
     from pyspark.sql import functions as F
 
-from sparkforge import PipelineBuilder
-from sparkforge.errors import StepError
+from pipeline_builder import PipelineBuilder
+from pipeline_builder.errors import StepError
 
 
 class TestAutoInferSourceBronze:

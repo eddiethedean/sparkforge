@@ -1,7 +1,7 @@
 API Reference
 =============
 
-This section provides comprehensive API documentation for all SparkForge classes, methods, and functions.
+This section provides comprehensive API documentation for all PipelineBuilder classes, methods, and functions.
 
 .. note::
 
@@ -11,7 +11,7 @@ This section provides comprehensive API documentation for all SparkForge classes
 
 .. important::
 
-   **Validation System**: SparkForge now includes a robust validation system that enforces data quality requirements:
+   **Validation System**: PipelineBuilder now includes a robust validation system that enforces data quality requirements:
 
    - **BronzeStep**: Must have non-empty validation rules
    - **SilverStep**: Must have non-empty validation rules, valid transform function, and valid source_bronze (except for existing tables)
@@ -27,7 +27,7 @@ PipelineBuilder
 
 The main class for building data pipelines with the Medallion Architecture.
 
-.. autoclass:: sparkforge.pipeline.builder.PipelineBuilder
+.. autoclass:: pipeline_builder.pipeline.builder.PipelineBuilder
    :members:
    :undoc-members:
    :show-inheritance:
@@ -38,7 +38,7 @@ PipelineRunner
 
 The simplified pipeline runner for executing data pipelines.
 
-.. autoclass:: sparkforge.pipeline.runner.SimplePipelineRunner
+.. autoclass:: pipeline_builder.pipeline.runner.SimplePipelineRunner
    :members:
    :undoc-members:
    :show-inheritance:
@@ -49,7 +49,7 @@ ExecutionEngine
 
 The simplified execution engine for processing pipeline steps.
 
-.. autoclass:: sparkforge.execution.ExecutionEngine
+.. autoclass:: pipeline_builder.execution.ExecutionEngine
    :members:
    :undoc-members:
    :show-inheritance:
@@ -63,7 +63,7 @@ BronzeStep
 
 Configuration for Bronze layer steps (raw data validation and ingestion).
 
-.. autoclass:: sparkforge.models.BronzeStep
+.. autoclass:: pipeline_builder.models.BronzeStep
    :members:
    :undoc-members:
    :show-inheritance:
@@ -74,7 +74,7 @@ SilverStep
 
 Configuration for Silver layer steps (data cleaning and enrichment).
 
-.. autoclass:: sparkforge.models.SilverStep
+.. autoclass:: pipeline_builder.models.SilverStep
    :members:
    :undoc-members:
    :show-inheritance:
@@ -85,7 +85,7 @@ GoldStep
 
 Configuration for Gold layer steps (business analytics and reporting).
 
-.. autoclass:: sparkforge.models.GoldStep
+.. autoclass:: pipeline_builder.models.GoldStep
    :members:
    :undoc-members:
    :show-inheritance:
@@ -96,7 +96,7 @@ PipelineConfig
 
 Main pipeline configuration.
 
-.. autoclass:: sparkforge.models.PipelineConfig
+.. autoclass:: pipeline_builder.models.PipelineConfig
    :members:
    :undoc-members:
    :show-inheritance:
@@ -107,7 +107,7 @@ ValidationThresholds
 
 Validation thresholds for each pipeline layer.
 
-.. autoclass:: sparkforge.models.ValidationThresholds
+.. autoclass:: pipeline_builder.models.ValidationThresholds
    :members:
    :undoc-members:
    :show-inheritance:
@@ -118,7 +118,7 @@ ParallelConfig
 
 Configuration for parallel execution.
 
-.. autoclass:: sparkforge.models.ParallelConfig
+.. autoclass:: pipeline_builder.models.ParallelConfig
    :members:
    :undoc-members:
    :show-inheritance:
@@ -132,7 +132,7 @@ StepExecutionResult
 
 Result of executing a single pipeline step.
 
-.. autoclass:: sparkforge.execution.StepExecutionResult
+.. autoclass:: pipeline_builder.execution.StepExecutionResult
    :members:
    :undoc-members:
    :show-inheritance:
@@ -143,7 +143,7 @@ ExecutionResult
 
 Result of executing a complete pipeline.
 
-.. autoclass:: sparkforge.execution.ExecutionResult
+.. autoclass:: pipeline_builder.execution.ExecutionResult
    :members:
    :undoc-members:
    :show-inheritance:
@@ -154,7 +154,7 @@ PipelineReport
 
 Report of pipeline execution results.
 
-.. autoclass:: sparkforge.models.PipelineReport
+.. autoclass:: pipeline_builder.models.PipelineReport
    :members:
    :undoc-members:
    :show-inheritance:
@@ -168,7 +168,7 @@ ExecutionMode
 
 Pipeline execution modes.
 
-.. autoclass:: sparkforge.execution.ExecutionMode
+.. autoclass:: pipeline_builder.execution.ExecutionMode
    :members:
    :undoc-members:
    :show-inheritance:
@@ -179,7 +179,7 @@ StepStatus
 
 Step execution status.
 
-.. autoclass:: sparkforge.execution.StepStatus
+.. autoclass:: pipeline_builder.execution.StepStatus
    :members:
    :undoc-members:
    :show-inheritance:
@@ -190,7 +190,7 @@ StepType
 
 Types of pipeline steps.
 
-.. autoclass:: sparkforge.execution.StepType
+.. autoclass:: pipeline_builder.execution.StepType
    :members:
    :undoc-members:
    :show-inheritance:
@@ -201,7 +201,7 @@ PipelineStatus
 
 Pipeline execution status.
 
-.. autoclass:: sparkforge.models.PipelineStatus
+.. autoclass:: pipeline_builder.models.PipelineStatus
    :members:
    :undoc-members:
    :show-inheritance:
@@ -212,7 +212,7 @@ PipelineMode
 
 Pipeline execution modes.
 
-.. autoclass:: sparkforge.models.PipelineMode
+.. autoclass:: pipeline_builder.models.PipelineMode
    :members:
    :undoc-members:
    :show-inheritance:
@@ -226,7 +226,7 @@ SparkForgeError
 
 Base exception for all SparkForge errors.
 
-.. autoclass:: sparkforge.errors.SparkForgeError
+.. autoclass:: pipeline_builder.errors.SparkForgeError
    :members:
    :undoc-members:
    :show-inheritance:
@@ -237,7 +237,7 @@ ValidationError
 
 Error raised when data validation fails.
 
-.. autoclass:: sparkforge.errors.ValidationError
+.. autoclass:: pipeline_builder.errors.ValidationError
    :members:
    :undoc-members:
    :show-inheritance:
@@ -248,7 +248,7 @@ ExecutionError
 
 Error raised when step execution fails.
 
-.. autoclass:: sparkforge.errors.ExecutionError
+.. autoclass:: pipeline_builder.errors.ExecutionError
    :members:
    :undoc-members:
    :show-inheritance:
@@ -259,7 +259,7 @@ ConfigurationError
 
 Error raised when pipeline configuration is invalid.
 
-.. autoclass:: sparkforge.errors.ConfigurationError
+.. autoclass:: pipeline_builder.errors.ConfigurationError
    :members:
    :undoc-members:
    :show-inheritance:
@@ -270,7 +270,7 @@ PipelineError
 
 Error raised when pipeline execution fails.
 
-.. autoclass:: sparkforge.errors.PipelineError
+.. autoclass:: pipeline_builder.errors.PipelineError
    :members:
    :undoc-members:
    :show-inheritance:
@@ -281,7 +281,7 @@ DataError
 
 Error raised when data processing fails.
 
-.. autoclass:: sparkforge.errors.DataError
+.. autoclass:: pipeline_builder.errors.DataError
    :members:
    :undoc-members:
    :show-inheritance:
@@ -292,7 +292,7 @@ SystemError
 
 Error raised when system-level operations fail.
 
-.. autoclass:: sparkforge.errors.SystemError
+.. autoclass:: pipeline_builder.errors.SystemError
    :members:
    :undoc-members:
    :show-inheritance:
@@ -303,7 +303,7 @@ PerformanceError
 
 Error raised when performance issues are detected.
 
-.. autoclass:: sparkforge.errors.PerformanceError
+.. autoclass:: pipeline_builder.errors.PerformanceError
    :members:
    :undoc-members:
    :show-inheritance:
@@ -317,7 +317,7 @@ PipelineLogger
 
 Simplified logger for pipeline execution.
 
-.. autoclass:: sparkforge.logging.PipelineLogger
+.. autoclass:: pipeline_builder.logging.PipelineLogger
    :members:
    :undoc-members:
    :show-inheritance:
@@ -331,21 +331,21 @@ get_logger
 
 Get the global logger instance.
 
-.. autofunction:: sparkforge.logging.get_logger
+.. autofunction:: pipeline_builder.logging.get_logger
 
 set_logger
 ~~~~~~~~~~
 
 Set the global logger instance.
 
-.. autofunction:: sparkforge.logging.set_logger
+.. autofunction:: pipeline_builder.logging.set_logger
 
 create_logger
 ~~~~~~~~~~~~~
 
 Create a new logger instance.
 
-.. autofunction:: sparkforge.logging.create_logger
+.. autofunction:: pipeline_builder.logging.create_logger
 
 Validation
 ----------
@@ -355,7 +355,7 @@ UnifiedValidator
 
 Unified validation system for data and pipeline validation.
 
-.. autoclass:: sparkforge.validation.UnifiedValidator
+.. autoclass:: pipeline_builder.validation.UnifiedValidator
    :members:
    :undoc-members:
    :show-inheritance:
@@ -366,21 +366,21 @@ apply_column_rules
 
 Apply validation rules to a DataFrame.
 
-.. autofunction:: sparkforge.validation.apply_column_rules
+.. autofunction:: pipeline_builder.validation.apply_column_rules
 
 assess_data_quality
 ~~~~~~~~~~~~~~~~~~~
 
 Assess data quality metrics.
 
-.. autofunction:: sparkforge.validation.assess_data_quality
+.. autofunction:: pipeline_builder.validation.assess_data_quality
 
 get_dataframe_info
 ~~~~~~~~~~~~~~~~~~
 
 Get DataFrame information and statistics.
 
-.. autofunction:: sparkforge.validation.get_dataframe_info
+.. autofunction:: pipeline_builder.validation.get_dataframe_info
 
 Dependencies
 ------------
@@ -390,7 +390,7 @@ DependencyAnalyzer
 
 Analyzer for pipeline dependencies.
 
-.. autoclass:: sparkforge.dependencies.DependencyAnalyzer
+.. autoclass:: pipeline_builder.dependencies.DependencyAnalyzer
    :members:
    :undoc-members:
    :show-inheritance:
@@ -401,7 +401,7 @@ DependencyGraph
 
 Graph representation of pipeline dependencies.
 
-.. autoclass:: sparkforge.dependencies.DependencyGraph
+.. autoclass:: pipeline_builder.dependencies.DependencyGraph
    :members:
    :undoc-members:
    :show-inheritance:
@@ -412,7 +412,7 @@ DependencyAnalysisResult
 
 Result of dependency analysis.
 
-.. autoclass:: sparkforge.dependencies.DependencyAnalysisResult
+.. autoclass:: pipeline_builder.dependencies.DependencyAnalysisResult
    :members:
    :undoc-members:
    :show-inheritance:
@@ -423,7 +423,7 @@ StepNode
 
 Node in the dependency graph.
 
-.. autoclass:: sparkforge.dependencies.StepNode
+.. autoclass:: pipeline_builder.dependencies.StepNode
    :members:
    :undoc-members:
    :show-inheritance:
@@ -437,7 +437,7 @@ fqn
 
 Generate fully qualified table name.
 
-.. autofunction:: sparkforge.table_operations.fqn
+.. autofunction:: pipeline_builder.table_operations.fqn
 
 Type Definitions
 ----------------
@@ -447,56 +447,56 @@ ColumnRules
 
 Type alias for column validation rules.
 
-.. autodata:: sparkforge.types.ColumnRules
+.. autodata:: pipeline_builder.types.ColumnRules
 
 TransformFunction
 ~~~~~~~~~~~~~~~~~
 
 Type alias for transform functions.
 
-.. autodata:: sparkforge.types.TransformFunction
+.. autodata:: pipeline_builder.types.TransformFunction
 
 SilverTransformFunction
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 Type alias for silver transform functions.
 
-.. autodata:: sparkforge.types.SilverTransformFunction
+.. autodata:: pipeline_builder.types.SilverTransformFunction
 
 GoldTransformFunction
 ~~~~~~~~~~~~~~~~~~~~~
 
 Type alias for gold transform functions.
 
-.. autodata:: sparkforge.types.GoldTransformFunction
+.. autodata:: pipeline_builder.types.GoldTransformFunction
 
 ExecutionConfig
 ~~~~~~~~~~~~~~~
 
 Type alias for execution configuration.
 
-.. autodata:: sparkforge.types.ExecutionConfig
+.. autodata:: pipeline_builder.types.ExecutionConfig
 
 PipelineConfig
 ~~~~~~~~~~~~~~
 
 Type alias for pipeline configuration.
 
-.. autodata:: sparkforge.types.PipelineConfig
+.. autodata:: pipeline_builder.types.PipelineConfig
 
 ValidationConfig
 ~~~~~~~~~~~~~~~~
 
 Type alias for validation configuration.
 
-.. autodata:: sparkforge.types.ValidationConfig
+.. autodata:: pipeline_builder.types.ValidationConfig
 
 MonitoringConfig
 ~~~~~~~~~~~~~~~~
 
 Type alias for monitoring configuration.
 
-.. autodata:: sparkforge.types.MonitoringConfig
+.. autodata:: pipeline_builder.types.MonitoringConfig
 
 Examples
 --------
@@ -506,7 +506,7 @@ Basic Pipeline
 
 .. code-block:: python
 
-   from sparkforge import PipelineBuilder
+   from pipeline_builder import PipelineBuilder
    from pyspark.sql import functions as F
 
    # Create pipeline
@@ -545,7 +545,7 @@ Error Handling
 
 .. code-block:: python
 
-   from sparkforge.errors import ValidationError, ExecutionError, PipelineError
+   from pipeline_builder.errors import ValidationError, ExecutionError, PipelineError
 
    try:
        result = pipeline.run_initial_load(bronze_sources={"events": df})
@@ -564,7 +564,7 @@ Logging
 
 .. code-block:: python
 
-   from sparkforge.logging import PipelineLogger
+   from pipeline_builder.logging import PipelineLogger
 
    # Create logger
    logger = PipelineLogger(level="INFO")
@@ -581,7 +581,7 @@ Validation
 
 .. code-block:: python
 
-   from sparkforge.validation import apply_column_rules, assess_data_quality
+   from pipeline_builder.validation import apply_column_rules, assess_data_quality
 
    # Apply validation rules
    valid_df, invalid_df, stats = apply_column_rules(
@@ -597,7 +597,7 @@ Dependencies
 
 .. code-block:: python
 
-   from sparkforge.dependencies import DependencyAnalyzer
+   from pipeline_builder.dependencies import DependencyAnalyzer
 
    # Analyze dependencies
    analyzer = DependencyAnalyzer()

@@ -5,8 +5,11 @@ Simple unit tests for data validation using Mock Spark.
 import pytest
 from mock_spark.errors import AnalysisException
 
-from sparkforge.models.enums import ValidationResult as ValidationResultEnum
-from sparkforge.validation.pipeline_validation import UnifiedValidator, ValidationResult
+from pipeline_builder.models.enums import ValidationResult as ValidationResultEnum
+from pipeline_builder.validation.pipeline_validation import (
+    UnifiedValidator,
+    ValidationResult,
+)
 
 
 class TestDataValidationSimple:

@@ -11,9 +11,9 @@ import unittest
 from datetime import datetime
 from unittest.mock import Mock
 
-from sparkforge.errors import StepError
-from sparkforge.logging import PipelineLogger
-from sparkforge.pipeline import (
+from pipeline_builder.errors import StepError
+from pipeline_builder.logging import PipelineLogger
+from pipeline_builder.pipeline import (
     PipelineBuilder,
     PipelineMetrics,
     PipelineMode,
@@ -405,9 +405,13 @@ class TestPipelineBuilderIntegration(unittest.TestCase):
     def test_complex_pipeline_construction(self):
         """Test construction of a complex pipeline."""
         if MockF is not None:
-            builder = PipelineBuilder(spark=self.spark, schema=self.schema, verbose=False, functions=MockF)
+            builder = PipelineBuilder(
+                spark=self.spark, schema=self.schema, verbose=False, functions=MockF
+            )
         else:
-            builder = PipelineBuilder(spark=self.spark, schema=self.schema, verbose=False)
+            builder = PipelineBuilder(
+                spark=self.spark, schema=self.schema, verbose=False
+            )
 
         # Add multiple bronze steps
         builder.with_bronze_rules(

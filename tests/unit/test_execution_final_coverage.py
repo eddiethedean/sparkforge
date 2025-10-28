@@ -9,14 +9,14 @@ from unittest.mock import patch
 
 from mock_spark import IntegerType, MockStructField, MockStructType, StringType
 
-from sparkforge.execution import (
+from pipeline_builder.execution import (
     ExecutionEngine,
     ExecutionMode,
     StepExecutionResult,
     StepStatus,
     StepType,
 )
-from sparkforge.models import (
+from pipeline_builder.models import (
     BronzeStep,
     GoldStep,
     ParallelConfig,

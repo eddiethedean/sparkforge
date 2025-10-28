@@ -33,9 +33,9 @@ class SimpleDictCheckTest(unittest.TestCase):
         if sys.version_info < (3, 9):
             with self.assertRaises(TypeError):
 
-                def func_with_dict() -> (
-                    dict[str, int]
-                ):  # This syntax doesn't work in Python 3.8
+                def func_with_dict() -> dict[
+                    str, int
+                ]:  # This syntax doesn't work in Python 3.8
                     return {"test": 1}
         else:
             # In Python 3.9+, dict[str, int] syntax is supported
@@ -88,7 +88,7 @@ class SimpleDictCheckTest(unittest.TestCase):
         """Test that Union with dict works."""
 
         def func_with_union_dict(
-            value: Union[Dict[str, int], str]
+            value: Union[Dict[str, int], str],
         ) -> Union[Dict[str, int], str]:
             return value
 

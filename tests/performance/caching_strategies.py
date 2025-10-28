@@ -346,7 +346,9 @@ class HybridCache:
 
 # Global cache instances
 _memory_cache = MemoryCache(max_size_mb=100, default_ttl=3600)  # 1 hour default
-_persistent_cache = PersistentCache(cache_dir=".cache/sparkforge", max_file_size_mb=50)
+_persistent_cache = PersistentCache(
+    cache_dir=".cache/pipeline_builder", max_file_size_mb=50
+)
 _hybrid_cache = HybridCache(_memory_cache, _persistent_cache)
 
 

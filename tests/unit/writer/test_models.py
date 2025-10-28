@@ -6,14 +6,14 @@ from datetime import datetime
 
 import pytest
 
-from sparkforge.models import (
+from pipeline_builder.models import (
     ExecutionContext,
     ExecutionMode,
     ExecutionResult,
     PipelinePhase,
     StepResult,
 )
-from sparkforge.writer.models import (
+from pipeline_builder.writer.models import (
     LogRow,
     WriteMode,
     WriterConfig,

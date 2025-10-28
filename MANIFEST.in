@@ -43,7 +43,7 @@ include LICENSE
 include requirements.txt
 include docs/markdown/CHANGELOG.md
 include docs/markdown/CONTRIBUTING.md
-recursive-include sparkforge *.py
+recursive-include pipeline_builder *.py
 recursive-include tests *.py
 recursive-include docs *.rst *.md
 global-exclude *.pyc

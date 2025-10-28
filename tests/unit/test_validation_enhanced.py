@@ -24,7 +24,7 @@ from mock_spark import (
 )
 
 # Import SparkForge validation modules
-from sparkforge.validation.data_validation import (
+from pipeline_builder.validation.data_validation import (
     _convert_rule_to_expression,
     _convert_rules_to_expressions,
     and_all_rules,
@@ -215,7 +215,7 @@ class TestValidationWithMockFunctions:
         assert result is not None
 
         # Test with invalid column names - should raise ValidationError
-        from sparkforge.errors import ValidationError
+        from pipeline_builder.errors import ValidationError
 
         invalid_rules = {"nonexistent_column": ["not_null"]}
         with pytest.raises(ValidationError):
@@ -249,7 +249,9 @@ class TestValidationWithMockFunctions:
 
         assert result is not None
         # Increased timeout to account for system load during full test suite
-        assert (end_time - start_time) < 10.0  # Should complete within 10s with mock functions
+        assert (
+            end_time - start_time
+        ) < 10.0  # Should complete within 10s with mock functions
 
 
 class TestPipelineBuilderWithMockFunctions:
@@ -262,7 +264,7 @@ class TestPipelineBuilderWithMockFunctions:
 
     def test_pipeline_builder_with_mock_functions(self):
         """Test PipelineBuilder initialization with mock functions."""
-        from sparkforge import PipelineBuilder
+        from pipeline_builder import PipelineBuilder
 
         builder = PipelineBuilder(
             spark=self.mock_spark, schema="test_schema", functions=self.mock_functions
@@ -273,7 +275,7 @@ class TestPipelineBuilderWithMockFunctions:
 
     def test_pipeline_builder_static_methods_with_mock_functions(self):
         """Test PipelineBuilder static methods with mock functions."""
-        from sparkforge import PipelineBuilder
+        from pipeline_builder import PipelineBuilder
 
         # Test not_null_rules
         rules = PipelineBuilder.not_null_rules(["name", "age"], self.mock_functions)
@@ -301,7 +303,7 @@ class TestPipelineBuilderWithMockFunctions:
 
     def test_pipeline_builder_backward_compatibility(self):
         """Test PipelineBuilder backward compatibility without functions parameter."""
-        from sparkforge import PipelineBuilder
+        from pipeline_builder import PipelineBuilder
 
         # Test that functions can be omitted (should use default)
         try:
@@ -316,7 +318,7 @@ class TestPipelineBuilderWithMockFunctions:
 
     def test_pipeline_builder_class_methods_with_mock_functions(self):
         """Test PipelineBuilder class methods with mock functions."""
-        from sparkforge import PipelineBuilder
+        from pipeline_builder import PipelineBuilder
 
         # Test for_development
         builder = PipelineBuilder.for_development(
@@ -365,7 +367,7 @@ class TestMockFunctionsIntegration:
 
     def test_validation_with_mock_functions_end_to_end(self):
         """Test complete validation workflow with mock functions."""
-        from sparkforge import PipelineBuilder
+        from pipeline_builder import PipelineBuilder
 
         # Create sample data
         sample_data = [
@@ -443,9 +445,9 @@ class TestMockFunctionsIntegration:
             "sum",
         ]
         for method in required_methods:
-            assert hasattr(
-                self.mock_functions, method
-            ), f"MockFunctions missing required method: {method}"
+            assert hasattr(self.mock_functions, method), (
+                f"MockFunctions missing required method: {method}"
+            )
 
         # Test that all protocol methods exist and are callable
         protocol_methods = [

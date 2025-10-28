@@ -39,7 +39,7 @@ This directory contains all the markdown documentation files for SparkForge, org
 
 The main documentation is available at:
 - **README.md** (in root directory) - Main project overview and quick start
-- **Online Documentation** - https://sparkforge.readthedocs.io/
+- **Online Documentation** - https://pipeline_builder.readthedocs.io/
 
 ## Examples
 

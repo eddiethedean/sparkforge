@@ -9,7 +9,7 @@ using SparkForge.
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 
 # No additional imports needed - PipelineBuilder takes individual parameters
 

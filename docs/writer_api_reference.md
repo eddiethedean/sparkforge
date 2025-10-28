@@ -21,13 +21,13 @@ The SparkForge Writer module provides comprehensive logging and analytics capabi
 The main class for writing pipeline execution logs to Delta tables.
 
 ```python
-from sparkforge.writer import LogWriter
+from pipeline_builder.writer import LogWriter
 
 # Initialize with simplified API (recommended)
 writer = LogWriter(spark, schema="analytics", table_name="pipeline_logs")
 
 # Legacy API (deprecated)
-from sparkforge.writer.models import WriterConfig, WriteMode
+from pipeline_builder.writer.models import WriterConfig, WriteMode
 config = WriterConfig(
     table_schema="analytics",
     table_name="pipeline_logs",
@@ -344,7 +344,7 @@ parquet_data = writer.export_analytics_data(format="parquet", limit=2000)
 Configuration class for LogWriter behavior.
 
 ```python
-from sparkforge.writer.models import WriterConfig, WriteMode
+from pipeline_builder.writer.models import WriterConfig, WriteMode
 
 config = WriterConfig(
     # Basic settings
@@ -422,7 +422,7 @@ config = WriterConfig(
 TypedDict representing a single log row entry.
 
 ```python
-from sparkforge.writer.models import LogRow
+from pipeline_builder.writer.models import LogRow
 
 log_row: LogRow = {
     "run_id": "run-123",
@@ -476,7 +476,7 @@ log_row: LogRow = {
 Enum for write modes.
 
 ```python
-from sparkforge.writer.models import WriteMode
+from pipeline_builder.writer.models import WriteMode
 
 # Available write modes
 WriteMode.APPEND      # Append to existing table
@@ -490,7 +490,7 @@ WriteMode.OVERWRITE   # Overwrite existing table
 Base exception for all writer-related errors.
 
 ```python
-from sparkforge.writer.exceptions import WriterError
+from pipeline_builder.writer.exceptions import WriterError
 
 try:
     writer.write_log_rows(invalid_data)
@@ -505,7 +505,7 @@ except WriterError as e:
 Raised when configuration is invalid.
 
 ```python
-from sparkforge.writer.exceptions import WriterConfigurationError
+from pipeline_builder.writer.exceptions import WriterConfigurationError
 
 try:
     invalid_config = WriterConfig(table_schema="", table_name="test")
@@ -519,7 +519,7 @@ except WriterConfigurationError as e:
 Raised when data validation fails.
 
 ```python
-from sparkforge.writer.exceptions import WriterValidationError
+from pipeline_builder.writer.exceptions import WriterValidationError
 
 try:
     writer.write_log_rows(invalid_log_rows)
@@ -532,7 +532,7 @@ except WriterValidationError as e:
 Raised when table operations fail.
 
 ```python
-from sparkforge.writer.exceptions import WriterTableError
+from pipeline_builder.writer.exceptions import WriterTableError
 
 try:
     writer.optimize_table()
@@ -545,7 +545,7 @@ except WriterTableError as e:
 Raised when data quality checks fail.
 
 ```python
-from sparkforge.writer.exceptions import WriterDataQualityError
+from pipeline_builder.writer.exceptions import WriterDataQualityError
 
 try:
     writer.validate_log_data_quality(poor_quality_data)
@@ -559,7 +559,7 @@ except WriterDataQualityError as e:
 Raised when performance thresholds are exceeded.
 
 ```python
-from sparkforge.writer.exceptions import WriterPerformanceError
+from pipeline_builder.writer.exceptions import WriterPerformanceError
 
 try:
     writer.write_log_rows(extremely_large_dataset)
@@ -572,7 +572,7 @@ except WriterPerformanceError as e:
 Raised when schema operations fail.
 
 ```python
-from sparkforge.writer.exceptions import WriterSchemaError
+from pipeline_builder.writer.exceptions import WriterSchemaError
 
 try:
     writer.write_log_rows(schema_incompatible_data)
@@ -588,8 +588,8 @@ except WriterSchemaError as e:
 
 ```python
 from pyspark.sql import SparkSession
-from sparkforge.writer import LogWriter
-from sparkforge.writer.models import WriterConfig, WriteMode
+from pipeline_builder.writer import LogWriter
+from pipeline_builder.writer.models import WriterConfig, WriteMode
 
 # Initialize Spark session
 spark = SparkSession.builder.appName("WriterExample").getOrCreate()

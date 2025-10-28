@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Unit tests for sparkforge/types.py module.
+Unit tests for pipeline_builder/types.py module.
 
 This module tests all type definitions, enums, protocols, and type aliases
 defined in the types module.
@@ -9,8 +9,8 @@ defined in the types module.
 from typing import Any, Dict, List, Union
 from unittest.mock import Mock
 
-from sparkforge.pipeline.models import PipelineMode
-from sparkforge.types import (
+from pipeline_builder.pipeline.models import PipelineMode
+from pipeline_builder.types import (
     Duration,
     ErrorCode,
     ErrorContext,
@@ -33,7 +33,7 @@ from sparkforge.types import (
     StringDict,
     TableName,
 )
-from sparkforge.writer.models import WriteMode
+from pipeline_builder.writer.models import WriteMode
 
 
 class TestTypeAliases:

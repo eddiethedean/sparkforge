@@ -333,7 +333,7 @@ pipeline = (builder
 )
 
 # Profile performance
-from sparkforge.performance import performance_monitor
+from pipeline_builder.performance import performance_monitor
 
 with performance_monitor("pipeline_execution", max_duration=300):
     result = pipeline.run_incremental(bronze_sources={"events": source_df})
@@ -373,7 +373,7 @@ silver_result = pipeline.execute_silver_step("clean_events")
 print(f"Silver output rows: {silver_result.output_count}")
 
 # Enterprise monitoring
-from sparkforge import LogWriter
+from pipeline_builder import LogWriter
 
 log_writer = LogWriter(
     spark=spark,

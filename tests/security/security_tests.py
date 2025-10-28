@@ -22,8 +22,8 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
 else:
     from pyspark.sql import functions as F
 
-from sparkforge.errors import ValidationError
-from sparkforge.models import ParallelConfig, PipelineConfig, ValidationThresholds
+from pipeline_builder.errors import ValidationError
+from pipeline_builder.models import ParallelConfig, PipelineConfig, ValidationThresholds
 
 # Import SparkForge modules
 
@@ -58,7 +58,7 @@ class SecurityTestSuite:
                     "-m",
                     "bandit",
                     "-r",
-                    "sparkforge/",
+                    "pipeline_builder/",
                     "-f",
                     "json",
                     "-ll",
@@ -146,7 +146,7 @@ class SecurityTestSuite:
         """Test for SQL injection prevention."""
         try:
             # Test that validation functions properly escape inputs
-            from sparkforge.validation import validate_dataframe_schema
+            from pipeline_builder.validation import validate_dataframe_schema
 
             # Test with potentially malicious input
             malicious_inputs = [
@@ -236,7 +236,7 @@ class SecurityTestSuite:
         """Test for information disclosure vulnerabilities."""
         try:
             # Test that sensitive information is not leaked in error messages
-            from sparkforge.errors import (
+            from pipeline_builder.errors import (
                 ConfigurationError,
                 PipelineError,
                 ValidationError,
@@ -318,7 +318,7 @@ class SecurityTestSuite:
         """Test data security features."""
         try:
             # Test data validation prevents malicious input
-            from sparkforge.models import BronzeStep
+            from pipeline_builder.models import BronzeStep
 
             # Test validation rules prevent malicious data
             malicious_rules = {
@@ -460,9 +460,9 @@ def test_sql_injection_prevention():
     security_suite = SecurityTestSuite()
     result = security_suite._test_sql_injection_prevention()
 
-    assert result[
-        "success"
-    ], f"SQL injection prevention failed: {result.get('error', 'Unknown error')}"
+    assert result["success"], (
+        f"SQL injection prevention failed: {result.get('error', 'Unknown error')}"
+    )
 
 
 def test_path_traversal_prevention():
@@ -470,9 +470,9 @@ def test_path_traversal_prevention():
     security_suite = SecurityTestSuite()
     result = security_suite._test_path_traversal_prevention()
 
-    assert result[
-        "success"
-    ], f"Path traversal prevention failed: {result.get('error', 'Unknown error')}"
+    assert result["success"], (
+        f"Path traversal prevention failed: {result.get('error', 'Unknown error')}"
+    )
 
 
 def test_command_injection_prevention():
@@ -480,9 +480,9 @@ def test_command_injection_prevention():
     security_suite = SecurityTestSuite()
     result = security_suite._test_command_injection_prevention()
 
-    assert result[
-        "success"
-    ], f"Command injection prevention failed: {result.get('error', 'Unknown error')}"
+    assert result["success"], (
+        f"Command injection prevention failed: {result.get('error', 'Unknown error')}"
+    )
 
 
 def test_information_disclosure_prevention():
@@ -490,9 +490,9 @@ def test_information_disclosure_prevention():
     security_suite = SecurityTestSuite()
     result = security_suite._test_information_disclosure()
 
-    assert result[
-        "success"
-    ], f"Information disclosure prevention failed: {result.get('error', 'Unknown error')}"
+    assert result["success"], (
+        f"Information disclosure prevention failed: {result.get('error', 'Unknown error')}"
+    )
 
 
 def test_configuration_security():
@@ -500,9 +500,9 @@ def test_configuration_security():
     security_suite = SecurityTestSuite()
     result = security_suite._test_configuration_security()
 
-    assert result[
-        "success"
-    ], f"Configuration security failed: {result.get('error', 'Unknown error')}"
+    assert result["success"], (
+        f"Configuration security failed: {result.get('error', 'Unknown error')}"
+    )
 
 
 def test_data_security():
@@ -510,9 +510,9 @@ def test_data_security():
     security_suite = SecurityTestSuite()
     result = security_suite._test_data_security()
 
-    assert result[
-        "success"
-    ], f"Data security failed: {result.get('error', 'Unknown error')}"
+    assert result["success"], (
+        f"Data security failed: {result.get('error', 'Unknown error')}"
+    )
 
 
 def test_owasp_compliance():
@@ -529,9 +529,9 @@ def test_cve_compliance():
     security_suite = SecurityTestSuite()
     result = security_suite._check_cve_compliance()
 
-    assert result[
-        "compliant"
-    ], f"CVE compliance failed: {result.get('message', 'Unknown error')}"
+    assert result["compliant"], (
+        f"CVE compliance failed: {result.get('message', 'Unknown error')}"
+    )
 
 
 def test_dependency_compliance():
@@ -539,9 +539,9 @@ def test_dependency_compliance():
     security_suite = SecurityTestSuite()
     result = security_suite._check_dependency_compliance()
 
-    assert result[
-        "compliant"
-    ], f"Dependency compliance failed: {result.get('message', 'Unknown error')}"
+    assert result["compliant"], (
+        f"Dependency compliance failed: {result.get('message', 'Unknown error')}"
+    )
 
 
 if __name__ == "__main__":

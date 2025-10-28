@@ -1,5 +1,5 @@
 """
-Tests for sparkforge.performance module.
+Tests for pipeline_builder.performance module.
 
 This module tests all performance monitoring utilities and functions.
 """
@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from sparkforge.performance import (
+from pipeline_builder.performance import (
     format_duration,
     monitor_performance,
     now_dt,
@@ -95,7 +95,7 @@ class TestTimeOperation:
         def test_func(x, y):
             return x + y
 
-        with patch("sparkforge.performance.logger") as mock_logger:
+        with patch("pipeline_builder.performance.logger") as mock_logger:
             result = test_func(2, 3)
 
             assert result == 5
@@ -116,7 +116,7 @@ class TestTimeOperation:
         def test_func():
             raise ValueError("Test error")
 
-        with patch("sparkforge.performance.logger") as mock_logger:
+        with patch("pipeline_builder.performance.logger") as mock_logger:
             with pytest.raises(ValueError, match="Test error"):
                 test_func()
 
@@ -149,7 +149,7 @@ class TestTimeOperation:
         def test_func(a, b=10, *args, **kwargs):
             return a + b + sum(args) + sum(kwargs.values())
 
-        with patch("sparkforge.performance.logger"):
+        with patch("pipeline_builder.performance.logger"):
             result = test_func(1, 2, 3, 4, x=5, y=6)
             assert result == 1 + 2 + 3 + 4 + 5 + 6
 
@@ -159,7 +159,7 @@ class TestPerformanceMonitor:
 
     def test_performance_monitor_success(self):
         """Test performance_monitor with successful operation."""
-        with patch("sparkforge.performance.logger") as mock_logger:
+        with patch("pipeline_builder.performance.logger") as mock_logger:
             with performance_monitor("test operation"):
                 time.sleep(0.01)  # Small delay to ensure timing
 
@@ -175,7 +175,7 @@ class TestPerformanceMonitor:
 
     def test_performance_monitor_failure(self):
         """Test performance_monitor with failed operation."""
-        with patch("sparkforge.performance.logger") as mock_logger:
+        with patch("pipeline_builder.performance.logger") as mock_logger:
             with pytest.raises(ValueError, match="Test error"):
                 with performance_monitor("test operation"):
                     raise ValueError("Test error")
@@ -193,7 +193,7 @@ class TestPerformanceMonitor:
 
     def test_performance_monitor_with_max_duration_warning(self):
         """Test performance_monitor with max duration warning."""
-        with patch("sparkforge.performance.logger") as mock_logger:
+        with patch("pipeline_builder.performance.logger") as mock_logger:
             with performance_monitor(
                 "test operation", max_duration=0.001
             ):  # Very short threshold
@@ -213,7 +213,7 @@ class TestPerformanceMonitor:
 
     def test_performance_monitor_with_max_duration_no_warning(self):
         """Test performance_monitor with max duration no warning."""
-        with patch("sparkforge.performance.logger") as mock_logger:
+        with patch("pipeline_builder.performance.logger") as mock_logger:
             with performance_monitor(
                 "test operation", max_duration=1.0
             ):  # Long threshold
@@ -230,7 +230,7 @@ class TestTimeWriteOperation:
         """Test time_write_operation with invalid mode."""
         mock_df = MagicMock()
 
-        with patch("sparkforge.performance.logger"):
+        with patch("pipeline_builder.performance.logger"):
             with pytest.raises(
                 ValueError,
                 match="Unknown write mode 'invalid'. Supported modes: overwrite, append",
@@ -242,10 +242,12 @@ class TestTimeWriteOperation:
         mock_df = MagicMock()
         mock_df.count.return_value = 100
 
-        with patch("sparkforge.table_operations.write_overwrite_table") as mock_write:
+        with patch(
+            "pipeline_builder.table_operations.write_overwrite_table"
+        ) as mock_write:
             mock_write.return_value = 100
 
-            with patch("sparkforge.performance.logger"):
+            with patch("pipeline_builder.performance.logger"):
                 rows, duration, start, end = time_write_operation(
                     "overwrite", mock_df, "test.table"
                 )
@@ -262,10 +264,12 @@ class TestTimeWriteOperation:
         mock_df = MagicMock()
         mock_df.count.return_value = 50
 
-        with patch("sparkforge.table_operations.write_append_table") as mock_write:
+        with patch(
+            "pipeline_builder.table_operations.write_append_table"
+        ) as mock_write:
             mock_write.return_value = 50
 
-            with patch("sparkforge.performance.logger"):
+            with patch("pipeline_builder.performance.logger"):
                 rows, duration, start, end = time_write_operation(
                     "append", mock_df, "test.table"
                 )
@@ -281,10 +285,12 @@ class TestTimeWriteOperation:
         """Test time_write_operation with additional options."""
         mock_df = MagicMock()
 
-        with patch("sparkforge.table_operations.write_overwrite_table") as mock_write:
+        with patch(
+            "pipeline_builder.table_operations.write_overwrite_table"
+        ) as mock_write:
             mock_write.return_value = 100
 
-            with patch("sparkforge.performance.logger"):
+            with patch("pipeline_builder.performance.logger"):
                 time_write_operation(
                     "overwrite",
                     mock_df,
@@ -301,10 +307,12 @@ class TestTimeWriteOperation:
         """Test time_write_operation with write failure."""
         mock_df = MagicMock()
 
-        with patch("sparkforge.table_operations.write_overwrite_table") as mock_write:
+        with patch(
+            "pipeline_builder.table_operations.write_overwrite_table"
+        ) as mock_write:
             mock_write.side_effect = Exception("Write failed")
 
-            with patch("sparkforge.performance.logger") as mock_logger:
+            with patch("pipeline_builder.performance.logger") as mock_logger:
                 with pytest.raises(Exception, match="Write failed"):
                     time_write_operation("overwrite", mock_df, "test.table")
 
@@ -327,7 +335,7 @@ class TestMonitorPerformance:
         def test_func():
             return "success"
 
-        with patch("sparkforge.performance.logger") as mock_logger:
+        with patch("pipeline_builder.performance.logger") as mock_logger:
             result = test_func()
 
             assert result == "success"
@@ -348,7 +356,7 @@ class TestMonitorPerformance:
         def test_func():
             raise ValueError("Test error")
 
-        with patch("sparkforge.performance.logger") as mock_logger:
+        with patch("pipeline_builder.performance.logger") as mock_logger:
             with pytest.raises(ValueError, match="Test error"):
                 test_func()
 
@@ -363,7 +371,7 @@ class TestMonitorPerformance:
             time.sleep(0.01)  # Longer than threshold
             return "success"
 
-        with patch("sparkforge.performance.logger") as mock_logger:
+        with patch("pipeline_builder.performance.logger") as mock_logger:
             result = test_func()
 
             assert result == "success"
@@ -397,7 +405,7 @@ class TestPerformanceIntegration:
                 time.sleep(0.001)
             return x + y
 
-        with patch("sparkforge.performance.logger") as mock_logger:
+        with patch("pipeline_builder.performance.logger") as mock_logger:
             result = complex_operation(2, 3)
 
             assert result == 5

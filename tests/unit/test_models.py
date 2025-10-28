@@ -21,8 +21,8 @@ else:
     from pyspark.sql import DataFrame
     from pyspark.sql import functions as F
 
-from sparkforge.errors import ValidationError
-from sparkforge.models import (  # Exceptions; Enums; Type definitions; Base classes; Step classes; Result classes; Dependency classes; Utility classes
+from pipeline_builder.errors import ValidationError
+from pipeline_builder.models import (  # Exceptions; Enums; Type definitions; Base classes; Step classes; Result classes; Dependency classes; Utility classes
     BaseModel,
     BronzeStep,
     ColumnRule,

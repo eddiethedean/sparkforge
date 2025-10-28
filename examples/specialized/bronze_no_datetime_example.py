@@ -12,7 +12,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 
 
 def main():
@@ -69,7 +69,7 @@ def main():
                 "action": [F.col("action").isNotNull()],
                 "value": [F.col("value").isNotNull(), F.col("value") > 0],
                 "device": [F.col("device").isNotNull()],
-            }
+            },
             # Note: No incremental_col parameter - this forces full refresh
         )
 

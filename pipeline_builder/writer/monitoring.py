@@ -20,6 +20,7 @@ from typing import Dict, TypedDict, cast
 
 try:
     import psutil
+
     HAS_PSUTIL = True
 except ImportError:
     HAS_PSUTIL = False

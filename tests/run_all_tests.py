@@ -109,7 +109,11 @@ def run_all_tests():
     print(f"⏱️  Total duration: {duration:.2f}s")
 
     # Return success if all checks passed
-    return main_result.returncode == 0 and perf_result.returncode == 0 and mypy_source_result.returncode == 0
+    return (
+        main_result.returncode == 0
+        and perf_result.returncode == 0
+        and mypy_source_result.returncode == 0
+    )
 
 
 if __name__ == "__main__":

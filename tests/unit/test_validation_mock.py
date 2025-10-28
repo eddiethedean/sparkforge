@@ -20,7 +20,7 @@ from mock_spark import (
     StringType,
 )
 
-from sparkforge.validation import (
+from pipeline_builder.validation import (
     _convert_rule_to_expression,
     _convert_rules_to_expressions,
     and_all_rules,

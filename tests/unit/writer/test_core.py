@@ -6,13 +6,13 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from sparkforge.logging import PipelineLogger
-from sparkforge.models import ExecutionResult, StepResult
-from sparkforge.writer.core import LogWriter
-from sparkforge.writer.exceptions import (
+from pipeline_builder.logging import PipelineLogger
+from pipeline_builder.models import ExecutionResult, StepResult
+from pipeline_builder.writer.core import LogWriter
+from pipeline_builder.writer.exceptions import (
     WriterConfigurationError,
 )
-from sparkforge.writer.models import WriteMode, WriterConfig
+from pipeline_builder.writer.models import WriteMode, WriterConfig
 
 
 # Writer tests now work with mock-spark 2.4.0
@@ -86,7 +86,7 @@ class TestLogWriter:
 
     def test_init_default_logger(self, mock_spark, valid_config):
         """Test LogWriter initialization with default logger."""
-        with patch("sparkforge.writer.core.PipelineLogger") as mock_logger_class:
+        with patch("pipeline_builder.writer.core.PipelineLogger") as mock_logger_class:
             mock_logger_instance = Mock()
             mock_logger_class.return_value = mock_logger_instance
 
@@ -123,7 +123,6 @@ class TestLogWriter:
         ) as mock_write_batch, patch.object(
             writer.storage_manager, "create_table_if_not_exists"
         ) as mock_create_table:
-
             mock_process.return_value = mock_log_rows
             mock_write_batch.return_value = {
                 "rows_written": 1,
@@ -444,7 +443,7 @@ class TestLogWriter:
     def test_get_memory_usage_psutil_not_available(self, writer):
         """Test getting memory usage when psutil is not available."""
         # Mock HAS_PSUTIL to False to simulate psutil not being available
-        with patch("sparkforge.writer.monitoring.HAS_PSUTIL", False):
+        with patch("pipeline_builder.writer.monitoring.HAS_PSUTIL", False):
             result = writer.get_memory_usage()
 
             # The method should still return some basic info even without psutil
@@ -489,9 +488,9 @@ class TestLogWriter:
         with patch.object(
             writer, "_create_dataframe_from_log_rows"
         ) as mock_create_df, patch(
-            "sparkforge.validation.data_validation.apply_column_rules"
+            "pipeline_builder.validation.data_validation.apply_column_rules"
         ) as mock_apply_rules, patch(
-            "sparkforge.validation.utils.get_dataframe_info"
+            "pipeline_builder.validation.utils.get_dataframe_info"
         ) as mock_df_info:
             # Mock DataFrame creation
             mock_df = Mock()
@@ -535,9 +534,9 @@ class TestLogWriter:
         with patch.object(
             writer, "_create_dataframe_from_log_rows"
         ) as mock_create_df, patch(
-            "sparkforge.validation.data_validation.apply_column_rules"
+            "pipeline_builder.validation.data_validation.apply_column_rules"
         ) as mock_apply_rules, patch(
-            "sparkforge.validation.utils.get_dataframe_info"
+            "pipeline_builder.validation.utils.get_dataframe_info"
         ) as mock_df_info:
             # Mock DataFrame creation
             mock_df = Mock()
@@ -658,9 +657,7 @@ class TestLogWriter:
 
     def test_analyze_quality_trends_success(self, writer):
         """Test successful quality trends analysis."""
-        with patch.object(
-            writer.storage_manager, "query_logs"
-        ) as mock_query:
+        with patch.object(writer.storage_manager, "query_logs") as mock_query:
             mock_query.return_value = None  # Mock DataFrame
 
             with patch.object(
@@ -681,9 +678,7 @@ class TestLogWriter:
 
     def test_analyze_execution_trends_success(self, writer):
         """Test successful execution trends analysis."""
-        with patch.object(
-            writer.storage_manager, "query_logs"
-        ) as mock_query:
+        with patch.object(writer.storage_manager, "query_logs") as mock_query:
             mock_query.return_value = None  # Mock DataFrame
 
             with patch.object(

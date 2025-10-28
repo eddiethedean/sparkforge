@@ -29,18 +29,20 @@ from typing import List, Set, Tuple
 class ImportAnalyzer(ast.NodeVisitor):
     """Analyzes Python AST to find import statements."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.imports: List[Tuple[int, str, str]] = []  # (level, module, symbol)
 
-    def visit_ImportFrom(self, node):
-        module = node.module or ''
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        module = node.module or ""
         level = node.level
         for alias in node.names:
             self.imports.append((level, module, alias.name))
         self.generic_visit(node)
 
 
-def find_symbol_source(symbol: str, module_parts: List[str], sparkforge_root: Path) -> str:
+def find_symbol_source(
+    symbol: str, module_parts: List[str], sparkforge_root: Path
+) -> str:
     """
     Find where a symbol is actually defined by checking __init__.py for re-exports.
 
@@ -53,13 +55,13 @@ def find_symbol_source(symbol: str, module_parts: List[str], sparkforge_root: Pa
         Full module path where the symbol is actually defined
     """
     if not module_parts:
-        return ''
+        return ""
 
     # First, check if the module itself is a direct file
     target_as_file = (
-        sparkforge_root / '/'.join(module_parts[:-1]) / f'{module_parts[-1]}.py'
+        sparkforge_root / "/".join(module_parts[:-1]) / f"{module_parts[-1]}.py"
         if len(module_parts) > 1
-        else sparkforge_root / f'{module_parts[0]}.py'
+        else sparkforge_root / f"{module_parts[0]}.py"
     )
 
     if target_as_file.exists():
@@ -67,16 +69,16 @@ def find_symbol_source(symbol: str, module_parts: List[str], sparkforge_root: Pa
         try:
             with open(target_as_file) as f:
                 content = f.read()
-            if re.search(rf'^\s*(class|def)\s+{symbol}\b', content, re.MULTILINE):
-                return '.'.join(module_parts)
-            if re.search(rf'^{symbol}\s*=', content, re.MULTILINE):
-                return '.'.join(module_parts)
+            if re.search(rf"^\s*(class|def)\s+{symbol}\b", content, re.MULTILINE):
+                return ".".join(module_parts)
+            if re.search(rf"^{symbol}\s*=", content, re.MULTILINE):
+                return ".".join(module_parts)
         except Exception:
             pass
 
     # Check if this is a package with __init__.py that re-exports
-    module_dir = sparkforge_root / '/'.join(module_parts)
-    init_file = module_dir / '__init__.py' if module_dir.is_dir() else None
+    module_dir = sparkforge_root / "/".join(module_parts)
+    init_file = module_dir / "__init__.py" if module_dir.is_dir() else None
 
     if init_file and init_file.exists():
         try:
@@ -94,25 +96,33 @@ def find_symbol_source(symbol: str, module_parts: List[str], sparkforge_root: Pa
                                 if init_node.level > 0:
                                     # Relative import in __init__.py (e.g., from .analyzer import ...)
                                     init_level = init_node.level
-                                    init_module = init_node.module or ''
+                                    init_module = init_node.module or ""
                                     # For __init__.py, level 1 means stay in current package
-                                    init_base = module_parts[:-(init_level-1)] if init_level > 1 else module_parts
+                                    init_base = (
+                                        module_parts[: -(init_level - 1)]
+                                        if init_level > 1
+                                        else module_parts
+                                    )
                                     if init_module:
-                                        actual_parts = init_base + init_module.split('.')
+                                        actual_parts = init_base + init_module.split(
+                                            "."
+                                        )
                                     else:
                                         actual_parts = init_base
-                                    return '.'.join(actual_parts)
+                                    return ".".join(actual_parts)
                                 else:
-                                    # Absolute import from sparkforge
-                                    if init_node.module.startswith('sparkforge.'):
-                                        return init_node.module.replace('sparkforge.', '')
+                                    # Absolute import from pipeline_builder
+                                    if init_node.module.startswith("sparkforge."):
+                                        return init_node.module.replace(
+                                            "sparkforge.", ""
+                                        )
                                     # External import, skip
-                                    return ''
+                                    return ""
         except Exception:
             pass
 
     # Default: return the module path as-is
-    return '.'.join(module_parts)
+    return ".".join(module_parts)
 
 
 def analyze_file_dependencies(file_path: Path, sparkforge_root: Path) -> Set[str]:
@@ -138,17 +148,21 @@ def analyze_file_dependencies(file_path: Path, sparkforge_root: Path) -> Set[str
 
         # Get current module location
         rel_path = file_path.relative_to(sparkforge_root)
-        current_parts = str(rel_path).replace('.py', '').replace('/__init__', '').split('/')
+        current_parts = (
+            str(rel_path).replace(".py", "").replace("/__init__", "").split("/")
+        )
 
         for level, module, symbol in analyzer.imports:
             # Only process sparkforge internal imports (relative imports with level > 0)
             if level > 0:
                 # Calculate base path by going up 'level' directories
-                base_parts = current_parts[:-level] if level <= len(current_parts) else []
+                base_parts = (
+                    current_parts[:-level] if level <= len(current_parts) else []
+                )
 
                 if module:
                     # Relative import with module name
-                    full_parts = base_parts + module.split('.')
+                    full_parts = base_parts + module.split(".")
                 else:
                     # Just dots, import from parent package
                     full_parts = base_parts
@@ -172,20 +186,22 @@ def extract_current_dependencies(file_path: Path) -> List[str]:
             content = f.read()
 
         # Find dependencies section
-        match = re.search(r'# Depends on:\n((?:#   .+\n)*)', content)
+        match = re.search(r"# Depends on:\n((?:#   .+\n)*)", content)
         if match:
             deps = []
-            for line in match.group(1).strip().split('\n'):
+            for line in match.group(1).strip().split("\n"):
                 line = line.strip()
-                if line.startswith('#   '):
-                    deps.append(line.replace('#   ', ''))
+                if line.startswith("#   "):
+                    deps.append(line.replace("#   ", ""))
             return deps
         return []
     except Exception:
         return []
 
 
-def update_module_docstring(file_path: Path, dependencies: List[str], check_only: bool = False) -> Tuple[bool, str]:
+def update_module_docstring(
+    file_path: Path, dependencies: List[str], check_only: bool = False
+) -> Tuple[bool, str]:
     """
     Update a file's module docstring with dependency information.
 
@@ -211,13 +227,13 @@ def update_module_docstring(file_path: Path, dependencies: List[str], check_only
             stripped = line.strip()
 
             # Skip shebang, encoding, copyright comments
-            if stripped.startswith('#'):
+            if stripped.startswith("#"):
                 continue
             if not stripped:
                 continue
 
             # Skip imports before docstring
-            if stripped.startswith('from ') or stripped.startswith('import '):
+            if stripped.startswith("from ") or stripped.startswith("import "):
                 if docstring_start == -1:
                     continue
                 else:
@@ -246,11 +262,11 @@ def update_module_docstring(file_path: Path, dependencies: List[str], check_only
         dep_start = -1
         dep_end = -1
         for i in range(docstring_start, docstring_end + 1):
-            if '# Depends on:' in lines[i]:
+            if "# Depends on:" in lines[i]:
                 dep_start = i
                 # Find end of dependency block
                 for j in range(i + 1, docstring_end + 1):
-                    if lines[j].strip().startswith('#   '):
+                    if lines[j].strip().startswith("#   "):
                         dep_end = j
                     else:
                         break
@@ -261,11 +277,11 @@ def update_module_docstring(file_path: Path, dependencies: List[str], check_only
         # Build new dependency lines
         if dependencies:
             indent = len(lines[docstring_end]) - len(lines[docstring_end].lstrip())
-            indent_str = ' ' * indent
+            indent_str = " " * indent
 
-            new_dep_lines = [f'{indent_str}# Depends on:\n']
+            new_dep_lines = [f"{indent_str}# Depends on:\n"]
             for dep in sorted(dependencies):
-                new_dep_lines.append(f'{indent_str}#   {dep}\n')
+                new_dep_lines.append(f"{indent_str}#   {dep}\n")
         else:
             new_dep_lines = []
 
@@ -277,48 +293,66 @@ def update_module_docstring(file_path: Path, dependencies: List[str], check_only
             return (False, "Dependencies already up to date")
 
         if check_only:
-            return (True, f"Needs update: {sorted(dependencies)} vs {sorted(current_deps)}")
+            return (
+                True,
+                f"Needs update: {sorted(dependencies)} vs {sorted(current_deps)}",
+            )
 
         # Update file
         if dep_start != -1:
             # Replace existing dependencies
-            new_lines = lines[:dep_start] + new_dep_lines + lines[dep_end + 1:]
+            new_lines = lines[:dep_start] + new_dep_lines + lines[dep_end + 1 :]
         elif new_dep_lines:
             # Add new dependency section
             if docstring_start == docstring_end:
                 # Single-line docstring - convert to multi-line
                 doc_line = lines[docstring_start]
                 indent = len(doc_line) - len(doc_line.lstrip())
-                indent_str = ' ' * indent
+                indent_str = " " * indent
 
                 # Extract content
                 doc_content = doc_line.strip()
                 if doc_content.startswith('"""'):
-                    content = doc_content[3:-3] if doc_content.endswith('"""') else doc_content[3:]
+                    content = (
+                        doc_content[3:-3]
+                        if doc_content.endswith('"""')
+                        else doc_content[3:]
+                    )
                     quote = '"""'
                 else:
-                    content = doc_content[3:-3] if doc_content.endswith("'''") else doc_content[3:]
+                    content = (
+                        doc_content[3:-3]
+                        if doc_content.endswith("'''")
+                        else doc_content[3:]
+                    )
                     quote = "'''"
 
-                multi_line_doc = [
-                    f'{indent_str}{quote}\n',
-                    f'{indent_str}{content}\n',
-                    '\n'
-                ] + new_dep_lines + [f'{indent_str}{quote}\n']
+                multi_line_doc = (
+                    [f"{indent_str}{quote}\n", f"{indent_str}{content}\n", "\n"]
+                    + new_dep_lines
+                    + [f"{indent_str}{quote}\n"]
+                )
 
-                new_lines = lines[:docstring_start] + multi_line_doc + lines[docstring_start + 1:]
+                new_lines = (
+                    lines[:docstring_start]
+                    + multi_line_doc
+                    + lines[docstring_start + 1 :]
+                )
             else:
                 # Multi-line docstring - insert before closing quote
                 insert_pos = docstring_end
-                if lines[docstring_end - 1].strip() and '"""' not in lines[docstring_end - 1]:
-                    new_dep_lines = ['\n'] + new_dep_lines
+                if (
+                    lines[docstring_end - 1].strip()
+                    and '"""' not in lines[docstring_end - 1]
+                ):
+                    new_dep_lines = ["\n"] + new_dep_lines
 
                 new_lines = lines[:insert_pos] + new_dep_lines + lines[insert_pos:]
         else:
             new_lines = lines
 
         # Write back
-        with open(file_path, 'w') as f:
+        with open(file_path, "w") as f:
             f.writelines(new_lines)
 
         return (True, "Updated")
@@ -327,36 +361,37 @@ def update_module_docstring(file_path: Path, dependencies: List[str], check_only
         return (False, f"Error: {e}")
 
 
-def main():
+def main() -> int:
     """Main function to process all files."""
     parser = argparse.ArgumentParser(
-        description='Update module dependency documentation in SparkForge files'
+        description="Update module dependency documentation in SparkForge files"
     )
     parser.add_argument(
-        '--check-only',
-        action='store_true',
-        help='Only check if dependencies are up to date, don\'t modify files'
+        "--check-only",
+        action="store_true",
+        help="Only check if dependencies are up to date, don't modify files",
     )
     parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Show detailed output for each file'
+        "--verbose", action="store_true", help="Show detailed output for each file"
     )
 
     args = parser.parse_args()
 
-    sparkforge_root = Path('sparkforge')
+    sparkforge_root = Path("sparkforge")
 
     if not sparkforge_root.exists():
-        print("Error: sparkforge/ directory not found. Run this script from the project root.", file=sys.stderr)
+        print(
+            "Error: sparkforge/ directory not found. Run this script from the project root.",
+            file=sys.stderr,
+        )
         return 2
 
     # Find all Python files (excluding __init__.py files)
     all_files = []
-    for py_file in sparkforge_root.rglob('*.py'):
-        if '__pycache__' in str(py_file):
+    for py_file in sparkforge_root.rglob("*.py"):
+        if "__pycache__" in str(py_file):
             continue
-        if py_file.name == '__init__.py':
+        if py_file.name == "__init__.py":
             continue  # Skip __init__.py files as per user request
         all_files.append(py_file)
 
@@ -377,7 +412,9 @@ def main():
         else:
             files_without_deps += 1
 
-        needs_update, status = update_module_docstring(file_path, sorted(deps), check_only=args.check_only)
+        needs_update, status = update_module_docstring(
+            file_path, sorted(deps), check_only=args.check_only
+        )
 
         if needs_update:
             files_needing_update.append(file_path)
@@ -405,7 +442,7 @@ def main():
                 print(f"  {rel_path} - {status}")
 
     # Print summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("Summary:")
     print(f"  Total files analyzed: {len(all_files)}")
     print(f"  Files with internal dependencies: {files_with_deps}")
@@ -436,7 +473,7 @@ def main():
         return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         sys.exit(main())
     except KeyboardInterrupt:
@@ -445,6 +482,6 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"\n❌ Unexpected error: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         sys.exit(2)
-

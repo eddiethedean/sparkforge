@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# SparkForge Complete Environment Setup Script
-# This script sets up the complete development and testing environment for SparkForge
+# PipelineBuilder Complete Environment Setup Script
+# This script sets up the complete development and testing environment for PipelineBuilder
 
 set -e  # Exit on any error
 
-echo "🚀 SparkForge Complete Environment Setup"
-echo "========================================"
+echo "🚀 PipelineBuilder Complete Environment Setup"
+echo "=============================================="
 
 # Function to check if a command exists
 command_exists() {
@@ -88,11 +88,11 @@ pip install --upgrade pip
 
 # Install dependencies
 echo "📦 Installing dependencies..."
-pip install -r requirements.txt
+pip install -e .
 
 # Install development dependencies
 echo "🛠️ Installing development dependencies..."
-pip install pytest pytest-cov pytest-xdist mypy black isort ruff bandit hypothesis
+pip install -e ".[dev,test,docs]"
 
 # Verify installation
 echo "✅ Verifying installation..."
@@ -115,7 +115,7 @@ fi
 echo "📝 Creating environment activation script..."
 cat > activate_env.sh << 'EOF'
 #!/bin/bash
-# SparkForge Environment Activation Script
+# PipelineBuilder Environment Activation Script
 # Run this to activate the environment in new terminal sessions
 
 # Set Java environment
@@ -135,7 +135,7 @@ export PATH=$JAVA_HOME/bin:$PATH
 # Activate virtual environment
 source venv38/bin/activate
 
-echo "🚀 SparkForge environment activated!"
+echo "🚀 PipelineBuilder environment activated!"
 echo "Java: $(java -version 2>&1 | head -n 1)"
 echo "Python: $(python --version)"
 echo ""

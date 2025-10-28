@@ -19,7 +19,7 @@ Learn SparkForge by building complexity gradually. Each example builds on the pr
 **What you'll learn**: How to ingest raw data and validate it meets basic requirements
 
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 from pyspark.sql import SparkSession, functions as F
 
 # Start Spark
@@ -70,7 +70,7 @@ spark.table("progressive_demo.events").show()
 **What you'll learn**: How to transform raw data into clean, business-ready data
 
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 from pyspark.sql import SparkSession, functions as F
 
 # Start Spark
@@ -158,7 +158,7 @@ spark.table("progressive_demo.clean_events").show()
 **What you'll learn**: How to create business analytics and aggregations
 
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 from pyspark.sql import SparkSession, functions as F
 
 # Start Spark
@@ -299,7 +299,7 @@ spark.table("progressive_demo.daily_analytics").show()
 **What you'll learn**: How to set validation thresholds and handle data quality issues
 
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 from pyspark.sql import SparkSession, functions as F
 
 # Start Spark
@@ -443,7 +443,7 @@ spark.table("progressive_demo.daily_analytics").show()
 **What you'll learn**: How to enable parallel execution for better performance
 
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 from pyspark.sql import SparkSession, functions as F
 import time
 

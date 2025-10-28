@@ -17,7 +17,7 @@ Usage:
     python scripts/generate_pipeline_notebook.py --verbose
 
 How it works:
-    1. Extracts version from sparkforge/__init__.py
+    1. Extracts version from pipeline_builder/__init__.py
     2. Reads dependency information from module docstrings
     3. Performs topological sort to order modules by dependencies
     4. Creates notebook cells with module code
@@ -41,18 +41,18 @@ import re
 import sys
 from collections import defaultdict, deque
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Dict, List, Optional
 
 
 def extract_version() -> str:
-    """Extract version from sparkforge/__init__.py"""
-    init_file = Path('sparkforge/__init__.py')
+    """Extract version from pipeline_builder/__init__.py"""
+    init_file = Path("sparkforge/__init__.py")
     with open(init_file) as f:
         content = f.read()
     match = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', content)
     if match:
         return match.group(1)
-    return '0.9.0'
+    return "0.9.0"
 
 
 def extract_dependencies(file_path: Path) -> List[str]:
@@ -61,13 +61,13 @@ def extract_dependencies(file_path: Path) -> List[str]:
         with open(file_path) as f:
             content = f.read()
 
-        match = re.search(r'# Depends on:\n((?:#   .+\n)*)', content)
+        match = re.search(r"# Depends on:\n((?:#   .+\n)*)", content)
         if match:
             deps = []
-            for line in match.group(1).strip().split('\n'):
+            for line in match.group(1).strip().split("\n"):
                 line = line.strip()
-                if line.startswith('#   '):
-                    deps.append(line.replace('#   ', ''))
+                if line.startswith("#   "):
+                    deps.append(line.replace("#   ", ""))
             return deps
         return []
     except Exception:
@@ -83,15 +83,15 @@ def get_module_info(sparkforge_root: Path) -> Dict[str, Dict]:
     """
     modules = {}
 
-    for py_file in sparkforge_root.rglob('*.py'):
-        if '__pycache__' in str(py_file):
+    for py_file in sparkforge_root.rglob("*.py"):
+        if "__pycache__" in str(py_file):
             continue
-        if py_file.name == '__init__.py':
+        if py_file.name == "__init__.py":
             continue
 
         # Get module path
         rel_path = py_file.relative_to(sparkforge_root)
-        module_path = str(rel_path).replace('.py', '').replace('/', '.')
+        module_path = str(rel_path).replace(".py", "").replace("/", ".")
 
         # Read file content
         with open(py_file) as f:
@@ -101,10 +101,10 @@ def get_module_info(sparkforge_root: Path) -> Dict[str, Dict]:
         deps = extract_dependencies(py_file)
 
         modules[module_path] = {
-            'file_path': py_file,
-            'dependencies': deps,
-            'code': code,
-            'name': py_file.stem
+            "file_path": py_file,
+            "dependencies": deps,
+            "code": code,
+            "name": py_file.stem,
         }
 
     return modules
@@ -127,7 +127,7 @@ def topological_sort(modules: Dict[str, Dict]) -> List[str]:
     edges = []  # Track all edges for cycle detection
 
     for module, info in modules.items():
-        for dep in info['dependencies']:
+        for dep in info["dependencies"]:
             if dep in modules:
                 adjacency[dep].append(module)
                 in_degree[module] += 1
@@ -155,12 +155,14 @@ def topological_sort(modules: Dict[str, Dict]) -> List[str]:
         # 1. Modules with fewer dependencies first
         # 2. Alphabetically for consistency
         remaining_sorted = sorted(
-            remaining,
-            key=lambda m: (len(modules[m]['dependencies']), m)
+            remaining, key=lambda m: (len(modules[m]["dependencies"]), m)
         )
 
         if remaining_sorted:
-            print(f"⚠️  Note: {len(remaining_sorted)} module(s) with circular dependencies added at end", file=sys.stderr)
+            print(
+                f"⚠️  Note: {len(remaining_sorted)} module(s) with circular dependencies added at end",
+                file=sys.stderr,
+            )
             print(f"    Modules: {', '.join(remaining_sorted)}", file=sys.stderr)
 
         result.extend(remaining_sorted)
@@ -178,58 +180,62 @@ def remove_sparkforge_imports(code: str) -> str:
     Returns:
         Modified code with sparkforge imports removed and references cleaned
     """
-    lines = code.split('\n')
+    lines = code.split("\n")
     new_lines = []
     in_multiline_import = False
     in_mock_spark_import = False
 
     for line in lines:
         # Check for mock_spark imports (which we want to completely remove)
-        if re.match(r'^\s*from\s+mock_spark', line) or re.match(r'^\s*import\s+mock_spark', line):
+        if re.match(r"^\s*from\s+mock_spark", line) or re.match(
+            r"^\s*import\s+mock_spark", line
+        ):
             # Skip mock_spark imports entirely
-            if '(' in line and ')' not in line:
+            if "(" in line and ")" not in line:
                 in_mock_spark_import = True
             continue
         elif in_mock_spark_import:
             # Skip continuation lines of mock_spark imports
-            if ')' in line:
+            if ")" in line:
                 in_mock_spark_import = False
             continue
         # Check for any relative imports (starting with one or more dots)
-        elif re.match(r'^\s*from\s+\.', line):
+        elif re.match(r"^\s*from\s+\.", line):
             # Comment out the import
             indent = len(line) - len(line.lstrip())
-            comment = '# ' + line.strip() + '  # Removed: defined in notebook cells above'
-            new_lines.append(' ' * indent + comment)
+            comment = (
+                "# " + line.strip() + "  # Removed: defined in notebook cells above"
+            )
+            new_lines.append(" " * indent + comment)
 
             # Check if this starts a multi-line import
-            if '(' in line and ')' not in line:
+            if "(" in line and ")" not in line:
                 in_multiline_import = True
         elif in_multiline_import:
             # Comment out continuation lines of multi-line imports
             indent = len(line) - len(line.lstrip())
-            comment = '# ' + line.strip()
-            new_lines.append(' ' * indent + comment)
+            comment = "# " + line.strip()
+            new_lines.append(" " * indent + comment)
 
             # Check if this line ends the multi-line import
-            if ')' in line:
+            if ")" in line:
                 in_multiline_import = False
         else:
             new_lines.append(line)
 
-    code = '\n'.join(new_lines)
+    code = "\n".join(new_lines)
 
     # Remove mock_spark conditional imports - replace with direct pyspark imports
     # Pattern: if os.environ.get("SPARK_MODE"...) block with from mock_spark import
     code = re.sub(
-        r'# Use mock functions when in mock mode\n' +
-        r'if os\.environ\.get\("SPARK_MODE"[^)]+\)[^:]+:\n' +
-        r'    from mock_spark import functions as F\n' +
-        r'else:\n' +
-        r'    from pyspark\.sql import functions as F',
-        'from pyspark.sql import functions as F',
+        r"# Use mock functions when in mock mode\n"
+        + r'if os\.environ\.get\("SPARK_MODE"[^)]+\)[^:]+:\n'
+        + r"    from mock_spark import functions as F\n"
+        + r"else:\n"
+        + r"    from pyspark\.sql import functions as F",
+        "from pyspark.sql import functions as F",
         code,
-        flags=re.MULTILINE
+        flags=re.MULTILINE,
     )
 
     # Fix _try_import_mockspark to simply return None in standalone notebooks
@@ -238,31 +244,37 @@ def remove_sparkforge_imports(code: str) -> str:
         r'def _try_import_mockspark\(\).*?"""Try to import mock-spark modules\.""".*?try:.*?return _DataFrame.*?except Exception:.*?return None',
         'def _try_import_mockspark() -> (\n    tuple[type[Any], type[Any], type[Any], Any, Any, type[Exception]] | None\n):\n    """Try to import mock-spark modules."""\n    # Mock-spark not available in standalone PySpark notebook\n    return None',
         code,
-        flags=re.DOTALL
+        flags=re.DOTALL,
     )
 
     # Remove references to "sparkforge" in various contexts
     # Replace in import statements
-    code = re.sub(r'from sparkforge\.', 'from .', code)
-    code = re.sub(r'import sparkforge', '# import sparkforge  # Not needed in notebook', code)
+    code = re.sub(r"from pipeline_builder\.", "from .", code)
+    code = re.sub(
+        r"import pipeline_builder",
+        "# import pipeline_builder  # Not needed in notebook",
+        code,
+    )
 
     # Replace import aliases that were removed
     # UnifiedValidator as PipelineValidator -> use UnifiedValidator directly
-    code = re.sub(r'\bPipelineValidator\b', 'UnifiedValidator', code)
+    code = re.sub(r"\bPipelineValidator\b", "UnifiedValidator", code)
 
     # Replace in docstrings and comments (but preserve technical meaning)
-    code = re.sub(r'SparkForge\s+PipelineBuilder', 'PipelineBuilder', code)
-    code = re.sub(r'for\s+SparkForge', 'for the framework', code)
-    code = re.sub(r'SparkForge\s+pipelines', 'pipelines', code)
-    code = re.sub(r'SparkForge\s+models', 'framework models', code)
-    code = re.sub(r'SparkForge\s+errors', 'framework errors', code)
-    code = re.sub(r'SparkForge\s+error', 'framework error', code)
-    code = re.sub(r'all\s+SparkForge\s+errors', 'all framework errors', code)
-    code = re.sub(r'all\s+other\s+SparkForge\s+exceptions', 'all other framework exceptions', code)
-    code = re.sub(r'SparkForge\s+exceptions', 'framework exceptions', code)
-    code = re.sub(r'from\s+sparkforge', 'from the framework', code)
-    code = re.sub(r'SparkForge\s+integration', 'framework integration', code)
-    code = re.sub(r'with\s+SparkForge', 'with the framework', code)
+    code = re.sub(r"SparkForge\s+PipelineBuilder", "PipelineBuilder", code)
+    code = re.sub(r"for\s+SparkForge", "for the framework", code)
+    code = re.sub(r"SparkForge\s+pipelines", "pipelines", code)
+    code = re.sub(r"SparkForge\s+models", "framework models", code)
+    code = re.sub(r"SparkForge\s+errors", "framework errors", code)
+    code = re.sub(r"SparkForge\s+error", "framework error", code)
+    code = re.sub(r"all\s+SparkForge\s+errors", "all framework errors", code)
+    code = re.sub(
+        r"all\s+other\s+SparkForge\s+exceptions", "all other framework exceptions", code
+    )
+    code = re.sub(r"SparkForge\s+exceptions", "framework exceptions", code)
+    code = re.sub(r"from\s+sparkforge", "from the framework", code)
+    code = re.sub(r"SparkForge\s+integration", "framework integration", code)
+    code = re.sub(r"with\s+SparkForge", "with the framework", code)
 
     # Replace standalone "SparkForge" references
     code = re.sub(r'name\s*=\s*["\']SparkForge["\']', 'name="PipelineFramework"', code)
@@ -274,7 +286,7 @@ def remove_sparkforge_imports(code: str) -> str:
 
 def extract_code_without_docstring(code: str) -> str:
     """Extract code without the module docstring."""
-    lines = code.split('\n')
+    lines = code.split("\n")
 
     # Find and skip module docstring
     docstring_start = -1
@@ -286,13 +298,13 @@ def extract_code_without_docstring(code: str) -> str:
         stripped = line.strip()
 
         # Skip shebang, encoding, comments at start
-        if stripped.startswith('#'):
+        if stripped.startswith("#"):
             continue
         if not stripped:
             continue
 
         # Skip imports before docstring
-        if stripped.startswith('from ') or stripped.startswith('import '):
+        if stripped.startswith("from ") or stripped.startswith("import "):
             if docstring_start == -1:
                 continue
             else:
@@ -315,7 +327,7 @@ def extract_code_without_docstring(code: str) -> str:
 
     # Return code without docstring
     if docstring_start != -1:
-        result_lines = lines[:docstring_start] + lines[docstring_end + 1:]
+        result_lines = lines[:docstring_start] + lines[docstring_end + 1 :]
     else:
         result_lines = lines
 
@@ -325,46 +337,49 @@ def extract_code_without_docstring(code: str) -> str:
     while result_lines and not result_lines[-1].strip():
         result_lines.pop()
 
-    return '\n'.join(result_lines)
+    return "\n".join(result_lines)
 
 
-def create_notebook_cell(code: str, cell_type: str = 'code', metadata: Dict = None, collapsed: bool = True) -> Dict:
+def create_notebook_cell(
+    code: str,
+    cell_type: str = "code",
+    metadata: Optional[Dict[Any, Any]] = None,
+    collapsed: bool = True,
+) -> Dict:
     """Create a Jupyter notebook cell."""
     if metadata is None:
         metadata = {}
 
     # Add collapsed metadata for code cells (unless explicitly set to False)
-    if cell_type == 'code' and collapsed:
-        metadata['collapsed'] = True
-        metadata['jupyter'] = {'source_hidden': True}
+    if cell_type == "code" and collapsed:
+        metadata["collapsed"] = True
+        metadata["jupyter"] = {"source_hidden": True}
 
     # Format source with proper newlines for Jupyter
     # Each line should end with \n except the last line
     if code:
-        lines = code.split('\n')
-        source = [line + '\n' for line in lines[:-1]]
+        lines = code.split("\n")
+        source = [line + "\n" for line in lines[:-1]]
         if lines[-1]:  # Add last line without \n if it's not empty
             source.append(lines[-1])
     else:
         source = []
 
-    if cell_type == 'code':
+    if cell_type == "code":
         return {
-            'cell_type': 'code',
-            'execution_count': None,
-            'metadata': metadata,
-            'outputs': [],
-            'source': source
+            "cell_type": "code",
+            "execution_count": None,
+            "metadata": metadata,
+            "outputs": [],
+            "source": source,
         }
     else:  # markdown
-        return {
-            'cell_type': 'markdown',
-            'metadata': metadata,
-            'source': source
-        }
+        return {"cell_type": "markdown", "metadata": metadata, "source": source}
 
 
-def generate_notebook(modules: Dict[str, Dict], sorted_modules: List[str], version: str) -> Dict:
+def generate_notebook(
+    modules: Dict[str, Dict], sorted_modules: List[str], version: str
+) -> Dict:
     """
     Generate the Jupyter notebook structure.
 
@@ -394,7 +409,7 @@ def generate_notebook(modules: Dict[str, Dict], sorted_modules: List[str], versi
 # Note: This is generated from version {version}. Module dependencies are
 # resolved automatically from source code analysis."""
 
-    cells.append(create_notebook_cell(title, 'code'))
+    cells.append(create_notebook_cell(title, "code"))
 
     # Imports cell
     imports_code = """# External imports (PySpark, standard library)
@@ -442,7 +457,7 @@ except ImportError:
     print("⚠️  psutil not available. Memory monitoring disabled.")
     psutil = None"""
 
-    cells.append(create_notebook_cell(imports_code, 'code'))
+    cells.append(create_notebook_cell(imports_code, "code"))
 
     # Add module cells in dependency order
     for module_path in sorted_modules:
@@ -450,13 +465,15 @@ except ImportError:
 
         # Create comment header for the module
         module_header = f"# Module: {module_path}\n#\n"
-        if info['dependencies']:
-            module_header += f"# Dependencies: {', '.join(sorted(info['dependencies']))}\n\n"
+        if info["dependencies"]:
+            module_header += (
+                f"# Dependencies: {', '.join(sorted(info['dependencies']))}\n\n"
+            )
         else:
             module_header += "# Dependencies: None (base module)\n\n"
 
         # Extract code without docstring and remove sparkforge imports
-        code = extract_code_without_docstring(info['code'])
+        code = extract_code_without_docstring(info["code"])
         code = remove_sparkforge_imports(code)
 
         # Clean up the code
@@ -465,7 +482,7 @@ except ImportError:
         if code:
             # Combine header and code in one cell
             combined_code = module_header + code
-            cells.append(create_notebook_cell(combined_code, 'code'))
+            cells.append(create_notebook_cell(combined_code, "code"))
 
     # Add usage example cell (as Python comments for Databricks compatibility)
     example_code = """# Usage Example
@@ -490,52 +507,45 @@ print("✅ PipelineBuilder initialized")
 log_writer = LogWriter(spark, schema="analytics", table_name="pipeline_logs")
 print("✅ LogWriter initialized")"""
 
-    cells.append(create_notebook_cell(example_code, 'code', collapsed=False))
+    cells.append(create_notebook_cell(example_code, "code", collapsed=False))
 
     # Create notebook structure
     notebook = {
-        'cells': cells,
-        'metadata': {
-            'kernelspec': {
-                'display_name': 'Python 3',
-                'language': 'python',
-                'name': 'python3'
+        "cells": cells,
+        "metadata": {
+            "kernelspec": {
+                "display_name": "Python 3",
+                "language": "python",
+                "name": "python3",
             },
-            'language_info': {
-                'name': 'python',
-                'version': '3.8.0',
-                'mimetype': 'text/x-python',
-                'codemirror_mode': {
-                    'name': 'ipython',
-                    'version': 3
-                },
-                'pygments_lexer': 'ipython3',
-                'nbconvert_exporter': 'python',
-                'file_extension': '.py'
-            }
+            "language_info": {
+                "name": "python",
+                "version": "3.8.0",
+                "mimetype": "text/x-python",
+                "codemirror_mode": {"name": "ipython", "version": 3},
+                "pygments_lexer": "ipython3",
+                "nbconvert_exporter": "python",
+                "file_extension": ".py",
+            },
         },
-        'nbformat': 4,
-        'nbformat_minor': 4
+        "nbformat": 4,
+        "nbformat_minor": 4,
     }
 
     return notebook
 
 
-def main():
+def main() -> int:
     """Main function."""
     parser = argparse.ArgumentParser(
-        description='Generate Jupyter notebook version of SparkForge PipelineBuilder'
+        description="Generate Jupyter notebook version of SparkForge PipelineBuilder"
     )
     parser.add_argument(
-        '--output',
+        "--output",
         type=str,
-        help='Output path for the notebook (default: notebooks/pipeline_builder_v{VERSION}.ipynb)'
+        help="Output path for the notebook (default: notebooks/pipeline_builder_v{VERSION}.ipynb)",
     )
-    parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Show detailed output'
-    )
+    parser.add_argument("--verbose", action="store_true", help="Show detailed output")
 
     args = parser.parse_args()
 
@@ -547,7 +557,7 @@ def main():
     if args.output:
         output_path = Path(args.output)
     else:
-        output_path = Path(f'notebooks/pipeline_builder_v{version}.ipynb')
+        output_path = Path(f"notebooks/pipeline_builder_v{version}.ipynb")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -555,7 +565,7 @@ def main():
     print("🔍 Analyzing modules...\n")
 
     # Get all module information
-    sparkforge_root = Path('sparkforge')
+    sparkforge_root = Path("sparkforge")
     modules = get_module_info(sparkforge_root)
 
     print(f"Found {len(modules)} modules")
@@ -568,8 +578,10 @@ def main():
     if args.verbose:
         print(f"\nModule order ({len(sorted_modules)} modules):")
         for i, module in enumerate(sorted_modules, 1):
-            deps = modules[module]['dependencies']
-            deps_str = f" (depends on: {', '.join(deps)})" if deps else " (no dependencies)"
+            deps = modules[module]["dependencies"]
+            deps_str = (
+                f" (depends on: {', '.join(deps)})" if deps else " (no dependencies)"
+            )
             print(f"  {i:2d}. {module}{deps_str}")
 
     # Generate notebook
@@ -577,7 +589,7 @@ def main():
     notebook = generate_notebook(modules, sorted_modules, version)
 
     # Write notebook
-    with open(output_path, 'w') as f:
+    with open(output_path, "w") as f:
         json.dump(notebook, f, indent=2)
 
     print(f"\n✅ Successfully generated notebook: {output_path}")
@@ -588,7 +600,7 @@ def main():
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         sys.exit(main())
     except KeyboardInterrupt:
@@ -597,6 +609,6 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"\n❌ Error: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         sys.exit(2)
-

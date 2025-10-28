@@ -1,5 +1,5 @@
 """
-Basic tests for sparkforge.pipeline.builder.PipelineBuilder that avoid PySpark dependencies.
+Basic tests for pipeline_builder.pipeline.builder.PipelineBuilder that avoid PySpark dependencies.
 """
 
 import os
@@ -7,12 +7,12 @@ from unittest.mock import patch
 
 import pytest
 
-from sparkforge.errors import ConfigurationError, ExecutionError
-from sparkforge.logging import PipelineLogger
-from sparkforge.models import (
+from pipeline_builder.errors import ConfigurationError, ExecutionError
+from pipeline_builder.logging import PipelineLogger
+from pipeline_builder.models import (
     PipelineConfig,
 )
-from sparkforge.pipeline.builder import PipelineBuilder
+from pipeline_builder.pipeline.builder import PipelineBuilder
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":

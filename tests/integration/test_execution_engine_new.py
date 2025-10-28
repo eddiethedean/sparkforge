@@ -17,10 +17,15 @@ else:
     from pyspark.sql import DataFrame
     from pyspark.sql import functions as F
 
-from sparkforge.errors import ValidationError
-from sparkforge.execution import ExecutionEngine, ExecutionMode, StepStatus, StepType
-from sparkforge.logging import PipelineLogger
-from sparkforge.models import (
+from pipeline_builder.errors import ValidationError
+from pipeline_builder.execution import (
+    ExecutionEngine,
+    ExecutionMode,
+    StepStatus,
+    StepType,
+)
+from pipeline_builder.logging import PipelineLogger
+from pipeline_builder.models import (
     BronzeStep,
     GoldStep,
     ParallelConfig,
@@ -126,7 +131,7 @@ class TestExecutionEngine:
         """Test that StepExecutionResult is created correctly."""
         from datetime import datetime
 
-        from sparkforge.execution import StepExecutionResult
+        from pipeline_builder.execution import StepExecutionResult
 
         result = StepExecutionResult(
             step_name="test_step",

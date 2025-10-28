@@ -1,7 +1,7 @@
 Hello World Example
 ===================
 
-The absolute simplest SparkForge pipeline - just 3 lines of pipeline code! This demonstrates the Bronze → Silver → Gold flow with minimal complexity.
+The absolute simplest PipelineBuilder pipeline - just 3 lines of pipeline code! This demonstrates the Bronze → Silver → Gold flow with minimal complexity.
 
 What You'll Learn
 -----------------
@@ -13,7 +13,7 @@ What You'll Learn
 Prerequisites
 -------------
 
-- Python 3.8+ with SparkForge installed
+- Python 3.8+ with PipelineBuilder installed
 - Basic understanding of Python
 
 Setup and Imports
@@ -22,7 +22,7 @@ Setup and Imports
 .. code-block:: python
 
    # Import required libraries
-   from sparkforge import PipelineBuilder
+   from pipeline_builder import PipelineBuilder
    from pyspark.sql import SparkSession, functions as F
 
    # Initialize Spark
@@ -122,7 +122,7 @@ Let's see what our pipeline created at each layer:
 Step-by-Step Debugging
 ----------------------
 
-One of SparkForge's powerful features is the ability to execute individual steps for debugging:
+One of PipelineBuilder's powerful features is the ability to execute individual steps for debugging:
 
 .. code-block:: python
 
@@ -203,7 +203,7 @@ What You've Learned
 
 .. admonition:: 🎉 Congratulations!
 
-   You've successfully built your first SparkForge pipeline!
+   You've successfully built your first PipelineBuilder pipeline!
 
 Key Concepts:
 

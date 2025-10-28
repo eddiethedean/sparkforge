@@ -2,7 +2,6 @@
 Edge case tests for Mock Spark components.
 """
 
-
 import pytest
 from mock_spark import (
     ArrayType,
@@ -27,12 +26,15 @@ from mock_spark.functions import (
     MockWindowFunction,
 )
 
-from sparkforge.execution import ExecutionEngine
-from sparkforge.models import ParallelConfig, PipelineConfig, ValidationThresholds
-from sparkforge.pipeline.builder import PipelineBuilder
-from sparkforge.validation.pipeline_validation import UnifiedValidator, ValidationResult
-from sparkforge.writer.core import LogWriter
-from sparkforge.writer.models import LogLevel, WriteMode, WriterConfig
+from pipeline_builder.execution import ExecutionEngine
+from pipeline_builder.models import ParallelConfig, PipelineConfig, ValidationThresholds
+from pipeline_builder.pipeline.builder import PipelineBuilder
+from pipeline_builder.validation.pipeline_validation import (
+    UnifiedValidator,
+    ValidationResult,
+)
+from pipeline_builder.writer.core import LogWriter
+from pipeline_builder.writer.models import LogLevel, WriteMode, WriterConfig
 
 
 class TestEdgeCases:
@@ -322,7 +324,7 @@ class TestEdgeCases:
 
     def test_pipeline_builder_edge_cases(self, mock_spark_session):
         """Test PipelineBuilder edge cases."""
-        from sparkforge.errors import ConfigurationError
+        from pipeline_builder.errors import ConfigurationError
 
         # Test with invalid schema name
         with pytest.raises(ConfigurationError):

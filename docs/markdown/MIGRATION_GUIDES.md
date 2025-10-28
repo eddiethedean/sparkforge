@@ -78,7 +78,7 @@ extract_task >> transform_task >> load_task
 
 **After (SparkForge):**
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 from pyspark.sql import functions as F
 
 # Initialize Spark
@@ -187,7 +187,7 @@ models:
 
 **After (SparkForge):**
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 from pyspark.sql import functions as F
 
 # Build pipeline
@@ -365,7 +365,7 @@ if __name__ == "__main__":
 
 **After (SparkForge):**
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 from pyspark.sql import SparkSession, functions as F
 
 # Initialize Spark
@@ -513,7 +513,7 @@ if __name__ == '__main__':
 
 **After (SparkForge):**
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 from pyspark.sql import SparkSession, functions as F
 
 # Initialize Spark
@@ -668,7 +668,7 @@ if __name__ == '__main__':
 
 **After (SparkForge):**
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 from pyspark.sql import SparkSession, functions as F
 
 # Initialize Spark

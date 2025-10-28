@@ -16,10 +16,10 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
 else:
     from pyspark.sql import functions as F
 
-from sparkforge.dependencies.analyzer import DependencyAnalyzer
-from sparkforge.execution import ExecutionEngine, ExecutionMode
-from sparkforge.models.steps import BronzeStep, GoldStep, SilverStep
-from sparkforge.validation.pipeline_validation import UnifiedValidator
+from pipeline_builder.dependencies.analyzer import DependencyAnalyzer
+from pipeline_builder.execution import ExecutionEngine, ExecutionMode
+from pipeline_builder.models.steps import BronzeStep, GoldStep, SilverStep
+from pipeline_builder.validation.pipeline_validation import UnifiedValidator
 
 
 class TestTrap6HasattrChecks:
@@ -38,7 +38,7 @@ class TestTrap6HasattrChecks:
         engine = ExecutionEngine(spark=spark_session, config=test_config, logger=Mock())
 
         # Mock the apply_column_rules function
-        with patch("sparkforge.execution.apply_column_rules") as mock_apply:
+        with patch("pipeline_builder.execution.apply_column_rules") as mock_apply:
             mock_apply.return_value = (Mock(), Mock(), Mock())
 
             # Create a mock DataFrame
@@ -143,7 +143,7 @@ class TestTrap6HasattrChecks:
 
     def test_logging_context_removes_redundant_hasattr(self):
         """Test that logging context removes redundant hasattr checks."""
-        from sparkforge.logging import PipelineLogger
+        from pipeline_builder.logging import PipelineLogger
 
         # Create a logger
         logger = PipelineLogger("test_logger")
@@ -166,7 +166,7 @@ class TestTrap6HasattrChecks:
         """Test that base model to_dict keeps appropriate hasattr for duck typing."""
         from dataclasses import dataclass
 
-        from sparkforge.models.base import BaseModel
+        from pipeline_builder.models.base import BaseModel
 
         # Create a test model with a nested object that has to_dict
         @dataclass
@@ -197,7 +197,7 @@ class TestTrap6HasattrChecks:
         """Test that execution context mode handling keeps appropriate hasattr for enum types."""
         from datetime import datetime
 
-        from sparkforge.models.execution import ExecutionContext
+        from pipeline_builder.models.execution import ExecutionContext
 
         # Create execution context with different mode types
         context = ExecutionContext(

@@ -5,7 +5,7 @@ Comprehensive test script for Python 3.8 Spark environment.
 This script tests:
 1. Python version compatibility
 2. Spark session creation
-3. Core SparkForge imports
+3. Core PipelineBuilder imports
 4. Type annotation compatibility
 5. Dict vs dict syntax issues
 """
@@ -15,7 +15,7 @@ import sys
 from typing import Dict, Union
 
 
-def test_python_version():
+def test_python_version() -> bool:
     """Test Python version compatibility."""
     print("🐍 Testing Python version...")
     version = sys.version_info[:2]
@@ -27,10 +27,10 @@ def test_python_version():
         return False
 
 
-def test_java_environment():
+def test_java_environment() -> bool:
     """Test Java environment."""
     print("\n☕ Testing Java environment...")
-    java_home = os.environ.get('JAVA_HOME')
+    java_home = os.environ.get("JAVA_HOME")
     if java_home:
         print(f"✅ JAVA_HOME set to: {java_home}")
     else:
@@ -39,7 +39,8 @@ def test_java_environment():
 
     try:
         import subprocess
-        result = subprocess.run(['java', '-version'], capture_output=True, text=True)
+
+        result = subprocess.run(["java", "-version"], capture_output=True, text=True)
         if result.returncode == 0:
             print("✅ Java is working")
             return True
@@ -51,18 +52,19 @@ def test_java_environment():
         return False
 
 
-def test_spark_session():
+def test_spark_session() -> bool:
     """Test Spark session creation."""
     print("\n🔥 Testing Spark session...")
     try:
         from pyspark.sql import SparkSession
 
-        spark = SparkSession.builder \
-            .appName("Python38Test") \
-            .master("local[1]") \
-            .config("spark.driver.host", "127.0.0.1") \
-            .config("spark.driver.bindAddress", "127.0.0.1") \
+        spark = (
+            SparkSession.builder.appName("Python38Test")
+            .master("local[1]")
+            .config("spark.driver.host", "127.0.0.1")
+            .config("spark.driver.bindAddress", "127.0.0.1")
             .getOrCreate()
+        )
 
         print("✅ Spark session created successfully")
         print(f"   Spark version: {spark.version}")
@@ -81,9 +83,9 @@ def test_spark_session():
         return False
 
 
-def test_sparkforge_imports():
-    """Test SparkForge core imports."""
-    print("\n📦 Testing SparkForge imports...")
+def test_sparkforge_imports() -> bool:
+    """Test PipelineBuilder core imports."""
+    print("\n📦 Testing PipelineBuilder imports...")
 
     try:
         # Test core imports
@@ -96,13 +98,14 @@ def test_sparkforge_imports():
         return True
 
     except Exception as e:
-        print(f"❌ SparkForge imports failed: {e}")
+        print(f"❌ PipelineBuilder imports failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
-def test_type_annotations():
+def test_type_annotations() -> bool:
     """Test type annotation compatibility."""
     print("\n🔍 Testing type annotations...")
 
@@ -115,7 +118,9 @@ def test_type_annotations():
         print("✅ Dict[str, int] type annotation works")
 
         # Test Union with Dict
-        def test_union_func(value: Union[Dict[str, int], str]) -> Union[Dict[str, int], str]:
+        def test_union_func(
+            value: Union[Dict[str, int], str],
+        ) -> Union[Dict[str, int], str]:
             return value
 
         test_union_func({"test": 1})
@@ -124,8 +129,10 @@ def test_type_annotations():
 
         # Test that dict[str, int] syntax fails (as expected in Python 3.8)
         try:
-            def test_dict_syntax() -> dict[str, int]:  # This should fail in Python 3.8
+
+            def test_dict_syntax() -> Dict[str, int]:  # This should fail in Python 3.8
                 return {"test": 1}
+
             print("❌ dict[str, int] syntax worked (unexpected)")
             return False
         except TypeError:
@@ -138,18 +145,18 @@ def test_type_annotations():
         return False
 
 
-def test_sparkforge_functionality():
-    """Test SparkForge functionality."""
-    print("\n⚙️ Testing SparkForge functionality...")
+def test_sparkforge_functionality() -> bool:
+    """Test PipelineBuilder functionality."""
+    print("\n⚙️ Testing PipelineBuilder functionality...")
 
     try:
-        from sparkforge.writer.models import WriteMode, WriterConfig
+        from pipeline_builder.writer.models import WriteMode, WriterConfig
 
         # Test WriterConfig creation
         config = WriterConfig(
             table_schema="test_schema",
             table_name="test_table",
-            write_mode=WriteMode.APPEND
+            write_mode=WriteMode.APPEND,
         )
         print("✅ WriterConfig creation works")
 
@@ -163,21 +170,26 @@ def test_sparkforge_functionality():
         return True
 
     except Exception as e:
-        print(f"❌ SparkForge functionality test failed: {e}")
+        print(f"❌ PipelineBuilder functionality test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
-def test_dict_annotation_checker():
+def test_dict_annotation_checker() -> bool:
     """Test the Dict annotation checker."""
     print("\n🔍 Testing Dict annotation checker...")
 
     try:
         import subprocess
-        result = subprocess.run([
-            sys.executable, 'scripts/check_dict_annotations.py'
-        ], capture_output=True, text=True, cwd=os.getcwd())
+
+        result = subprocess.run(
+            [sys.executable, "scripts/check_dict_annotations.py"],
+            capture_output=True,
+            text=True,
+            cwd=os.getcwd(),
+        )
 
         if result.returncode == 1:  # Expected to find violations
             print("✅ Dict annotation checker found violations (as expected)")
@@ -192,7 +204,7 @@ def test_dict_annotation_checker():
         return False
 
 
-def main():
+def main() -> int:
     """Run all tests."""
     print("🚀 Starting Python 3.8 Spark Environment Tests")
     print("=" * 60)
@@ -228,5 +240,5 @@ def main():
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

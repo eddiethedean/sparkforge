@@ -31,7 +31,7 @@ def add_silver_transform(
 
 ### **2. Type Aliases and Utilities**
 
-**Created:** `sparkforge/types/` package with 4 focused modules
+**Created:** `pipeline_builder/types/` package with 4 focused modules
 - `aliases.py` - Comprehensive type aliases for common patterns
 - `protocols.py` - Protocol definitions for better type checking
 - `generics.py` - Generic types and type variables
@@ -215,7 +215,7 @@ def infer_parameter_types(func: callable) -> Dict[str, Type]:
 ### **1. Basic Type Usage**
 
 ```python
-from sparkforge import (
+from pipeline_builder import (
     PipelineBuilder, StepName, StepType, ColumnRules,
     TransformFunction, SilverTransformFunction, GoldTransformFunction
 )
@@ -243,7 +243,7 @@ silver_func: SilverTransformFunction = silver_transform
 ### **2. Protocol Usage**
 
 ```python
-from sparkforge.types import Validatable, Serializable, Executable
+from pipeline_builder.types import Validatable, Serializable, Executable
 
 class MyStep(Validatable, Serializable, Executable):
     def validate(self) -> None:
@@ -266,7 +266,7 @@ def process_step(step: Validatable) -> None:
 ### **3. Generic Types**
 
 ```python
-from sparkforge.types import Result, OptionalResult, Either, Try
+from pipeline_builder.types import Result, OptionalResult, Either, Try
 
 # Result type
 result: Result[str] = Result("success", success=True)
@@ -290,7 +290,7 @@ mapped = try_result.map(lambda x: x * 2)
 ### **4. Type-Safe Collections**
 
 ```python
-from sparkforge.types import TypedDict, TypedList
+from pipeline_builder.types import TypedDict, TypedList
 
 # Type-safe dictionary
 string_dict: TypedDict[str, str] = TypedDict(str)
@@ -304,7 +304,7 @@ int_list.append_typed(42)  # Type-safe
 ### **5. Type Validation Decorators**
 
 ```python
-from sparkforge.types import typed, typed_method
+from pipeline_builder.types import typed, typed_method
 
 @typed
 def process_data(data: DataFrame, threshold: float) -> bool:
@@ -318,7 +318,7 @@ def validate_step(self, step_name: StepName, rules: ColumnRules) -> bool:
 ### **6. Type Utilities**
 
 ```python
-from sparkforge.types import (
+from pipeline_builder.types import (
     is_valid_type, validate_type, cast_safe,
     infer_type, get_type_hints
 )

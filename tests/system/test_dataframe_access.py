@@ -16,9 +16,9 @@ else:
     from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
-from sparkforge import PipelineBuilder
-from sparkforge.execution import ExecutionEngine
-from sparkforge.models import (
+from pipeline_builder import PipelineBuilder
+from pipeline_builder.execution import ExecutionEngine
+from pipeline_builder.models import (
     BronzeStep,
     GoldStep,
     ParallelConfig,
@@ -367,7 +367,7 @@ class TestDataFrameAccess:
 
     def test_execution_mode_enum(self):
         """Test that execution modes work correctly."""
-        from sparkforge.execution import ExecutionMode
+        from pipeline_builder.execution import ExecutionMode
 
         assert ExecutionMode.INITIAL.value == "initial"
         assert ExecutionMode.INCREMENTAL.value == "incremental"
@@ -376,7 +376,7 @@ class TestDataFrameAccess:
 
     def test_step_status_enum(self):
         """Test that step statuses work correctly."""
-        from sparkforge.execution import StepStatus
+        from pipeline_builder.execution import StepStatus
 
         assert StepStatus.PENDING.value == "pending"
         assert StepStatus.RUNNING.value == "running"
@@ -386,7 +386,7 @@ class TestDataFrameAccess:
 
     def test_step_type_enum(self):
         """Test that step types work correctly."""
-        from sparkforge.execution import StepType
+        from pipeline_builder.execution import StepType
 
         assert StepType.BRONZE.value == "bronze"
         assert StepType.SILVER.value == "silver"

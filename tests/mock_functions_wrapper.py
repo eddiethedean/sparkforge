@@ -13,7 +13,7 @@ from mock_spark.functions import F as _F
 class MockFunctions:
     """
     Wrapper around mock_spark's F to ensure FunctionsProtocol compatibility.
-    
+
     This wrapper adds missing methods and fixes signature mismatches.
     """
 
@@ -47,7 +47,7 @@ class MockFunctions:
 
     def countDistinct(self, *cols: str | Any) -> Any:
         """Create a count distinct aggregation.
-        
+
         Note: This method signature matches FunctionsProtocol but differs
         from mock_spark's implementation which takes a single column.
         """
@@ -82,7 +82,7 @@ class MockFunctions:
 
     def date_trunc(self, format: str, col: str | Any) -> Any:
         """Create a date truncation function.
-        
+
         This method is not present in mock_spark, so we provide a stub.
         """
         # mock_spark doesn't have date_trunc, so we return a mock column
@@ -109,4 +109,3 @@ class MockFunctions:
     def current_timestamp(self) -> Any:
         """Create a current timestamp function."""
         return self._f.current_timestamp()
-

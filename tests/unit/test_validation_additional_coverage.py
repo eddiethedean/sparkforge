@@ -21,7 +21,7 @@ else:
     from pyspark.sql import functions as F
     from pyspark.sql.functions import col
 
-from sparkforge.validation import (
+from pipeline_builder.validation import (
     _convert_rule_to_expression,
     _convert_rules_to_expressions,
     and_all_rules,

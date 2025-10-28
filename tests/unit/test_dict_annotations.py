@@ -196,10 +196,10 @@ class DictAnnotationTest:
         """Get all Python files in the project."""
         python_files = []
 
-        # Scan sparkforge directory
-        sparkforge_dir = self.project_root / "sparkforge"
-        if sparkforge_dir.exists():
-            python_files.extend(sparkforge_dir.rglob("*.py"))
+        # Scan pipeline_builder directory
+        pipeline_builder_dir = self.project_root / "pipeline_builder"
+        if pipeline_builder_dir.exists():
+            python_files.extend(pipeline_builder_dir.rglob("*.py"))
 
         # Scan tests directory
         tests_dir = self.project_root / "tests"
@@ -269,9 +269,9 @@ def test_dict_vs_Dict_equivalence():
         # Python 3.8: dict[...] syntax should fail
         try:
 
-            def func_with_dict() -> (
-                    dict[str, int]
-            ):  # This syntax doesn't work in Python 3.8
+            def func_with_dict() -> dict[
+                str, int
+            ]:  # This syntax doesn't work in Python 3.8
                 return {"test": 1}
 
             raise AssertionError("dict[str, int] syntax should fail in Python 3.8")
@@ -307,19 +307,19 @@ def test_typeddict_compatibility():
 def test_import_compatibility():
     """Test that core modules can be imported."""
     try:
-        import sparkforge
+        import pipeline_builder
 
-        assert hasattr(sparkforge, "__version__")
+        assert hasattr(pipeline_builder, "__version__")
     except ImportError as e:
-        pytest.fail(f"Failed to import sparkforge: {e}")
+        pytest.fail(f"Failed to import pipeline_builder: {e}")
 
 
 def test_writer_imports():
     """Test that writer module can be imported."""
     try:
-        from sparkforge.writer import LogWriter  # noqa: F401
-        from sparkforge.writer.exceptions import WriterError  # noqa: F401
-        from sparkforge.writer.models import WriterConfig  # noqa: F401
+        from pipeline_builder.writer import LogWriter  # noqa: F401
+        from pipeline_builder.writer.exceptions import WriterError  # noqa: F401
+        from pipeline_builder.writer.models import WriterConfig  # noqa: F401
     except ImportError as e:
         pytest.fail(f"Failed to import writer modules: {e}")
 
@@ -327,8 +327,8 @@ def test_writer_imports():
 def test_models_imports():
     """Test that models can be imported."""
     try:
-        from sparkforge.models import ExecutionResult, StepResult  # noqa: F401
-        from sparkforge.types import NumericDict, StringDict  # noqa: F401
+        from pipeline_builder.models import ExecutionResult, StepResult  # noqa: F401
+        from pipeline_builder.types import NumericDict, StringDict  # noqa: F401
     except ImportError as e:
         pytest.fail(f"Failed to import model types: {e}")
 

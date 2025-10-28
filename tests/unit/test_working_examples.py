@@ -5,12 +5,20 @@ Working unit tests that use actual SparkForge APIs.
 import pytest
 from mock_spark.errors import AnalysisException
 
-from sparkforge.execution import ExecutionEngine, ExecutionMode, StepStatus, StepType
-from sparkforge.models import ParallelConfig, PipelineConfig, ValidationThresholds
-from sparkforge.pipeline.builder import PipelineBuilder
-from sparkforge.validation.pipeline_validation import UnifiedValidator, ValidationResult
-from sparkforge.writer.core import LogWriter
-from sparkforge.writer.models import LogLevel, WriteMode, WriterConfig
+from pipeline_builder.execution import (
+    ExecutionEngine,
+    ExecutionMode,
+    StepStatus,
+    StepType,
+)
+from pipeline_builder.models import ParallelConfig, PipelineConfig, ValidationThresholds
+from pipeline_builder.pipeline.builder import PipelineBuilder
+from pipeline_builder.validation.pipeline_validation import (
+    UnifiedValidator,
+    ValidationResult,
+)
+from pipeline_builder.writer.core import LogWriter
+from pipeline_builder.writer.models import LogLevel, WriteMode, WriterConfig
 
 
 class TestWorkingExamples:
@@ -136,7 +144,7 @@ class TestWorkingExamples:
         """Test creating StepExecutionResult."""
         from datetime import datetime
 
-        from sparkforge.execution import StepExecutionResult
+        from pipeline_builder.execution import StepExecutionResult
 
         start_time = datetime.now()
         result = StepExecutionResult(
@@ -158,7 +166,7 @@ class TestWorkingExamples:
         import uuid
         from datetime import datetime
 
-        from sparkforge.execution import ExecutionResult, StepExecutionResult
+        from pipeline_builder.execution import ExecutionResult, StepExecutionResult
 
         start_time = datetime.now()
         step_result = StepExecutionResult(
@@ -264,5 +272,7 @@ class TestWorkingExamples:
             mock_spark_session.table("nonexistent.table")
 
         # Test invalid parameters - this should raise an exception
-        with pytest.raises(Exception):
+        from mock_spark import IllegalArgumentException
+
+        with pytest.raises(IllegalArgumentException):
             mock_spark_session.createDataFrame("invalid_data", "invalid_schema")

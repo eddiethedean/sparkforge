@@ -18,24 +18,24 @@
 # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # # SOFTWARE.
 
-# SparkForge Quality Management Makefile
+# PipelineBuilder Quality Management Makefile
 # Provides easy commands for code quality, testing, and development
 
 .PHONY: help install install-dev quality format lint type-check test test-cov clean pre-commit install-hooks fix-all
 
 # Default target
 help: ## Show this help message
-	@echo "SparkForge Quality Management"
-	@echo "============================"
+	@echo "PipelineBuilder Quality Management"
+	@echo "=================================="
 	@echo ""
 	@echo "Available commands:"
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 # Installation
-install: ## Install SparkForge in production mode
+install: ## Install PipelineBuilder in production mode
 	pip install -e .
 
-install-dev: ## Install SparkForge in development mode with all dev dependencies
+install-dev: ## Install PipelineBuilder in development mode with all dev dependencies
 	pip install -e ".[dev]"
 
 # Code Quality
@@ -146,7 +146,7 @@ clean: ## Clean up build artifacts and cache files
 
 # Environment Setup
 setup-env: ## Set up development environment
-	@echo "🚀 Setting up SparkForge development environment..."
+	@echo "🚀 Setting up PipelineBuilder development environment..."
 	@./setup_env.sh
 
 test-env: ## Test environment setup
@@ -204,8 +204,8 @@ quick-check: format lint test-fast ## Quick quality check for development
 
 # Show current status
 status: ## Show current development status
-	@echo "📊 SparkForge Development Status"
-	@echo "================================"
+	@echo "📊 PipelineBuilder Development Status"
+	@echo "===================================="
 	@echo "Python version: $(shell python --version)"
 	@echo "Pip version: $(shell pip --version)"
 	@echo "Git status: $(shell git status --porcelain | wc -l) files changed"

@@ -138,7 +138,7 @@ def run_multi_schema_pipeline():
         create_test_data(spark)
 
         # Import PipelineBuilder
-        from sparkforge import PipelineBuilder
+        from pipeline_builder import PipelineBuilder
 
         # Create pipeline builder with default schema
         builder = PipelineBuilder(spark=spark, schema="default")
@@ -295,7 +295,7 @@ def demonstrate_schema_validation():
     spark = SparkSession.builder.appName("SchemaValidationDemo").getOrCreate()
 
     try:
-        from sparkforge import PipelineBuilder
+        from pipeline_builder import PipelineBuilder
 
         builder = PipelineBuilder(spark=spark, schema="default")
 

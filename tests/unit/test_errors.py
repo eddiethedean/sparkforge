@@ -8,7 +8,7 @@ This module tests that all error classes use explicit types instead of Any,
 from datetime import datetime
 from typing import List
 
-from sparkforge.errors import (
+from pipeline_builder.errors import (
     ConfigurationError,
     DataError,
     ErrorCategory,

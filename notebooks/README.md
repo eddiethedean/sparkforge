@@ -1,16 +1,21 @@
-# SparkForge Interactive Notebooks
+# PipelineBuilder Interactive Notebooks
 
-This directory contains Jupyter notebooks for interactive learning with SparkForge.
+This directory contains Jupyter notebooks for interactive learning with PipelineBuilder.
 
 ## Getting Started
 
 ### Prerequisites
 1. **Install Jupyter**: `pip install jupyter notebook`
-2. **Install SparkForge**: `pip install sparkforge pyspark`
+2. **Install PipelineBuilder**: 
+   ```bash
+   git clone https://github.com/eddiethedean/sparkforge.git
+   cd sparkforge
+   pip install -e ".[pyspark]"
+   ```
 3. **Start Jupyter**: `jupyter notebook`
 
 ### Running the Notebooks
-1. Navigate to this directory: `cd sparkforge/notebooks`
+1. Navigate to this directory: `cd pipeline_builder/notebooks`
 2. Start Jupyter: `jupyter notebook`
 3. Open the notebook you want to run
 4. Execute cells step by step (Shift+Enter)
@@ -85,7 +90,7 @@ This directory contains Jupyter notebooks for interactive learning with SparkFor
 
 ### Troubleshooting
 - **Spark errors**: Make sure Java is installed
-- **Import errors**: Check SparkForge installation
+- **Import errors**: Check PipelineBuilder installation
 - **Memory issues**: Restart kernel if needed
 - **Performance**: Use smaller datasets for learning
 

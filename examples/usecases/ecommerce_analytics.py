@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 
 
 def create_sample_data(spark):

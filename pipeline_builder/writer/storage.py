@@ -450,7 +450,9 @@ class StorageManager:
             ) from e
 
     def query_logs(
-        self, limit: int | None = None, filters: Union[Dict[str, Union[str, int, float, bool]], None] = None
+        self,
+        limit: int | None = None,
+        filters: Union[Dict[str, Union[str, int, float, bool]], None] = None,
     ) -> DataFrame:
         """
         Query logs from the table.

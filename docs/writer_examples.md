@@ -5,7 +5,7 @@
 ### Basic Logging
 ```python
 from pyspark.sql import SparkSession
-from sparkforge.writer import LogWriter
+from pipeline_builder.writer import LogWriter
 
 # Initialize with simplified API
 spark = SparkSession.builder.appName("BasicExample").getOrCreate()
@@ -19,7 +19,7 @@ print(f"Success: {result['success']}")
 
 ### Execution Result Logging
 ```python
-from sparkforge.models import ExecutionResult, ExecutionContext, StepResult, ExecutionMode
+from pipeline_builder.models import ExecutionResult, ExecutionContext, StepResult, ExecutionMode
 
 # Create execution result
 context = ExecutionContext(mode=ExecutionMode.INITIAL, start_time=datetime.now())
@@ -105,7 +105,7 @@ If you need advanced configuration options, you can still use WriterConfig:
 
 #### High Performance Configuration
 ```python
-from sparkforge.writer.models import WriterConfig, WriteMode
+from pipeline_builder.writer.models import WriterConfig, WriteMode
 
 config = WriterConfig(
     table_schema="analytics", table_name="logs",

@@ -22,8 +22,8 @@ This document provides comprehensive API documentation for SparkForge with detai
 The main class for building data pipelines with the Medallion Architecture.
 
 ```python
-from sparkforge.pipeline.builder import PipelineBuilder
-from sparkforge.models import PipelineConfig, ValidationThresholds, ParallelConfig
+from pipeline_builder.pipeline.builder import PipelineBuilder
+from pipeline_builder.models import PipelineConfig, ValidationThresholds, ParallelConfig
 
 # Basic usage
 config = PipelineConfig(
@@ -46,7 +46,7 @@ Initialize the pipeline builder with configuration.
 
 **Example:**
 ```python
-from sparkforge.models import PipelineConfig, ValidationThresholds, ParallelConfig
+from pipeline_builder.models import PipelineConfig, ValidationThresholds, ParallelConfig
 
 config = PipelineConfig(
     schema="analytics",
@@ -190,7 +190,7 @@ print(f"Throughput: {performance_summary.records_per_second} records/s")
 Configuration for the entire pipeline.
 
 ```python
-from sparkforge.models import PipelineConfig, ValidationThresholds, ParallelConfig
+from pipeline_builder.models import PipelineConfig, ValidationThresholds, ParallelConfig
 
 config = PipelineConfig(
     schema="analytics",
@@ -214,7 +214,7 @@ config = PipelineConfig(
 Quality thresholds for data validation.
 
 ```python
-from sparkforge.models import ValidationThresholds
+from pipeline_builder.models import ValidationThresholds
 
 thresholds = ValidationThresholds(
     bronze=80.0,  # 80% quality threshold for bronze tier
@@ -237,7 +237,7 @@ Get threshold for a specific pipeline phase.
 
 **Example:**
 ```python
-from sparkforge.models import PipelinePhase
+from pipeline_builder.models import PipelinePhase
 
 bronze_threshold = thresholds.get_threshold(PipelinePhase.BRONZE)
 print(f"Bronze threshold: {bronze_threshold}%")
@@ -248,7 +248,7 @@ print(f"Bronze threshold: {bronze_threshold}%")
 Configuration for parallel processing.
 
 ```python
-from sparkforge.models import ParallelConfig
+from pipeline_builder.models import ParallelConfig
 
 parallel_config = ParallelConfig(
     enabled=True,      # Enable parallel processing
@@ -266,7 +266,7 @@ parallel_config = ParallelConfig(
 Represents a bronze tier step in the pipeline.
 
 ```python
-from sparkforge.models import BronzeStep
+from pipeline_builder.models import BronzeStep
 from pyspark.sql import functions as F
 
 def bronze_transform(df):
@@ -314,7 +314,7 @@ except ValidationError as e:
 Represents a silver tier step in the pipeline.
 
 ```python
-from sparkforge.models import SilverStep
+from pipeline_builder.models import SilverStep
 
 def silver_transform(df):
     return df.withColumn("user_segment", 
@@ -344,7 +344,7 @@ silver_step = SilverStep(
 Represents a gold tier step in the pipeline.
 
 ```python
-from sparkforge.models import GoldStep
+from pipeline_builder.models import GoldStep
 
 def gold_transform(df):
     return df.groupBy("user_segment").agg(
@@ -376,7 +376,7 @@ gold_step = GoldStep(
 Central validation system for SparkForge.
 
 ```python
-from sparkforge.validation import UnifiedValidator
+from pipeline_builder.validation import UnifiedValidator
 
 validator = UnifiedValidator()
 ```
@@ -437,7 +437,7 @@ Assess data quality against validation rules.
 
 **Example:**
 ```python
-from sparkforge.validation import assess_data_quality
+from pipeline_builder.validation import assess_data_quality
 
 quality_result = assess_data_quality(df, validation_rules, threshold=85.0)
 print(f"Quality score: {quality_result['quality_score']}%")
@@ -458,7 +458,7 @@ Validate DataFrame schema against expected columns.
 
 **Example:**
 ```python
-from sparkforge.validation import validate_dataframe_schema
+from pipeline_builder.validation import validate_dataframe_schema
 
 expected_columns = ["user_id", "timestamp", "amount", "category"]
 is_valid = validate_dataframe_schema(df, expected_columns)
@@ -481,7 +481,7 @@ Apply validation rules to a DataFrame.
 
 **Example:**
 ```python
-from sparkforge.validation import apply_validation_rules
+from pipeline_builder.validation import apply_validation_rules
 
 valid_df, invalid_df, stats = apply_validation_rules(
     df, validation_rules, "bronze", "user_events"
@@ -499,7 +499,7 @@ print(f"Validation rate: {stats['validation_rate']}%")
 Simplified pipeline runner for executing data pipelines.
 
 ```python
-from sparkforge.pipeline.runner import SimplePipelineRunner
+from pipeline_builder.pipeline.runner import SimplePipelineRunner
 
 runner = SimplePipelineRunner()
 ```
@@ -547,7 +547,7 @@ print(f"Step executed in {execution_result.execution_time}s")
 Simplified execution engine for processing pipeline steps.
 
 ```python
-from sparkforge.execution import SimpleExecutionEngine
+from pipeline_builder.execution import SimpleExecutionEngine
 
 engine = SimpleExecutionEngine()
 ```
@@ -578,7 +578,7 @@ processed_df.show()
 Monitor and track pipeline performance.
 
 ```python
-from sparkforge.performance import PerformanceMonitor
+from pipeline_builder.performance import PerformanceMonitor
 
 monitor = PerformanceMonitor()
 ```
@@ -634,7 +634,7 @@ print(f"Memory usage: {memory_usage}MB")
 Raised when validation fails.
 
 ```python
-from sparkforge.errors import ValidationError
+from pipeline_builder.errors import ValidationError
 
 try:
     bronze_step.validate()
@@ -647,7 +647,7 @@ except ValidationError as e:
 Raised when pipeline execution fails.
 
 ```python
-from sparkforge.errors import PipelineError
+from pipeline_builder.errors import PipelineError
 
 try:
     runner.run_pipeline(builder)
@@ -660,7 +660,7 @@ except PipelineError as e:
 Raised when configuration is invalid.
 
 ```python
-from sparkforge.errors import ConfigurationError
+from pipeline_builder.errors import ConfigurationError
 
 try:
     config = PipelineConfig(schema="", quality_thresholds=thresholds)
@@ -684,7 +684,7 @@ Safely divide two numbers, handling division by zero.
 
 **Example:**
 ```python
-from sparkforge.validation import safe_divide
+from pipeline_builder.validation import safe_divide
 
 result = safe_divide(10, 2)  # Returns 5.0
 result = safe_divide(10, 0)  # Returns 0.0
@@ -703,7 +703,7 @@ Get comprehensive information about a DataFrame.
 
 **Example:**
 ```python
-from sparkforge.validation import get_dataframe_info
+from pipeline_builder.validation import get_dataframe_info
 
 info = get_dataframe_info(df)
 print(f"Row count: {info['row_count']}")
@@ -716,9 +716,9 @@ print(f"Schema: {info['schema']}")
 ### Complete Pipeline Example
 
 ```python
-from sparkforge.pipeline.builder import PipelineBuilder
-from sparkforge.models import PipelineConfig, ValidationThresholds, ParallelConfig
-from sparkforge.pipeline.runner import SimplePipelineRunner
+from pipeline_builder.pipeline.builder import PipelineBuilder
+from pipeline_builder.models import PipelineConfig, ValidationThresholds, ParallelConfig
+from pipeline_builder.pipeline.runner import SimplePipelineRunner
 from pyspark.sql import functions as F
 
 # Configuration
@@ -800,7 +800,7 @@ print(f"Throughput: {performance_summary.records_per_second} records/s")
 ### Error Handling Example
 
 ```python
-from sparkforge.errors import ValidationError, PipelineError, ConfigurationError
+from pipeline_builder.errors import ValidationError, PipelineError, ConfigurationError
 
 try:
     # Validate pipeline
@@ -828,7 +828,7 @@ except Exception as e:
 ### Performance Monitoring Example
 
 ```python
-from sparkforge.performance import PerformanceMonitor
+from pipeline_builder.performance import PerformanceMonitor
 
 monitor = PerformanceMonitor()
 

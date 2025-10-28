@@ -23,15 +23,17 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
         MockStructType as StructType,
     )
     from mock_spark import functions as F
+
     MockF = F
 else:
     from pyspark.sql import functions as F
     from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+
     MockF = None
 
-from sparkforge import PipelineBuilder
-from sparkforge.errors import ValidationError
-from sparkforge.validation import apply_column_rules
+from pipeline_builder import PipelineBuilder
+from pipeline_builder.errors import ValidationError
+from pipeline_builder.validation import apply_column_rules
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -137,8 +139,8 @@ class TestBronzeRulesColumnValidation:
 
     def test_bronze_step_with_provided_data(self, spark_session):
         """Test that bronze step works correctly with provided data."""
-        from sparkforge.execution import ExecutionEngine
-        from sparkforge.models import BronzeStep, PipelineConfig
+        from pipeline_builder.execution import ExecutionEngine
+        from pipeline_builder.models import BronzeStep, PipelineConfig
 
         # Create sample data with the expected columns
         schema = StructType(
@@ -202,7 +204,11 @@ class TestBronzeRulesColumnValidation:
         df = spark_session.createDataFrame(sample_data, ["user_id", "action"])
 
         # Create pipeline builder
-        builder = PipelineBuilder(spark=spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         # Add bronze rules that reference missing columns
         builder.with_bronze_rules(
@@ -234,9 +240,9 @@ class TestBronzeRulesColumnValidation:
 
     def test_bronze_step_missing_data_error(self, spark_session):
         """Test that bronze step raises clear error when no data is provided."""
-        from sparkforge.errors import ExecutionError
-        from sparkforge.execution import ExecutionEngine
-        from sparkforge.models import BronzeStep, PipelineConfig
+        from pipeline_builder.errors import ExecutionError
+        from pipeline_builder.execution import ExecutionEngine
+        from pipeline_builder.models import BronzeStep, PipelineConfig
 
         # Create bronze step with various column types
         bronze_step = BronzeStep(

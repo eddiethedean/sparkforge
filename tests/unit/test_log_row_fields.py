@@ -10,10 +10,18 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from sparkforge.execution import ExecutionMode, StepExecutionResult, StepStatus, StepType
-from sparkforge.models import PipelineMetrics
-from sparkforge.pipeline.models import PipelineMode, PipelineReport, PipelineStatus
-from sparkforge.writer import LogWriter
+from pipeline_builder.execution import (
+    StepExecutionResult,
+    StepStatus,
+    StepType,
+)
+from pipeline_builder.models import PipelineMetrics
+from pipeline_builder.pipeline.models import (
+    PipelineMode,
+    PipelineReport,
+    PipelineStatus,
+)
+from pipeline_builder.writer import LogWriter
 
 
 class TestStepExecutionResultFields:
@@ -27,10 +35,10 @@ class TestStepExecutionResultFields:
             status=StepStatus.COMPLETED,
             start_time=datetime(2024, 1, 15, 10, 0, 0),
             end_time=datetime(2024, 1, 15, 10, 1, 0),
-            write_mode="append"
+            write_mode="append",
         )
-        
-        assert hasattr(result, 'write_mode')
+
+        assert hasattr(result, "write_mode")
         assert result.write_mode == "append"
 
     def test_step_execution_result_has_validation_rate_field(self):
@@ -41,10 +49,10 @@ class TestStepExecutionResultFields:
             status=StepStatus.COMPLETED,
             start_time=datetime(2024, 1, 15, 10, 0, 0),
             end_time=datetime(2024, 1, 15, 10, 1, 0),
-            validation_rate=98.5
+            validation_rate=98.5,
         )
-        
-        assert hasattr(result, 'validation_rate')
+
+        assert hasattr(result, "validation_rate")
         assert result.validation_rate == 98.5
 
     def test_step_execution_result_has_rows_written_field(self):
@@ -55,10 +63,10 @@ class TestStepExecutionResultFields:
             status=StepStatus.COMPLETED,
             start_time=datetime(2024, 1, 15, 10, 0, 0),
             end_time=datetime(2024, 1, 15, 10, 1, 0),
-            rows_written=1000
+            rows_written=1000,
         )
-        
-        assert hasattr(result, 'rows_written')
+
+        assert hasattr(result, "rows_written")
         assert result.rows_written == 1000
 
     def test_step_execution_result_has_input_rows_field(self):
@@ -69,10 +77,10 @@ class TestStepExecutionResultFields:
             status=StepStatus.COMPLETED,
             start_time=datetime(2024, 1, 15, 10, 0, 0),
             end_time=datetime(2024, 1, 15, 10, 1, 0),
-            input_rows=1200
+            input_rows=1200,
         )
-        
-        assert hasattr(result, 'input_rows')
+
+        assert hasattr(result, "input_rows")
         assert result.input_rows == 1200
 
     def test_step_execution_result_default_values(self):
@@ -83,7 +91,7 @@ class TestStepExecutionResultFields:
             status=StepStatus.COMPLETED,
             start_time=datetime(2024, 1, 15, 10, 0, 0),
         )
-        
+
         # Check default values
         assert result.write_mode is None
         assert result.validation_rate == 100.0
@@ -115,9 +123,9 @@ class TestPipelineReportFieldPropagation:
                     "rows_written": 1000,
                     "input_rows": 1050,
                 }
-            }
+            },
         )
-        
+
         assert "test_step" in report.silver_results
         step_info = report.silver_results["test_step"]
         assert step_info["write_mode"] == "overwrite"
@@ -137,13 +145,15 @@ class TestLogRowFieldCalculations:
     @pytest.fixture
     def writer(self, mock_spark):
         """Create a LogWriter instance."""
-        with patch('sparkforge.writer.core.StorageManager'):
-            with patch('sparkforge.writer.core.PerformanceMonitor'):
-                with patch('sparkforge.writer.core.DataProcessor'):
-                    with patch('sparkforge.writer.core.AnalyticsEngine'):
-                        with patch('sparkforge.writer.core.DataQualityAnalyzer'):
-                            with patch('sparkforge.writer.core.TrendAnalyzer'):
-                                return LogWriter(mock_spark, schema="test", table_name="logs")
+        with patch("pipeline_builder.writer.core.StorageManager"):
+            with patch("pipeline_builder.writer.core.PerformanceMonitor"):
+                with patch("pipeline_builder.writer.core.DataProcessor"):
+                    with patch("pipeline_builder.writer.core.AnalyticsEngine"):
+                        with patch("pipeline_builder.writer.core.DataQualityAnalyzer"):
+                            with patch("pipeline_builder.writer.core.TrendAnalyzer"):
+                                return LogWriter(
+                                    mock_spark, schema="test", table_name="logs"
+                                )
 
     def test_log_row_write_mode_populated_from_step_info(self, writer):
         """Test that write_mode is populated from step_info."""
@@ -169,11 +179,11 @@ class TestLogRowFieldCalculations:
                     "rows_written": 500,
                     "input_rows": 500,
                 }
-            }
+            },
         )
-        
+
         log_rows = writer._convert_report_to_log_rows(report)
-        
+
         assert len(log_rows) == 1
         assert log_rows[0]["write_mode"] == "append"
 
@@ -201,14 +211,14 @@ class TestLogRowFieldCalculations:
                     "rows_written": 1000,
                     "input_rows": 1000,
                 }
-            }
+            },
         )
-        
+
         log_rows = writer._convert_report_to_log_rows(report)
-        
+
         assert len(log_rows) == 1
         log_row = log_rows[0]
-        
+
         # Verify validation fields
         assert log_row["validation_rate"] == 95.0
         assert log_row["valid_rows"] == 950  # 1000 * 95.0 / 100
@@ -239,14 +249,14 @@ class TestLogRowFieldCalculations:
                     "rows_written": 500,
                     "input_rows": 500,
                 }
-            }
+            },
         )
-        
+
         log_rows = writer._convert_report_to_log_rows(report)
-        
+
         assert len(log_rows) == 1
         log_row = log_rows[0]
-        
+
         assert log_row["validation_rate"] == 100.0
         assert log_row["valid_rows"] == 500
         assert log_row["invalid_rows"] == 0
@@ -275,14 +285,14 @@ class TestLogRowFieldCalculations:
                     "rows_written": 2000,
                     "input_rows": 2000,
                 }
-            }
+            },
         )
-        
+
         log_rows = writer._convert_report_to_log_rows(report)
-        
+
         assert len(log_rows) == 1
         log_row = log_rows[0]
-        
+
         assert log_row["validation_rate"] == 75.0
         assert log_row["valid_rows"] == 1500  # 2000 * 75.0 / 100
         assert log_row["invalid_rows"] == 500  # 2000 - 1500
@@ -311,14 +321,14 @@ class TestLogRowFieldCalculations:
                     "rows_written": 800,  # After filtering
                     "input_rows": 1200,  # Original input before processing
                 }
-            }
+            },
         )
-        
+
         log_rows = writer._convert_report_to_log_rows(report)
-        
+
         assert len(log_rows) == 1
         log_row = log_rows[0]
-        
+
         assert log_row["rows_processed"] == 1000
         assert log_row["rows_written"] == 800
         assert log_row["input_rows"] == 1200
@@ -376,13 +386,13 @@ class TestLogRowFieldCalculations:
                     "rows_written": 1000,
                     "input_rows": 4900,
                 }
-            }
+            },
         )
-        
+
         log_rows = writer._convert_report_to_log_rows(report)
-        
+
         assert len(log_rows) == 3
-        
+
         # Check bronze
         bronze_row = log_rows[0]
         assert bronze_row["phase"] == "bronze"
@@ -390,7 +400,7 @@ class TestLogRowFieldCalculations:
         assert bronze_row["validation_rate"] == 98.0
         assert bronze_row["valid_rows"] == 4900  # 5000 * 98.0 / 100
         assert bronze_row["invalid_rows"] == 100
-        
+
         # Check silver
         silver_row = log_rows[1]
         assert silver_row["phase"] == "silver"
@@ -399,7 +409,7 @@ class TestLogRowFieldCalculations:
         assert silver_row["valid_rows"] == 4875  # 4900 * 99.5 / 100
         assert silver_row["invalid_rows"] == 25
         assert silver_row["rows_written"] == 4900
-        
+
         # Check gold
         gold_row = log_rows[2]
         assert gold_row["phase"] == "gold"
@@ -434,14 +444,14 @@ class TestLogRowFieldCalculations:
                     "rows_written": 0,
                     "input_rows": 0,
                 }
-            }
+            },
         )
-        
+
         log_rows = writer._convert_report_to_log_rows(report)
-        
+
         assert len(log_rows) == 1
         log_row = log_rows[0]
-        
+
         assert log_row["success"] is False
         assert log_row["validation_rate"] == 0.0
         assert log_row["valid_rows"] == 0
@@ -460,8 +470,13 @@ class TestLogRowFieldCalculations:
             (333, 33.33, 110, 223),  # int(333 * 33.33 / 100) = 110
             (0, 100.0, 0, 0),
         ]
-        
-        for rows_processed, validation_rate, expected_valid, expected_invalid in test_cases:
+
+        for (
+            rows_processed,
+            validation_rate,
+            expected_valid,
+            expected_invalid,
+        ) in test_cases:
             report = PipelineReport(
                 pipeline_id="test",
                 execution_id=f"exec_{rows_processed}_{validation_rate}",
@@ -484,23 +499,25 @@ class TestLogRowFieldCalculations:
                         "rows_written": rows_processed,
                         "input_rows": rows_processed,
                     }
-                }
+                },
             )
-            
+
             log_rows = writer._convert_report_to_log_rows(report)
             log_row = log_rows[0]
-            
-            assert log_row["valid_rows"] == expected_valid, \
-                f"Failed for rows={rows_processed}, rate={validation_rate}: " \
+
+            assert log_row["valid_rows"] == expected_valid, (
+                f"Failed for rows={rows_processed}, rate={validation_rate}: "
                 f"expected {expected_valid}, got {log_row['valid_rows']}"
-            assert log_row["invalid_rows"] == expected_invalid, \
-                f"Failed for rows={rows_processed}, rate={validation_rate}: " \
+            )
+            assert log_row["invalid_rows"] == expected_invalid, (
+                f"Failed for rows={rows_processed}, rate={validation_rate}: "
                 f"expected {expected_invalid}, got {log_row['invalid_rows']}"
+            )
 
     def test_log_row_different_write_modes(self, writer):
         """Test that different write modes are correctly recorded."""
         write_modes = ["append", "overwrite", None]
-        
+
         for mode_value in write_modes:
             report = PipelineReport(
                 pipeline_id="test",
@@ -524,14 +541,15 @@ class TestLogRowFieldCalculations:
                         "rows_written": 100 if mode_value else None,
                         "input_rows": 100,
                     }
-                }
+                },
             )
-            
+
             log_rows = writer._convert_report_to_log_rows(report)
             log_row = log_rows[0]
-            
-            assert log_row["write_mode"] == mode_value, \
+
+            assert log_row["write_mode"] == mode_value, (
                 f"Expected write_mode={mode_value}, got {log_row['write_mode']}"
+            )
 
 
 class TestMultiStepLogRowFields:
@@ -545,13 +563,15 @@ class TestMultiStepLogRowFields:
     @pytest.fixture
     def writer(self, mock_spark):
         """Create a LogWriter instance."""
-        with patch('sparkforge.writer.core.StorageManager'):
-            with patch('sparkforge.writer.core.PerformanceMonitor'):
-                with patch('sparkforge.writer.core.DataProcessor'):
-                    with patch('sparkforge.writer.core.AnalyticsEngine'):
-                        with patch('sparkforge.writer.core.DataQualityAnalyzer'):
-                            with patch('sparkforge.writer.core.TrendAnalyzer'):
-                                return LogWriter(mock_spark, schema="test", table_name="logs")
+        with patch("pipeline_builder.writer.core.StorageManager"):
+            with patch("pipeline_builder.writer.core.PerformanceMonitor"):
+                with patch("pipeline_builder.writer.core.DataProcessor"):
+                    with patch("pipeline_builder.writer.core.AnalyticsEngine"):
+                        with patch("pipeline_builder.writer.core.DataQualityAnalyzer"):
+                            with patch("pipeline_builder.writer.core.TrendAnalyzer"):
+                                return LogWriter(
+                                    mock_spark, schema="test", table_name="logs"
+                                )
 
     def test_multiple_steps_each_have_correct_fields(self, writer):
         """Test that each step in a multi-step pipeline has correct fields."""
@@ -588,7 +608,7 @@ class TestMultiStepLogRowFields:
                     "validation_rate": 97.5,
                     "rows_written": None,
                     "input_rows": 8000,
-                }
+                },
             },
             silver_results={
                 "s1": {
@@ -617,13 +637,13 @@ class TestMultiStepLogRowFields:
                     "rows_written": 100,
                     "input_rows": 9650,
                 }
-            }
+            },
         )
-        
+
         log_rows = writer._convert_report_to_log_rows(report)
-        
+
         assert len(log_rows) == 4
-        
+
         # Verify each step has all required fields populated
         for log_row in log_rows:
             # All rows must have these fields
@@ -634,14 +654,13 @@ class TestMultiStepLogRowFields:
             assert "rows_written" in log_row
             assert "input_rows" in log_row
             assert "rows_processed" in log_row
-            
+
             # Validation math must be correct
             rows_processed = log_row["rows_processed"]
             validation_rate = log_row["validation_rate"]
             valid_rows = log_row["valid_rows"]
             invalid_rows = log_row["invalid_rows"]
-            
+
             expected_valid = int(rows_processed * validation_rate / 100.0)
             assert valid_rows == expected_valid
             assert invalid_rows == rows_processed - valid_rows
-

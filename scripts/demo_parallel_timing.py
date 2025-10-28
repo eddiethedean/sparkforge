@@ -4,19 +4,24 @@ Demo showing concurrent execution timing with simulated processing.
 This shows how parallel execution saves time compared to sequential.
 """
 
+import threading
 import time
+from typing import List
 
-from sparkforge.logging import PipelineLogger
+from pipeline_builder.logging import PipelineLogger
 
-print("\n" + "="*80)
+print("\n" + "=" * 80)
 print("DEMO: CONCURRENT VS SEQUENTIAL EXECUTION TIMING")
-print("="*80)
+print("=" * 80)
 print("\nThis demo simulates pipeline execution to show timing differences.")
-print("="*80 + "\n")
+print("=" * 80 + "\n")
 
 logger = PipelineLogger("PipelineRunner")
 
-def simulate_step(step_type, step_name, duration, rows, parallel=True):
+
+def simulate_step(
+    step_type: str, step_name: str, duration: float, rows: int, parallel: bool = True
+) -> float:
     """Simulate a step execution with realistic timing."""
     logger.step_start(step_type, step_name)
     start = time.time()
@@ -28,9 +33,10 @@ def simulate_step(step_type, step_name, duration, rows, parallel=True):
         elapsed,
         rows_processed=rows,
         rows_written=rows if step_type != "bronze" else None,
-        validation_rate=100.0
+        validation_rate=100.0,
     )
     return elapsed
+
 
 print("=" * 80)
 print("SCENARIO 1: SEQUENTIAL EXECUTION (Old Approach)")
@@ -61,16 +67,18 @@ par_start = time.time()
 # Group 1: Bronze steps run concurrently (simulated with threading)
 logger.info("📦 Executing group 1/3: 2 steps - bronze_events, bronze_profiles")
 group1_start = time.time()
-import threading
 
-threads = []
+threads: List[threading.Thread] = []
 results = {}
 
-def run_bronze_events():
-    results['bronze_events'] = simulate_step("bronze", "bronze_events", 0.5, 1000)
 
-def run_bronze_profiles():
-    results['bronze_profiles'] = simulate_step("bronze", "bronze_profiles", 0.5, 500)
+def run_bronze_events() -> None:
+    results["bronze_events"] = simulate_step("bronze", "bronze_events", 0.5, 1000)
+
+
+def run_bronze_profiles() -> None:
+    results["bronze_profiles"] = simulate_step("bronze", "bronze_profiles", 0.5, 500)
+
 
 t1 = threading.Thread(target=run_bronze_events)
 t2 = threading.Thread(target=run_bronze_profiles)
@@ -86,11 +94,14 @@ logger.info(f"Group 1 completed in {group1_time:.2f}s")
 logger.info("📦 Executing group 2/3: 2 steps - silver_purchases, silver_customers")
 group2_start = time.time()
 
-def run_silver_purchases():
-    results['silver_purchases'] = simulate_step("silver", "silver_purchases", 0.8, 350)
 
-def run_silver_customers():
-    results['silver_customers'] = simulate_step("silver", "silver_customers", 0.8, 500)
+def run_silver_purchases() -> None:
+    results["silver_purchases"] = simulate_step("silver", "silver_purchases", 0.8, 350)
+
+
+def run_silver_customers() -> None:
+    results["silver_customers"] = simulate_step("silver", "silver_customers", 0.8, 500)
+
 
 t3 = threading.Thread(target=run_silver_purchases)
 t4 = threading.Thread(target=run_silver_customers)
@@ -137,4 +148,3 @@ print(f"\n✅ Total: ~{par_total:.1f}s parallel vs ~{seq_total:.1f}s sequential"
 print(f"✅ {percent_saved:.0f}% faster with parallel execution!")
 print("\n💡 Real pipelines with more independent steps see even greater speedups!")
 print("=" * 80 + "\n")
-

@@ -149,10 +149,10 @@ python -m pytest tests/system/
 ### Running with Coverage
 ```bash
 # Unit tests with coverage
-python -m pytest tests/unit/ --cov=sparkforge --cov-report=term-missing --cov-report=html
+python -m pytest tests/unit/ --cov=pipeline_builder --cov-report=term-missing --cov-report=html
 
 # All tests with coverage
-python -m pytest tests/ --cov=sparkforge --cov-report=term-missing --cov-report=html
+python -m pytest tests/ --cov=pipeline_builder --cov-report=term-missing --cov-report=html
 ```
 
 ### Running Specific Tests
@@ -175,7 +175,7 @@ python -m pytest tests/unit/test_models.py::TestBronzeStep::test_bronze_step_cre
 ```python
 import pytest
 from unittest.mock import Mock, patch
-from sparkforge.models import BronzeStep, SilverStep, GoldStep
+from pipeline_builder.models import BronzeStep, SilverStep, GoldStep
 
 class TestExample:
     """Test class for example functionality."""
@@ -285,7 +285,7 @@ from unittest.mock import Mock, patch
 
 def test_with_mock():
     """Test using mocks for external dependencies."""
-    with patch('sparkforge.external_module.function') as mock_func:
+    with patch('pipeline_builder.external_module.function') as mock_func:
         mock_func.return_value = "mocked_value"
 
         result = function_that_uses_external()
@@ -389,11 +389,11 @@ def test_number_to_word(input, expected):
 - **System Tests**: 80% coverage for end-to-end scenarios
 
 ### Coverage Improvement Areas
-1. **sparkforge/execution.py**: 35% → 90%+
-2. **sparkforge/pipeline/builder.py**: 25% → 90%+
-3. **sparkforge/pipeline/runner.py**: 29% → 90%+
-4. **sparkforge/pipeline/monitor.py**: 33% → 90%+
-5. **sparkforge/validation.py**: 48% → 90%+
+1. **pipeline_builder/execution.py**: 35% → 90%+
+2. **pipeline_builder/pipeline/builder.py**: 25% → 90%+
+3. **pipeline_builder/pipeline/runner.py**: 29% → 90%+
+4. **pipeline_builder/pipeline/monitor.py**: 33% → 90%+
+5. **pipeline_builder/validation.py**: 48% → 90%+
 
 ## Best Practices
 
@@ -467,7 +467,7 @@ python -m pytest tests/unit/test_failing.py::TestClass::test_method
 #### 4. Coverage Issues
 ```bash
 # Generate HTML coverage report
-python -m pytest tests/unit/ --cov=sparkforge --cov-report=html
+python -m pytest tests/unit/ --cov=pipeline_builder --cov-report=html
 
 # View coverage report
 open htmlcov/index.html

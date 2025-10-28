@@ -12,6 +12,7 @@ import sys
 import time
 
 import pytest
+from pyspark.sql import SparkSession
 
 # Add the project root to the Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -162,7 +163,7 @@ def spark_session():
                 f"Delta Lake configuration failed: {e}\n"
                 "This is required for SparkForge tests. Please install Delta Lake or "
                 "set environment variables to skip Delta Lake requirements."
-            )
+            ) from e
 
     # Ensure Spark session was created successfully
     if spark is None:
@@ -315,7 +316,7 @@ def isolated_spark_session():
                 f"Delta Lake configuration failed for isolated session: {e}\n"
                 "This is required for SparkForge tests. Please install Delta Lake or "
                 "set environment variables to skip Delta Lake requirements."
-            )
+            ) from e
 
     # Ensure Spark session was created successfully
     if spark is None:
@@ -400,13 +401,11 @@ def sample_bronze_data(spark_session):
 @pytest.fixture
 def sample_bronze_rules():
     """Create sample bronze validation rules."""
-
-
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F
-else:
-    from pyspark.sql import functions as F
+    # Use mock functions when in mock mode
+    if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+        from mock_spark import functions as F
+    else:
+        from pyspark.sql import functions as F
 
     return {
         "user_id": [F.col("user_id").isNotNull()],
@@ -418,13 +417,11 @@ else:
 @pytest.fixture
 def sample_silver_rules():
     """Create sample silver validation rules."""
-
-
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F
-else:
-    from pyspark.sql import functions as F
+    # Use mock functions when in mock mode
+    if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+        from mock_spark import functions as F
+    else:
+        from pyspark.sql import functions as F
 
     return {
         "user_id": [F.col("user_id").isNotNull()],
@@ -436,13 +433,11 @@ else:
 @pytest.fixture
 def sample_gold_rules():
     """Create sample gold validation rules."""
-
-
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F
-else:
-    from pyspark.sql import functions as F
+    # Use mock functions when in mock mode
+    if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+        from mock_spark import functions as F
+    else:
+        from pyspark.sql import functions as F
 
     return {
         "action": [F.col("action").isNotNull()],
@@ -453,7 +448,7 @@ else:
 @pytest.fixture
 def pipeline_builder(spark_session):
     """Create a PipelineBuilder instance for testing."""
-    from sparkforge import PipelineBuilder
+    from pipeline_builder import PipelineBuilder
 
     return PipelineBuilder(
         spark=spark_session,
@@ -465,7 +460,7 @@ def pipeline_builder(spark_session):
 @pytest.fixture
 def pipeline_builder_sequential(spark_session):
     """Create a PipelineBuilder instance with sequential execution for testing."""
-    from sparkforge import PipelineBuilder
+    from pipeline_builder import PipelineBuilder
 
     return PipelineBuilder(
         spark=spark_session,

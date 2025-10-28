@@ -5,8 +5,7 @@ Tests for dependency analysis exceptions.
 This module tests all exception classes in the dependencies.exceptions module.
 """
 
-
-from sparkforge.dependencies.exceptions import (
+from pipeline_builder.dependencies.exceptions import (
     CircularDependencyError,
     DependencyAnalysisError,
     DependencyConflictError,

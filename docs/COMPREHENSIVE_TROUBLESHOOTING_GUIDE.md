@@ -22,7 +22,7 @@ This guide provides detailed solutions for common issues encountered when using 
 **Problem**: SparkForge requires Python 3.8 or higher.
 
 **Symptoms**:
-- ImportError when importing sparkforge
+- ImportError when importing pipeline_builder
 - SyntaxError in Python 3.7 or earlier
 
 **Solutions**:
@@ -40,8 +40,8 @@ pyenv install 3.8.18
 pyenv global 3.8.18
 
 # Using conda
-conda create -n sparkforge python=3.8
-conda activate sparkforge
+conda create -n pipeline_builder python=3.8
+conda activate pipeline_builder
 ```
 
 3. **Verify Installation**:
@@ -104,8 +104,8 @@ java -version
 
 1. **Clean Installation**:
 ```bash
-pip uninstall sparkforge
-pip install --no-cache-dir sparkforge
+pip uninstall pipeline_builder
+pip install --no-cache-dir pipeline_builder
 ```
 
 2. **Check Dependencies**:
@@ -171,8 +171,8 @@ parallel = ParallelConfig(enabled=True, max_workers=4)
 ```bash
 export SPARKFORGE_ENV=production
 export SPARKFORGE_LOG_LEVEL=INFO
-export SPARKFORGE_DATA_PATH=/data/sparkforge
-export SPARKFORGE_CONFIG_PATH=/config/sparkforge
+export SPARKFORGE_DATA_PATH=/data/pipeline_builder
+export SPARKFORGE_CONFIG_PATH=/config/pipeline_builder
 ```
 
 2. **Create Configuration File**:
@@ -653,16 +653,16 @@ if spark.conf.get('spark.authenticate') == 'true':
 1. **Check Container Logs**:
 ```bash
 # View container logs
-docker logs sparkforge-container
+docker logs pipeline_builder-container
 
 # Follow logs in real-time
-docker logs -f sparkforge-container
+docker logs -f pipeline_builder-container
 ```
 
 2. **Verify Port Binding**:
 ```bash
 # Check port binding
-docker port sparkforge-container
+docker port pipeline_builder-container
 
 # Test port connectivity
 telnet localhost 8080
@@ -671,10 +671,10 @@ telnet localhost 8080
 3. **Check Volume Mounts**:
 ```bash
 # Verify volume mounts
-docker inspect sparkforge-container | grep -A 10 "Mounts"
+docker inspect pipeline_builder-container | grep -A 10 "Mounts"
 
 # Test volume access
-docker exec sparkforge-container ls -la /data
+docker exec pipeline_builder-container ls -la /data
 ```
 
 ### Kubernetes Deployment Issues
@@ -691,28 +691,28 @@ docker exec sparkforge-container ls -la /data
 1. **Check Pod Status**:
 ```bash
 # Check pod status
-kubectl get pods -n sparkforge
+kubectl get pods -n pipeline_builder
 
 # Describe pod for details
-kubectl describe pod <pod-name> -n sparkforge
+kubectl describe pod <pod-name> -n pipeline_builder
 ```
 
 2. **Check Pod Logs**:
 ```bash
 # View pod logs
-kubectl logs <pod-name> -n sparkforge
+kubectl logs <pod-name> -n pipeline_builder
 
 # Follow logs
-kubectl logs -f <pod-name> -n sparkforge
+kubectl logs -f <pod-name> -n pipeline_builder
 ```
 
 3. **Check Resource Quotas**:
 ```bash
 # Check resource quotas
-kubectl describe quota -n sparkforge
+kubectl describe quota -n pipeline_builder
 
 # Check resource usage
-kubectl top pods -n sparkforge
+kubectl top pods -n pipeline_builder
 ```
 
 ## Monitoring and Logging Issues
@@ -737,12 +737,12 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/logs/sparkforge.log'),
+        logging.FileHandler('/logs/pipeline_builder.log'),
         logging.StreamHandler()
     ]
 )
 
-logger = logging.getLogger('sparkforge')
+logger = logging.getLogger('pipeline_builder')
 logger.info("Logging configured successfully")
 ```
 
@@ -751,7 +751,7 @@ logger.info("Logging configured successfully")
 # Check log directory permissions
 ls -la /logs/
 chmod 755 /logs/
-chown sparkforge:sparkforge /logs/
+chown pipeline_builder:pipeline_builder /logs/
 ```
 
 3. **Test Logging**:
@@ -815,7 +815,7 @@ config = PipelineConfig(
 
 # Set debug logging
 import logging
-logging.getLogger("sparkforge").setLevel(logging.DEBUG)
+logging.getLogger("pipeline_builder").setLevel(logging.DEBUG)
 ```
 
 ### Performance Profiling
@@ -899,13 +899,13 @@ Collect comprehensive logs for troubleshooting:
 
 ```bash
 # Collect system logs
-journalctl -u sparkforge > system.log
+journalctl -u pipeline_builder > system.log
 
 # Collect application logs
-kubectl logs -l app=sparkforge > application.log
+kubectl logs -l app=pipeline_builder > application.log
 
 # Collect configuration
-kubectl get configmap sparkforge-config -o yaml > config.yaml
+kubectl get configmap pipeline_builder-config -o yaml > config.yaml
 ```
 
 ### Support Information
@@ -935,8 +935,8 @@ When seeking help, provide:
 
 ### Contact Information
 
-- **GitHub Issues**: [SparkForge Issues](https://github.com/eddiethedean/sparkforge/issues)
-- **Documentation**: [SparkForge Docs](https://sparkforge.readthedocs.io/)
-- **Community**: [SparkForge Discussions](https://github.com/eddiethedean/sparkforge/discussions)
+- **GitHub Issues**: [SparkForge Issues](https://github.com/eddiethedean/pipeline_builder/issues)
+- **Documentation**: [SparkForge Docs](https://pipeline_builder.readthedocs.io/)
+- **Community**: [SparkForge Discussions](https://github.com/eddiethedean/pipeline_builder/discussions)
 
 This comprehensive troubleshooting guide should help resolve most issues encountered when using SparkForge. For additional support, refer to the specific error messages and contact the development team with detailed information about your issue.

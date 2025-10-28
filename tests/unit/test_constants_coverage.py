@@ -8,7 +8,18 @@ import sys
 # Add the project root to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
-from sparkforge.constants import *
+import pipeline_builder.constants as constants
+from pipeline_builder.constants import (
+    BYTES_PER_GB,
+    BYTES_PER_KB,
+    BYTES_PER_MB,
+    DEFAULT_BRONZE_THRESHOLD,
+    DEFAULT_GOLD_THRESHOLD,
+    DEFAULT_LOG_LEVEL,
+    DEFAULT_MAX_FILE_SIZE_MB,
+    DEFAULT_SILVER_THRESHOLD,
+    DEFAULT_TIMEOUT_SECONDS,
+)
 
 
 class TestConstantsCoverage:
@@ -16,7 +27,7 @@ class TestConstantsCoverage:
 
     def test_constants_import(self):
         """Test that constants module can be imported."""
-        import sparkforge.constants as constants
+        import pipeline_builder.constants as constants
 
         assert constants is not None
 
@@ -86,7 +97,7 @@ class TestConstantsCoverage:
 
     def test_constants_documentation(self):
         """Test that constants have proper documentation."""
-        import sparkforge.constants as constants
+        import pipeline_builder.constants as constants
 
         # Check that constants module has docstring
         assert constants.__doc__ is not None
@@ -133,7 +144,7 @@ class TestConstantsCoverage:
         # Test that constants are accessible even if module is reloaded
         import importlib
 
-        import sparkforge.constants as constants
+        import pipeline_builder.constants as constants
 
         # Reload the module
         importlib.reload(constants)
@@ -145,7 +156,7 @@ class TestConstantsCoverage:
 
     def test_constants_module_attributes(self):
         """Test that constants module has expected attributes."""
-        import sparkforge.constants as constants
+        import pipeline_builder.constants as constants
 
         # Check that module has expected attributes
         expected_attrs = [

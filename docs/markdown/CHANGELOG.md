@@ -341,7 +341,7 @@ No unreleased changes.
 - Comprehensive logging system
 - Real Spark integration (no mocks)
 - Extensive test suite (282+ tests)
-- PyPI package structure
+- Repository-based installation
 
 ### Features
 - `PipelineBuilder` - Fluent API for building data pipelines
@@ -369,4 +369,4 @@ No unreleased changes.
 
 ---
 
-For more details, see the [GitHub repository](https://github.com/yourusername/sparkforge).
+For more details, see the [GitHub repository](https://github.com/yourusername/pipeline_builder).

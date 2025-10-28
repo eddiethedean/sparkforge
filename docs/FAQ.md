@@ -1,6 +1,6 @@
-# SparkForge Frequently Asked Questions (FAQ)
+# PipelineBuilder Frequently Asked Questions (FAQ)
 
-This document answers common questions about SparkForge, its usage, and troubleshooting.
+This document answers common questions about PipelineBuilder, its usage, and troubleshooting.
 
 ## Table of Contents
 
@@ -17,7 +17,7 @@ This document answers common questions about SparkForge, its usage, and troubles
 
 ## General Questions
 
-### What is SparkForge?
+### What is PipelineBuilder?
 
 SparkForge is a Python framework for building data pipelines using the Medallion Architecture (Bronze, Silver, Gold tiers) with Apache Spark. It provides a simplified interface for creating, validating, and executing data processing pipelines with built-in quality assurance and performance monitoring.
 
@@ -50,7 +50,7 @@ SparkForge requires Python 3.8 or higher. It has been tested with Python 3.8, 3.
 ### How do I install SparkForge?
 
 ```bash
-pip install sparkforge
+pip install pipeline_builder
 ```
 
 ### What are the system requirements?
@@ -68,12 +68,12 @@ No, SparkForge includes PySpark as a dependency and will install it automaticall
 ### How do I verify my installation?
 
 ```python
-import sparkforge
-print(sparkforge.__version__)
+import pipeline_builder
+print(pipeline_builder.__version__)
 
 # Test basic functionality
-from sparkforge.pipeline.builder import PipelineBuilder
-from sparkforge.models import PipelineConfig
+from pipeline_builder.pipeline.builder import PipelineBuilder
+from pipeline_builder.models import PipelineConfig
 print("SparkForge installation successful!")
 ```
 
@@ -95,7 +95,7 @@ spark = SparkSession.builder \
 ### How do I configure SparkForge for production?
 
 ```python
-from sparkforge.models import PipelineConfig, ValidationThresholds, ParallelConfig
+from pipeline_builder.models import PipelineConfig, ValidationThresholds, ParallelConfig
 
 config = PipelineConfig(
     schema="production_analytics",
@@ -118,9 +118,9 @@ config = PipelineConfig(
 ```bash
 export SPARKFORGE_ENV=production
 export SPARKFORGE_LOG_LEVEL=INFO
-export SPARKFORGE_DATA_PATH=/data/sparkforge
-export SPARKFORGE_CONFIG_PATH=/config/sparkforge
-export SPARKFORGE_LOG_PATH=/logs/sparkforge
+export SPARKFORGE_DATA_PATH=/data/pipeline_builder
+export SPARKFORGE_CONFIG_PATH=/config/pipeline_builder
+export SPARKFORGE_LOG_PATH=/logs/pipeline_builder
 ```
 
 ### How do I configure Spark memory settings?
@@ -164,8 +164,8 @@ def get_config():
 ### How do I create a simple pipeline?
 
 ```python
-from sparkforge.pipeline.builder import PipelineBuilder
-from sparkforge.models import PipelineConfig, ValidationThresholds, ParallelConfig
+from pipeline_builder.pipeline.builder import PipelineBuilder
+from pipeline_builder.models import PipelineConfig, ValidationThresholds, ParallelConfig
 from pyspark.sql import functions as F
 
 # Configuration
@@ -235,7 +235,7 @@ bronze_step = BronzeStep(
 Yes, you can add custom validation functions:
 
 ```python
-from sparkforge.validation import UnifiedValidator
+from pipeline_builder.validation import UnifiedValidator
 
 def custom_validator(data):
     # Custom validation logic
@@ -318,7 +318,7 @@ thresholds = ValidationThresholds(
 Yes, you can validate against external schemas:
 
 ```python
-from sparkforge.validation import validate_dataframe_schema
+from pipeline_builder.validation import validate_dataframe_schema
 
 # Validate against expected schema
 expected_columns = ["user_id", "timestamp", "amount", "category"]
@@ -404,7 +404,7 @@ df.count()  # Trigger caching
 1. **Use Docker**:
 ```dockerfile
 FROM openjdk:11-jre-slim
-RUN pip install sparkforge
+RUN pip install pipeline_builder
 COPY . /app
 WORKDIR /app
 CMD ["python", "main.py"]
@@ -415,20 +415,20 @@ CMD ["python", "main.py"]
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: sparkforge
+  name: pipeline_builder
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: sparkforge
+      app: pipeline_builder
   template:
     metadata:
       labels:
-        app: sparkforge
+        app: pipeline_builder
     spec:
       containers:
-      - name: sparkforge
-        image: sparkforge:latest
+      - name: pipeline_builder
+        image: pipeline_builder:latest
         ports:
         - containerPort: 8080
 ```
@@ -458,8 +458,8 @@ jobs:
     - uses: actions/checkout@v4
     - name: Deploy to production
       run: |
-        docker build -t sparkforge .
-        docker push sparkforge:latest
+        docker build -t pipeline_builder .
+        docker push pipeline_builder:latest
 ```
 
 ## Troubleshooting
@@ -540,7 +540,7 @@ config = PipelineConfig(
 2. **Check Logs**:
 ```python
 import logging
-logging.getLogger("sparkforge").setLevel(logging.DEBUG)
+logging.getLogger("pipeline_builder").setLevel(logging.DEBUG)
 ```
 
 3. **Validate Pipeline**:
@@ -689,5 +689,5 @@ For additional questions or support, please:
 
 - Check the [troubleshooting guide](COMPREHENSIVE_TROUBLESHOOTING_GUIDE.md)
 - Review the [API reference](ENHANCED_API_REFERENCE.md)
-- Submit an issue on [GitHub](https://github.com/eddiethedean/sparkforge/issues)
-- Join the [community discussions](https://github.com/eddiethedean/sparkforge/discussions)
+- Submit an issue on [GitHub](https://github.com/eddiethedean/pipeline_builder/issues)
+- Join the [community discussions](https://github.com/eddiethedean/pipeline_builder/discussions)

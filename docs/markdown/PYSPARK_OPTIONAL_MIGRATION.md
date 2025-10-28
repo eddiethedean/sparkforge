@@ -10,7 +10,7 @@ Starting with version 0.9.0, SparkForge has been refactored to make PySpark an *
 
 PySpark was a hard dependency:
 ```bash
-pip install sparkforge
+pip install pipeline_builder
 # Automatically installed pyspark==3.2.4 and delta-spark
 ```
 
@@ -19,13 +19,13 @@ pip install sparkforge
 PySpark is now optional:
 ```bash
 # Install with PySpark (for production)
-pip install sparkforge[pyspark]
+pip install pipeline_builder[pyspark]
 
 # Install with mock-spark (for testing/development)
-pip install sparkforge[mock]
+pip install pipeline_builder[mock]
 
 # Install base package only
-pip install sparkforge
+pip install pipeline_builder
 ```
 
 ## Migration Steps
@@ -36,7 +36,7 @@ If you're using SparkForge in production with PySpark:
 
 1. **Update your installation:**
    ```bash
-   pip install sparkforge[pyspark]
+   pip install pipeline_builder[pyspark]
    ```
 
 2. **No code changes required!** Your existing code will continue to work exactly as before.
@@ -47,7 +47,7 @@ If you want to use mock-spark for faster, lighter testing:
 
 1. **Install with mock-spark:**
    ```bash
-   pip install sparkforge[mock]
+   pip install pipeline_builder[mock]
    ```
 
 2. **Set the engine (optional):**
@@ -67,11 +67,11 @@ Update your CI/CD configuration:
 ```yaml
 # Example GitHub Actions
 - name: Install SparkForge with PySpark
-  run: pip install sparkforge[pyspark]
+  run: pip install pipeline_builder[pyspark]
 
 # Or for faster tests
 - name: Install SparkForge with mock-spark
-  run: pip install sparkforge[mock]
+  run: pip install pipeline_builder[mock]
 ```
 
 ## Engine Selection
@@ -91,7 +91,7 @@ SparkForge automatically selects the appropriate engine based on availability:
 ### Example Usage
 
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 
 # Works with either PySpark or mock-spark
 builder = PipelineBuilder(spark=spark, schema="analytics")
@@ -134,7 +134,7 @@ When using mock-spark, Delta Lake operations will be skipped with a warning mess
 
 ```bash
 # Fast, lightweight tests
-pip install sparkforge[mock]
+pip install pipeline_builder[mock]
 pytest tests/unit/
 ```
 
@@ -142,7 +142,7 @@ pytest tests/unit/
 
 ```bash
 # Full integration tests with real Spark
-pip install sparkforge[compat-test]
+pip install pipeline_builder[compat-test]
 SPARKFORGE_ENGINE=pyspark pytest tests/integration/
 ```
 
@@ -150,13 +150,13 @@ SPARKFORGE_ENGINE=pyspark pytest tests/integration/
 
 ```bash
 # End-to-end tests with Delta Lake
-pip install sparkforge[compat-test]
+pip install pipeline_builder[compat-test]
 SPARKFORGE_ENGINE=pyspark pytest tests/system/
 ```
 
 ## Breaking Changes
 
-**None!** If you install with `sparkforge[pyspark]`, your code will work exactly as before. The changes are purely internal to how SparkForge imports and uses PySpark.
+**None!** If you install with `pipeline_builder[pyspark]`, your code will work exactly as before. The changes are purely internal to how SparkForge imports and uses PySpark.
 
 ## Troubleshooting
 
@@ -164,9 +164,9 @@ SPARKFORGE_ENGINE=pyspark pytest tests/system/
 
 **Solution:** Install either PySpark or mock-spark:
 ```bash
-pip install sparkforge[pyspark]
+pip install pipeline_builder[pyspark]
 # or
-pip install sparkforge[mock]
+pip install pipeline_builder[mock]
 ```
 
 ### Delta Lake operations skipped
@@ -174,7 +174,7 @@ pip install sparkforge[mock]
 **Cause:** You're using mock-spark which doesn't support Delta Lake operations.
 
 **Solution:** Either:
-1. Use PySpark: `pip install sparkforge[pyspark]`
+1. Use PySpark: `pip install pipeline_builder[pyspark]`
 2. Accept that Delta Lake operations will be skipped in mock mode
 
 ### Type checking errors with mypy
@@ -192,10 +192,10 @@ pip install sparkforge[mock]
 ## FAQ
 
 **Q: Can I switch engines at runtime?**  
-A: Yes, set the `SPARKFORGE_ENGINE` environment variable before importing sparkforge.
+A: Yes, set the `SPARKFORGE_ENGINE` environment variable before importing pipeline_builder.
 
 **Q: Will my existing code break?**  
-A: No, if you install with `sparkforge[pyspark]`, everything works exactly as before.
+A: No, if you install with `pipeline_builder[pyspark]`, everything works exactly as before.
 
 **Q: Which engine should I use?**  
 A: Use PySpark for production, mock-spark for development/testing.

@@ -30,7 +30,7 @@ This guide provides comprehensive instructions for deploying SparkForge in vario
 ```bash
 # Core dependencies
 pip install pyspark>=3.4.0
-pip install sparkforge
+pip install pipeline_builder
 
 # Optional dependencies for enhanced functionality
 pip install pandas numpy matplotlib seaborn
@@ -46,15 +46,15 @@ Create a dedicated Python environment:
 
 ```bash
 # Create virtual environment
-python -m venv sparkforge-env
+python -m venv pipeline_builder-env
 
 # Activate environment
-source sparkforge-env/bin/activate  # Linux/Mac
+source pipeline_builder-env/bin/activate  # Linux/Mac
 # or
-sparkforge-env\Scripts\activate     # Windows
+pipeline_builder-env\Scripts\activate     # Windows
 
 # Install SparkForge
-pip install sparkforge
+pip install pipeline_builder
 ```
 
 ### 2. Spark Configuration
@@ -96,9 +96,9 @@ Set up environment variables:
 # Production environment variables
 export SPARKFORGE_ENV=production
 export SPARKFORGE_LOG_LEVEL=INFO
-export SPARKFORGE_DATA_PATH=/data/sparkforge
-export SPARKFORGE_CONFIG_PATH=/config/sparkforge
-export SPARKFORGE_LOG_PATH=/logs/sparkforge
+export SPARKFORGE_DATA_PATH=/data/pipeline_builder
+export SPARKFORGE_CONFIG_PATH=/config/pipeline_builder
+export SPARKFORGE_LOG_PATH=/logs/pipeline_builder
 
 # Database connections
 export SPARKFORGE_DATABASE_URL=postgresql://user:pass@host:port/db
@@ -115,8 +115,8 @@ export SPARKFORGE_JWT_SECRET=your-jwt-secret
 
 ```bash
 # Clone repository
-git clone https://github.com/eddiethedean/sparkforge.git
-cd sparkforge
+git clone https://github.com/eddiethedean/pipeline_builder.git
+cd pipeline_builder
 
 # Setup environment
 ./setup.sh
@@ -132,7 +132,7 @@ python examples/quick_start.py
 
 ```python
 # development_config.py
-from sparkforge.models import PipelineConfig, ValidationThresholds, ParallelConfig
+from pipeline_builder.models import PipelineConfig, ValidationThresholds, ParallelConfig
 
 # Development configuration
 dev_config = PipelineConfig(
@@ -201,7 +201,7 @@ dev_config = PipelineConfig(
     {
       "Name": "Install SparkForge",
       "ScriptBootstrapAction": {
-        "Path": "s3://your-bucket/bootstrap/install-sparkforge.sh"
+        "Path": "s3://your-bucket/bootstrap/install-pipeline_builder.sh"
       }
     }
   ]
@@ -212,24 +212,24 @@ dev_config = PipelineConfig(
 
 ```bash
 #!/bin/bash
-# install-sparkforge.sh
+# install-pipeline_builder.sh
 
 # Update system
 sudo yum update -y
 
 # Install Python dependencies
 sudo pip3 install --upgrade pip
-sudo pip3 install sparkforge
+sudo pip3 install pipeline_builder
 
 # Create application directory
-sudo mkdir -p /opt/sparkforge
-sudo chown hadoop:hadoop /opt/sparkforge
+sudo mkdir -p /opt/pipeline_builder
+sudo chown hadoop:hadoop /opt/pipeline_builder
 
 # Download application code
-aws s3 cp s3://your-bucket/sparkforge-app/ /opt/sparkforge/ --recursive
+aws s3 cp s3://your-bucket/pipeline_builder-app/ /opt/pipeline_builder/ --recursive
 
 # Set permissions
-chmod +x /opt/sparkforge/*.py
+chmod +x /opt/pipeline_builder/*.py
 ```
 
 ### 2. Azure Databricks Deployment
@@ -238,7 +238,7 @@ chmod +x /opt/sparkforge/*.py
 
 ```json
 {
-  "cluster_name": "sparkforge-production",
+  "cluster_name": "pipeline_builder-production",
   "spark_version": "13.3.x-scala2.12",
   "node_type_id": "Standard_DS3_v2",
   "driver_node_type_id": "Standard_DS3_v2",
@@ -263,20 +263,22 @@ chmod +x /opt/sparkforge/*.py
 {
   "name": "SparkForge Pipeline",
   "new_cluster": {
-    "cluster_name": "sparkforge-job-cluster",
+    "cluster_name": "pipeline_builder-job-cluster",
     "spark_version": "13.3.x-scala2.12",
     "node_type_id": "Standard_DS3_v2",
     "num_workers": 4
   },
   "libraries": [
     {
-      "pypi": {
-        "package": "sparkforge"
+      "git": {
+        "branch": "main",
+        "git_provider": "gitHub",
+        "git_url": "https://github.com/eddiethedean/sparkforge.git"
       }
     }
   ],
   "notebook_task": {
-    "notebook_path": "/Shared/sparkforge_pipeline",
+    "notebook_path": "/Shared/pipeline_builder_pipeline",
     "base_parameters": {
       "environment": "production",
       "schema": "analytics"
@@ -293,7 +295,7 @@ chmod +x /opt/sparkforge/*.py
 
 ```bash
 # Create Dataproc cluster
-gcloud dataproc clusters create sparkforge-production \
+gcloud dataproc clusters create pipeline_builder-production \
     --region=us-central1 \
     --zone=us-central1-a \
     --master-machine-type=n1-standard-4 \
@@ -304,24 +306,26 @@ gcloud dataproc clusters create sparkforge-production \
     --image-version=2.0 \
     --properties=spark:spark.sql.adaptive.enabled=true \
     --properties=spark:spark.sql.adaptive.coalescePartitions.enabled=true \
-    --initialization-actions=gs://your-bucket/init-scripts/install-sparkforge.sh
+    --initialization-actions=gs://your-bucket/init-scripts/install-pipeline_builder.sh
 ```
 
 #### Initialization Script
 
 ```bash
 #!/bin/bash
-# install-sparkforge.sh
+# install-pipeline_builder.sh
 
-# Install SparkForge
-pip3 install sparkforge
+# Install SparkForge from repository
+git clone https://github.com/eddiethedean/sparkforge.git
+cd sparkforge
+pip3 install -e .
 
 # Create application directory
-mkdir -p /opt/sparkforge
-gsutil cp -r gs://your-bucket/sparkforge-app/* /opt/sparkforge/
+mkdir -p /opt/pipeline_builder
+gsutil cp -r gs://your-bucket/pipeline_builder-app/* /opt/pipeline_builder/
 
 # Set permissions
-chmod +x /opt/sparkforge/*.py
+chmod +x /opt/pipeline_builder/*.py
 ```
 
 ## Container Deployment
@@ -341,7 +345,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Create application user
-RUN useradd -m -u 1000 sparkforge
+RUN useradd -m -u 1000 pipeline_builder
 
 # Set working directory
 WORKDIR /app
@@ -354,15 +358,15 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Set permissions
-RUN chown -R sparkforge:sparkforge /app
-USER sparkforge
+RUN chown -R pipeline_builder:pipeline_builder /app
+USER pipeline_builder
 
 # Expose port
 EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python3 -c "import sparkforge; print('OK')" || exit 1
+    CMD python3 -c "import pipeline_builder; print('OK')" || exit 1
 
 # Start application
 CMD ["python3", "main.py"]
@@ -374,7 +378,7 @@ CMD ["python3", "main.py"]
 version: '3.8'
 
 services:
-  sparkforge:
+  pipeline_builder:
     build: .
     ports:
       - "8080:8080"
@@ -394,8 +398,8 @@ services:
   postgres:
     image: postgres:13
     environment:
-      - POSTGRES_DB=sparkforge
-      - POSTGRES_USER=sparkforge
+      - POSTGRES_DB=pipeline_builder
+      - POSTGRES_USER=pipeline_builder
       - POSTGRES_PASSWORD=password
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -418,7 +422,7 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf
       - ./ssl:/etc/nginx/ssl
     depends_on:
-      - sparkforge
+      - pipeline_builder
 
 volumes:
   postgres_data:
@@ -429,20 +433,20 @@ volumes:
 
 ```bash
 # Build Docker image
-docker build -t sparkforge:latest .
+docker build -t pipeline_builder:latest .
 
 # Run container
 docker run -d \
-    --name sparkforge-production \
+    --name pipeline_builder-production \
     -p 8080:8080 \
     -e SPARKFORGE_ENV=production \
     -v $(pwd)/data:/data \
     -v $(pwd)/logs:/logs \
-    sparkforge:latest
+    pipeline_builder:latest
 
 # Check container status
 docker ps
-docker logs sparkforge-production
+docker logs pipeline_builder-production
 ```
 
 ## Kubernetes Deployment
@@ -455,9 +459,9 @@ docker logs sparkforge-production
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: sparkforge
+  name: pipeline_builder
   labels:
-    name: sparkforge
+    name: pipeline_builder
 ```
 
 #### ConfigMap
@@ -466,8 +470,8 @@ metadata:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: sparkforge-config
-  namespace: sparkforge
+  name: pipeline_builder-config
+  namespace: pipeline_builder
 data:
   config.yaml: |
     environment: production
@@ -487,8 +491,8 @@ data:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: sparkforge-secrets
-  namespace: sparkforge
+  name: pipeline_builder-secrets
+  namespace: pipeline_builder
 type: Opaque
 data:
   database-url: cG9zdGdyZXNxbDovL3VzZXI6cGFzc0Bob3N0OnBvcnQvZGI=
@@ -503,38 +507,38 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: sparkforge
-  namespace: sparkforge
+  name: pipeline_builder
+  namespace: pipeline_builder
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: sparkforge
+      app: pipeline_builder
   template:
     metadata:
       labels:
-        app: sparkforge
+        app: pipeline_builder
     spec:
       containers:
-      - name: sparkforge
-        image: sparkforge:latest
+      - name: pipeline_builder
+        image: pipeline_builder:latest
         ports:
         - containerPort: 8080
         env:
         - name: SPARKFORGE_ENV
           valueFrom:
             configMapKeyRef:
-              name: sparkforge-config
+              name: pipeline_builder-config
               key: environment
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
-              name: sparkforge-secrets
+              name: pipeline_builder-secrets
               key: database-url
         - name: REDIS_URL
           valueFrom:
             secretKeyRef:
-              name: sparkforge-secrets
+              name: pipeline_builder-secrets
               key: redis-url
         volumeMounts:
         - name: config-volume
@@ -565,13 +569,13 @@ spec:
       volumes:
       - name: config-volume
         configMap:
-          name: sparkforge-config
+          name: pipeline_builder-config
       - name: data-volume
         persistentVolumeClaim:
-          claimName: sparkforge-data-pvc
+          claimName: pipeline_builder-data-pvc
       - name: logs-volume
         persistentVolumeClaim:
-          claimName: sparkforge-logs-pvc
+          claimName: pipeline_builder-logs-pvc
 ```
 
 #### Service
@@ -580,11 +584,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: sparkforge-service
-  namespace: sparkforge
+  name: pipeline_builder-service
+  namespace: pipeline_builder
 spec:
   selector:
-    app: sparkforge
+    app: pipeline_builder
   ports:
   - protocol: TCP
     port: 80
@@ -598,25 +602,25 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: sparkforge-ingress
-  namespace: sparkforge
+  name: pipeline_builder-ingress
+  namespace: pipeline_builder
   annotations:
     kubernetes.io/ingress.class: nginx
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   tls:
   - hosts:
-    - sparkforge.yourdomain.com
-    secretName: sparkforge-tls
+    - pipeline_builder.yourdomain.com
+    secretName: pipeline_builder-tls
   rules:
-  - host: sparkforge.yourdomain.com
+  - host: pipeline_builder.yourdomain.com
     http:
       paths:
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: sparkforge-service
+            name: pipeline_builder-service
             port:
               number: 80
 ```
@@ -633,12 +637,12 @@ kubectl apply -f service.yaml
 kubectl apply -f ingress.yaml
 
 # Check deployment status
-kubectl get pods -n sparkforge
-kubectl get services -n sparkforge
-kubectl get ingress -n sparkforge
+kubectl get pods -n pipeline_builder
+kubectl get services -n pipeline_builder
+kubectl get ingress -n pipeline_builder
 
 # View logs
-kubectl logs -f deployment/sparkforge -n sparkforge
+kubectl logs -f deployment/pipeline_builder -n pipeline_builder
 ```
 
 ## CI/CD Integration
@@ -661,21 +665,21 @@ jobs:
     
     - name: Build Docker image
       run: |
-        docker build -t sparkforge:${{ github.sha }} .
-        docker tag sparkforge:${{ github.sha }} sparkforge:latest
+        docker build -t pipeline_builder:${{ github.sha }} .
+        docker tag pipeline_builder:${{ github.sha }} pipeline_builder:latest
     
     - name: Push to registry
       run: |
         echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
-        docker push sparkforge:${{ github.sha }}
-        docker push sparkforge:latest
+        docker push pipeline_builder:${{ github.sha }}
+        docker push pipeline_builder:latest
     
     - name: Deploy to Kubernetes
       run: |
         echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
         export KUBECONFIG=kubeconfig
-        kubectl set image deployment/sparkforge sparkforge=sparkforge:${{ github.sha }} -n sparkforge
-        kubectl rollout status deployment/sparkforge -n sparkforge
+        kubectl set image deployment/pipeline_builder pipeline_builder=pipeline_builder:${{ github.sha }} -n pipeline_builder
+        kubectl rollout status deployment/pipeline_builder -n pipeline_builder
 ```
 
 ### 2. Automated Testing
@@ -725,12 +729,12 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/logs/sparkforge.log'),
+        logging.FileHandler('/logs/pipeline_builder.log'),
         logging.StreamHandler()
     ]
 )
 
-logger = logging.getLogger('sparkforge')
+logger = logging.getLogger('pipeline_builder')
 
 def monitor_performance(func):
     @wraps(func)
@@ -800,17 +804,17 @@ def readiness_check():
 # fluentd.conf
 <source>
   @type tail
-  path /logs/sparkforge.log
-  pos_file /var/log/fluentd/sparkforge.log.pos
-  tag sparkforge
+  path /logs/pipeline_builder.log
+  pos_file /var/log/fluentd/pipeline_builder.log.pos
+  tag pipeline_builder
   format json
 </source>
 
-<match sparkforge>
+<match pipeline_builder>
   @type elasticsearch
   host elasticsearch.logging.svc.cluster.local
   port 9200
-  index_name sparkforge
+  index_name pipeline_builder
   type_name _doc
 </match>
 ```
@@ -870,12 +874,12 @@ class DataEncryption:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: sparkforge-network-policy
-  namespace: sparkforge
+  name: pipeline_builder-network-policy
+  namespace: pipeline_builder
 spec:
   podSelector:
     matchLabels:
-      app: sparkforge
+      app: pipeline_builder
   policyTypes:
   - Ingress
   - Egress
@@ -904,25 +908,25 @@ spec:
 #### Memory Issues
 ```bash
 # Check memory usage
-kubectl top pods -n sparkforge
+kubectl top pods -n pipeline_builder
 
 # Adjust memory limits
-kubectl patch deployment sparkforge -n sparkforge -p '{"spec":{"template":{"spec":{"containers":[{"name":"sparkforge","resources":{"limits":{"memory":"8Gi"}}}]}}}}'
+kubectl patch deployment pipeline_builder -n pipeline_builder -p '{"spec":{"template":{"spec":{"containers":[{"name":"pipeline_builder","resources":{"limits":{"memory":"8Gi"}}}]}}}}'
 ```
 
 #### Pod Crash Issues
 ```bash
 # Check pod logs
-kubectl logs -f deployment/sparkforge -n sparkforge
+kubectl logs -f deployment/pipeline_builder -n pipeline_builder
 
 # Check pod events
-kubectl describe pod <pod-name> -n sparkforge
+kubectl describe pod <pod-name> -n pipeline_builder
 ```
 
 #### Database Connection Issues
 ```bash
 # Test database connectivity
-kubectl exec -it deployment/sparkforge -n sparkforge -- python -c "import psycopg2; psycopg2.connect('$DATABASE_URL')"
+kubectl exec -it deployment/pipeline_builder -n pipeline_builder -- python -c "import psycopg2; psycopg2.connect('$DATABASE_URL')"
 ```
 
 ### 2. Performance Issues
@@ -930,23 +934,23 @@ kubectl exec -it deployment/sparkforge -n sparkforge -- python -c "import psycop
 ```bash
 # Check resource usage
 kubectl top nodes
-kubectl top pods -n sparkforge
+kubectl top pods -n pipeline_builder
 
 # Scale deployment
-kubectl scale deployment sparkforge --replicas=5 -n sparkforge
+kubectl scale deployment pipeline_builder --replicas=5 -n pipeline_builder
 ```
 
 ### 3. Log Analysis
 
 ```bash
 # View recent logs
-kubectl logs --since=1h deployment/sparkforge -n sparkforge
+kubectl logs --since=1h deployment/pipeline_builder -n pipeline_builder
 
 # Search for errors
-kubectl logs deployment/sparkforge -n sparkforge | grep ERROR
+kubectl logs deployment/pipeline_builder -n pipeline_builder | grep ERROR
 
 # Export logs
-kubectl logs deployment/sparkforge -n sparkforge > sparkforge.log
+kubectl logs deployment/pipeline_builder -n pipeline_builder > pipeline_builder.log
 ```
 
 ## Conclusion

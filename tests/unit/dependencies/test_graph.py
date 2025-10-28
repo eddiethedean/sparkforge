@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from sparkforge.dependencies.graph import DependencyGraph, StepNode, StepType
+from pipeline_builder.dependencies.graph import DependencyGraph, StepNode, StepType
 
 
 class TestDependencyGraph:
@@ -73,7 +73,7 @@ class TestDependencyGraph:
         # Manually add a dependency to a missing node
         graph.nodes["step2"].dependencies.add("missing_step")
 
-        with patch("sparkforge.dependencies.graph.logger") as mock_logger:
+        with patch("pipeline_builder.dependencies.graph.logger") as mock_logger:
             groups = graph.get_execution_groups()
 
             # Check that warning was logged

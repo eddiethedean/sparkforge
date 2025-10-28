@@ -10,6 +10,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Dict, List
 
 # Add the project root to the path
 project_root = Path(__file__).parent.parent
@@ -32,23 +33,25 @@ def generate_performance_report(output_file: str = "performance_report.json") ->
     report = {
         "summary": summary,
         "regression_analysis": regression_analysis,
-        "baselines": {name: result.__dict__ for name, result in performance_monitor.baselines.items()}
+        "baselines": {
+            name: result.__dict__
+            for name, result in performance_monitor.baselines.items()
+        },
     }
 
-    with open(output_file, 'w') as f:
+    with open(output_file, "w") as f:
         json.dump(report, f, indent=2)
 
     print(f"Performance report generated: {output_file}")
-    return report
 
 
 def print_performance_summary() -> None:
     """Print a human-readable performance summary."""
     summary = performance_monitor.get_performance_summary()
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("SPARKFORGE PERFORMANCE TEST SUMMARY")
-    print("="*60)
+    print("=" * 60)
 
     if "message" in summary:
         print(f"Status: {summary['message']}")
@@ -62,12 +65,12 @@ def print_performance_summary() -> None:
     print(f"Average Execution Time: {summary.get('avg_execution_time', 0):.4f} seconds")
     print(f"Total Memory Used: {summary.get('total_memory_used', 0):.2f} MB")
 
-    print("\n" + "-"*60)
+    print("\n" + "-" * 60)
     print("PERFORMANCE RESULTS BY FUNCTION")
-    print("-"*60)
+    print("-" * 60)
 
     # Group results by function
-    function_results = {}
+    function_results: Dict[str, List] = {}
     for result in performance_monitor.results:
         if result.function_name not in function_results:
             function_results[result.function_name] = []
@@ -76,15 +79,23 @@ def print_performance_summary() -> None:
     for function_name, results in function_results.items():
         successful_results = [r for r in results if r.success]
         if successful_results:
-            avg_time = sum(r.avg_time_per_iteration for r in successful_results) / len(successful_results)
-            avg_throughput = sum(r.throughput for r in successful_results) / len(successful_results)
-            avg_memory = sum(r.memory_usage_mb for r in successful_results) / len(successful_results)
+            avg_time = sum(r.avg_time_per_iteration for r in successful_results) / len(
+                successful_results
+            )
+            avg_throughput = sum(r.throughput for r in successful_results) / len(
+                successful_results
+            )
+            avg_memory = sum(r.memory_usage_mb for r in successful_results) / len(
+                successful_results
+            )
 
             print(f"\n{function_name}:")
             print(f"  Avg Time/Iteration: {avg_time:.4f} ms")
             print(f"  Avg Throughput: {avg_throughput:.0f} ops/sec")
             print(f"  Avg Memory Usage: {avg_memory:.2f} MB")
-            print(f"  Total Iterations: {sum(r.iterations for r in successful_results)}")
+            print(
+                f"  Total Iterations: {sum(r.iterations for r in successful_results)}"
+            )
 
             # Check for regressions
             regression = performance_monitor.check_regression(function_name)
@@ -97,9 +108,9 @@ def print_performance_summary() -> None:
             elif regression["status"] == "no_baseline":
                 print("  📊 No baseline (new test)")
 
-    print("\n" + "-"*60)
+    print("\n" + "-" * 60)
     print("BASELINE FUNCTIONS")
-    print("-"*60)
+    print("-" * 60)
 
     for function_name, baseline in performance_monitor.baselines.items():
         print(f"{function_name}:")
@@ -112,9 +123,9 @@ def check_regressions() -> bool:
     """Check for performance regressions and return True if any found."""
     regressions_found = False
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("PERFORMANCE REGRESSION CHECK")
-    print("="*60)
+    print("=" * 60)
 
     for result in performance_monitor.results:
         if result.success:
@@ -124,8 +135,12 @@ def check_regressions() -> bool:
                 print(f"\n❌ REGRESSION in {result.function_name}:")
                 print(f"   Time change: {regression['time_change_percent']:.1f}%")
                 print(f"   Memory change: {regression['memory_change_percent']:.1f}%")
-                print(f"   Current: {regression['current'].avg_time_per_iteration:.4f} ms")
-                print(f"   Baseline: {regression['baseline'].avg_time_per_iteration:.4f} ms")
+                print(
+                    f"   Current: {regression['current'].avg_time_per_iteration:.4f} ms"
+                )
+                print(
+                    f"   Baseline: {regression['baseline'].avg_time_per_iteration:.4f} ms"
+                )
             elif regression["status"] == "ok":
                 print(f"✅ {result.function_name}: OK")
 
@@ -150,19 +165,36 @@ def update_baselines() -> None:
         print(f"  - {func_name}")
 
 
-def main():
+def main() -> None:
     """Main entry point for the performance reporting script."""
-    parser = argparse.ArgumentParser(description="Generate SparkForge performance reports")
-    parser.add_argument("--report", "-r", action="store_true", help="Generate performance report")
-    parser.add_argument("--summary", "-s", action="store_true", help="Print performance summary")
-    parser.add_argument("--check-regressions", "-c", action="store_true", help="Check for regressions")
-    parser.add_argument("--update-baselines", "-u", action="store_true", help="Update baselines")
-    parser.add_argument("--output", "-o", default="performance_report.json", help="Output file for report")
+    parser = argparse.ArgumentParser(
+        description="Generate SparkForge performance reports"
+    )
+    parser.add_argument(
+        "--report", "-r", action="store_true", help="Generate performance report"
+    )
+    parser.add_argument(
+        "--summary", "-s", action="store_true", help="Print performance summary"
+    )
+    parser.add_argument(
+        "--check-regressions", "-c", action="store_true", help="Check for regressions"
+    )
+    parser.add_argument(
+        "--update-baselines", "-u", action="store_true", help="Update baselines"
+    )
+    parser.add_argument(
+        "--output",
+        "-o",
+        default="performance_report.json",
+        help="Output file for report",
+    )
     parser.add_argument("--all", "-a", action="store_true", help="Run all operations")
 
     args = parser.parse_args()
 
-    if args.all or not any([args.report, args.summary, args.check_regressions, args.update_baselines]):
+    if args.all or not any(
+        [args.report, args.summary, args.check_regressions, args.update_baselines]
+    ):
         # Default behavior: run all operations
         args.report = True
         args.summary = True

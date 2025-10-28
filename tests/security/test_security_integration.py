@@ -19,6 +19,7 @@ import pytest
 # Check if yaml is available
 try:
     import yaml  # noqa: F401
+
     HAS_YAML = True
 except ImportError:
     HAS_YAML = False
@@ -103,14 +104,14 @@ class TestSecurityIntegration:
                     for v in result.values()
                     if isinstance(v, dict)
                 )
-                assert (
-                    has_success_or_compliant or has_sub_tests
-                ), f"Component {component} missing success/compliant indicators"
+                assert has_success_or_compliant or has_sub_tests, (
+                    f"Component {component} missing success/compliant indicators"
+                )
             else:
                 # For sub-components, they should have success/compliant
-                assert (
-                    "success" in result or "compliant" in result
-                ), f"Sub-component {component} missing success/compliant indicators"
+                assert "success" in result or "compliant" in result, (
+                    f"Sub-component {component} missing success/compliant indicators"
+                )
 
     def test_vulnerability_scanner_integration(
         self, vulnerability_scanner, temp_project_dir
@@ -369,9 +370,9 @@ password = "hardcoded_password"  # This should trigger a security issue
         # Verify metrics were generated or events were logged
         # Note: In test environments, metrics collection might not work as expected
         # So we check if events were logged instead
-        assert (
-            len(security_monitor.events) >= 5
-        ), f"Expected at least 5 events, got {len(security_monitor.events)}"
+        assert len(security_monitor.events) >= 5, (
+            f"Expected at least 5 events, got {len(security_monitor.events)}"
+        )
 
         # If metrics are available, verify their structure
         if len(security_monitor.metrics) > 0:
@@ -468,9 +469,9 @@ security_monitoring:
         vuln_time = time.time() - start_time
 
         # Verify performance is within acceptable limits
-        assert (
-            security_time < 60
-        ), f"Security test suite took too long: {security_time}s"
+        assert security_time < 60, (
+            f"Security test suite took too long: {security_time}s"
+        )
         assert vuln_time < 120, f"Vulnerability scanner took too long: {vuln_time}s"
 
         # Verify results are still valid
@@ -521,27 +522,27 @@ def test_security_cicd_integration():
     # Verify all security checks are present and have expected structure
     # Note: Security checks may fail in test environments, so we check structure rather than success
     assert "vulnerability_scan" in results, "Vulnerability scan not found in results"
-    assert isinstance(
-        results["vulnerability_scan"], dict
-    ), "Vulnerability scan result is not a dict"
+    assert isinstance(results["vulnerability_scan"], dict), (
+        "Vulnerability scan result is not a dict"
+    )
     assert "dependency_check" in results, "Dependency check not found in results"
-    assert isinstance(
-        results["dependency_check"], dict
-    ), "Dependency check result is not a dict"
+    assert isinstance(results["dependency_check"], dict), (
+        "Dependency check result is not a dict"
+    )
     assert "code_security" in results, "Code security not found in results"
-    assert isinstance(
-        results["code_security"], dict
-    ), "Code security result is not a dict"
-    assert (
-        "configuration_security" in results
-    ), "Configuration security not found in results"
-    assert isinstance(
-        results["configuration_security"], dict
-    ), "Configuration security result is not a dict"
+    assert isinstance(results["code_security"], dict), (
+        "Code security result is not a dict"
+    )
+    assert "configuration_security" in results, (
+        "Configuration security not found in results"
+    )
+    assert isinstance(results["configuration_security"], dict), (
+        "Configuration security result is not a dict"
+    )
     assert "data_security" in results, "Data security not found in results"
-    assert isinstance(
-        results["data_security"], dict
-    ), "Data security result is not a dict"
+    assert isinstance(results["data_security"], dict), (
+        "Data security result is not a dict"
+    )
 
     # Verify compliance structure
     compliance_results = results["compliance_check"]
@@ -549,9 +550,9 @@ def test_security_cicd_integration():
     # Check if compliance components exist (they may not be compliant in test environments)
     assert "owasp_top_10" in compliance_results, "OWASP compliance not found"
     assert "cve_compliance" in compliance_results, "CVE compliance not found"
-    assert (
-        "dependency_compliance" in compliance_results
-    ), "Dependency compliance not found"
+    assert "dependency_compliance" in compliance_results, (
+        "Dependency compliance not found"
+    )
 
 
 if __name__ == "__main__":

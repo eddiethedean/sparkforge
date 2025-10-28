@@ -45,7 +45,7 @@ Complete API reference for SparkForge data pipeline framework.
 Main class for building data pipelines with fluent API.
 
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 
 builder = PipelineBuilder(
     spark=spark,
@@ -599,7 +599,7 @@ Clear execution state.
 Data quality thresholds for each layer.
 
 ```python
-from sparkforge.models import ValidationThresholds
+from pipeline_builder.models import ValidationThresholds
 
 thresholds = ValidationThresholds(
     bronze=95.0,
@@ -613,7 +613,7 @@ thresholds = ValidationThresholds(
 Parallel execution configuration.
 
 ```python
-from sparkforge.models import ParallelConfig
+from pipeline_builder.models import ParallelConfig
 
 config = ParallelConfig(
     max_workers=8,
@@ -672,7 +672,7 @@ metrics.memory_usage           # dict: Memory usage statistics
 ### Validation Functions
 
 ```python
-from sparkforge.validation import (
+from pipeline_builder.validation import (
     and_all_rules,
     validate_dataframe_schema,
     get_dataframe_info,
@@ -759,7 +759,7 @@ Assess data quality against rules.
 ### Performance Monitoring
 
 ```python
-from sparkforge.performance import (
+from pipeline_builder.performance import (
     now_dt,
     format_duration,
     time_operation,
@@ -825,7 +825,7 @@ def my_function():
 Structured logging for pipeline execution.
 
 ```python
-from sparkforge import LogWriter
+from pipeline_builder import LogWriter
 
 log_writer = LogWriter(
     spark=spark,
@@ -855,7 +855,7 @@ Log individual step execution.
 Internal logging for pipeline operations.
 
 ```python
-from sparkforge.logger import PipelineLogger
+from pipeline_builder.logger import PipelineLogger
 
 logger = PipelineLogger(
     spark=spark,
@@ -870,7 +870,7 @@ logger = PipelineLogger(
 Raised when data validation fails.
 
 ```python
-from sparkforge.exceptions import ValidationError
+from pipeline_builder.exceptions import ValidationError
 
 raise ValidationError("Data validation failed")
 ```
@@ -880,7 +880,7 @@ raise ValidationError("Data validation failed")
 Raised when pipeline validation fails.
 
 ```python
-from sparkforge.exceptions import PipelineValidationError
+from pipeline_builder.exceptions import PipelineValidationError
 
 raise PipelineValidationError("Pipeline configuration invalid")
 ```
@@ -890,7 +890,7 @@ raise PipelineValidationError("Pipeline configuration invalid")
 Raised when table operations fail.
 
 ```python
-from sparkforge.exceptions import TableOperationError
+from pipeline_builder.exceptions import TableOperationError
 
 raise TableOperationError("Table write operation failed")
 ```
@@ -900,7 +900,7 @@ raise TableOperationError("Table write operation failed")
 ### StepType
 
 ```python
-from sparkforge.models import StepType
+from pipeline_builder.models import StepType
 
 StepType.BRONZE
 StepType.SILVER
@@ -910,7 +910,7 @@ StepType.GOLD
 ### StepStatus
 
 ```python
-from sparkforge.models import StepStatus
+from pipeline_builder.models import StepStatus
 
 StepStatus.PENDING
 StepStatus.RUNNING
@@ -922,7 +922,7 @@ StepStatus.CANCELLED
 ### ExecutionMode
 
 ```python
-from sparkforge.models import ExecutionMode
+from pipeline_builder.models import ExecutionMode
 
 ExecutionMode.SEQUENTIAL
 ExecutionMode.PARALLEL
@@ -933,7 +933,7 @@ ExecutionMode.BATCH
 ### WriteMode
 
 ```python
-from sparkforge.models import WriteMode
+from pipeline_builder.models import WriteMode
 
 WriteMode.OVERWRITE
 WriteMode.APPEND
@@ -947,7 +947,7 @@ WriteMode.MERGE
 Schema for pipeline log tables.
 
 ```python
-from sparkforge import PIPELINE_LOG_SCHEMA
+from pipeline_builder import PIPELINE_LOG_SCHEMA
 ```
 
 ## Utility Functions
@@ -955,7 +955,7 @@ from sparkforge import PIPELINE_LOG_SCHEMA
 ### Reporting
 
 ```python
-from sparkforge.reporting import create_validation_dict, create_write_dict
+from pipeline_builder.reporting import create_validation_dict, create_write_dict
 
 # Create validation report
 validation_dict = create_validation_dict(validation_result)
@@ -967,7 +967,7 @@ write_dict = create_write_dict(write_result)
 ### Data Utils
 
 ```python
-from sparkforge.data_utils import (
+from pipeline_builder.data_utils import (
     create_sample_dataframe,
     validate_dataframe,
     get_dataframe_stats
@@ -990,7 +990,7 @@ stats = get_dataframe_stats(df)
 Comprehensive security management for data pipelines.
 
 ```python
-from sparkforge import SecurityManager, SecurityConfig, get_security_manager
+from pipeline_builder import SecurityManager, SecurityConfig, get_security_manager
 
 # Create security manager
 security_config = SecurityConfig(
@@ -1049,7 +1049,7 @@ Check if user has permission.
 Configuration for security features.
 
 ```python
-from sparkforge import SecurityConfig
+from pipeline_builder import SecurityConfig
 
 config = SecurityConfig(
     enable_input_validation=True,
@@ -1067,7 +1067,7 @@ config = SecurityConfig(
 Enumeration of access levels.
 
 ```python
-from sparkforge.security import AccessLevel
+from pipeline_builder.security import AccessLevel
 
 # Available levels
 AccessLevel.READ      # Read-only access
@@ -1083,7 +1083,7 @@ AccessLevel.EXECUTE   # Execution access
 Intelligent caching system with TTL and LRU eviction.
 
 ```python
-from sparkforge import PerformanceCache, CacheConfig, CacheStrategy, get_performance_cache
+from pipeline_builder import PerformanceCache, CacheConfig, CacheStrategy, get_performance_cache
 
 # Create cache
 cache_config = CacheConfig(
@@ -1133,7 +1133,7 @@ Get cache statistics.
 Configuration for performance cache.
 
 ```python
-from sparkforge import CacheConfig, CacheStrategy
+from pipeline_builder import CacheConfig, CacheStrategy
 
 config = CacheConfig(
     max_size_mb=512,           # Maximum cache size
@@ -1149,7 +1149,7 @@ config = CacheConfig(
 Enumeration of cache eviction strategies.
 
 ```python
-from sparkforge.performance_cache import CacheStrategy
+from pipeline_builder.performance_cache import CacheStrategy
 
 # Available strategies
 CacheStrategy.LRU  # Least Recently Used
@@ -1164,7 +1164,7 @@ CacheStrategy.FIFO # First In First Out
 Advanced parallel execution with dynamic worker allocation.
 
 ```python
-from sparkforge import DynamicParallelExecutor, ExecutionTask, TaskPriority
+from pipeline_builder import DynamicParallelExecutor, ExecutionTask, TaskPriority
 
 # Create executor
 executor = DynamicParallelExecutor()
@@ -1206,7 +1206,7 @@ Get optimization recommendations.
 Represents a task to be executed.
 
 ```python
-from sparkforge import ExecutionTask, TaskPriority, create_execution_task
+from pipeline_builder import ExecutionTask, TaskPriority, create_execution_task
 
 # Create task directly
 task = ExecutionTask(
@@ -1236,7 +1236,7 @@ task = create_execution_task(
 Enumeration of task priority levels.
 
 ```python
-from sparkforge import TaskPriority
+from pipeline_builder import TaskPriority
 
 # Available priorities
 TaskPriority.CRITICAL   # Must complete first
@@ -1251,7 +1251,7 @@ TaskPriority.BACKGROUND # Background tasks
 Dynamic worker pool with intelligent allocation.
 
 ```python
-from sparkforge import DynamicWorkerPool
+from pipeline_builder import DynamicWorkerPool
 
 # Create worker pool
 pool = DynamicWorkerPool(

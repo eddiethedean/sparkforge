@@ -7,8 +7,8 @@ Thank you for your interest in contributing to SparkForge! We welcome contributi
 1. **Fork the repository** on GitHub
 2. **Clone your fork** locally:
    ```bash
-   git clone https://github.com/yourusername/sparkforge.git
-   cd sparkforge
+   git clone https://github.com/yourusername/pipeline_builder.git
+   cd pipeline_builder
    ```
 3. **Create a virtual environment**:
    ```bash
@@ -27,7 +27,7 @@ Thank you for your interest in contributing to SparkForge! We welcome contributi
 pytest
 
 # Run with coverage
-pytest --cov=sparkforge --cov-report=html
+pytest --cov=pipeline_builder --cov-report=html
 
 # Run specific test categories
 pytest -m "not slow"  # Skip slow tests
@@ -40,16 +40,16 @@ We use several tools to maintain code quality:
 
 ```bash
 # Format code
-black sparkforge/ tests/
+black pipeline_builder/ tests/
 
 # Sort imports
-isort sparkforge/ tests/
+isort pipeline_builder/ tests/
 
 # Lint code
-flake8 sparkforge/ tests/
+flake8 pipeline_builder/ tests/
 
 # Type checking
-mypy sparkforge/
+mypy pipeline_builder/
 ```
 
 ## 🔧 Development Setup
@@ -116,10 +116,10 @@ We welcome feature requests! Please:
 
 Releases are managed by maintainers:
 
-1. Update version in `pyproject.toml` and `sparkforge/__init__.py`
+1. Update version in `pyproject.toml` and `pipeline_builder/__init__.py`
 2. Update CHANGELOG.md
 3. Create a release tag
-4. Publish to PyPI
+4. Update documentation
 
 ## 🤝 Code of Conduct
 
@@ -127,8 +127,8 @@ Please be respectful and constructive in all interactions. We aim to create a we
 
 ## 📞 Questions?
 
-- Open a [GitHub Discussion](https://github.com/yourusername/sparkforge/discussions)
+- Open a [GitHub Discussion](https://github.com/yourusername/pipeline_builder/discussions)
 - Join our community chat
-- Email: contributors@sparkforge.dev
+- Email: contributors@pipeline_builder.dev
 
 Thank you for contributing to SparkForge! 🔥

@@ -8,7 +8,7 @@ Basic Pipeline Setup
 
 .. code-block:: python
 
-   from sparkforge import PipelineBuilder
+   from pipeline_builder import PipelineBuilder
    from pyspark.sql import functions as F
    
    # Initialize

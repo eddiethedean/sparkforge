@@ -5,7 +5,7 @@ Simple unit tests for execution engine using Mock Spark.
 import pytest
 from mock_spark.errors import AnalysisException
 
-from sparkforge.execution import (
+from pipeline_builder.execution import (
     ExecutionEngine,
     ExecutionMode,
     ExecutionResult,
@@ -13,7 +13,7 @@ from sparkforge.execution import (
     StepStatus,
     StepType,
 )
-from sparkforge.models import (
+from pipeline_builder.models import (
     ParallelConfig,
     PipelineConfig,
     ValidationThresholds,

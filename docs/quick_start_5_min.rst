@@ -1,7 +1,7 @@
 5-Minute Quick Start
 ====================
 
-Get up and running with SparkForge in under 5 minutes! This guide will have you processing data through Bronze → Silver → Gold layers quickly.
+Get up and running with PipelineBuilder in under 5 minutes! This guide will have you processing data through Bronze → Silver → Gold layers quickly.
 
 Prerequisites
 -------------
@@ -17,7 +17,9 @@ Installation
 
 .. code-block:: bash
 
-   pip install sparkforge pyspark
+   git clone https://github.com/eddiethedean/sparkforge.git
+   cd sparkforge
+   pip install -e ".[pyspark]"
 
 Your First Pipeline (2 minutes)
 --------------------------------
@@ -30,7 +32,7 @@ Let's create the simplest possible pipeline:
 
 .. code-block:: python
 
-   from sparkforge import PipelineBuilder
+   from pipeline_builder import PipelineBuilder
    from pyspark.sql import SparkSession, functions as F
 
    # 1. Start Spark
@@ -206,8 +208,8 @@ Troubleshooting
 
 **Common Issues:**
 
-1. **"No module named 'sparkforge'"**
-   - Run: ``pip install sparkforge``
+1. **"No module named 'pipeline_builder'"**
+   - Run: ``pip install pipeline_builder``
 
 2. **"Java gateway process exited"**
    - Install Java 8+: ``brew install openjdk@8`` (macOS) or ``sudo apt-get install openjdk-8-jdk`` (Ubuntu)

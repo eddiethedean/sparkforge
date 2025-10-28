@@ -10,9 +10,13 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from sparkforge.models import PipelineMetrics
-from sparkforge.pipeline.models import PipelineMode, PipelineReport, PipelineStatus
-from sparkforge.writer import LogWriter, WriteMode, WriterConfig
+from pipeline_builder.models import PipelineMetrics
+from pipeline_builder.pipeline.models import (
+    PipelineMode,
+    PipelineReport,
+    PipelineStatus,
+)
+from pipeline_builder.writer import LogWriter, WriteMode, WriterConfig
 
 
 class TestLogWriterSimplifiedInit:
@@ -51,12 +55,16 @@ class TestLogWriterSimplifiedInit:
 
     def test_init_with_only_schema_raises_error(self, mock_spark):
         """Test that providing only schema raises error."""
-        with pytest.raises(Exception):
+        from pipeline_builder.writer.exceptions import WriterConfigurationError
+
+        with pytest.raises(WriterConfigurationError):
             LogWriter(mock_spark, schema="analytics")
 
     def test_init_with_only_table_name_raises_error(self, mock_spark):
         """Test that providing only table_name raises error."""
-        with pytest.raises(Exception):
+        from pipeline_builder.writer.exceptions import WriterConfigurationError
+
+        with pytest.raises(WriterConfigurationError):
             LogWriter(mock_spark, table_name="logs")
 
 
@@ -71,13 +79,15 @@ class TestConvertReportToLogRows:
     @pytest.fixture
     def writer(self, mock_spark):
         """Create a LogWriter instance."""
-        with patch('sparkforge.writer.core.StorageManager'):
-            with patch('sparkforge.writer.core.PerformanceMonitor'):
-                with patch('sparkforge.writer.core.DataProcessor'):
-                    with patch('sparkforge.writer.core.AnalyticsEngine'):
-                        with patch('sparkforge.writer.core.DataQualityAnalyzer'):
-                            with patch('sparkforge.writer.core.TrendAnalyzer'):
-                                return LogWriter(mock_spark, schema="test", table_name="logs")
+        with patch("pipeline_builder.writer.core.StorageManager"):
+            with patch("pipeline_builder.writer.core.PerformanceMonitor"):
+                with patch("pipeline_builder.writer.core.DataProcessor"):
+                    with patch("pipeline_builder.writer.core.AnalyticsEngine"):
+                        with patch("pipeline_builder.writer.core.DataQualityAnalyzer"):
+                            with patch("pipeline_builder.writer.core.TrendAnalyzer"):
+                                return LogWriter(
+                                    mock_spark, schema="test", table_name="logs"
+                                )
 
     @pytest.fixture
     def sample_report(self):
@@ -127,7 +137,7 @@ class TestConvertReportToLogRows:
                     "validation_rate": 99.5,
                     "rows_written": 2000,
                     "input_rows": 2000,
-                }
+                },
             },
             silver_results={
                 "silver_step_1": {
@@ -153,7 +163,7 @@ class TestConvertReportToLogRows:
                     "validation_rate": 100.0,
                     "rows_written": 1500,
                     "input_rows": 1500,
-                }
+                },
             },
             gold_results={
                 "gold_step_1": {
@@ -281,7 +291,7 @@ class TestConvertReportToLogRows:
         )
 
         log_rows = writer._convert_report_to_log_rows(report)
-        
+
         # Should have 2 rows: 1 bronze + 1 silver
         assert len(log_rows) == 2
 
@@ -295,25 +305,27 @@ class TestConvertReportToLogRows:
         assert silver_row["success"] is False
         assert silver_row["error_message"] == "Connection timeout"
 
-    def test_convert_report_generates_run_id_if_not_provided(self, writer, sample_report):
+    def test_convert_report_generates_run_id_if_not_provided(
+        self, writer, sample_report
+    ):
         """Test that run_id is generated if not provided."""
         log_rows = writer._convert_report_to_log_rows(sample_report)
-        
+
         # Check that all rows have the same generated run_id
         assert len(log_rows) > 0
-        run_ids = set(row["run_id"] for row in log_rows)
+        run_ids = {row["run_id"] for row in log_rows}
         assert len(run_ids) == 1  # All rows should have same run_id
-        
+
         run_id = log_rows[0]["run_id"]
         assert len(run_id) > 0  # UUID should be generated
 
     def test_convert_report_includes_metadata(self, writer, sample_report):
         """Test that step-level rows are created (metadata moved to step-level)."""
         log_rows = writer._convert_report_to_log_rows(sample_report)
-        
+
         # Should have 5 step rows
         assert len(log_rows) == 5
-        
+
         # Each row should have step-specific data
         for log_row in log_rows:
             assert "phase" in log_row
@@ -334,19 +346,21 @@ class TestCreateTableMethod:
     @pytest.fixture
     def writer(self, mock_spark):
         """Create a LogWriter with mocked dependencies."""
-        with patch('sparkforge.writer.core.StorageManager') as MockStorage:
-            with patch('sparkforge.writer.core.PerformanceMonitor') as MockPerf:
-                with patch('sparkforge.writer.core.DataProcessor'):
-                    with patch('sparkforge.writer.core.AnalyticsEngine'):
-                        with patch('sparkforge.writer.core.DataQualityAnalyzer'):
-                            with patch('sparkforge.writer.core.TrendAnalyzer'):
-                                writer = LogWriter(mock_spark, schema="test", table_name="logs")
+        with patch("pipeline_builder.writer.core.StorageManager") as MockStorage:
+            with patch("pipeline_builder.writer.core.PerformanceMonitor") as MockPerf:
+                with patch("pipeline_builder.writer.core.DataProcessor"):
+                    with patch("pipeline_builder.writer.core.AnalyticsEngine"):
+                        with patch("pipeline_builder.writer.core.DataQualityAnalyzer"):
+                            with patch("pipeline_builder.writer.core.TrendAnalyzer"):
+                                writer = LogWriter(
+                                    mock_spark, schema="test", table_name="logs"
+                                )
 
                                 # Setup mock storage manager
                                 mock_storage = MockStorage.return_value
                                 mock_storage.write_batch.return_value = {
                                     "rows_written": 3,  # 3 steps: 1 bronze + 1 silver + 1 gold
-                                    "success": True
+                                    "success": True,
                                 }
                                 writer.storage_manager = mock_storage
 
@@ -424,7 +438,7 @@ class TestCreateTableMethod:
 
     def test_create_table_calls_storage_with_overwrite(self, writer, sample_report):
         """Test that create_table uses OVERWRITE mode."""
-        result = writer.create_table(sample_report, run_id="run_456")
+        writer.create_table(sample_report, run_id="run_456")
 
         # Verify write_batch was called with OVERWRITE mode
         writer.storage_manager.write_batch.assert_called_once()
@@ -459,19 +473,21 @@ class TestAppendMethod:
     @pytest.fixture
     def writer(self, mock_spark):
         """Create a LogWriter with mocked dependencies."""
-        with patch('sparkforge.writer.core.StorageManager') as MockStorage:
-            with patch('sparkforge.writer.core.PerformanceMonitor') as MockPerf:
-                with patch('sparkforge.writer.core.DataProcessor'):
-                    with patch('sparkforge.writer.core.AnalyticsEngine'):
-                        with patch('sparkforge.writer.core.DataQualityAnalyzer'):
-                            with patch('sparkforge.writer.core.TrendAnalyzer'):
-                                writer = LogWriter(mock_spark, schema="test", table_name="logs")
+        with patch("pipeline_builder.writer.core.StorageManager") as MockStorage:
+            with patch("pipeline_builder.writer.core.PerformanceMonitor") as MockPerf:
+                with patch("pipeline_builder.writer.core.DataProcessor"):
+                    with patch("pipeline_builder.writer.core.AnalyticsEngine"):
+                        with patch("pipeline_builder.writer.core.DataQualityAnalyzer"):
+                            with patch("pipeline_builder.writer.core.TrendAnalyzer"):
+                                writer = LogWriter(
+                                    mock_spark, schema="test", table_name="logs"
+                                )
 
                                 # Setup mock storage manager
                                 mock_storage = MockStorage.return_value
                                 mock_storage.write_batch.return_value = {
                                     "rows_written": 2,  # 2 steps: 1 silver + 1 gold
-                                    "success": True
+                                    "success": True,
                                 }
                                 writer.storage_manager = mock_storage
 
@@ -535,7 +551,7 @@ class TestAppendMethod:
 
     def test_append_calls_storage_with_append_mode(self, writer, sample_report):
         """Test that append uses APPEND mode."""
-        result = writer.append(sample_report, run_id="run_append_1")
+        writer.append(sample_report, run_id="run_append_1")
 
         # Verify write_batch was called with APPEND mode
         writer.storage_manager.write_batch.assert_called_once()
@@ -575,22 +591,30 @@ class TestLogWriterNewAPIIntegration:
 
     def test_complete_workflow_create_and_append(self, mock_spark):
         """Test complete workflow: create table, then append."""
-        with patch('sparkforge.writer.core.StorageManager') as MockStorage:
-            with patch('sparkforge.writer.core.PerformanceMonitor') as MockPerf:
-                with patch('sparkforge.writer.core.DataProcessor'):
-                    with patch('sparkforge.writer.core.AnalyticsEngine'):
-                        with patch('sparkforge.writer.core.DataQualityAnalyzer'):
-                            with patch('sparkforge.writer.core.TrendAnalyzer'):
+        with patch("pipeline_builder.writer.core.StorageManager") as MockStorage:
+            with patch("pipeline_builder.writer.core.PerformanceMonitor") as MockPerf:
+                with patch("pipeline_builder.writer.core.DataProcessor"):
+                    with patch("pipeline_builder.writer.core.AnalyticsEngine"):
+                        with patch("pipeline_builder.writer.core.DataQualityAnalyzer"):
+                            with patch("pipeline_builder.writer.core.TrendAnalyzer"):
                                 # Initialize writer with simple API
-                                writer = LogWriter(mock_spark, schema="analytics", table_name="pipeline_logs")
+                                writer = LogWriter(
+                                    mock_spark,
+                                    schema="analytics",
+                                    table_name="pipeline_logs",
+                                )
 
                                 # Setup mocks
                                 mock_storage = MockStorage.return_value
-                                mock_storage.write_batch.return_value = {"rows_written": 1}
+                                mock_storage.write_batch.return_value = {
+                                    "rows_written": 1
+                                }
                                 writer.storage_manager = mock_storage
 
                                 mock_perf = MockPerf.return_value
-                                mock_perf.end_operation.return_value = {"duration_secs": 1.0}
+                                mock_perf.end_operation.return_value = {
+                                    "duration_secs": 1.0
+                                }
                                 writer.performance_monitor = mock_perf
 
                                 # Create initial report
@@ -621,5 +645,6 @@ class TestLogWriterNewAPIIntegration:
                                 assert result2["success"] is True
 
                                 # Verify write_batch was called twice
-                                assert writer.storage_manager.write_batch.call_count == 2
-
+                                assert (
+                                    writer.storage_manager.write_batch.call_count == 2
+                                )

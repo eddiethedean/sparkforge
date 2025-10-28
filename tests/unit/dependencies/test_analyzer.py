@@ -6,15 +6,15 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from sparkforge.dependencies.analyzer import (
+from pipeline_builder.dependencies.analyzer import (
     AnalysisStrategy,
     DependencyAnalysisResult,
     DependencyAnalyzer,
 )
-from sparkforge.dependencies.exceptions import DependencyError
-from sparkforge.dependencies.graph import DependencyGraph, StepNode, StepType
-from sparkforge.logging import PipelineLogger
-from sparkforge.models import BronzeStep, GoldStep, SilverStep
+from pipeline_builder.dependencies.exceptions import DependencyError
+from pipeline_builder.dependencies.graph import DependencyGraph, StepNode, StepType
+from pipeline_builder.logging import PipelineLogger
+from pipeline_builder.models import BronzeStep, GoldStep, SilverStep
 
 
 class TestAnalysisStrategy:

@@ -5,8 +5,7 @@ Unit tests for the exceptions module.
 This module tests all custom exceptions used throughout the framework.
 """
 
-
-from sparkforge.errors import (
+from pipeline_builder.errors import (
     ConfigurationError,
     ExecutionError,
     PerformanceError,

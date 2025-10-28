@@ -1,6 +1,6 @@
-# SparkForge 5-Minute Quick Start
+# PipelineBuilder 5-Minute Quick Start
 
-Get up and running with SparkForge in under 5 minutes! This guide will have you processing data through Bronze → Silver → Gold layers quickly.
+Get up and running with PipelineBuilder in under 5 minutes! This guide will have you processing data through Bronze → Silver → Gold layers quickly.
 
 ## Prerequisites
 
@@ -12,7 +12,9 @@ Before you start, make sure you have:
 ## Installation
 
 ```bash
-pip install sparkforge pyspark
+git clone https://github.com/eddiethedean/sparkforge.git
+cd sparkforge
+pip install -e ".[pyspark]"
 ```
 
 ## Your First Pipeline (2 minutes)
@@ -20,7 +22,7 @@ pip install sparkforge pyspark
 Let's create the simplest possible pipeline:
 
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 from pyspark.sql import SparkSession, functions as F
 
 # 1. Start Spark
@@ -124,7 +126,7 @@ builder = PipelineBuilder(
 - On Ubuntu: `sudo apt install openjdk-8-jdk`
 
 ### "Module not found" Error
-- Make sure you installed with: `pip install sparkforge pyspark`
+- Make sure you installed with: `pip install pipeline_builder pyspark`
 - Check your Python environment
 
 ### Pipeline Fails
@@ -149,6 +151,6 @@ You're ready to build real pipelines! Choose your next step:
 
 ---
 
-**🎉 Congratulations! You've built your first SparkForge pipeline in under 5 minutes!**
+**🎉 Congratulations! You've built your first PipelineBuilder pipeline in under 5 minutes!**
 
 Ready for more? Pick a use case guide above and build something real!

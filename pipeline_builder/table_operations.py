@@ -41,7 +41,9 @@ def fqn(schema: str, table: str) -> str:
 
 
 @time_operation("table write (overwrite)")
-def write_overwrite_table(df: DataFrame, fqn: str, **options: str | int | float | bool) -> int:
+def write_overwrite_table(
+    df: DataFrame, fqn: str, **options: str | int | float | bool
+) -> int:
     """
     Write DataFrame to table in overwrite mode.
 
@@ -79,7 +81,9 @@ def write_overwrite_table(df: DataFrame, fqn: str, **options: str | int | float 
 
 
 @time_operation("table write (append)")
-def write_append_table(df: DataFrame, fqn: str, **options: str | int | float | bool) -> int:
+def write_append_table(
+    df: DataFrame, fqn: str, **options: str | int | float | bool
+) -> int:
     """
     Write DataFrame to table in append mode.
 

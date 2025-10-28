@@ -1,6 +1,6 @@
-# SparkForge Examples
+# PipelineBuilder Examples
 
-This directory contains practical examples demonstrating SparkForge's capabilities, organized by feature categories.
+This directory contains practical examples demonstrating PipelineBuilder's capabilities, organized by feature categories.
 
 ## 🚀 Quick Start
 
@@ -14,7 +14,7 @@ This directory contains practical examples demonstrating SparkForge's capabiliti
 ## 📁 Example Categories
 
 ### Core Features (`core/`)
-Essential SparkForge functionality for getting started.
+Essential PipelineBuilder functionality for getting started.
 
 - **[Hello World](core/hello_world.py)** ⭐ **START HERE**
   - Simplest possible pipeline (3 lines!)
@@ -32,7 +32,7 @@ Essential SparkForge functionality for getting started.
   - Troubleshooting techniques
 
 ### Advanced Features (`advanced/`)
-Advanced SparkForge capabilities for complex use cases.
+Advanced PipelineBuilder capabilities for complex use cases.
 
 - **[Multi-Schema Support](advanced/multi_schema_pipeline.py)** ⭐ **NEW!**
   - Cross-schema data flows
@@ -89,8 +89,10 @@ Specific features and edge cases.
 
 ### Prerequisites
 ```bash
-# Install SparkForge
-pip install sparkforge
+# Clone and install PipelineBuilder
+git clone https://github.com/eddiethedean/sparkforge.git
+cd sparkforge
+pip install -e .
 
 # Install dependencies
 pip install pyspark delta-spark pandas numpy
@@ -202,9 +204,9 @@ rules = {
 - **Permission errors**: Check write permissions for warehouse directory
 
 ### Getting Help
-- [Complete Documentation](https://sparkforge.readthedocs.io/)
-- [User Guide](https://sparkforge.readthedocs.io/en/latest/user_guide.html)
-- [Troubleshooting Guide](https://sparkforge.readthedocs.io/en/latest/troubleshooting.html)
+- [Complete Documentation](https://pipeline_builder.readthedocs.io/)
+- [User Guide](https://pipeline_builder.readthedocs.io/en/latest/user_guide.html)
+- [Troubleshooting Guide](https://pipeline_builder.readthedocs.io/en/latest/troubleshooting.html)
 
 ## 🤝 Contributing Examples
 
@@ -225,7 +227,7 @@ Your Example Name
 Brief description of what this example demonstrates.
 """
 
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 from pyspark.sql import SparkSession, functions as F
 
 def main():

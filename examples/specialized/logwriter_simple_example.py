@@ -9,8 +9,8 @@ to log pipeline execution results.
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
-from sparkforge.pipeline import PipelineBuilder
-from sparkforge.writer import LogWriter
+from pipeline_builder.pipeline import PipelineBuilder
+from pipeline_builder.writer import LogWriter
 
 
 def main():
@@ -56,7 +56,9 @@ def main():
         builder = PipelineBuilder(spark, schema="logwriter_example")
 
         # Add bronze step
-        builder.add_bronze_step("events", rules={"user_id": [F.col("user_id").isNotNull()]})
+        builder.add_bronze_step(
+            "events", rules={"user_id": [F.col("user_id").isNotNull()]}
+        )
 
         # Add silver step
         def silver_transform(spark, df, silvers):
@@ -75,10 +77,14 @@ def main():
 
         # Add gold step
         def gold_transform(spark, silvers):
-            return silvers["processed_events"].groupBy("event_date").agg(
-                F.count("*").alias("event_count"),
-                F.sum("value").alias("total_value"),
-                F.countDistinct("user_id").alias("unique_users"),
+            return (
+                silvers["processed_events"]
+                .groupBy("event_date")
+                .agg(
+                    F.count("*").alias("event_count"),
+                    F.sum("value").alias("total_value"),
+                    F.countDistinct("user_id").alias("unique_users"),
+                )
             )
 
         builder.add_gold_step(
@@ -191,6 +197,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Example failed: {e}")
         import traceback
+
         traceback.print_exc()
         raise
 
@@ -200,4 +207,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -16,7 +16,7 @@ This guide explains how to deploy the SparkForge documentation to Read the Docs.
 2. Click "Import a Project"
 3. Connect your GitHub account if not already connected
 4. Select your SparkForge repository
-5. Set the project name (e.g., `sparkforge`)
+5. Set the project name (e.g., `pipeline_builder`)
 6. Set the repository URL to your GitHub repository
 
 ### 2. Configure Build Settings
@@ -40,7 +40,7 @@ python:
 
 1. Click "Build version" on your project page
 2. Monitor the build logs for any errors
-3. The documentation will be available at: `https://sparkforge.readthedocs.io/`
+3. The documentation will be available at: `https://pipeline_builder.readthedocs.io/`
 
 ### 4. Set Up Automatic Builds
 
@@ -115,7 +115,7 @@ docs/
 Test the documentation locally before deploying:
 
 ```bash
-cd sparkforge
+cd pipeline_builder
 pip install -r docs/requirements.txt
 cd docs
 sphinx-build -b html . _build/html
@@ -130,7 +130,7 @@ sphinx-build -b html . _build/html
 
 ## Custom Domain (Optional)
 
-To use a custom domain like `docs.sparkforge.com`:
+To use a custom domain like `docs.pipeline_builder.com`:
 
 1. Go to project settings in Read the Docs
 2. Under "Domains", add your custom domain
@@ -182,4 +182,4 @@ Enable Google Analytics in Read the Docs project settings for usage statistics.
 
 ---
 
-**🎉 Your SparkForge documentation will be live at `https://sparkforge.readthedocs.io/` once deployed!**
+**🎉 Your SparkForge documentation will be live at `https://pipeline_builder.readthedocs.io/` once deployed!**

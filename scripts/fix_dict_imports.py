@@ -2,17 +2,18 @@
 """
 Add Dict imports to files that use Dict but don't have it imported.
 """
+
 from pathlib import Path
 
 
 def add_dict_import(content: str) -> str:
     """Add Dict to typing imports if not already present."""
-    lines = content.split('\n')
+    lines = content.split("\n")
     new_lines = []
     import_added = False
     typing_import_found = False
 
-    for i, line in enumerate(lines):
+    for _i, line in enumerate(lines):
         # Check if this is a typing import line
         if line.startswith("from typing import"):
             typing_import_found = True
@@ -25,7 +26,9 @@ def add_dict_import(content: str) -> str:
                     new_lines.append(line + ", Dict")
                 else:
                     # Single import, add Dict
-                    new_lines.append(line.replace("from typing import", "from typing import Dict,"))
+                    new_lines.append(
+                        line.replace("from typing import", "from typing import Dict,")
+                    )
                 import_added = True
             else:
                 new_lines.append(line)
@@ -38,23 +41,28 @@ def add_dict_import(content: str) -> str:
         else:
             new_lines.append(line)
 
-    return '\n'.join(new_lines)
+    return "\n".join(new_lines)
+
 
 def fix_file(file_path: Path) -> bool:
     """Fix a single Python file."""
     try:
-        with open(file_path, encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
         original_content = content
 
         # Check if file uses Dict but doesn't import it
-        if "Dict[" in content and "from typing import" in content and "Dict" not in content.split("from typing import")[1].split("\n")[0]:
+        if (
+            "Dict[" in content
+            and "from typing import" in content
+            and "Dict" not in content.split("from typing import")[1].split("\n")[0]
+        ):
             content = add_dict_import(content)
 
         # Write back if changed
         if content != original_content:
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 f.write(content)
             return True
 
@@ -64,7 +72,8 @@ def fix_file(file_path: Path) -> bool:
         print(f"Error processing {file_path}: {e}")
         return False
 
-def main():
+
+def main() -> None:
     """Main function to fix all Python files."""
     sparkforge_dir = Path("sparkforge")
 
@@ -88,6 +97,6 @@ def main():
     print("\nSummary:")
     print(f"  Files fixed: {total_fixed}")
 
+
 if __name__ == "__main__":
     main()
-

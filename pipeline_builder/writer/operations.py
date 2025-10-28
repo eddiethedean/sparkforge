@@ -89,18 +89,9 @@ class DataProcessor:
             self.logger.info(f"Processing execution result for run {run_id}")
 
             # Create log rows from execution result
-            # Check if it's a PipelineReport or ExecutionResult
-            if hasattr(execution_result, 'bronze_results'):
-                # It's a PipelineReport
-                from .models import create_log_rows_from_pipeline_report
-                log_rows = create_log_rows_from_pipeline_report(
-                    execution_result, run_id, run_mode, metadata
-                )
-            else:
-                # It's an ExecutionResult
-                log_rows = create_log_rows_from_execution_result(
-                    execution_result, run_id, run_mode, metadata
-                )
+            log_rows = create_log_rows_from_execution_result(
+                execution_result, run_id, run_mode, metadata
+            )
 
             # Validate log data
             validation_result = validate_log_data(log_rows)

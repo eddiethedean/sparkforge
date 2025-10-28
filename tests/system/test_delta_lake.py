@@ -5,7 +5,6 @@ Comprehensive Delta Lake tests to validate Databricks workflow compatibility.
 NOTE: These tests require real Spark with Delta Lake support.
 """
 
-
 import os
 
 import pytest
@@ -138,7 +137,7 @@ class TestDeltaLakeComprehensive:
         # Create minimal table
         data = []
         for i in range(5):
-            data.append((i, f"user_{i}", f"2024-01-{i%30+1:02d}"))
+            data.append((i, f"user_{i}", f"2024-01-{i % 30 + 1:02d}"))
 
         df = spark_session.createDataFrame(data, ["id", "name", "date"])
         table_name = "test_schema.delta_optimization"
@@ -206,7 +205,7 @@ class TestDeltaLakeComprehensive:
         # Create dataset
         data = []
         for i in range(100):
-            data.append((i, f"user_{i}", f"2024-01-{i%30+1:02d}", i % 100))
+            data.append((i, f"user_{i}", f"2024-01-{i % 30 + 1:02d}", i % 100))
 
         df = spark_session.createDataFrame(data, ["id", "name", "date", "score"])
 

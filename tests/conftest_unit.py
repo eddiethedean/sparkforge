@@ -60,7 +60,11 @@ def mock_logger():
 @pytest.fixture
 def mock_pipeline_config():
     """Create a mock PipelineConfig for unit tests."""
-    from sparkforge.models import ParallelConfig, PipelineConfig, ValidationThresholds
+    from pipeline_builder.models import (
+        ParallelConfig,
+        PipelineConfig,
+        ValidationThresholds,
+    )
 
     thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
     parallel = ParallelConfig(enabled=True, max_workers=4)

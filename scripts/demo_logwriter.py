@@ -11,31 +11,32 @@ from mock_spark import (
     MockSparkSession,
 )
 
-from sparkforge.execution import (
+from pipeline_builder.models.execution import (
+    ExecutionContext,
     ExecutionMode,
     ExecutionResult,
     StepExecutionResult,
     StepStatus,
     StepType,
 )
-from sparkforge.writer import LogWriter
+from pipeline_builder.writer import LogWriter
 
-print("\n" + "="*80)
+print("\n" + "=" * 80)
 print("DEMO: LOGWRITER - PERSISTING PIPELINE EXECUTION LOGS")
-print("="*80)
+print("=" * 80)
 print("\nThis demo shows how LogWriter creates and maintains execution history.")
-print("="*80 + "\n")
+print("=" * 80 + "\n")
 
 # Create mock Spark session
-spark = MockSparkSession.builder.getOrCreate()
+builder = MockSparkSession.builder
+if builder is not None:
+    spark = builder.getOrCreate()
+else:
+    raise RuntimeError("Failed to create MockSparkSession builder")
 
 # Create LogWriter
 print("📝 Creating LogWriter for 'analytics.pipeline_logs' table...")
-writer = LogWriter(
-    spark=spark,
-    schema="analytics",
-    table_name="pipeline_logs"
-)
+writer = LogWriter(spark=spark, schema="analytics", table_name="pipeline_logs")
 print("✅ LogWriter initialized\n")
 
 # Simulate execution results from Run 1
@@ -52,7 +53,7 @@ run1_results = [
         end_time=datetime.now(),
         duration=0.51,
         rows_processed=1000,
-        output_table=None
+        output_table=None,
     ),
     StepExecutionResult(
         step_name="bronze_profiles",
@@ -62,7 +63,7 @@ run1_results = [
         end_time=datetime.now(),
         duration=0.50,
         rows_processed=500,
-        output_table=None
+        output_table=None,
     ),
     StepExecutionResult(
         step_name="silver_purchases",
@@ -72,7 +73,7 @@ run1_results = [
         end_time=datetime.now(),
         duration=0.81,
         rows_processed=350,
-        output_table="analytics.silver_purchases"
+        output_table="analytics.silver_purchases",
     ),
     StepExecutionResult(
         step_name="silver_customers",
@@ -82,7 +83,7 @@ run1_results = [
         end_time=datetime.now(),
         duration=0.80,
         rows_processed=500,
-        output_table="analytics.silver_customers"
+        output_table="analytics.silver_customers",
     ),
     StepExecutionResult(
         step_name="gold_customer_summary",
@@ -92,7 +93,7 @@ run1_results = [
         end_time=datetime.now(),
         duration=0.61,
         rows_processed=150,
-        output_table="analytics.gold_customer_summary"
+        output_table="analytics.gold_customer_summary",
     ),
 ]
 
@@ -105,22 +106,27 @@ print("   - Total rows processed: 2,500")
 
 print("\n💾 Writing Run 1 results to log table...")
 try:
-    # Create ExecutionResult from step results
-    run1_execution = ExecutionResult(
-        execution_id="run_001",
+    # Create ExecutionContext
+    context = ExecutionContext(
         mode=ExecutionMode.INITIAL,
         start_time=datetime.now(),
         end_time=datetime.now(),
-        duration=3.23,
-        status="completed",
-        steps=run1_results,
+        duration_secs=3.23,
+        run_id="run_001",
+        execution_id="run_001",
+        pipeline_id="customer_pipeline_v1",
+        schema="analytics",
+        config={"pipeline_name": "customer_pipeline_v1"},
     )
+
+    # Create ExecutionResult from context and step results
+    run1_execution = ExecutionResult.from_context_and_results(context, run1_results)
 
     writer.write_execution_result(
         execution_result=run1_execution,
         run_id="run_001",
         run_mode="initial",
-        metadata={"pipeline_name": "customer_pipeline_v1"}
+        metadata={"pipeline_name": "customer_pipeline_v1"},
     )
     print("✅ Run 1 logged successfully!\n")
 except Exception as e:
@@ -143,7 +149,7 @@ run2_results = [
         end_time=datetime.now(),
         duration=0.48,
         rows_processed=1200,
-        output_table=None
+        output_table=None,
     ),
     StepExecutionResult(
         step_name="bronze_profiles",
@@ -153,7 +159,7 @@ run2_results = [
         end_time=datetime.now(),
         duration=0.52,
         rows_processed=520,
-        output_table=None
+        output_table=None,
     ),
     StepExecutionResult(
         step_name="silver_purchases",
@@ -163,7 +169,7 @@ run2_results = [
         end_time=datetime.now(),
         duration=0.85,
         rows_processed=380,
-        output_table="analytics.silver_purchases"
+        output_table="analytics.silver_purchases",
     ),
     StepExecutionResult(
         step_name="silver_customers",
@@ -174,7 +180,7 @@ run2_results = [
         duration=0.12,
         rows_processed=0,
         output_table=None,
-        error="Validation failed: 15% invalid rows (threshold: 95%)"
+        error="Validation failed: 15% invalid rows (threshold: 95%)",
     ),
     StepExecutionResult(
         step_name="gold_customer_summary",
@@ -184,7 +190,7 @@ run2_results = [
         end_time=datetime.now(),
         duration=0.0,
         rows_processed=0,
-        output_table=None
+        output_table=None,
     ),
 ]
 
@@ -197,22 +203,27 @@ print("   - Total duration: 1.97s")
 
 print("\n💾 Appending Run 2 results to log table...")
 try:
-    # Create ExecutionResult from step results
-    run2_execution = ExecutionResult(
-        execution_id="run_002",
+    # Create ExecutionContext for run 2
+    context2 = ExecutionContext(
         mode=ExecutionMode.INITIAL,
         start_time=datetime.now(),
         end_time=datetime.now(),
-        duration=1.97,
-        status="failed",
-        steps=run2_results,
+        duration_secs=1.97,
+        run_id="run_002",
+        execution_id="run_002",
+        pipeline_id="customer_pipeline_v1",
+        schema="analytics",
+        config={"pipeline_name": "customer_pipeline_v1"},
     )
+
+    # Create ExecutionResult from context and step results
+    run2_execution = ExecutionResult.from_context_and_results(context2, run2_results)
 
     writer.write_execution_result(
         execution_result=run2_execution,
         run_id="run_002",
         run_mode="initial",
-        metadata={"pipeline_name": "customer_pipeline_v1"}
+        metadata={"pipeline_name": "customer_pipeline_v1"},
     )
     print("✅ Run 2 logged successfully!\n")
 except Exception as e:
@@ -225,18 +236,42 @@ print("📋 LOG TABLE CONTENTS: analytics.pipeline_logs")
 print("=" * 80 + "\n")
 
 print("Sample rows from the log table:\n")
-print("| execution_id | pipeline_id          | step_name              | step_type | status    | duration | rows_processed | timestamp           |")
-print("|--------------|----------------------|------------------------|-----------|-----------|----------|----------------|---------------------|")
-print("| run_001      | customer_pipeline_v1 | bronze_events          | bronze    | completed | 0.51s    | 1,000          | 2025-10-17 13:08:09 |")
-print("| run_001      | customer_pipeline_v1 | bronze_profiles        | bronze    | completed | 0.50s    | 500            | 2025-10-17 13:08:09 |")
-print("| run_001      | customer_pipeline_v1 | silver_purchases       | silver    | completed | 0.81s    | 350            | 2025-10-17 13:08:10 |")
-print("| run_001      | customer_pipeline_v1 | silver_customers       | silver    | completed | 0.80s    | 500            | 2025-10-17 13:08:11 |")
-print("| run_001      | customer_pipeline_v1 | gold_customer_summary  | gold      | completed | 0.61s    | 150            | 2025-10-17 13:08:12 |")
-print("| run_002      | customer_pipeline_v1 | bronze_events          | bronze    | completed | 0.48s    | 1,200          | 2025-10-17 13:08:45 |")
-print("| run_002      | customer_pipeline_v1 | bronze_profiles        | bronze    | completed | 0.52s    | 520            | 2025-10-17 13:08:45 |")
-print("| run_002      | customer_pipeline_v1 | silver_purchases       | silver    | completed | 0.85s    | 380            | 2025-10-17 13:08:46 |")
-print("| run_002      | customer_pipeline_v1 | silver_customers       | silver    | failed    | 0.12s    | 0              | 2025-10-17 13:08:46 |")
-print("| run_002      | customer_pipeline_v1 | gold_customer_summary  | gold      | skipped   | 0.00s    | 0              | 2025-10-17 13:08:46 |")
+print(
+    "| execution_id | pipeline_id          | step_name              | step_type | status    | duration | rows_processed | timestamp           |"
+)
+print(
+    "|--------------|----------------------|------------------------|-----------|-----------|----------|----------------|---------------------|"
+)
+print(
+    "| run_001      | customer_pipeline_v1 | bronze_events          | bronze    | completed | 0.51s    | 1,000          | 2025-10-17 13:08:09 |"
+)
+print(
+    "| run_001      | customer_pipeline_v1 | bronze_profiles        | bronze    | completed | 0.50s    | 500            | 2025-10-17 13:08:09 |"
+)
+print(
+    "| run_001      | customer_pipeline_v1 | silver_purchases       | silver    | completed | 0.81s    | 350            | 2025-10-17 13:08:10 |"
+)
+print(
+    "| run_001      | customer_pipeline_v1 | silver_customers       | silver    | completed | 0.80s    | 500            | 2025-10-17 13:08:11 |"
+)
+print(
+    "| run_001      | customer_pipeline_v1 | gold_customer_summary  | gold      | completed | 0.61s    | 150            | 2025-10-17 13:08:12 |"
+)
+print(
+    "| run_002      | customer_pipeline_v1 | bronze_events          | bronze    | completed | 0.48s    | 1,200          | 2025-10-17 13:08:45 |"
+)
+print(
+    "| run_002      | customer_pipeline_v1 | bronze_profiles        | bronze    | completed | 0.52s    | 520            | 2025-10-17 13:08:45 |"
+)
+print(
+    "| run_002      | customer_pipeline_v1 | silver_purchases       | silver    | completed | 0.85s    | 380            | 2025-10-17 13:08:46 |"
+)
+print(
+    "| run_002      | customer_pipeline_v1 | silver_customers       | silver    | failed    | 0.12s    | 0              | 2025-10-17 13:08:46 |"
+)
+print(
+    "| run_002      | customer_pipeline_v1 | gold_customer_summary  | gold      | skipped   | 0.00s    | 0              | 2025-10-17 13:08:46 |"
+)
 
 print("\n" + "=" * 80)
 print("📊 ANALYTICS QUERIES YOU CAN RUN")
@@ -296,4 +331,3 @@ print("=" * 80 + "\n")
 print("💡 TIP: Use LogWriter in your production pipelines to maintain")
 print("   execution history for monitoring, alerting, and analysis!")
 print()
-

@@ -2,6 +2,7 @@
 """
 Fix Python 3.8 compatibility by replacing dict[...] with Dict[...] from typing.
 """
+
 import re
 from pathlib import Path
 from typing import Tuple
@@ -15,13 +16,14 @@ def needs_dict_import(content: str) -> bool:
     # Check if dict[...] is used
     return "dict[" in content
 
+
 def add_dict_import(content: str) -> str:
     """Add Dict to typing imports."""
-    lines = content.split('\n')
+    lines = content.split("\n")
     new_lines = []
     import_added = False
 
-    for i, line in enumerate(lines):
+    for _i, line in enumerate(lines):
         # Check if this is a typing import line
         if line.startswith("from typing import"):
             # Add Dict if not already there
@@ -30,7 +32,9 @@ def add_dict_import(content: str) -> str:
                 if line.endswith(","):
                     new_lines.append(line + " Dict")
                 else:
-                    new_lines.append(line.replace("from typing import", "from typing import Dict,"))
+                    new_lines.append(
+                        line.replace("from typing import", "from typing import Dict,")
+                    )
                 import_added = True
             else:
                 new_lines.append(line)
@@ -42,7 +46,8 @@ def add_dict_import(content: str) -> str:
         else:
             new_lines.append(line)
 
-    return '\n'.join(new_lines)
+    return "\n".join(new_lines)
+
 
 def fix_dict_annotations(content: str) -> Tuple[str, int]:
     """
@@ -55,7 +60,7 @@ def fix_dict_annotations(content: str) -> Tuple[str, int]:
     # This is a simplified version - we'll handle most common cases
     patterns = [
         # Simple dict[K, V]
-        (r'\bdict\[([^\]]+)\]', r'Dict[\1]'),
+        (r"\bdict\[([^\]]+)\]", r"Dict[\1]"),
     ]
 
     for pattern, replacement in patterns:
@@ -66,10 +71,11 @@ def fix_dict_annotations(content: str) -> Tuple[str, int]:
 
     return content, replacements
 
+
 def fix_file(file_path: Path) -> Tuple[bool, int]:
     """Fix a single Python file."""
     try:
-        with open(file_path, encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
         original_content = content
@@ -87,7 +93,7 @@ def fix_file(file_path: Path) -> Tuple[bool, int]:
 
         # Write back if changed
         if content != original_content:
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 f.write(content)
             return True, replacements
 
@@ -97,7 +103,8 @@ def fix_file(file_path: Path) -> Tuple[bool, int]:
         print(f"Error processing {file_path}: {e}")
         return False, 0
 
-def main():
+
+def main() -> None:
     """Main function to fix all Python files."""
     sparkforge_dir = Path("sparkforge")
 
@@ -124,6 +131,6 @@ def main():
     print(f"  Files fixed: {total_fixed}")
     print(f"  Total replacements: {total_replacements}")
 
+
 if __name__ == "__main__":
     main()
-

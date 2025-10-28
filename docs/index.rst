@@ -1,25 +1,27 @@
-SparkForge Documentation
-========================
+PipelineBuilder Documentation
+===============================
 
 A simplified, production-ready PySpark + Delta Lake pipeline engine with the Medallion Architecture (Bronze → Silver → Gold). Build scalable data pipelines with clean, maintainable code and comprehensive validation.
 
 .. note::
 
-   SparkForge provides a complete Medallion Architecture implementation with Bronze → Silver → Gold data layering.
+   PipelineBuilder provides a complete Medallion Architecture implementation with Bronze → Silver → Gold data layering.
 
 Quick Start
 -----------
 
-Get up and running with SparkForge in under 5 minutes:
+Get up and running with PipelineBuilder in under 5 minutes:
 
 .. code-block:: bash
 
-   pip install sparkforge
+   git clone https://github.com/eddiethedean/sparkforge.git
+   cd sparkforge
+   pip install -e .
    python examples/hello_world.py
 
 .. code-block:: python
 
-   from sparkforge import PipelineBuilder
+   from pipeline_builder import PipelineBuilder
    from pyspark.sql import SparkSession, functions as F
 
    # Start Spark
@@ -162,12 +164,12 @@ Installation
 
 .. code-block:: bash
 
-   pip install sparkforge
+   pip install pipeline_builder
 
 Prerequisites:
 - Python 3.8+
 - Java 8+ (for PySpark)
-- PySpark 3.2.4+
+- PySpark 3.4+
 - Delta Lake 1.2.0+
 
 Examples
@@ -176,7 +178,7 @@ Examples
 **Hello World** - The simplest possible pipeline
 .. code-block:: python
 
-   from sparkforge import PipelineBuilder
+   from pipeline_builder import PipelineBuilder
    from pyspark.sql import functions as F
 
    builder = PipelineBuilder(spark=spark, schema="hello")
@@ -265,7 +267,7 @@ Support
 License
 -------
 
-This project is licensed under the MIT License - see the `LICENSE <https://github.com/eddiethedean/sparkforge/blob/main/LICENSE>`_ file for details.
+This project is licensed under the MIT License - see the `LICENSE <https://github.com/eddiethedean/pipeline_builder/blob/main/LICENSE>`_ file for details.
 
 Indices and tables
 ==================

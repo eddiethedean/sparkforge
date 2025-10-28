@@ -18,14 +18,16 @@
 # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # # SOFTWARE.
 
-# Getting Started with SparkForge
+# Getting Started with PipelineBuilder
 
-A quick start guide to get you up and running with SparkForge in minutes.
+A quick start guide to get you up and running with PipelineBuilder in minutes.
 
 ## Installation
 
 ```bash
-pip install sparkforge
+git clone https://github.com/eddiethedean/sparkforge.git
+cd sparkforge
+pip install -e .
 ```
 
 ## Your First Pipeline
@@ -35,7 +37,7 @@ Let's build a simple e-commerce analytics pipeline with automatic security and p
 > **🆕 New in v0.4.0**: Security and performance features are now enabled automatically! Your pipelines are more secure and faster without any code changes.
 
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 from pyspark.sql import functions as F
 from pyspark.sql import SparkSession
 
@@ -108,10 +110,10 @@ print(f"Rows written: {result.totals['total_rows_written']}")
 
 ## Multi-Schema Pipelines (New!)
 
-SparkForge now supports cross-schema data flows for sophisticated architectures:
+PipelineBuilder now supports cross-schema data flows for sophisticated architectures:
 
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 
 # Create schemas
 spark.sql("CREATE SCHEMA IF NOT EXISTS raw_data")
@@ -214,7 +216,7 @@ builder = PipelineBuilder(
 ### Column Filtering Control
 
 ```python
-from sparkforge.validation import apply_column_rules
+from pipeline_builder.validation import apply_column_rules
 
 # Default: Only keep columns with validation rules
 valid_df, invalid_df, stats = apply_column_rules(
@@ -383,7 +385,7 @@ print(f"Silver output: {silver_result.output_count} rows")
 ### Monitor Performance
 
 ```python
-from sparkforge.performance import performance_monitor
+from pipeline_builder.performance import performance_monitor
 
 with performance_monitor("pipeline_execution"):
     result = pipeline.run_incremental(bronze_sources={"events": events_df})
@@ -416,7 +418,7 @@ builder = PipelineBuilder(spark=spark, schema="my_schema")
 For complex workloads, use the new dynamic parallel execution:
 
 ```python
-from sparkforge import DynamicParallelExecutor, ExecutionTask, TaskPriority
+from pipeline_builder import DynamicParallelExecutor, ExecutionTask, TaskPriority
 
 # Create advanced executor
 executor = DynamicParallelExecutor()

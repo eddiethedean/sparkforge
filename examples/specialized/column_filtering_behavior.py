@@ -64,13 +64,13 @@ def demonstrate_column_filtering():
         import sys
 
         sys.path.insert(0, ".")
-        from sparkforge.validation import apply_column_rules
+        from pipeline_builder.validation import apply_column_rules
 
         # Define validation rules for only some columns
         rules = {
             "user_id": [F.col("user_id").isNotNull()],
             "event_type": [F.col("event_type").isin(["click", "view", "purchase"])],
-            "value": [F.col("value") > 0]
+            "value": [F.col("value") > 0],
             # Note: timestamp and device_type have no rules
         }
 
@@ -153,7 +153,7 @@ def demonstrate_pipeline_impact():
         import sys
 
         sys.path.insert(0, ".")
-        from sparkforge import PipelineBuilder
+        from pipeline_builder import PipelineBuilder
 
         # Create sample data
         sample_data = [
@@ -186,7 +186,7 @@ def demonstrate_pipeline_impact():
             rules={
                 "user_id": [F.col("user_id").isNotNull()],
                 "event_type": [F.col("event_type").isin(["click", "view", "purchase"])],
-                "value": [F.col("value") > 0]
+                "value": [F.col("value") > 0],
                 # Note: timestamp, device_type, user_tier have no rules
             },
             incremental_col="timestamp",

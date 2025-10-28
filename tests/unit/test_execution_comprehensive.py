@@ -1,5 +1,5 @@
 """
-Comprehensive tests for sparkforge.execution module.
+Comprehensive tests for pipeline_builder.execution module.
 
 This module tests all execution engine functionality including step execution,
 pipeline execution, error handling, and various execution modes.
@@ -17,8 +17,8 @@ from mock_spark import (
     StringType,
 )
 
-from sparkforge.errors import ExecutionError
-from sparkforge.execution import (
+from pipeline_builder.errors import ExecutionError
+from pipeline_builder.execution import (
     ExecutionEngine,
     ExecutionMode,
     ExecutionResult,
@@ -26,8 +26,8 @@ from sparkforge.execution import (
     StepStatus,
     StepType,
 )
-from sparkforge.logging import PipelineLogger
-from sparkforge.models import (
+from pipeline_builder.logging import PipelineLogger
+from pipeline_builder.models import (
     BronzeStep,
     ParallelConfig,
     PipelineConfig,
@@ -37,9 +37,11 @@ from sparkforge.models import (
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
     from mock_spark import functions as F
+
     MockF = F
 else:
     from pyspark.sql import functions as F
+
     MockF = None
 
 
@@ -268,7 +270,9 @@ class TestExecutionEngineInitialization:
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
 
-        engine = ExecutionEngine(spark=spark_session, config=config, logger=None, functions=MockF)
+        engine = ExecutionEngine(
+            spark=spark_session, config=config, logger=None, functions=MockF
+        )
 
         assert engine.spark == spark_session
         assert engine.config == config
@@ -452,13 +456,13 @@ class TestBackwardCompatibility:
 
     def test_unified_execution_engine_alias(self):
         """Test UnifiedExecutionEngine alias."""
-        from sparkforge.execution import UnifiedExecutionEngine
+        from pipeline_builder.execution import UnifiedExecutionEngine
 
         assert UnifiedExecutionEngine == ExecutionEngine
 
     def test_unified_step_execution_result_alias(self):
         """Test UnifiedStepExecutionResult alias."""
-        from sparkforge.execution import UnifiedStepExecutionResult
+        from pipeline_builder.execution import UnifiedStepExecutionResult
 
         assert UnifiedStepExecutionResult == StepExecutionResult
 
@@ -525,4 +529,7 @@ class TestExecutionIntegration:
             # Check for new logging format with emojis and uppercase
             mock_info.assert_any_call("🚀 Starting BRONZE step: test_bronze")
             # Note: Completed message includes timing and metrics, just check it was called
-            assert any("Completed BRONZE step: test_bronze" in str(call) for call in mock_info.call_args_list)
+            assert any(
+                "Completed BRONZE step: test_bronze" in str(call)
+                for call in mock_info.call_args_list
+            )

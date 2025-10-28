@@ -6,12 +6,11 @@ This example demonstrates how to use the simplified execution system
 for troubleshooting and debugging pipeline steps independently.
 """
 
-
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 
 
 def create_sample_data(spark):

@@ -267,8 +267,10 @@ class ExecutionEngine:
                     )
                     # Capture validation stats for logging (handle different return types for test mocking)
                     if validation_stats is not None:
-                        validation_rate = getattr(validation_stats, 'validation_rate', 100.0)
-                        invalid_rows = getattr(validation_stats, 'invalid_rows', 0)
+                        validation_rate = getattr(
+                            validation_stats, "validation_rate", 100.0
+                        )
+                        invalid_rows = getattr(validation_stats, "invalid_rows", 0)
 
             # Write output if not in validation-only mode
             # Note: Bronze steps only validate data, they don't write to tables
@@ -307,8 +309,15 @@ class ExecutionEngine:
 
             result.rows_written = rows_written
             result.input_rows = rows_processed
-            result.validation_rate = validation_rate if validation_rate is not None else 100.0
-            result.write_mode = "overwrite" if mode != ExecutionMode.VALIDATION_ONLY and not isinstance(step, BronzeStep) else None
+            result.validation_rate = (
+                validation_rate if validation_rate is not None else 100.0
+            )
+            result.write_mode = (
+                "overwrite"
+                if mode != ExecutionMode.VALIDATION_ONLY
+                and not isinstance(step, BronzeStep)
+                else None
+            )
 
             # Use logger's step_complete method for consistent formatting with emoji and uppercase
             self.logger.step_complete(
@@ -318,7 +327,7 @@ class ExecutionEngine:
                 rows_processed=rows_processed,
                 rows_written=rows_written,
                 invalid_rows=invalid_rows,
-                validation_rate=validation_rate
+                validation_rate=validation_rate,
             )
 
         except Exception as e:
@@ -403,7 +412,9 @@ class ExecutionEngine:
 
             execution_groups = analysis.execution_groups
             result.execution_groups_count = len(execution_groups)
-            result.max_group_size = max(len(group) for group in execution_groups) if execution_groups else 0
+            result.max_group_size = (
+                max(len(group) for group in execution_groups) if execution_groups else 0
+            )
 
             # Log dependency analysis results
             self.logger.info(
@@ -419,15 +430,17 @@ class ExecutionEngine:
             if isinstance(self.config.parallel, ParallelConfig):
                 if self.config.parallel.enabled:
                     workers = self.config.parallel.max_workers
-                    self.logger.info(f"Parallel execution enabled with {workers} workers")
+                    self.logger.info(
+                        f"Parallel execution enabled with {workers} workers"
+                    )
                 else:
                     workers = 1
                     self.logger.info("Sequential execution mode")
-            elif hasattr(self.config.parallel, 'enabled'):
+            elif hasattr(self.config.parallel, "enabled"):
                 # Handle Mock or other types with enabled attribute
-                enabled = getattr(self.config.parallel, 'enabled', True)
+                enabled = getattr(self.config.parallel, "enabled", True)
                 if enabled:
-                    workers = getattr(self.config.parallel, 'max_workers', 4)
+                    workers = getattr(self.config.parallel, "max_workers", 4)
                 else:
                     workers = 1
             else:
@@ -465,7 +478,11 @@ class ExecutionEngine:
 
                             step = step_map[step_name]
                             future = executor.submit(
-                                self._execute_step_safe, step, context, mode, context_lock
+                                self._execute_step_safe,
+                                step,
+                                context,
+                                mode,
+                                context_lock,
                             )
                             futures[future] = step_name
 
@@ -487,11 +504,17 @@ class ExecutionEngine:
                                 )
                                 # Determine correct step type
                                 step_obj = step_map.get(step_name)
-                                if step_obj is not None and isinstance(step_obj, BronzeStep):
+                                if step_obj is not None and isinstance(
+                                    step_obj, BronzeStep
+                                ):
                                     step_type_enum = StepType.BRONZE
-                                elif step_obj is not None and isinstance(step_obj, SilverStep):
+                                elif step_obj is not None and isinstance(
+                                    step_obj, SilverStep
+                                ):
                                     step_type_enum = StepType.SILVER
-                                elif step_obj is not None and isinstance(step_obj, GoldStep):
+                                elif step_obj is not None and isinstance(
+                                    step_obj, GoldStep
+                                ):
                                     step_type_enum = StepType.GOLD
                                 else:
                                     step_type_enum = StepType.BRONZE  # fallback
@@ -530,14 +553,22 @@ class ExecutionEngine:
                                     f"Step {step_name} failed: {step_result.error}"
                                 )
                         except Exception as e:
-                            self.logger.error(f"Exception executing step {step_name}: {e}")
+                            self.logger.error(
+                                f"Exception executing step {step_name}: {e}"
+                            )
                             # Determine correct step type
                             step_obj = step_map.get(step_name)
-                            if step_obj is not None and isinstance(step_obj, BronzeStep):
+                            if step_obj is not None and isinstance(
+                                step_obj, BronzeStep
+                            ):
                                 step_type_enum = StepType.BRONZE
-                            elif step_obj is not None and isinstance(step_obj, SilverStep):
+                            elif step_obj is not None and isinstance(
+                                step_obj, SilverStep
+                            ):
                                 step_type_enum = StepType.SILVER
-                            elif step_obj is not None and isinstance(step_obj, GoldStep):
+                            elif step_obj is not None and isinstance(
+                                step_obj, GoldStep
+                            ):
                                 step_type_enum = StepType.GOLD
                             else:
                                 step_type_enum = StepType.BRONZE  # fallback
@@ -576,7 +607,9 @@ class ExecutionEngine:
                         (ideal_parallel_time / total_wall_time) * 100, 100.0
                     )
                 else:
-                    result.parallel_efficiency = 100.0  # Sequential execution is 100% efficient
+                    result.parallel_efficiency = (
+                        100.0  # Sequential execution is 100% efficient
+                    )
 
             # Determine overall pipeline status based on step results
             if result.steps is None:

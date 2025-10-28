@@ -19,11 +19,11 @@ else:
 from pyspark.sql.types import StringType, StructField, StructType
 
 # add_metadata_columns and remove_metadata_columns functions removed - not needed for simplified system
-from sparkforge.models import StageStats
-from sparkforge.reporting import create_validation_dict, create_write_dict
+from pipeline_builder.models import StageStats
+from pipeline_builder.reporting import create_validation_dict, create_write_dict
 
 # Import the actual functions we're testing
-from sparkforge.validation import (
+from pipeline_builder.validation import (
     and_all_rules,
     apply_column_rules,
     assess_data_quality,
@@ -101,7 +101,7 @@ class TestDataValidation:
     @pytest.mark.spark
     def test_apply_column_rules_none_rules(self, sample_dataframe):
         """Test column rule application with None rules."""
-        from sparkforge.errors import ValidationError
+        from pipeline_builder.errors import ValidationError
 
         with pytest.raises(ValidationError):
             apply_column_rules(

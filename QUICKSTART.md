@@ -1,8 +1,8 @@
-# SparkForge Quick Start Guide
+# PipelineBuilder Quick Start Guide
 
 ## ✅ Environment Setup Complete!
 
-Your Python 3.8 and PySpark 3.2 environment is ready to use.
+Your Python 3.8 and PySpark 3.4 environment is ready to use.
 
 ## 🚀 Getting Started
 
@@ -11,7 +11,7 @@ Your Python 3.8 and PySpark 3.2 environment is ready to use.
 Every time you open a new terminal, run:
 
 ```bash
-cd /Users/odosmatthews/Documents/coding/sparkforge
+cd /Users/odosmatthews/Documents/coding/pipeline_builder
 source activate_env.sh
 ```
 
@@ -39,15 +39,15 @@ python -m pytest tests/unit/test_constants_coverage.py -v
 python -m pytest tests/ -v
 
 # With coverage
-python -m pytest tests/ --cov=sparkforge --cov-report=html
+python -m pytest tests/ --cov=pipeline_builder --cov-report=html
 ```
 
 ## 📦 What's Installed
 
 - ✅ **Python 3.8.18**
-- ✅ **PySpark 3.2.4**
+- ✅ **PySpark 3.4**
 - ✅ **Delta Lake 1.2.1**
-- ✅ **SparkForge 0.8.0**
+- ✅ **PipelineBuilder 0.8.0**
 - ✅ **pytest, hypothesis, mock-spark** (testing)
 - ✅ **black, mypy, isort, flake8, ruff** (dev tools)
 
@@ -63,25 +63,25 @@ python -m pytest -k "test_name" -v           # Specific test
 
 ### Code Quality
 ```bash
-black sparkforge/                            # Format code
-isort sparkforge/                            # Sort imports
-mypy sparkforge/                             # Type checking
-flake8 sparkforge/                           # Linting
-ruff check sparkforge/                       # Fast linting
+black pipeline_builder/                            # Format code
+isort pipeline_builder/                            # Sort imports
+mypy pipeline_builder/                             # Type checking
+flake8 pipeline_builder/                           # Linting
+ruff check pipeline_builder/                       # Fast linting
 ```
 
 ### Development
 ```bash
 pip list                                     # Show installed packages
 pip install -e ".[dev,test,docs]"           # Reinstall dependencies
-python -c "import sparkforge; print(sparkforge.__version__)"  # Check version
+python -c "import pipeline_builder; print(pipeline_builder.__version__)"  # Check version
 ```
 
 ## 🔍 Example Usage
 
 ```python
 from pyspark.sql import SparkSession
-from sparkforge.pipeline.builder import PipelineBuilder
+from pipeline_builder.pipeline.builder import PipelineBuilder
 
 # Create Spark session
 spark = SparkSession.builder \
@@ -148,7 +148,7 @@ python -c "from pyspark.sql import SparkSession; spark = SparkSession.builder.ap
 ## 📝 Notes
 
 - The warnings about "loopback address" and "native-hadoop library" are normal and can be ignored
-- Java 8, 11, or later versions all work with PySpark 3.2.4
+- Java 8, 11, or later versions all work with PySpark 3.4
 - The virtual environment must be activated in each new terminal session
 - Tests use both real Spark and mock-spark for different test scenarios
 

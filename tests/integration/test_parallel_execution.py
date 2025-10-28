@@ -16,8 +16,8 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
-from sparkforge import PipelineBuilder
-from sparkforge.models import PipelineConfig
+from pipeline_builder import PipelineBuilder
+from pipeline_builder.models import PipelineConfig
 
 
 def create_test_data(spark: SparkSession, name: str, num_rows: int = 100):
@@ -73,6 +73,8 @@ def test_parallel_execution():
         SparkSession.builder.appName("Test Parallel Execution")
         .master("local[*]")
         .config("spark.sql.warehouse.dir", "/tmp/spark-warehouse")
+        .config("spark.driver.host", "127.0.0.1")
+        .config("spark.driver.bindAddress", "127.0.0.1")
         .getOrCreate()
     )
 
@@ -89,9 +91,7 @@ def test_parallel_execution():
         print(f"Parallel enabled: {config.parallel.enabled}")
         print(f"Max workers: {config.parallel.max_workers}")
 
-        builder = PipelineBuilder(
-            spark=spark, schema="test_parallel", verbose=True
-        )
+        builder = PipelineBuilder(spark=spark, schema="test_parallel", verbose=True)
 
         # Create multiple bronze steps (should run in parallel)
         builder.with_bronze_rules(
@@ -183,7 +183,9 @@ def test_parallel_execution():
         if execution_time < 4:
             print("\n✅ PASS: Execution time suggests parallel execution is working!")
         else:
-            print("\n⚠️ WARNING: Execution time suggests steps may be running sequentially")
+            print(
+                "\n⚠️ WARNING: Execution time suggests steps may be running sequentially"
+            )
 
         # Test 2: Sequential execution
         print("\n" + "-" * 80)
@@ -193,9 +195,7 @@ def test_parallel_execution():
         config_sequential = PipelineConfig.create_conservative(schema="test_parallel")
         print(f"Parallel enabled: {config_sequential.parallel.enabled}")
 
-        builder2 = PipelineBuilder(
-            spark=spark, schema="test_parallel", verbose=True
-        )
+        builder2 = PipelineBuilder(spark=spark, schema="test_parallel", verbose=True)
 
         builder2.with_bronze_rules(
             name="source_d",
@@ -254,4 +254,3 @@ def test_parallel_execution():
 
 if __name__ == "__main__":
     test_parallel_execution()
-

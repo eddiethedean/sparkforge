@@ -10,8 +10,7 @@ from unittest.mock import Mock, patch
 # Add the project root to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
-import sparkforge.reporting as reporting
-from sparkforge.reporting import *
+import pipeline_builder.reporting as reporting
 
 
 class TestReportingCoverage:
@@ -19,13 +18,13 @@ class TestReportingCoverage:
 
     def test_reporting_import(self):
         """Test that reporting module can be imported."""
-        import sparkforge.reporting as reporting
+        import pipeline_builder.reporting as reporting
 
         assert reporting is not None
 
     def test_reporting_functions(self):
         """Test that reporting functions exist and are callable."""
-        import sparkforge.reporting as reporting
+        import pipeline_builder.reporting as reporting
 
         # Check that expected functions exist
         expected_functions = [
@@ -199,7 +198,7 @@ class TestReportingCoverage:
 
     def test_reporting_module_attributes(self):
         """Test that reporting module has expected attributes."""
-        import sparkforge.reporting as reporting
+        import pipeline_builder.reporting as reporting
 
         # Check that module has docstring
         assert reporting.__doc__ is not None
@@ -234,7 +233,7 @@ class TestReportingCoverage:
         """Test that reporting module can be reloaded."""
         import importlib
 
-        import sparkforge.reporting as reporting
+        import pipeline_builder.reporting as reporting
 
         # Reload the module
         importlib.reload(reporting)
@@ -242,27 +241,27 @@ class TestReportingCoverage:
         # Module should still be accessible
         assert reporting is not None
         assert hasattr(reporting, "__name__")
-        assert reporting.__name__ == "sparkforge.reporting"
+        assert reporting.__name__ == "pipeline_builder.reporting"
 
     def test_reporting_imports(self):
         """Test that reporting module imports work correctly."""
-        import sparkforge.reporting as reporting
+        import pipeline_builder.reporting as reporting
 
         # Check that module can be imported multiple times
-        import sparkforge.reporting as reporting2
+        import pipeline_builder.reporting as reporting2
 
         assert reporting is reporting2
 
         # Check that module has expected structure
         assert hasattr(reporting, "__file__")
         assert hasattr(reporting, "__package__")
-        assert reporting.__package__ == "sparkforge"
+        assert reporting.__package__ == "pipeline_builder"
 
     def test_reporting_function_signatures(self):
         """Test that reporting functions have expected signatures."""
         import inspect
 
-        import sparkforge.reporting as reporting
+        import pipeline_builder.reporting as reporting
 
         # Get all functions in the module
         functions = [
@@ -284,7 +283,7 @@ class TestReportingCoverage:
 
     def test_reporting_module_documentation(self):
         """Test that reporting module has proper documentation."""
-        import sparkforge.reporting as reporting
+        import pipeline_builder.reporting as reporting
 
         # Check module docstring
         assert reporting.__doc__ is not None

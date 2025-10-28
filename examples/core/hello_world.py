@@ -9,7 +9,7 @@ This demonstrates the Bronze → Silver → Gold flow with minimal complexity.
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 
 
 def main():
@@ -75,10 +75,16 @@ def main():
         except Exception as e:
             print(f"\n⚠️  Delta Lake not available: {e}")
             print("💡 Install Delta Lake with: pip install delta-spark")
-            print("📊 Pipeline executed successfully, but results couldn't be displayed")
+            print(
+                "📊 Pipeline executed successfully, but results couldn't be displayed"
+            )
 
-        print("\n🎉 That's it! You've built a complete Bronze → Silver → Gold pipeline!")
-        print("💡 The data flow: Raw events → Filtered purchases → User purchase counts")
+        print(
+            "\n🎉 That's it! You've built a complete Bronze → Silver → Gold pipeline!"
+        )
+        print(
+            "💡 The data flow: Raw events → Filtered purchases → User purchase counts"
+        )
 
     except Exception as e:
         print(f"❌ Error: {e}")

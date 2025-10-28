@@ -17,7 +17,7 @@ else:
     from pyspark.sql import functions as F
 from pyspark.sql.types import StringType, StructField, StructType
 
-from sparkforge.models import (
+from pipeline_builder.models import (
     BronzeStep,
     GoldStep,
     ParallelConfig,
@@ -25,7 +25,7 @@ from sparkforge.models import (
     SilverStep,
     ValidationThresholds,
 )
-from sparkforge.validation import (
+from pipeline_builder.validation import (
     UnifiedValidator,
     ValidationResult,
     _convert_rule_to_expression,
@@ -153,7 +153,7 @@ class TestAndAllRules:
         """Test that when no valid expressions are generated, returns True."""
         # This tests the case where _convert_rules_to_expressions returns empty dict
         with patch(
-            "sparkforge.validation.data_validation._convert_rules_to_expressions"
+            "pipeline_builder.validation.data_validation._convert_rules_to_expressions"
         ) as mock_convert:
             mock_convert.return_value = {}  # No expressions generated
             rules = {
@@ -359,7 +359,7 @@ class TestAssessDataQuality:
 
         # Mock count to raise an exception
         with patch.object(df, "count", side_effect=Exception("Assessment failed")):
-            from sparkforge.errors import ValidationError
+            from pipeline_builder.errors import ValidationError
 
             with pytest.raises(ValidationError, match="Data quality assessment failed"):
                 assess_data_quality(df)

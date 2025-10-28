@@ -1,5 +1,5 @@
 """
-Tests for sparkforge.table_operations module.
+Tests for pipeline_builder.table_operations module.
 
 This module tests all table operation utilities and functions.
 """
@@ -7,10 +7,10 @@ This module tests all table operation utilities and functions.
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pyspark.sql.utils import AnalysisException
 
-from sparkforge.errors import TableOperationError
-from sparkforge.table_operations import (
+from pipeline_builder.compat import AnalysisException
+from pipeline_builder.errors import TableOperationError
+from pipeline_builder.table_operations import (
     drop_table,
     fqn,
     read_table,
@@ -74,7 +74,7 @@ class TestWriteOverwriteTable:
         mock_writer.mode.return_value = mock_writer
         mock_writer.option.return_value = mock_writer
 
-        with patch("sparkforge.table_operations.logger"):
+        with patch("pipeline_builder.table_operations.logger"):
             result = write_overwrite_table(mock_df, "test_schema.test_table")
 
             assert result == 100
@@ -94,7 +94,7 @@ class TestWriteOverwriteTable:
         mock_writer.mode.return_value = mock_writer
         mock_writer.option.return_value = mock_writer
 
-        with patch("sparkforge.table_operations.logger"):
+        with patch("pipeline_builder.table_operations.logger"):
             result = write_overwrite_table(
                 mock_df,
                 "test_schema.test_table",
@@ -129,7 +129,7 @@ class TestWriteOverwriteTable:
         mock_writer.mode.return_value = mock_writer
         mock_writer.option.return_value = mock_writer
 
-        with patch("sparkforge.table_operations.logger"):
+        with patch("pipeline_builder.table_operations.logger"):
             result = write_overwrite_table(mock_df, "test_schema.test_table")
 
             assert result == 0
@@ -147,7 +147,7 @@ class TestWriteAppendTable:
         mock_writer.mode.return_value = mock_writer
         mock_writer.option.return_value = mock_writer
 
-        with patch("sparkforge.table_operations.logger"):
+        with patch("pipeline_builder.table_operations.logger"):
             result = write_append_table(mock_df, "test_schema.test_table")
 
             assert result == 75
@@ -166,7 +166,7 @@ class TestWriteAppendTable:
         mock_writer.mode.return_value = mock_writer
         mock_writer.option.return_value = mock_writer
 
-        with patch("sparkforge.table_operations.logger"):
+        with patch("pipeline_builder.table_operations.logger"):
             result = write_append_table(
                 mock_df,
                 "test_schema.test_table",
@@ -200,7 +200,7 @@ class TestWriteAppendTable:
         mock_writer.mode.return_value = mock_writer
         mock_writer.option.return_value = mock_writer
 
-        with patch("sparkforge.table_operations.logger"):
+        with patch("pipeline_builder.table_operations.logger"):
             result = write_append_table(mock_df, "test_schema.test_table")
 
             assert result == 0
@@ -215,7 +215,7 @@ class TestReadTable:
         mock_df = MagicMock()
         mock_spark.table.return_value = mock_df
 
-        with patch("sparkforge.table_operations.logger"):
+        with patch("pipeline_builder.table_operations.logger"):
             result = read_table(mock_spark, "test_schema.test_table")
 
             assert result == mock_df
@@ -263,19 +263,11 @@ class TestTableExists:
     def test_table_exists_false_analysis_exception(self):
         """Test table_exists returns False with AnalysisException."""
         mock_spark = MagicMock()
-        # Create a proper AnalysisException - newer PySpark versions have different constructors
-        try:
-            analysis_exception = AnalysisException("Table not found")
-            is_analysis_exception = True
-        except (TypeError, AssertionError):
-            # Fallback for compatibility - mock AnalysisException to trigger debug logging
-            # We patch the exception check in table_operations to recognize our mock
-            analysis_exception = AnalysisException.__new__(AnalysisException)
-            is_analysis_exception = True
-
+        # Create a proper AnalysisException
+        analysis_exception = AnalysisException("Table not found")
         mock_spark.table.side_effect = analysis_exception
 
-        with patch("sparkforge.table_operations.logger") as mock_logger:
+        with patch("pipeline_builder.table_operations.logger") as mock_logger:
             result = table_exists(mock_spark, "test_schema.test_table")
 
             assert result is False
@@ -289,7 +281,7 @@ class TestTableExists:
         mock_spark = MagicMock()
         mock_spark.table.side_effect = Exception("Connection failed")
 
-        with patch("sparkforge.table_operations.logger") as mock_logger:
+        with patch("pipeline_builder.table_operations.logger") as mock_logger:
             result = table_exists(mock_spark, "test_schema.test_table")
 
             assert result is False
@@ -311,8 +303,8 @@ class TestDropTable:
             mock_external_catalog
         )
 
-        with patch("sparkforge.table_operations.table_exists", return_value=True):
-            with patch("sparkforge.table_operations.logger"):
+        with patch("pipeline_builder.table_operations.table_exists", return_value=True):
+            with patch("pipeline_builder.table_operations.logger"):
                 result = drop_table(mock_spark, "test_schema.test_table")
 
                 assert result is True
@@ -330,8 +322,8 @@ class TestDropTable:
             mock_external_catalog
         )
 
-        with patch("sparkforge.table_operations.table_exists", return_value=True):
-            with patch("sparkforge.table_operations.logger"):
+        with patch("pipeline_builder.table_operations.table_exists", return_value=True):
+            with patch("pipeline_builder.table_operations.logger"):
                 result = drop_table(mock_spark, "test_table")
 
                 assert result is True
@@ -343,7 +335,9 @@ class TestDropTable:
         """Test table drop when table doesn't exist."""
         mock_spark = MagicMock()
 
-        with patch("sparkforge.table_operations.table_exists", return_value=False):
+        with patch(
+            "pipeline_builder.table_operations.table_exists", return_value=False
+        ):
             result = drop_table(mock_spark, "test_schema.test_table")
 
             assert result is False
@@ -359,8 +353,8 @@ class TestDropTable:
         )
         mock_external_catalog.dropTable.side_effect = Exception("Drop failed")
 
-        with patch("sparkforge.table_operations.table_exists", return_value=True):
-            with patch("sparkforge.table_operations.logger") as mock_logger:
+        with patch("pipeline_builder.table_operations.table_exists", return_value=True):
+            with patch("pipeline_builder.table_operations.logger") as mock_logger:
                 result = drop_table(mock_spark, "test_schema.test_table")
 
                 assert result is False
@@ -373,10 +367,10 @@ class TestDropTable:
         mock_spark = MagicMock()
 
         with patch(
-            "sparkforge.table_operations.table_exists",
+            "pipeline_builder.table_operations.table_exists",
             side_effect=Exception("Check failed"),
         ):
-            with patch("sparkforge.table_operations.logger") as mock_logger:
+            with patch("pipeline_builder.table_operations.logger") as mock_logger:
                 result = drop_table(mock_spark, "test_schema.test_table")
 
                 assert result is False
@@ -398,7 +392,7 @@ class TestTableOperationsIntegration:
 
         # Test that FQN can be used with other functions
         mock_spark = MagicMock()
-        with patch("sparkforge.table_operations.table_exists", return_value=True):
+        with patch("pipeline_builder.table_operations.table_exists", return_value=True):
             result = table_exists(mock_spark, fqn_name)
             assert result is True
 
@@ -414,7 +408,7 @@ class TestTableOperationsIntegration:
         mock_spark = MagicMock()
         mock_spark.table.return_value = mock_df
 
-        with patch("sparkforge.table_operations.logger"):
+        with patch("pipeline_builder.table_operations.logger"):
             # Write table
             rows_written = write_overwrite_table(mock_df, "test_schema.test_table")
             assert rows_written == 100
@@ -440,17 +434,21 @@ class TestTableOperationsIntegration:
             mock_external_catalog
         )
 
-        with patch("sparkforge.table_operations.logger"):
+        with patch("pipeline_builder.table_operations.logger"):
             # Create table
             rows_written = write_append_table(mock_df, "test_schema.test_table")
             assert rows_written == 50
 
             # Check table exists
-            with patch("sparkforge.table_operations.table_exists", return_value=True):
+            with patch(
+                "pipeline_builder.table_operations.table_exists", return_value=True
+            ):
                 exists = table_exists(mock_spark, "test_schema.test_table")
                 assert exists is True
 
             # Drop table
-            with patch("sparkforge.table_operations.table_exists", return_value=True):
+            with patch(
+                "pipeline_builder.table_operations.table_exists", return_value=True
+            ):
                 dropped = drop_table(mock_spark, "test_schema.test_table")
                 assert dropped is True

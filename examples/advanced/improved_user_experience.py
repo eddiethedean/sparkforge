@@ -23,7 +23,7 @@ from pyspark.sql.types import (
     TimestampType,
 )
 
-from sparkforge.pipeline.builder import PipelineBuilder
+from pipeline_builder.pipeline.builder import PipelineBuilder
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

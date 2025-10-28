@@ -25,13 +25,13 @@ A quick reference guide for SparkForge developers and users.
 ## Installation
 
 ```bash
-pip install sparkforge
+pip install pipeline_builder
 ```
 
 ## Basic Pipeline (Traditional)
 
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 from pyspark.sql import functions as F
 
 # Setup
@@ -70,7 +70,7 @@ result = pipeline.initial_load(bronze_sources={"events": source_df})
 ## Simplified Pipeline (New!)
 
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 
 # Quick setup with preset configuration
 builder = PipelineBuilder.for_development(spark=spark, schema="my_schema")
@@ -105,7 +105,7 @@ result = pipeline.initial_load(bronze_sources={"events": source_df})
 ## Multi-Schema Pipeline (New!)
 
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 
 # Cross-schema data flows for multi-tenant applications
 builder = PipelineBuilder(spark=spark, schema="default")
@@ -183,7 +183,7 @@ timestamp_cols = PipelineBuilder.detect_timestamp_columns(schema)
 ### Security (Automatic)
 
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 
 # Security is enabled automatically - no configuration needed
 builder = PipelineBuilder(spark=spark, schema="my_schema")
@@ -193,7 +193,7 @@ builder = PipelineBuilder(spark=spark, schema="my_schema")
 ### Performance Caching (Automatic)
 
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 
 # Caching is enabled automatically - no configuration needed
 builder = PipelineBuilder(spark=spark, schema="my_schema")
@@ -203,7 +203,7 @@ builder = PipelineBuilder(spark=spark, schema="my_schema")
 ### Advanced Security Configuration
 
 ```python
-from sparkforge import SecurityConfig, get_security_manager
+from pipeline_builder import SecurityConfig, get_security_manager
 
 # Configure security
 security_config = SecurityConfig(
@@ -221,7 +221,7 @@ security_manager.validate_sql_expression("col('id').isNotNull()")
 ### Performance Cache Configuration
 
 ```python
-from sparkforge import CacheConfig, get_performance_cache, CacheStrategy
+from pipeline_builder import CacheConfig, get_performance_cache, CacheStrategy
 
 # Configure caching
 cache_config = CacheConfig(
@@ -240,7 +240,7 @@ cache.invalidate("key")
 ### Dynamic Parallel Execution
 
 ```python
-from sparkforge import (
+from pipeline_builder import (
     DynamicParallelExecutor, ExecutionTask, TaskPriority,
     create_execution_task
 )
@@ -309,7 +309,7 @@ def custom_validation(spark, df, rules):
 ## Column Filtering Control
 
 ```python
-from sparkforge.validation import apply_column_rules
+from pipeline_builder.validation import apply_column_rules
 
 # Default: Only keep columns with validation rules
 valid_df, invalid_df, stats = apply_column_rules(
@@ -346,7 +346,7 @@ builder = PipelineBuilder(
 )
 
 # Advanced configuration
-from sparkforge.models import ValidationThresholds, ParallelConfig
+from pipeline_builder.models import ValidationThresholds, ParallelConfig
 
 thresholds = ValidationThresholds(bronze=90.0, silver=95.0, gold=98.0)
 parallel_config = ParallelConfig(max_workers=8, enable_parallel_execution=True)
@@ -408,12 +408,12 @@ print(f"Rows written: {result.totals['total_rows_written']}")
 print(f"Duration: {result.totals['total_duration_secs']:.2f}s")
 
 # Structured logging
-from sparkforge import LogWriter
+from pipeline_builder import LogWriter
 log_writer = LogWriter(spark=spark, table_name="my_schema.pipeline_logs")
 log_writer.log_pipeline_execution(result)
 
 # Performance monitoring
-from sparkforge.performance import performance_monitor, time_operation
+from pipeline_builder.performance import performance_monitor, time_operation
 
 @time_operation("my_transform")
 def my_transform(spark, df):

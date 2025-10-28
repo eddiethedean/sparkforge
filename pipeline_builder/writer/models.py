@@ -12,6 +12,7 @@ providing writer-specific functionality.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -19,6 +20,7 @@ from typing import Any, Dict, Literal, TypedDict
 
 from ..compat import types
 from ..models import ExecutionContext, ExecutionResult, StepResult
+from ..pipeline.models import PipelineReport
 
 # Import specific types for convenience
 BooleanType = types.BooleanType
@@ -26,7 +28,7 @@ FloatType = types.FloatType
 IntegerType = types.IntegerType
 StringType = types.StringType
 # Use the appropriate StructField based on the engine
-import os
+
 if os.environ.get("SPARKFORGE_ENGINE") == "mock":
     StructField = types.MockStructField
 else:
@@ -440,13 +442,8 @@ def create_log_rows_from_execution_result(
         List[LogRow]: List of log rows for each step
     """
     rows = []
-    # Combine all step results from bronze, silver, and gold layers
-    all_results = {}
-    all_results.update(execution_result.bronze_results)
-    all_results.update(execution_result.silver_results)
-    all_results.update(execution_result.gold_results)
-    
-    for step_name, step_result in all_results.items():
+    # Process step results from the execution result
+    for step_result in execution_result.step_results:
         row = create_log_row_from_step_result(
             step_result=step_result,
             execution_context=execution_result.context,
@@ -459,7 +456,7 @@ def create_log_rows_from_execution_result(
 
 
 def create_log_rows_from_pipeline_report(
-    pipeline_report: "PipelineReport",
+    pipeline_report: PipelineReport,
     run_id: str,
     run_mode: str,
     metadata: Dict[str, Any] | None = None,
@@ -477,7 +474,7 @@ def create_log_rows_from_pipeline_report(
         List[LogRow]: List of log rows for each step
     """
     rows = []
-    
+
     # Create a main log row for the pipeline execution
     main_row: LogRow = {
         "run_id": run_id,
@@ -509,14 +506,14 @@ def create_log_rows_from_pipeline_report(
         "metadata": metadata or {},
     }
     rows.append(main_row)
-    
+
     # Add step results from bronze, silver, and gold layers
     all_results = {}
     all_results.update(pipeline_report.bronze_results)
     all_results.update(pipeline_report.silver_results)
     all_results.update(pipeline_report.gold_results)
-    
-    for step_name, step_data in all_results.items():
+
+    for step_name, _step_data in all_results.items():
         # Create a simplified step row since we don't have full StepResult objects
         step_row: LogRow = {
             "run_id": run_id,
@@ -526,8 +523,11 @@ def create_log_rows_from_pipeline_report(
             "execution_id": pipeline_report.execution_id,
             "pipeline_id": pipeline_report.pipeline_id,
             "schema": "default",
-            "phase": "bronze" if step_name in pipeline_report.bronze_results else 
-                    "silver" if step_name in pipeline_report.silver_results else "gold",
+            "phase": "bronze"
+            if step_name in pipeline_report.bronze_results
+            else "silver"
+            if step_name in pipeline_report.silver_results
+            else "gold",
             "step_name": step_name,
             "step_type": "transform",
             "start_time": pipeline_report.start_time,
@@ -549,7 +549,7 @@ def create_log_rows_from_pipeline_report(
             "metadata": metadata or {},
         }
         rows.append(step_row)
-    
+
     return rows
 
 

@@ -1,5 +1,5 @@
 """
-Simplified tests for sparkforge.pipeline.builder.PipelineBuilder that work with mock_spark.
+Simplified tests for pipeline_builder.pipeline.builder.PipelineBuilder that work with mock_spark.
 """
 
 from unittest.mock import patch
@@ -7,14 +7,14 @@ from unittest.mock import patch
 import pytest
 from mock_spark.functions import F
 
-from sparkforge.errors import ConfigurationError, ExecutionError
-from sparkforge.logging import PipelineLogger
-from sparkforge.models import (
+from pipeline_builder.errors import ConfigurationError, ExecutionError
+from pipeline_builder.logging import PipelineLogger
+from pipeline_builder.models import (
     BronzeStep,
     PipelineConfig,
     SilverStep,
 )
-from sparkforge.pipeline.builder import PipelineBuilder
+from pipeline_builder.pipeline.builder import PipelineBuilder
 
 # Use mock functions when in mock mode
 MockF = F  # Already imported above
@@ -25,7 +25,11 @@ class TestPipelineBuilderInitialization:
 
     def test_pipeline_builder_initialization_basic(self, mock_spark_session):
         """Test basic PipelineBuilder initialization."""
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         assert builder.spark == mock_spark_session
         assert builder.schema == "test_schema"
@@ -56,23 +60,35 @@ class TestPipelineBuilderInitialization:
     def test_pipeline_builder_initialization_invalid_spark(self, mock_spark_session):
         """Test PipelineBuilder initialization with invalid Spark session."""
         with pytest.raises(ConfigurationError):
-            PipelineBuilder(spark=None, schema="test_schema", functions=MockF if MockF else None)
+            PipelineBuilder(
+                spark=None, schema="test_schema", functions=MockF if MockF else None
+            )
 
     def test_pipeline_builder_initialization_empty_schema(self, mock_spark_session):
         """Test PipelineBuilder initialization with empty schema."""
         with pytest.raises(ConfigurationError):
-            PipelineBuilder(spark=mock_spark_session, schema="", functions=MockF if MockF else None)
+            PipelineBuilder(
+                spark=mock_spark_session, schema="", functions=MockF if MockF else None
+            )
 
     def test_pipeline_builder_initialization_pipeline_id(self, mock_spark_session):
         """Test PipelineBuilder generates unique pipeline ID."""
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         assert builder.pipeline_id.startswith("pipeline_test_schema_")
         assert len(builder.pipeline_id) > 20  # Should have timestamp
 
     def test_pipeline_builder_initialization_validators(self, mock_spark_session):
         """Test PipelineBuilder initializes validators correctly."""
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         assert hasattr(builder, "validators")
         assert hasattr(builder, "validator")
@@ -82,13 +98,17 @@ class TestPipelineBuilderInitialization:
 class TestBronzeRules:
     """Tests for with_bronze_rules method."""
 
-    @patch("sparkforge.validation.data_validation._convert_rules_to_expressions")
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
     def test_with_bronze_rules_basic(self, mock_convert_rules, mock_spark_session):
         """Test adding basic bronze rules."""
         # Mock the rule conversion to avoid PySpark dependency
         mock_convert_rules.return_value = {"id": ["not_null"], "name": ["not_null"]}
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         rules = {"id": ["not_null"], "name": ["not_null"]}
         result = builder.with_bronze_rules(name="test_bronze", rules=rules)
@@ -98,14 +118,18 @@ class TestBronzeRules:
         assert isinstance(builder.bronze_steps["test_bronze"], BronzeStep)
         assert builder.bronze_steps["test_bronze"].name == "test_bronze"
 
-    @patch("sparkforge.validation.data_validation._convert_rules_to_expressions")
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
     def test_with_bronze_rules_with_incremental_col(
         self, mock_convert_rules, mock_spark_session
     ):
         """Test adding bronze rules with incremental column."""
         mock_convert_rules.return_value = {"id": ["not_null"]}
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         rules = {"id": ["not_null"]}
         builder.with_bronze_rules(
@@ -115,14 +139,18 @@ class TestBronzeRules:
         bronze_step = builder.bronze_steps["test_bronze"]
         assert bronze_step.incremental_col == "timestamp"
 
-    @patch("sparkforge.validation.data_validation._convert_rules_to_expressions")
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
     def test_with_bronze_rules_with_schema(
         self, mock_convert_rules, mock_spark_session
     ):
         """Test adding bronze rules with custom schema."""
         mock_convert_rules.return_value = {"id": ["not_null"]}
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         # Mock the schema validation
         with patch.object(builder, "_validate_schema"):
@@ -134,14 +162,18 @@ class TestBronzeRules:
             bronze_step = builder.bronze_steps["test_bronze"]
             assert bronze_step.schema == "custom_schema"
 
-    @patch("sparkforge.validation.data_validation._convert_rules_to_expressions")
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
     def test_with_bronze_rules_duplicate_name(
         self, mock_convert_rules, mock_spark_session
     ):
         """Test adding bronze rules with duplicate name."""
         mock_convert_rules.return_value = {"id": ["not_null"]}
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         rules = {"id": ["not_null"]}
         builder.with_bronze_rules(name="test_bronze", rules=rules)
@@ -151,7 +183,11 @@ class TestBronzeRules:
 
     def test_with_bronze_rules_empty_name(self, mock_spark_session):
         """Test adding bronze rules with empty name."""
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         rules = {"id": ["not_null"]}
         with pytest.raises(ExecutionError):
@@ -161,12 +197,16 @@ class TestBronzeRules:
 class TestSilverRules:
     """Tests for with_silver_rules method."""
 
-    @patch("sparkforge.validation.data_validation._convert_rules_to_expressions")
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
     def test_with_silver_rules_basic(self, mock_convert_rules, mock_spark_session):
         """Test adding basic silver rules."""
         mock_convert_rules.return_value = {"id": ["not_null"]}
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         rules = {"id": ["not_null"]}
         result = builder.with_silver_rules(
@@ -178,14 +218,18 @@ class TestSilverRules:
         assert isinstance(builder.silver_steps["test_silver"], SilverStep)
         assert builder.silver_steps["test_silver"].table_name == "test_table"
 
-    @patch("sparkforge.validation.data_validation._convert_rules_to_expressions")
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
     def test_with_silver_rules_with_watermark(
         self, mock_convert_rules, mock_spark_session
     ):
         """Test adding silver rules with watermark column."""
         mock_convert_rules.return_value = {"id": ["not_null"]}
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         rules = {"id": ["not_null"]}
         builder.with_silver_rules(
@@ -198,14 +242,18 @@ class TestSilverRules:
         silver_step = builder.silver_steps["test_silver"]
         assert silver_step.watermark_col == "timestamp"
 
-    @patch("sparkforge.validation.data_validation._convert_rules_to_expressions")
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
     def test_with_silver_rules_duplicate_name(
         self, mock_convert_rules, mock_spark_session
     ):
         """Test adding silver rules with duplicate name."""
         mock_convert_rules.return_value = {"id": ["not_null"]}
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         rules = {"id": ["not_null"]}
         builder.with_silver_rules(
@@ -219,7 +267,11 @@ class TestSilverRules:
 
     def test_with_silver_rules_empty_name(self, mock_spark_session):
         """Test adding silver rules with empty name."""
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         rules = {"id": ["not_null"]}
         with pytest.raises(ExecutionError):
@@ -229,12 +281,16 @@ class TestSilverRules:
 class TestSilverTransform:
     """Tests for add_silver_transform method."""
 
-    @patch("sparkforge.validation.data_validation._convert_rules_to_expressions")
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
     def test_add_silver_transform_basic(self, mock_convert_rules, mock_spark_session):
         """Test adding basic silver transform."""
         mock_convert_rules.return_value = {"id": ["not_null"]}
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         # Add bronze step first
         builder.with_bronze_rules(name="test_bronze", rules={"id": ["not_null"]})
@@ -256,14 +312,18 @@ class TestSilverTransform:
         assert silver_step.source_bronze == "test_bronze"
         assert silver_step.transform == transform_func
 
-    @patch("sparkforge.validation.data_validation._convert_rules_to_expressions")
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
     def test_add_silver_transform_auto_inference(
         self, mock_convert_rules, mock_spark_session
     ):
         """Test silver transform with auto-inferred source."""
         mock_convert_rules.return_value = {"id": ["not_null"]}
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         # Add bronze step first
         builder.with_bronze_rules(name="test_bronze", rules={"id": ["not_null"]})
@@ -283,7 +343,11 @@ class TestSilverTransform:
 
     def test_add_silver_transform_no_bronze_steps(self, mock_spark_session):
         """Test silver transform with no bronze steps available."""
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         def transform_func(spark, df, silvers):
             return df
@@ -296,14 +360,18 @@ class TestSilverTransform:
                 table_name="test_table",
             )
 
-    @patch("sparkforge.validation.data_validation._convert_rules_to_expressions")
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
     def test_add_silver_transform_invalid_source(
         self, mock_convert_rules, mock_spark_session
     ):
         """Test silver transform with invalid source bronze."""
         mock_convert_rules.return_value = {"id": ["not_null"]}
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         def transform_func(spark, df, silvers):
             return df
@@ -321,12 +389,16 @@ class TestSilverTransform:
 class TestGoldTransform:
     """Tests for add_gold_transform method."""
 
-    @patch("sparkforge.validation.data_validation._convert_rules_to_expressions")
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
     def test_add_gold_transform_basic(self, mock_convert_rules, mock_spark_session):
         """Test adding basic gold transform."""
         mock_convert_rules.return_value = {"id": ["not_null"]}
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         # Add bronze and silver steps first
         builder.with_bronze_rules(name="test_bronze", rules={"id": ["not_null"]})
@@ -355,14 +427,18 @@ class TestGoldTransform:
         assert gold_step.source_silvers == ["test_silver"]
         assert gold_step.transform == transform_func
 
-    @patch("sparkforge.validation.data_validation._convert_rules_to_expressions")
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
     def test_add_gold_transform_auto_inference(
         self, mock_convert_rules, mock_spark_session
     ):
         """Test gold transform with auto-inferred sources."""
         mock_convert_rules.return_value = {"id": ["not_null"]}
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         # Add bronze and silver steps first
         builder.with_bronze_rules(name="test_bronze", rules={"id": ["not_null"]})
@@ -389,7 +465,11 @@ class TestGoldTransform:
 
     def test_add_gold_transform_no_silver_steps(self, mock_spark_session):
         """Test gold transform with no silver steps available."""
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         def transform_func(spark, silvers):
             return None
@@ -402,14 +482,18 @@ class TestGoldTransform:
                 table_name="test_gold_table",
             )
 
-    @patch("sparkforge.validation.data_validation._convert_rules_to_expressions")
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
     def test_add_gold_transform_invalid_sources(
         self, mock_convert_rules, mock_spark_session
     ):
         """Test gold transform with invalid source silvers."""
         mock_convert_rules.return_value = {"id": ["not_null"]}
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         def transform_func(spark, silvers):
             return None
@@ -429,7 +513,11 @@ class TestValidatorManagement:
 
     def test_add_validator(self, mock_spark_session):
         """Test adding custom validator."""
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         class CustomValidator:
             def validate(self, step, context):
@@ -443,7 +531,11 @@ class TestValidatorManagement:
 
     def test_add_multiple_validators(self, mock_spark_session):
         """Test adding multiple validators."""
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         class Validator1:
             def validate(self, step, context):
@@ -464,17 +556,25 @@ class TestPipelineValidation:
 
     def test_validate_pipeline_empty(self, mock_spark_session):
         """Test validating empty pipeline."""
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         errors = builder.validate_pipeline()
         assert errors == []  # Empty pipeline should be valid
 
-    @patch("sparkforge.validation.data_validation._convert_rules_to_expressions")
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
     def test_validate_pipeline_with_steps(self, mock_convert_rules, mock_spark_session):
         """Test validating pipeline with steps."""
         mock_convert_rules.return_value = {"id": ["not_null"]}
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         # Add valid steps
         builder.with_bronze_rules(name="test_bronze", rules={"id": ["not_null"]})
@@ -512,12 +612,16 @@ class TestPipelineValidation:
 class TestToPipeline:
     """Tests for to_pipeline method."""
 
-    @patch("sparkforge.validation.data_validation._convert_rules_to_expressions")
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
     def test_to_pipeline_basic(self, mock_convert_rules, mock_spark_session):
         """Test building basic pipeline."""
         mock_convert_rules.return_value = {"id": ["not_null"]}
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         # Add valid steps
         builder.with_bronze_rules(name="test_bronze", rules={"id": ["not_null"]})
@@ -547,7 +651,11 @@ class TestToPipeline:
 
     def test_to_pipeline_validation_failure(self, mock_spark_session):
         """Test building pipeline with validation failure."""
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         # Add invalid step (no source bronze for silver)
         with pytest.raises(ExecutionError):
@@ -561,7 +669,11 @@ class TestToPipeline:
 
     def test_to_pipeline_empty(self, mock_spark_session):
         """Test building empty pipeline."""
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         pipeline = builder.to_pipeline()
 
@@ -576,7 +688,11 @@ class TestHelperMethods:
 
     def test_get_effective_schema(self, mock_spark_session):
         """Test _get_effective_schema method."""
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         # Test with None (should return default)
         effective_schema = builder._get_effective_schema(None)
@@ -591,14 +707,22 @@ class TestHelperMethods:
         # Create the schema in mock-spark
         mock_spark_session.catalog.createDatabase("test_schema")
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         # Should not raise exception
         builder._validate_schema("test_schema")
 
     def test_validate_schema_nonexistent(self, mock_spark_session):
         """Test _validate_schema with nonexistent schema."""
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         # Try to validate a schema that doesn't exist
         with pytest.raises(ExecutionError):
@@ -606,7 +730,11 @@ class TestHelperMethods:
 
     def test_create_schema_if_not_exists(self, mock_spark_session):
         """Test _create_schema_if_not_exists method."""
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         # Create a new schema
         builder._create_schema_if_not_exists("new_schema_simple_test")
@@ -620,7 +748,11 @@ class TestHelperMethods:
         """Test _create_schema_if_not_exists with failure."""
         from unittest.mock import patch
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         # Patch the spark.sql method to raise exception
         with patch.object(
@@ -659,7 +791,7 @@ class TestClassMethods:
 class TestIntegration:
     """Integration tests for PipelineBuilder."""
 
-    @patch("sparkforge.validation.data_validation._convert_rules_to_expressions")
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
     def test_complete_pipeline_workflow(self, mock_convert_rules, mock_spark_session):
         """Test complete pipeline workflow from start to finish."""
         mock_convert_rules.return_value = {
@@ -667,7 +799,11 @@ class TestIntegration:
             "timestamp": ["not_null"],
         }
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         # Add bronze step
         builder.with_bronze_rules(
@@ -708,14 +844,18 @@ class TestIntegration:
         assert len(pipeline.silver_steps) == 1
         assert len(pipeline.gold_steps) == 1
 
-    @patch("sparkforge.validation.data_validation._convert_rules_to_expressions")
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
     def test_pipeline_with_custom_validator(
         self, mock_convert_rules, mock_spark_session
     ):
         """Test pipeline with custom validator."""
         mock_convert_rules.return_value = {"id": ["not_null"]}
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         # Add custom validator
         class CustomValidator:
@@ -733,14 +873,18 @@ class TestIntegration:
         errors = builder.validate_pipeline()
         assert errors == []
 
-    @patch("sparkforge.validation.data_validation._convert_rules_to_expressions")
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
     def test_pipeline_with_multiple_schemas(
         self, mock_convert_rules, mock_spark_session
     ):
         """Test pipeline with multiple schemas."""
         mock_convert_rules.return_value = {"id": ["not_null"]}
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF if MockF else None)
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
 
         # Mock schema validation
         with patch.object(builder, "_validate_schema"):

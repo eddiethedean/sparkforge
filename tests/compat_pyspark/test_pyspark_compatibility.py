@@ -22,10 +22,14 @@ def pyspark_available():
         import importlib.util
 
         if importlib.util.find_spec("pyspark") is None:
-            pytest.skip("PySpark not installed. Install with: pip install sparkforge[compat-test]")
+            pytest.skip(
+                "PySpark not installed. Install with: pip install sparkforge[compat-test]"
+            )
         return True
     except ImportError:
-        pytest.skip("PySpark not installed. Install with: pip install sparkforge[compat-test]")
+        pytest.skip(
+            "PySpark not installed. Install with: pip install sparkforge[compat-test]"
+        )
 
 
 @pytest.fixture(scope="module")
@@ -44,27 +48,35 @@ class TestPySparkCompatibility:
 
     def test_pyspark_engine_detection(self, pyspark_available, setup_pyspark_engine):
         """Test that PySpark engine is detected correctly."""
-        from sparkforge.compat import compat_name, is_mock_spark
+        from pipeline_builder.compat import compat_name, is_mock_spark
 
         assert compat_name() == "pyspark"
         assert not is_mock_spark()
 
     def test_pyspark_imports(self, pyspark_available, setup_pyspark_engine):
         """Test that PySpark imports work through compat layer."""
-        from sparkforge.compat import Column, DataFrame, SparkSession
+        from pipeline_builder.compat import Column, DataFrame, SparkSession
 
         # Verify these are PySpark types
         assert "pyspark" in str(DataFrame)
         assert "pyspark" in str(SparkSession)
         assert "pyspark" in str(Column)
 
-    def test_pyspark_dataframe_operations(self, pyspark_available, setup_pyspark_engine):
+    def test_pyspark_dataframe_operations(
+        self, pyspark_available, setup_pyspark_engine
+    ):
         """Test basic DataFrame operations with PySpark."""
         from pyspark.sql import SparkSession
 
-        from sparkforge.compat import F
+        from pipeline_builder.compat import F
 
-        spark = SparkSession.builder.appName("Test").master("local[1]").getOrCreate()
+        spark = (
+            SparkSession.builder.appName("Test")
+            .master("local[1]")
+            .config("spark.driver.host", "127.0.0.1")
+            .config("spark.driver.bindAddress", "127.0.0.1")
+            .getOrCreate()
+        )
 
         # Create a simple DataFrame
         data = [(1, "Alice"), (2, "Bob"), (3, "Charlie")]
@@ -84,17 +96,23 @@ class TestPySparkCompatibility:
         """Test that PipelineBuilder works with PySpark."""
         from pyspark.sql import SparkSession
 
-        from sparkforge import PipelineBuilder
-        from sparkforge.compat import F
+        from pipeline_builder import PipelineBuilder
+        from pipeline_builder.compat import F
 
-        spark = SparkSession.builder.appName("Test").master("local[1]").getOrCreate()
+        spark = (
+            SparkSession.builder.appName("Test")
+            .master("local[1]")
+            .config("spark.driver.host", "127.0.0.1")
+            .config("spark.driver.bindAddress", "127.0.0.1")
+            .getOrCreate()
+        )
 
         # Build pipeline
         builder = PipelineBuilder(spark=spark, schema="test_schema")
         builder.with_bronze_rules(
             name="events",
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            incremental_col=None
+            incremental_col=None,
         )
 
         pipeline = builder.to_pipeline()
@@ -106,16 +124,24 @@ class TestPySparkCompatibility:
         """Test validation with PySpark."""
         from pyspark.sql import SparkSession
 
-        from sparkforge.compat import types
-        from sparkforge.validation import validate_dataframe_schema
+        from pipeline_builder.compat import types
+        from pipeline_builder.validation import validate_dataframe_schema
 
-        spark = SparkSession.builder.appName("Test").master("local[1]").getOrCreate()
+        spark = (
+            SparkSession.builder.appName("Test")
+            .master("local[1]")
+            .config("spark.driver.host", "127.0.0.1")
+            .config("spark.driver.bindAddress", "127.0.0.1")
+            .getOrCreate()
+        )
 
         # Create DataFrame with schema
-        schema = types.StructType([
-            types.StructField("id", types.IntegerType(), False),
-            types.StructField("name", types.StringType(), True),
-        ])
+        schema = types.StructType(
+            [
+                types.StructField("id", types.IntegerType(), False),
+                types.StructField("name", types.StringType(), True),
+            ]
+        )
         data = [(1, "Alice"), (2, "Bob")]
         df = spark.createDataFrame(data, schema)
 
@@ -125,26 +151,35 @@ class TestPySparkCompatibility:
 
         spark.stop()
 
-    def test_pyspark_delta_lake_operations(self, pyspark_available, setup_pyspark_engine):
+    def test_pyspark_delta_lake_operations(
+        self, pyspark_available, setup_pyspark_engine
+    ):
         """Test Delta Lake operations with PySpark (if available)."""
         import importlib.util
 
         try:
             if importlib.util.find_spec("delta") is None:
-                pytest.skip("Delta Lake not installed. Install with: pip install sparkforge[compat-test]")
+                pytest.skip(
+                    "Delta Lake not installed. Install with: pip install sparkforge[compat-test]"
+                )
         except (ValueError, ImportError):
             pytest.skip("Delta Lake not available")
 
         from pyspark.sql import SparkSession
 
-
         # Configure Spark with Delta Lake
-        spark = SparkSession.builder \
-            .appName("DeltaTest") \
-            .master("local[1]") \
-            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
-            .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+        spark = (
+            SparkSession.builder.appName("DeltaTest")
+            .master("local[1]")
+            .config("spark.driver.host", "127.0.0.1")
+            .config("spark.driver.bindAddress", "127.0.0.1")
+            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+            .config(
+                "spark.sql.catalog.spark_catalog",
+                "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+            )
             .getOrCreate()
+        )
 
         # Create test table
         data = [(1, "Alice"), (2, "Bob")]
@@ -166,16 +201,21 @@ class TestPySparkCompatibility:
         """Test error handling with PySpark."""
         from pyspark.sql import SparkSession
 
-
-        spark = SparkSession.builder.appName("Test").master("local[1]").getOrCreate()
+        spark = (
+            SparkSession.builder.appName("Test")
+            .master("local[1]")
+            .config("spark.driver.host", "127.0.0.1")
+            .config("spark.driver.bindAddress", "127.0.0.1")
+            .getOrCreate()
+        )
 
         # Create DataFrame with null values
         data = [(1, "Alice"), (None, "Bob"), (3, None)]
         df = spark.createDataFrame(data, ["id", "name"])
 
         # Try validation that should identify invalid rows
-        from sparkforge.compat import F
-        from sparkforge.validation import apply_column_rules
+        from pipeline_builder.compat import F
+        from pipeline_builder.validation import apply_column_rules
 
         rules = {
             "id": [F.col("id").isNotNull()],
@@ -183,7 +223,9 @@ class TestPySparkCompatibility:
         }
 
         # This should return valid and invalid DataFrames with statistics
-        valid_df, invalid_df, stats = apply_column_rules(df, rules, stage="test", step="test")
+        valid_df, invalid_df, stats = apply_column_rules(
+            df, rules, stage="test", step="test"
+        )
 
         # Check that we found invalid rows
         assert invalid_df.count() > 0
@@ -191,13 +233,21 @@ class TestPySparkCompatibility:
 
         spark.stop()
 
-    def test_pyspark_performance_monitoring(self, pyspark_available, setup_pyspark_engine):
+    def test_pyspark_performance_monitoring(
+        self, pyspark_available, setup_pyspark_engine
+    ):
         """Test performance monitoring with PySpark."""
         from pyspark.sql import SparkSession
 
-        from sparkforge.performance import time_operation
+        from pipeline_builder.performance import time_operation
 
-        spark = SparkSession.builder.appName("Test").master("local[1]").getOrCreate()
+        spark = (
+            SparkSession.builder.appName("Test")
+            .master("local[1]")
+            .config("spark.driver.host", "127.0.0.1")
+            .config("spark.driver.bindAddress", "127.0.0.1")
+            .getOrCreate()
+        )
 
         @time_operation("test_operation")
         def test_func():
@@ -214,13 +264,19 @@ class TestPySparkCompatibility:
         """Test table operations with PySpark."""
         from pyspark.sql import SparkSession
 
-        from sparkforge.table_operations import (
+        from pipeline_builder.table_operations import (
             read_table,
             table_exists,
             write_overwrite_table,
         )
 
-        spark = SparkSession.builder.appName("Test").master("local[1]").getOrCreate()
+        spark = (
+            SparkSession.builder.appName("Test")
+            .master("local[1]")
+            .config("spark.driver.host", "127.0.0.1")
+            .config("spark.driver.bindAddress", "127.0.0.1")
+            .getOrCreate()
+        )
 
         table_name = "test_table"
 
@@ -232,6 +288,7 @@ class TestPySparkCompatibility:
         try:
             import os
             import shutil
+
             warehouse_dir = os.path.join(os.getcwd(), "spark-warehouse", table_name)
             if os.path.exists(warehouse_dir):
                 shutil.rmtree(warehouse_dir, ignore_errors=True)
@@ -265,7 +322,7 @@ class TestPySparkEngineSwitching:
         os.environ["SPARKFORGE_ENGINE"] = "pyspark"
 
         # Import after setting env var
-        from sparkforge.compat import compat_name, is_mock_spark
+        from pipeline_builder.compat import compat_name, is_mock_spark
 
         assert compat_name() == "pyspark"
         assert not is_mock_spark()
@@ -281,7 +338,7 @@ class TestPySparkEngineSwitching:
             del os.environ["SPARKFORGE_ENGINE"]
 
         # Import after clearing env var
-        from sparkforge.compat import compat_name
+        from pipeline_builder.compat import compat_name
 
         # Should detect PySpark since it's available
         assert compat_name() == "pyspark"
@@ -289,4 +346,3 @@ class TestPySparkEngineSwitching:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

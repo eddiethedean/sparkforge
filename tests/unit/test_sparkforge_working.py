@@ -15,7 +15,7 @@ from mock_spark import (
     StringType,
 )
 
-from sparkforge.errors import (
+from pipeline_builder.errors import (
     ConfigurationError,
     DataError,
     ExecutionError,
@@ -24,9 +24,9 @@ from sparkforge.errors import (
     SystemError,
     ValidationError,
 )
-from sparkforge.execution import ExecutionEngine, ExecutionMode
-from sparkforge.logging import PipelineLogger
-from sparkforge.models import (
+from pipeline_builder.execution import ExecutionEngine, ExecutionMode
+from pipeline_builder.logging import PipelineLogger
+from pipeline_builder.models import (
     ExecutionContext,
     ParallelConfig,
     PipelineConfig,
@@ -34,23 +34,23 @@ from sparkforge.models import (
     StepResult,
     ValidationThresholds,
 )
-from sparkforge.models.enums import PipelinePhase
-from sparkforge.performance import format_duration, now_dt
-from sparkforge.pipeline.builder import PipelineBuilder
-from sparkforge.table_operations import (
+from pipeline_builder.models.enums import PipelinePhase
+from pipeline_builder.performance import format_duration, now_dt
+from pipeline_builder.pipeline.builder import PipelineBuilder
+from pipeline_builder.table_operations import (
     drop_table,
 )
-from sparkforge.table_operations import (
-    table_exists as sparkforge_table_exists,
+from pipeline_builder.table_operations import (
+    table_exists as pipeline_builder_table_exists,
 )
-from sparkforge.validation.pipeline_validation import (
+from pipeline_builder.validation.pipeline_validation import (
     StepValidator,
     UnifiedValidator,
     ValidationResult,
 )
-from sparkforge.validation.utils import get_dataframe_info, safe_divide
-from sparkforge.writer.core import LogWriter
-from sparkforge.writer.models import (
+from pipeline_builder.validation.utils import get_dataframe_info, safe_divide
+from pipeline_builder.writer.core import LogWriter
+from pipeline_builder.writer.models import (
     LogLevel,
     LogRow,
     WriteMode,
@@ -61,9 +61,11 @@ from sparkforge.writer.models import (
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
     from mock_spark import functions as F
+
     MockF = F
 else:
     from pyspark.sql import functions as F
+
     MockF = None
 
 
@@ -73,7 +75,9 @@ class TestSparkForgeWorking:
     def test_pipeline_builder_working(self, mock_spark_session):
         """Test PipelineBuilder using actual API."""
         # Test basic initialization
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema", functions=MockF)
+        builder = PipelineBuilder(
+            spark=mock_spark_session, schema="test_schema", functions=MockF
+        )
         assert builder.spark == mock_spark_session
         assert builder.schema == "test_schema"
 
@@ -220,8 +224,10 @@ class TestSparkForgeWorking:
         )
 
         # Use correct function signature
-        assert sparkforge_table_exists(mock_spark_session, "test_schema.test_table")
-        assert not sparkforge_table_exists(
+        assert pipeline_builder_table_exists(
+            mock_spark_session, "test_schema.test_table"
+        )
+        assert not pipeline_builder_table_exists(
             mock_spark_session, "test_schema.nonexistent_table"
         )
 
@@ -314,8 +320,10 @@ class TestSparkForgeWorking:
         )
 
         # Test table_exists with correct signature
-        assert sparkforge_table_exists(mock_spark_session, "test_schema.test_table")
-        assert not sparkforge_table_exists(
+        assert pipeline_builder_table_exists(
+            mock_spark_session, "test_schema.test_table"
+        )
+        assert not pipeline_builder_table_exists(
             mock_spark_session, "test_schema.nonexistent_table"
         )
 
@@ -582,7 +590,9 @@ class TestSparkForgeWorking:
         mock_spark_session.storage.create_table(
             "test_schema", "test_table", schema.fields
         )
-        assert sparkforge_table_exists(mock_spark_session, "test_schema.test_table")
+        assert pipeline_builder_table_exists(
+            mock_spark_session, "test_schema.test_table"
+        )
 
         # 9. Validation Utils
         result = safe_divide(10, 2)

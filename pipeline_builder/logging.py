@@ -81,7 +81,9 @@ class PipelineLogger:
         """Log info message."""
         self.logger.info(self._format_message(message, kwargs))
 
-    def warning(self, message: str, **kwargs: Union[str, int, float, bool, None]) -> None:
+    def warning(
+        self, message: str, **kwargs: Union[str, int, float, bool, None]
+    ) -> None:
         """Log warning message."""
         self.logger.warning(self._format_message(message, kwargs))
 
@@ -89,11 +91,15 @@ class PipelineLogger:
         """Log error message."""
         self.logger.error(self._format_message(message, kwargs))
 
-    def critical(self, message: str, **kwargs: Union[str, int, float, bool, None]) -> None:
+    def critical(
+        self, message: str, **kwargs: Union[str, int, float, bool, None]
+    ) -> None:
         """Log critical message."""
         self.logger.critical(self._format_message(message, kwargs))
 
-    def _format_message(self, message: str, kwargs: Dict[str, Union[str, int, float, bool, None]]) -> str:
+    def _format_message(
+        self, message: str, kwargs: Dict[str, Union[str, int, float, bool, None]]
+    ) -> str:
         """Format message with context."""
         if not kwargs:
             return message
@@ -125,7 +131,7 @@ class PipelineLogger:
         rows_processed: int = 0,
         rows_written: Optional[int] = None,
         invalid_rows: Optional[int] = None,
-        validation_rate: Optional[float] = None
+        validation_rate: Optional[float] = None,
     ) -> None:
         """Log step completion."""
         # Build the info string
@@ -140,7 +146,11 @@ class PipelineLogger:
 
         # Add invalid rows if any (safely handle non-int types for mocking compatibility)
         try:
-            if invalid_rows is not None and isinstance(invalid_rows, (int, float)) and invalid_rows > 0:
+            if (
+                invalid_rows is not None
+                and isinstance(invalid_rows, (int, float))
+                and invalid_rows > 0
+            ):
                 info_parts.append(f"{invalid_rows:,} invalid")
         except (TypeError, AttributeError):
             # Handle Mock objects or other edge cases gracefully

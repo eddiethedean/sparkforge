@@ -20,7 +20,7 @@ class Python38CompatibilityTest(unittest.TestCase):
     def setUp(self):
         """Set up test environment."""
         self.project_root = Path(__file__).parent.parent.parent
-        self.sparkforge_dir = self.project_root / "sparkforge"
+        self.pipeline_builder_dir = self.project_root / "pipeline_builder"
         self.test_dir = self.project_root / "tests"
 
         # Files to exclude from scanning
@@ -281,17 +281,17 @@ class Python38CompatibilityTest(unittest.TestCase):
         """Test that modules can be imported."""
         violations = []
 
-        # Test core sparkforge modules
+        # Test core pipeline_builder modules
         core_modules = [
-            "sparkforge",
-            "sparkforge.models",
-            "sparkforge.logging",
-            "sparkforge.errors",
-            "sparkforge.types",
-            "sparkforge.writer",
-            "sparkforge.writer.core",
-            "sparkforge.writer.models",
-            "sparkforge.writer.exceptions",
+            "pipeline_builder",
+            "pipeline_builder.models",
+            "pipeline_builder.logging",
+            "pipeline_builder.errors",
+            "pipeline_builder.types",
+            "pipeline_builder.writer",
+            "pipeline_builder.writer.core",
+            "pipeline_builder.writer.models",
+            "pipeline_builder.writer.exceptions",
         ]
 
         for module_name in core_modules:
@@ -308,9 +308,9 @@ class Python38CompatibilityTest(unittest.TestCase):
         """Get all Python files in the project."""
         python_files = []
 
-        # Scan sparkforge directory
-        if self.sparkforge_dir.exists():
-            python_files.extend(self.sparkforge_dir.rglob("*.py"))
+        # Scan pipeline_builder directory
+        if self.pipeline_builder_dir.exists():
+            python_files.extend(self.pipeline_builder_dir.rglob("*.py"))
 
         # Scan tests directory
         if self.test_dir.exists():
@@ -339,9 +339,9 @@ class DictTypeAnnotationTest(unittest.TestCase):
         if sys.version_info < (3, 9):
             with self.assertRaises(TypeError):
 
-                def func_with_dict() -> (
-                    dict[str, int]
-                ):  # This syntax doesn't work in Python 3.8
+                def func_with_dict() -> dict[
+                    str, int
+                ]:  # This syntax doesn't work in Python 3.8
                     return {"test": 1}
         else:
             # In Python 3.9+, dict[str, int] syntax is supported
@@ -388,26 +388,29 @@ class ImportCompatibilityTest(unittest.TestCase):
     def test_core_imports(self):
         """Test that core modules can be imported."""
         try:
-            import sparkforge
+            import pipeline_builder
 
-            self.assertTrue(hasattr(sparkforge, "__version__"))
+            self.assertTrue(hasattr(pipeline_builder, "__version__"))
         except ImportError as e:
-            self.fail(f"Failed to import sparkforge: {e}")
+            self.fail(f"Failed to import pipeline_builder: {e}")
 
     def test_writer_imports(self):
         """Test that writer module can be imported."""
         try:
-            from sparkforge.writer import LogWriter  # noqa: F401
-            from sparkforge.writer.exceptions import WriterError  # noqa: F401
-            from sparkforge.writer.models import WriterConfig  # noqa: F401
+            from pipeline_builder.writer import LogWriter  # noqa: F401
+            from pipeline_builder.writer.exceptions import WriterError  # noqa: F401
+            from pipeline_builder.writer.models import WriterConfig  # noqa: F401
         except ImportError as e:
             self.fail(f"Failed to import writer modules: {e}")
 
     def test_models_imports(self):
         """Test that models can be imported."""
         try:
-            from sparkforge.models import ExecutionResult, StepResult  # noqa: F401
-            from sparkforge.types import NumericDict, StringDict  # noqa: F401
+            from pipeline_builder.models import (  # noqa: F401
+                ExecutionResult,
+                StepResult,
+            )
+            from pipeline_builder.types import NumericDict, StringDict  # noqa: F401
         except ImportError as e:
             self.fail(f"Failed to import model types: {e}")
 

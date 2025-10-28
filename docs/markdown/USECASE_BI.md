@@ -18,7 +18,7 @@ Build a complete business intelligence pipeline in 10 minutes! This guide shows 
 ## Step 1: Setup (1 minute)
 
 ```python
-from sparkforge import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 from pyspark.sql import SparkSession, functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType
 from datetime import datetime, timedelta

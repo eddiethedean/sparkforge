@@ -17,8 +17,8 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
 else:
     from pyspark.sql import functions as F
 
-from sparkforge.errors import ValidationError
-from sparkforge.validation.data_validation import assess_data_quality
+from pipeline_builder.errors import ValidationError
+from pipeline_builder.validation.data_validation import assess_data_quality
 
 
 class TestTrap1SilentExceptionHandling:
@@ -115,10 +115,12 @@ class TestTrap1SilentExceptionHandling:
         # Create empty DataFrame using StructType instead of DDL string
         from mock_spark import MockStructField, MockStructType, StringType
 
-        schema = MockStructType([
-            MockStructField("user_id", StringType(), True),
-            MockStructField("action", StringType(), True)
-        ])
+        schema = MockStructType(
+            [
+                MockStructField("user_id", StringType(), True),
+                MockStructField("action", StringType(), True),
+            ]
+        )
         df = spark_session.createDataFrame([], schema)
 
         result = assess_data_quality(df, None)

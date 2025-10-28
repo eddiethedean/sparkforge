@@ -67,7 +67,7 @@ def _convert_rule_to_expression(
         else:
             # For complex rules, assume it's a valid PySpark expression
             return functions.expr(str(rule))
-    
+
     # Handle string-based rules
     if rule == "not_null":
         return functions.col(column_name).isNotNull()

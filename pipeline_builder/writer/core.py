@@ -257,18 +257,17 @@ class LogWriter:
         if config is not None:
             # Old API: config provided
             import warnings
+
             warnings.warn(
                 "Passing WriterConfig is deprecated. Use LogWriter(spark, schema='...', table_name='...') instead.",
                 DeprecationWarning,
-                stacklevel=2
+                stacklevel=2,
             )
             self.config = config
         elif schema is not None and table_name is not None:
             # New API: schema and table_name provided
             self.config = WriterConfig(
-                table_schema=schema,
-                table_name=table_name,
-                write_mode=WriteMode.APPEND
+                table_schema=schema, table_name=table_name, write_mode=WriteMode.APPEND
             )
         else:
             raise WriterConfigurationError(
@@ -276,8 +275,8 @@ class LogWriter:
                 config_errors=["Missing required parameters"],
                 suggestions=[
                     "Use: LogWriter(spark, schema='my_schema', table_name='my_table')",
-                    "Or: LogWriter(spark, config=WriterConfig(...))"
-                ]
+                    "Or: LogWriter(spark, config=WriterConfig(...))",
+                ],
             )
 
         self.functions = functions if functions is not None else get_default_functions()
@@ -899,6 +898,7 @@ class LogWriter:
 
         total_rows = sum(r.get("rows_written", 0) for r in results)
         from datetime import datetime
+
         return {
             "table_name": self.storage_manager.table_fqn,
             "write_mode": self.config.write_mode.value,
@@ -925,7 +925,6 @@ class LogWriter:
             }
 
         try:
-
             # Basic anomaly detection logic
             if not log_rows:
                 return {
@@ -970,7 +969,11 @@ class LogWriter:
 
             total_anomalies = len(performance_anomalies)
             total_executions = len(log_rows)
-            anomaly_score = (total_anomalies / total_executions * 100) if total_executions > 0 else 0.0
+            anomaly_score = (
+                (total_anomalies / total_executions * 100)
+                if total_executions > 0
+                else 0.0
+            )
 
             return {
                 "performance_anomalies": performance_anomalies,
@@ -1012,12 +1015,18 @@ class LogWriter:
             df_info = get_dataframe_info(df)
 
             # Count failed executions
-            failed_executions = sum(1 for row in log_rows if not row.get("success", True))
+            failed_executions = sum(
+                1 for row in log_rows if not row.get("success", True)
+            )
 
             # Calculate quality score
             total_rows = df_info.get("row_count", len(log_rows))
             validation_rate = 100.0  # Simplified
-            data_quality_score = validation_rate if failed_executions == 0 else max(0, validation_rate - (failed_executions / total_rows * 100))
+            data_quality_score = (
+                validation_rate
+                if failed_executions == 0
+                else max(0, validation_rate - (failed_executions / total_rows * 100))
+            )
 
             # Check for null values in critical columns
             null_counts: Dict[str, int] = {}
@@ -1051,9 +1060,7 @@ class LogWriter:
     # ========================================================================
 
     def _convert_report_to_log_rows(
-        self,
-        report: PipelineReport,
-        run_id: str | None = None
+        self, report: PipelineReport, run_id: str | None = None
     ) -> list[LogRow]:
         """
         Convert a PipelineReport to log rows for storage.
@@ -1097,47 +1104,38 @@ class LogWriter:
                 "run_mode": report.mode.value,
                 "run_started_at": report.start_time,
                 "run_ended_at": report.end_time,
-
                 # Execution context
                 "execution_id": report.execution_id,
                 "pipeline_id": report.pipeline_id,
                 "schema": self.config.table_schema,
-
                 # Step-level information
                 "phase": "bronze",
                 "step_name": step_name,
                 "step_type": "bronze",
-
                 # Timing information
                 "start_time": parse_datetime(step_info.get("start_time")),
                 "end_time": parse_datetime(step_info.get("end_time")),
                 "duration_secs": float(step_info.get("duration", 0.0)),
-
                 # Table information
                 "table_fqn": step_info.get("output_table"),
                 "write_mode": step_info.get("write_mode"),
-
                 # Data metrics
                 "rows_processed": rows_processed,
                 "rows_written": int(step_info.get("rows_written") or rows_processed),
                 "input_rows": int(step_info.get("input_rows") or rows_processed),
                 "output_rows": int(step_info.get("rows_written") or rows_processed),
-
                 # Validation metrics
                 "valid_rows": valid_rows,
                 "invalid_rows": invalid_rows,
                 "validation_rate": validation_rate,
-
                 # Execution status
                 "success": step_info.get("status") == "completed",
                 "error_message": step_info.get("error"),
-
                 # Performance metrics
                 "memory_usage_mb": None,
                 "cpu_usage_percent": None,
-
                 # Metadata
-                "metadata": {}
+                "metadata": {},
             }
             log_rows.append(bronze_log_row)
 
@@ -1155,47 +1153,38 @@ class LogWriter:
                 "run_mode": report.mode.value,
                 "run_started_at": report.start_time,
                 "run_ended_at": report.end_time,
-
                 # Execution context
                 "execution_id": report.execution_id,
                 "pipeline_id": report.pipeline_id,
                 "schema": self.config.table_schema,
-
                 # Step-level information
                 "phase": "silver",
                 "step_name": step_name,
                 "step_type": "silver",
-
                 # Timing information
                 "start_time": parse_datetime(step_info.get("start_time")),
                 "end_time": parse_datetime(step_info.get("end_time")),
                 "duration_secs": float(step_info.get("duration", 0.0)),
-
                 # Table information
                 "table_fqn": step_info.get("output_table"),
                 "write_mode": step_info.get("write_mode"),
-
                 # Data metrics
                 "rows_processed": rows_processed,
                 "rows_written": int(step_info.get("rows_written") or rows_processed),
                 "input_rows": int(step_info.get("input_rows") or rows_processed),
                 "output_rows": int(step_info.get("rows_written") or rows_processed),
-
                 # Validation metrics
                 "valid_rows": valid_rows,
                 "invalid_rows": invalid_rows,
                 "validation_rate": validation_rate,
-
                 # Execution status
                 "success": step_info.get("status") == "completed",
                 "error_message": step_info.get("error"),
-
                 # Performance metrics
                 "memory_usage_mb": None,
                 "cpu_usage_percent": None,
-
                 # Metadata
-                "metadata": {}
+                "metadata": {},
             }
             log_rows.append(silver_log_row)
 
@@ -1213,56 +1202,45 @@ class LogWriter:
                 "run_mode": report.mode.value,
                 "run_started_at": report.start_time,
                 "run_ended_at": report.end_time,
-
                 # Execution context
                 "execution_id": report.execution_id,
                 "pipeline_id": report.pipeline_id,
                 "schema": self.config.table_schema,
-
                 # Step-level information
                 "phase": "gold",
                 "step_name": step_name,
                 "step_type": "gold",
-
                 # Timing information
                 "start_time": parse_datetime(step_info.get("start_time")),
                 "end_time": parse_datetime(step_info.get("end_time")),
                 "duration_secs": float(step_info.get("duration", 0.0)),
-
                 # Table information
                 "table_fqn": step_info.get("output_table"),
                 "write_mode": step_info.get("write_mode"),
-
                 # Data metrics
                 "rows_processed": rows_processed,
                 "rows_written": int(step_info.get("rows_written") or rows_processed),
                 "input_rows": int(step_info.get("input_rows") or rows_processed),
                 "output_rows": int(step_info.get("rows_written") or rows_processed),
-
                 # Validation metrics
                 "valid_rows": valid_rows,
                 "invalid_rows": invalid_rows,
                 "validation_rate": validation_rate,
-
                 # Execution status
                 "success": step_info.get("status") == "completed",
                 "error_message": step_info.get("error"),
-
                 # Performance metrics
                 "memory_usage_mb": None,
                 "cpu_usage_percent": None,
-
                 # Metadata
-                "metadata": {}
+                "metadata": {},
             }
             log_rows.append(gold_log_row)
 
         return log_rows
 
     def create_table(
-        self,
-        report: PipelineReport,
-        run_id: str | None = None
+        self, report: PipelineReport, run_id: str | None = None
     ) -> Dict[str, Any]:
         """
         Create or overwrite the log table with data from a PipelineReport.
@@ -1349,9 +1327,7 @@ class LogWriter:
             raise
 
     def append(
-        self,
-        report: PipelineReport,
-        run_id: str | None = None
+        self, report: PipelineReport, run_id: str | None = None
     ) -> Dict[str, Any]:
         """
         Append data from a PipelineReport to the log table.
@@ -1384,7 +1360,9 @@ class LogWriter:
             self.performance_monitor.start_operation(operation_id, "append")
 
             # Log operation start
-            self.logger.info(f"📊 Appending to log table {self.table_fqn} for run {run_id}")
+            self.logger.info(
+                f"📊 Appending to log table {self.table_fqn} for run {run_id}"
+            )
 
             # Convert report to log rows
             log_rows = self._convert_report_to_log_rows(report, run_id)
@@ -1393,9 +1371,7 @@ class LogWriter:
             self.storage_manager.create_table_if_not_exists(self.schema)
 
             # Write to storage with APPEND mode
-            write_result = self.storage_manager.write_batch(
-                log_rows, WriteMode.APPEND
-            )
+            write_result = self.storage_manager.write_batch(log_rows, WriteMode.APPEND)
 
             # Update metrics
             self._update_metrics(write_result, True)

@@ -17,7 +17,7 @@ Prerequisites
 2. **Install SparkForge:**
    .. code-block:: bash
 
-      pip install sparkforge pyspark
+      pip install pipeline_builder pyspark
 
 3. **Start Jupyter:**
    .. code-block:: bash
@@ -27,7 +27,7 @@ Prerequisites
 Running the Notebooks
 ~~~~~~~~~~~~~~~~~~~~~
 
-1. Navigate to this directory: ``cd sparkforge/notebooks``
+1. Navigate to this directory: ``cd pipeline_builder/notebooks``
 2. Start Jupyter: ``jupyter notebook``
 3. Open the notebook you want to run
 4. Execute cells step by step (Shift+Enter)

@@ -68,7 +68,7 @@ SparkForge follows these core security principles:
 SparkForge provides comprehensive input validation to prevent security vulnerabilities:
 
 ```python
-from sparkforge.models import BronzeStep
+from pipeline_builder.models import BronzeStep
 from pyspark.sql import functions as F
 
 # Secure validation rules
@@ -103,7 +103,7 @@ python -m pytest tests/security/ -v
 python tests/security/vulnerability_scanner.py
 
 # Run bandit security scan
-python -m bandit -r sparkforge/ -f json -o bandit-report.json
+python -m bandit -r pipeline_builder/ -f json -o bandit-report.json
 
 # Run safety dependency scan
 python -m safety check --json
@@ -172,7 +172,7 @@ python -m pytest tests/security/ -v
 python -m pytest tests/security/test_security_integration.py -v
 
 # Run security tests with coverage
-python -m pytest tests/security/ --cov=sparkforge --cov-report=html
+python -m pytest tests/security/ --cov=pipeline_builder --cov-report=html
 
 # Run security tests in CI/CD
 python -m pytest tests/security/ --tb=short --junitxml=security-results.xml
@@ -249,7 +249,7 @@ SparkForge includes comprehensive vulnerability scanning:
 
 ```bash
 # Bandit - Python security linter
-bandit -r sparkforge/ -f json -o bandit-report.json
+bandit -r pipeline_builder/ -f json -o bandit-report.json
 
 # Safety - Dependency vulnerability scanner
 safety check --json
@@ -615,7 +615,7 @@ For additional security support:
 
 - Review the [troubleshooting guide](COMPREHENSIVE_TROUBLESHOOTING_GUIDE.md)
 - Check the [API reference](ENHANCED_API_REFERENCE.md)
-- Submit security issues on [GitHub](https://github.com/eddiethedean/sparkforge/issues)
-- Join the [community discussions](https://github.com/eddiethedean/sparkforge/discussions)
+- Submit security issues on [GitHub](https://github.com/eddiethedean/pipeline_builder/issues)
+- Join the [community discussions](https://github.com/eddiethedean/pipeline_builder/discussions)
 
 Remember: Security is an ongoing process that requires continuous attention, monitoring, and improvement.

@@ -12,14 +12,7 @@ from unittest.mock import Mock
 
 import pytest
 
-# Add the performance tests directory to sys.path for imports
-performance_tests_dir = Path(__file__).parent
-if str(performance_tests_dir) not in sys.path:
-    sys.path.insert(0, str(performance_tests_dir))
-
-from performance_monitor import performance_monitor
-
-from sparkforge.models import (
+from pipeline_builder.models import (
     BronzeStep,
     GoldStep,
     ParallelConfig,
@@ -27,11 +20,22 @@ from sparkforge.models import (
     SilverStep,
     ValidationThresholds,
 )
-from sparkforge.validation import (
+from pipeline_builder.validation import (
     get_dataframe_info,
     safe_divide,
     validate_dataframe_schema,
 )
+
+# Add the performance tests directory to sys.path for imports
+performance_tests_dir = Path(__file__).parent
+if str(performance_tests_dir) not in sys.path:
+    sys.path.insert(0, str(performance_tests_dir))
+
+try:
+    from performance_monitor import performance_monitor
+except ImportError:
+    # Fallback for when performance_monitor is not available
+    performance_monitor = None
 
 
 class TestValidationPerformance:

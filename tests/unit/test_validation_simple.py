@@ -1,5 +1,5 @@
 """
-Simplified tests for sparkforge.validation modules that work with mock_spark.
+Simplified tests for pipeline_builder.validation modules that work with mock_spark.
 """
 
 from datetime import datetime
@@ -11,9 +11,9 @@ from mock_spark import (
     StringType,
 )
 
-from sparkforge.errors import ValidationError
-from sparkforge.logging import PipelineLogger
-from sparkforge.models import (
+from pipeline_builder.errors import ValidationError
+from pipeline_builder.logging import PipelineLogger
+from pipeline_builder.models import (
     BronzeStep,
     ExecutionContext,
     GoldStep,
@@ -22,13 +22,13 @@ from sparkforge.models import (
     SilverStep,
     ValidationThresholds,
 )
-from sparkforge.models.enums import ExecutionMode
-from sparkforge.validation.pipeline_validation import (
+from pipeline_builder.models.enums import ExecutionMode
+from pipeline_builder.validation.pipeline_validation import (
     StepValidator,
     UnifiedValidator,
     ValidationResult,
 )
-from sparkforge.validation.utils import get_dataframe_info, safe_divide
+from pipeline_builder.validation.utils import get_dataframe_info, safe_divide
 
 
 class TestValidationUtils:

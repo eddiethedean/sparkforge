@@ -9,8 +9,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from sparkforge.writer.exceptions import WriterError
-from sparkforge.writer.monitoring import PerformanceMonitor
+from pipeline_builder.writer.exceptions import WriterError
+from pipeline_builder.writer.monitoring import PerformanceMonitor
 
 
 class TestTrap8GenericErrorHandlingPerformance:
@@ -99,13 +99,13 @@ class TestTrap8GenericErrorHandlingPerformance:
     ):
         """Test that analyze_execution_trends raises WriterError instead of returning empty dict."""
         # Create analytics engine
-        from sparkforge.writer.monitoring import AnalyticsEngine
+        from pipeline_builder.writer.monitoring import AnalyticsEngine
 
         analytics = AnalyticsEngine(spark=spark_session, logger=Mock())
 
         # Mock QueryBuilder.build_daily_trends_query to raise an exception
         with patch(
-            "sparkforge.writer.monitoring.QueryBuilder.build_daily_trends_query",
+            "pipeline_builder.writer.monitoring.QueryBuilder.build_daily_trends_query",
             side_effect=Exception("Query failed"),
         ):
             # Should raise WriterError with proper error chaining
@@ -121,13 +121,13 @@ class TestTrap8GenericErrorHandlingPerformance:
     def test_detect_anomalies_raises_specific_exception_on_failure(self, spark_session):
         """Test that detect_anomalies raises WriterError instead of returning empty dict."""
         # Create analytics engine
-        from sparkforge.writer.monitoring import AnalyticsEngine
+        from pipeline_builder.writer.monitoring import AnalyticsEngine
 
         analytics = AnalyticsEngine(spark=spark_session, logger=Mock())
 
         # Mock QueryBuilder.calculate_statistics to raise an exception
         with patch(
-            "sparkforge.writer.monitoring.QueryBuilder.calculate_statistics",
+            "pipeline_builder.writer.monitoring.QueryBuilder.calculate_statistics",
             side_effect=Exception("Anomaly detection failed"),
         ):
             # Should raise WriterError with proper error chaining
@@ -145,13 +145,13 @@ class TestTrap8GenericErrorHandlingPerformance:
     ):
         """Test that generate_performance_report raises WriterError instead of returning empty dict."""
         # Create analytics engine
-        from sparkforge.writer.monitoring import AnalyticsEngine
+        from pipeline_builder.writer.monitoring import AnalyticsEngine
 
         analytics = AnalyticsEngine(spark=spark_session, logger=Mock())
 
         # Mock QueryBuilder.get_common_aggregations to raise an exception
         with patch(
-            "sparkforge.writer.monitoring.QueryBuilder.get_common_aggregations",
+            "pipeline_builder.writer.monitoring.QueryBuilder.get_common_aggregations",
             side_effect=Exception("Report generation failed"),
         ):
             # Should raise WriterError with proper error chaining

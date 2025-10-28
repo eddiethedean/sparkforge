@@ -9,7 +9,7 @@ any violations that would cause issues in Python 3.8.
 import ast
 import sys
 from pathlib import Path
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 
 def find_dict_annotations(project_root: Path) -> List[Tuple[str, int, str, str]]:
@@ -25,7 +25,7 @@ def find_dict_annotations(project_root: Path) -> List[Tuple[str, int, str, str]]
     violations = []
 
     # Get all Python files
-    python_files = []
+    python_files: List[Path] = []
 
     # Scan sparkforge directory
     sparkforge_dir = project_root / "sparkforge"
@@ -39,9 +39,18 @@ def find_dict_annotations(project_root: Path) -> List[Tuple[str, int, str, str]]
 
     # Filter out excluded patterns
     exclude_patterns = {
-        "__pycache__", ".git", ".pytest_cache", "node_modules",
-        "*.pyc", "*.pyo", "*.pyd", ".coverage", "htmlcov",
-        "dist", "build", "*.egg-info"
+        "__pycache__",
+        ".git",
+        ".pytest_cache",
+        "node_modules",
+        "*.pyc",
+        "*.pyo",
+        "*.pyd",
+        ".coverage",
+        "htmlcov",
+        "dist",
+        "build",
+        "*.egg-info",
     }
 
     filtered_files = []
@@ -52,20 +61,17 @@ def find_dict_annotations(project_root: Path) -> List[Tuple[str, int, str, str]]
     # Check each file
     for py_file in filtered_files:
         try:
-            with open(py_file, encoding='utf-8') as f:
+            with open(py_file, encoding="utf-8") as f:
                 content = f.read()
 
-            lines = content.split('\n')
+            lines = content.split("\n")
 
             # Check for Dict in type annotations
             for i, line in enumerate(lines, 1):
                 if has_dict_annotation(line):
-                    violations.append((
-                        str(py_file),
-                        i,
-                        line.strip(),
-                        "Dict type annotation"
-                    ))
+                    violations.append(
+                        (str(py_file), i, line.strip(), "Dict type annotation")
+                    )
 
             # Also check AST for more complex cases
             try:
@@ -75,52 +81,62 @@ def find_dict_annotations(project_root: Path) -> List[Tuple[str, int, str, str]]
                         if node_has_dict_annotation(node):
                             line_num = node.lineno
                             line_content = lines[line_num - 1].strip()
-                            violations.append((
-                                str(py_file),
-                                line_num,
-                                line_content,
-                                "Dict type annotation"
-                            ))
-
-                    elif isinstance(node, ast.FunctionDef):
-                        if (node.returns and
-                            node_has_dict_annotation(node.returns)):
-                            line_num = node.lineno
-                            line_content = lines[line_num - 1].strip()
-                            violations.append((
-                                str(py_file),
-                                line_num,
-                                line_content,
-                                "Dict return annotation"
-                            ))
-
-                        for arg in node.args.args:
-                            if (arg.annotation and
-                                node_has_dict_annotation(arg.annotation)):
-                                line_num = arg.lineno
-                                line_content = lines[line_num - 1].strip()
-                                violations.append((
+                            violations.append(
+                                (
                                     str(py_file),
                                     line_num,
                                     line_content,
-                                    "Dict parameter annotation"
-                                ))
+                                    "Dict type annotation",
+                                )
+                            )
+
+                    elif isinstance(node, ast.FunctionDef):
+                        if node.returns and node_has_dict_annotation(node.returns):
+                            line_num = node.lineno
+                            line_content = lines[line_num - 1].strip()
+                            violations.append(
+                                (
+                                    str(py_file),
+                                    line_num,
+                                    line_content,
+                                    "Dict return annotation",
+                                )
+                            )
+
+                        for arg in node.args.args:
+                            if arg.annotation and node_has_dict_annotation(
+                                arg.annotation
+                            ):
+                                line_num = arg.lineno
+                                line_content = lines[line_num - 1].strip()
+                                violations.append(
+                                    (
+                                        str(py_file),
+                                        line_num,
+                                        line_content,
+                                        "Dict parameter annotation",
+                                    )
+                                )
 
                     elif isinstance(node, ast.Assign):
                         # Check type alias assignments
                         for target in node.targets:
-                            if (isinstance(target, ast.Name) and
-                                isinstance(node.value, ast.Subscript) and
-                                isinstance(node.value.value, ast.Name) and
-                                node.value.value.id == 'Dict'):
+                            if (
+                                isinstance(target, ast.Name)
+                                and isinstance(node.value, ast.Subscript)
+                                and isinstance(node.value.value, ast.Name)
+                                and node.value.value.id == "Dict"
+                            ):
                                 line_num = node.lineno
                                 line_content = lines[line_num - 1].strip()
-                                violations.append((
-                                    str(py_file),
-                                    line_num,
-                                    line_content,
-                                    "Dict type alias"
-                                ))
+                                violations.append(
+                                    (
+                                        str(py_file),
+                                        line_num,
+                                        line_content,
+                                        "Dict type alias",
+                                    )
+                                )
 
             except SyntaxError:
                 # Skip files with syntax errors
@@ -136,15 +152,15 @@ def find_dict_annotations(project_root: Path) -> List[Tuple[str, int, str, str]]
 def has_dict_annotation(line: str) -> bool:
     """Check if a line contains Dict type annotation."""
     # Skip comments and docstrings
-    if line.strip().startswith('#') or line.strip().startswith('"""'):
+    if line.strip().startswith("#") or line.strip().startswith('"""'):
         return False
 
     # Check for Dict[ pattern (but not in strings)
-    if 'Dict[' in line and not is_in_string(line, 'Dict['):
+    if "Dict[" in line and not is_in_string(line, "Dict["):
         return True
 
     # Check for typing.Dict pattern
-    if 'typing.Dict' in line:
+    if "typing.Dict" in line:
         return True
 
     return False
@@ -156,14 +172,14 @@ def is_in_string(line: str, pattern: str) -> bool:
     quote_char = None
 
     for i, char in enumerate(line):
-        if char in ['"', "'"] and (i == 0 or line[i-1] != '\\'):
+        if char in ['"', "'"] and (i == 0 or line[i - 1] != "\\"):
             if not in_string:
                 in_string = True
                 quote_char = char
             elif char == quote_char:
                 in_string = False
                 quote_char = None
-        elif in_string and pattern in line[i:i+len(pattern)]:
+        elif in_string and pattern in line[i : i + len(pattern)]:
             return True
 
     return False
@@ -173,13 +189,13 @@ def node_has_dict_annotation(node: ast.AST) -> bool:
     """Check if an AST node has Dict annotation."""
     if isinstance(node, ast.Subscript):
         if isinstance(node.value, ast.Name):
-            return node.value.id == 'Dict'
+            return node.value.id == "Dict"
     elif isinstance(node, ast.Name):
-        return node.id == 'Dict'
+        return node.id == "Dict"
     return False
 
 
-def main():
+def main() -> int:
     """Main function to check for Dict annotations."""
     project_root = Path(__file__).parent.parent
     violations = find_dict_annotations(project_root)
@@ -189,7 +205,7 @@ def main():
         print()
 
         # Group by file
-        files = {}
+        files: Dict[str, List[Tuple[int, str, str]]] = {}
         for file_path, line_num, line_content, violation_type in violations:
             if file_path not in files:
                 files[file_path] = []
@@ -205,7 +221,9 @@ def main():
         print()
         print("💡 Fix: Replace 'Dict' with 'dict' in type annotations")
         print("   Example: Dict[str, int] -> dict[str, int]")
-        print("   Example: from typing import Dict -> from typing import dict (or remove import)")
+        print(
+            "   Example: from typing import Dict -> from typing import dict (or remove import)"
+        )
 
         return 1
     else:
@@ -213,5 +231,5 @@ def main():
         return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

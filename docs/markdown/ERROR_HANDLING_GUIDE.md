@@ -98,7 +98,7 @@ SparkForgeError (base)
 ### **1. Basic Error Handling**
 
 ```python
-from sparkforge import PipelineBuilder, PipelineConfigurationError, StepError
+from pipeline_builder import PipelineBuilder, PipelineConfigurationError, StepError
 
 try:
     builder = PipelineBuilder(spark=None, schema="")  # Invalid
@@ -111,7 +111,7 @@ except PipelineConfigurationError as e:
 ### **2. Step Error Handling**
 
 ```python
-from sparkforge import StepError, DependencyError
+from pipeline_builder import StepError, DependencyError
 
 try:
     # Add step with invalid dependency
@@ -132,7 +132,7 @@ except DependencyError as e:
 ### **3. Error Context and Recovery**
 
 ```python
-from sparkforge.errors import (
+from pipeline_builder.errors import (
     StepExecutionError,
     is_recoverable_error,
     should_retry_error,
@@ -166,7 +166,7 @@ except StepExecutionError as e:
 ### **4. Error Decorators**
 
 ```python
-from sparkforge.errors import handle_errors, PipelineExecutionError
+from pipeline_builder.errors import handle_errors, PipelineExecutionError
 
 @handle_errors(
     error_type=PipelineExecutionError,
@@ -183,7 +183,7 @@ def execute_pipeline(pipeline, sources):
 ### **1. Error Context Creation**
 
 ```python
-from sparkforge.errors import create_error_context
+from pipeline_builder.errors import create_error_context
 
 context = create_error_context(
     step_name="bronze_events",
@@ -197,7 +197,7 @@ context = create_error_context(
 ### **2. Error Logging**
 
 ```python
-from sparkforge.errors import log_error
+from pipeline_builder.errors import log_error
 import logging
 
 logger = logging.getLogger(__name__)
@@ -212,7 +212,7 @@ except PipelineExecutionError as e:
 ### **3. Error Formatting**
 
 ```python
-from sparkforge.errors import format_error_message
+from pipeline_builder.errors import format_error_message
 
 error = StepExecutionError("Step failed", step_name="bronze_events")
 formatted = format_error_message(error)
@@ -224,7 +224,7 @@ print(formatted)  # "[bronze_events] Step failed | Context: step_type=bronze | S
 ### **1. Error Metrics**
 
 ```python
-from sparkforge.errors import ErrorSeverity, ErrorCategory
+from pipeline_builder.errors import ErrorSeverity, ErrorCategory
 
 # Track error metrics
 error_counts = {

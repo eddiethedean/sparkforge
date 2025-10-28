@@ -20,16 +20,16 @@ else:
     from pyspark.sql import DataFrame
     from pyspark.sql import functions as F
 
-from sparkforge.execution import (
+from pipeline_builder.execution import (
     ExecutionMode,
     ExecutionResult,
     StepExecutionResult,
     StepStatus,
     StepType,
 )
-from sparkforge.models import BronzeStep, GoldStep, PipelineConfig, SilverStep
-from sparkforge.pipeline.models import PipelineMode, PipelineStatus
-from sparkforge.pipeline.runner import PipelineRunner, SimplePipelineRunner
+from pipeline_builder.models import BronzeStep, GoldStep, PipelineConfig, SilverStep
+from pipeline_builder.pipeline.models import PipelineMode, PipelineStatus
+from pipeline_builder.pipeline.runner import PipelineRunner, SimplePipelineRunner
 
 
 class TestSimplePipelineRunner:
@@ -172,7 +172,7 @@ class TestSimplePipelineRunner:
         result = runner._convert_mode(unknown_mode)
         assert result == ExecutionMode.INITIAL  # Default fallback
 
-    @patch("sparkforge.pipeline.runner.datetime")
+    @patch("pipeline_builder.pipeline.runner.datetime")
     def test_run_pipeline_success(
         self, mock_datetime, mock_spark, mock_config, sample_bronze_step
     ):
@@ -479,7 +479,7 @@ class TestSimplePipelineRunner:
             steps=[],
         )
 
-        with patch("sparkforge.pipeline.runner.datetime") as mock_datetime:
+        with patch("pipeline_builder.pipeline.runner.datetime") as mock_datetime:
             mock_datetime.now.return_value = datetime(2024, 1, 15, 10, 35, 0)
 
             report = runner._create_pipeline_report(
@@ -497,7 +497,7 @@ class TestSimplePipelineRunner:
 
         start_time = datetime(2024, 1, 15, 10, 30, 0)
 
-        with patch("sparkforge.pipeline.runner.datetime") as mock_datetime:
+        with patch("pipeline_builder.pipeline.runner.datetime") as mock_datetime:
             end_time = datetime(2024, 1, 15, 10, 35, 0)
             mock_datetime.now.return_value = end_time
 

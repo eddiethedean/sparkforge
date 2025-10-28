@@ -4,7 +4,7 @@ Tests for sparkforge.constants module.
 This module tests all constants and configuration values.
 """
 
-from sparkforge.constants import (
+from pipeline_builder.constants import (
     BYTES_PER_GB,
     # Memory and Size Constants
     BYTES_PER_KB,
@@ -250,7 +250,7 @@ class TestConstantsIntegration:
         string_constants = [DEFAULT_LOG_LEVEL, DEFAULT_SCHEMA, TEST_SCHEMA]
 
         for constant in string_constants:
-            assert (
-                len(constant) > 0
-            ), f"String constant '{constant}' should not be empty"
+            assert len(constant) > 0, (
+                f"String constant '{constant}' should not be empty"
+            )
             assert isinstance(constant, str), f"Constant {constant} should be a string"

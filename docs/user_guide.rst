@@ -51,7 +51,7 @@ Use the PipelineBuilder to construct your data pipeline:
 
 .. code-block:: python
 
-   from sparkforge import PipelineBuilder
+   from pipeline_builder import PipelineBuilder
    from pyspark.sql import functions as F
 
    # Initialize builder
@@ -150,7 +150,7 @@ Configure validation thresholds for each layer:
 
 .. code-block:: python
 
-   from sparkforge.models import ValidationThresholds
+   from pipeline_builder.models import ValidationThresholds
 
    thresholds = ValidationThresholds(
        bronze=95.0,  # 95% of bronze data must pass validation
@@ -198,7 +198,7 @@ SparkForge includes built-in logging and monitoring:
 **Pipeline Logging**
 .. code-block:: python
 
-   from sparkforge.logging import PipelineLogger
+   from pipeline_builder.logging import PipelineLogger
 
    logger = PipelineLogger(level="INFO")
    builder = PipelineBuilder(spark=spark, schema="analytics", logger=logger)
@@ -321,8 +321,8 @@ Troubleshooting
 Common Issues
 ~~~~~~~~~~~~~
 
-**1. "No module named 'sparkforge'"**
-- Solution: Run ``pip install sparkforge``
+**1. "No module named 'pipeline_builder'"**
+- Solution: Run ``pip install pipeline_builder``
 
 **2. "Java gateway process exited"**
 - Solution: Install Java 8+ and set JAVA_HOME

@@ -19,9 +19,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 # NOTE: mock-spark patches removed - now using mock-spark 1.3.0 which doesn't need patches
 # The apply_mock_spark_patches() call was causing test pollution
 
-from sparkforge.errors import ExecutionError
-from sparkforge.execution import ExecutionEngine, ExecutionMode
-from sparkforge.models.steps import GoldStep, SilverStep
+from pipeline_builder.errors import ExecutionError
+from pipeline_builder.execution import ExecutionEngine, ExecutionMode
+from pipeline_builder.models.steps import GoldStep, SilverStep
 
 
 class TestTrap5DefaultSchemaFallbacks:
@@ -207,7 +207,8 @@ class TestTrap5DefaultSchemaFallbacks:
         )
 
         # Create ExecutionEngine with real logger to capture error messages
-        from sparkforge.logging import PipelineLogger
+        from pipeline_builder.logging import PipelineLogger
+
         logger = PipelineLogger()
 
         engine = ExecutionEngine(
@@ -231,9 +232,7 @@ class TestTrap5DefaultSchemaFallbacks:
             mock_logger.assert_called()
             log_calls = [str(call) for call in mock_logger.call_args_list]
             # Check for the new error message format
-            assert any(
-                "Failed SILVER step: test_silver" in call for call in log_calls
-            )
+            assert any("Failed SILVER step: test_silver" in call for call in log_calls)
 
     def test_no_silent_fallback_to_default_schema(self, spark_session):
         """Test that no silent fallback to 'default' schema occurs."""
@@ -264,7 +263,7 @@ class TestTrap5DefaultSchemaFallbacks:
         context = {"test_bronze": test_df}
 
         # Mock fqn to detect if "default" schema is used
-        with patch("sparkforge.execution.fqn") as mock_fqn:
+        with patch("pipeline_builder.execution.fqn") as mock_fqn:
             mock_fqn.return_value = "test_schema.test_table"
 
             # Should raise ExecutionError before fqn is called

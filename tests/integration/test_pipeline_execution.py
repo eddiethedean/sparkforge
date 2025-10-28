@@ -13,14 +13,14 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
 else:
     from pyspark.sql import functions as F
 
-from sparkforge.execution import ExecutionEngine
-from sparkforge.models import (
+from pipeline_builder.execution import ExecutionEngine
+from pipeline_builder.models import (
     BronzeStep,
     ParallelConfig,
     PipelineConfig,
     ValidationThresholds,
 )
-from sparkforge.pipeline.builder import PipelineBuilder
+from pipeline_builder.pipeline.builder import PipelineBuilder
 
 
 class TestPipelineExecutionFlow:

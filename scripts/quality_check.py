@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Tuple
 class QualityChecker:
     """Comprehensive quality checker for SparkForge."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.project_root = Path(__file__).parent.parent
         self.results: Dict[str, Any] = {}
 
@@ -158,7 +158,7 @@ class QualityChecker:
         print(f"📄 Detailed report saved to: {report_file}")
 
 
-def main():
+def main() -> None:
     """Main function."""
     checker = QualityChecker()
 

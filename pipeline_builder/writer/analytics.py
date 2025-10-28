@@ -466,7 +466,9 @@ class TrendAnalyzer:
         else:
             self.logger = logger
 
-    def analyze_execution_trends(self, df: DataFrame, days: int = 30) -> ExecutionTrends:
+    def analyze_execution_trends(
+        self, df: DataFrame, days: int = 30
+    ) -> ExecutionTrends:
         """
         Analyze execution trends over time.
 

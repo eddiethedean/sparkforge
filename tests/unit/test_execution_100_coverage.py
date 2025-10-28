@@ -1,5 +1,5 @@
 """
-Additional tests for sparkforge.execution module to achieve 100% coverage.
+Additional tests for pipeline_builder.execution module to achieve 100% coverage.
 
 This module covers the remaining uncovered lines in execution.py.
 """
@@ -15,14 +15,14 @@ from mock_spark import (
     StringType,
 )
 
-from sparkforge.errors import ExecutionError
-from sparkforge.execution import (
+from pipeline_builder.errors import ExecutionError
+from pipeline_builder.execution import (
     ExecutionEngine,
     ExecutionMode,
     StepStatus,
     StepType,
 )
-from sparkforge.models import (
+from pipeline_builder.models import (
     GoldStep,
     ParallelConfig,
     PipelineConfig,
@@ -33,9 +33,11 @@ from sparkforge.models import (
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
     from mock_spark import functions as F
+
     MockF = F
 else:
     from pyspark.sql import functions as F
+
     MockF = None
 
 
@@ -176,7 +178,7 @@ class TestExecuteStepComplete:
 
         # Execute step with validation
         context = {"test_bronze": test_df}
-        with patch("sparkforge.execution.apply_column_rules") as mock_apply_rules:
+        with patch("pipeline_builder.execution.apply_column_rules") as mock_apply_rules:
             mock_apply_rules.return_value = (test_df, {}, {})
             result = engine.execute_step(silver_step, context, ExecutionMode.INITIAL)
 

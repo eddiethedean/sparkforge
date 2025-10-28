@@ -45,7 +45,7 @@ print(f"Bronze validation: {bronze_result.validation_result.validation_rate:.1f}
 | **Java not found** | Install Java 8+ and set JAVA_HOME |
 | **Memory errors** | Increase driver memory: `--driver-memory 4g` |
 | **Validation failures** | Lower validation thresholds temporarily |
-| **Import errors** | Check SparkForge installation: `pip install sparkforge` |
+| **Import errors** | Check SparkForge installation: `pip install pipeline_builder` |
 | **Permission errors** | Check write permissions for warehouse directory |
 
 ---
@@ -80,7 +80,7 @@ echo $JAVA_HOME
 
 ### Python Environment Issues
 
-**Problem**: `ModuleNotFoundError: No module named 'sparkforge'`
+**Problem**: `ModuleNotFoundError: No module named 'pipeline_builder'`
 
 **Solution**:
 ```bash
@@ -88,17 +88,17 @@ echo $JAVA_HOME
 python --version
 
 # Install SparkForge
-pip install sparkforge
+pip install pipeline_builder
 
 # Verify installation
-python -c "import sparkforge; print('SparkForge installed successfully')"
+python -c "import pipeline_builder; print('SparkForge installed successfully')"
 
 # If using virtual environment
-python -m venv sparkforge_env
-source sparkforge_env/bin/activate  # Linux/Mac
+python -m venv pipeline_builder_env
+source pipeline_builder_env/bin/activate  # Linux/Mac
 # or
-sparkforge_env\Scripts\activate  # Windows
-pip install sparkforge
+pipeline_builder_env\Scripts\activate  # Windows
+pip install pipeline_builder
 ```
 
 ### Spark Configuration Issues
@@ -387,7 +387,7 @@ def clean_numeric_data(df, column):
 **Diagnosis**:
 ```python
 # Profile pipeline performance
-from sparkforge.performance import performance_monitor
+from pipeline_builder.performance import performance_monitor
 import time
 
 start_time = time.time()
@@ -628,7 +628,7 @@ executor.clear_execution_state()
 
 ```python
 # Profile individual steps
-from sparkforge.performance import time_operation
+from pipeline_builder.performance import time_operation
 
 @time_operation("bronze_validation")
 def profile_bronze():

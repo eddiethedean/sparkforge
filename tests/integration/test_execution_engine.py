@@ -21,8 +21,8 @@ else:
     from pyspark.sql import DataFrame
     from pyspark.sql import functions as F
 
-from sparkforge.errors import ExecutionError, ValidationError
-from sparkforge.execution import (
+from pipeline_builder.errors import ExecutionError, ValidationError
+from pipeline_builder.execution import (
     ExecutionEngine,
     ExecutionMode,
     ExecutionResult,
@@ -30,7 +30,7 @@ from sparkforge.execution import (
     StepStatus,
     StepType,
 )
-from sparkforge.models import BronzeStep, GoldStep, PipelineConfig, SilverStep
+from pipeline_builder.models import BronzeStep, GoldStep, PipelineConfig, SilverStep
 
 
 class TestExecutionMode:
@@ -354,8 +354,8 @@ class TestExecutionEngine:
 
         engine = ExecutionEngine(mock_spark, mock_config)
 
-        with patch("sparkforge.execution.fqn") as mock_fqn, patch(
-            "sparkforge.execution.apply_column_rules"
+        with patch("pipeline_builder.execution.fqn") as mock_fqn, patch(
+            "pipeline_builder.execution.apply_column_rules"
         ) as mock_apply_rules:
             mock_fqn.return_value = "test_schema.test_table"
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
@@ -394,8 +394,8 @@ class TestExecutionEngine:
 
         engine = ExecutionEngine(mock_spark, mock_config)
 
-        with patch("sparkforge.execution.fqn") as mock_fqn, patch(
-            "sparkforge.execution.apply_column_rules"
+        with patch("pipeline_builder.execution.fqn") as mock_fqn, patch(
+            "pipeline_builder.execution.apply_column_rules"
         ) as mock_apply_rules:
             mock_fqn.return_value = "test_schema.test_table"
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
@@ -424,8 +424,8 @@ class TestExecutionEngine:
 
         engine = ExecutionEngine(mock_spark, mock_config)
 
-        with patch("sparkforge.execution.fqn") as mock_fqn, patch(
-            "sparkforge.execution.apply_column_rules"
+        with patch("pipeline_builder.execution.fqn") as mock_fqn, patch(
+            "pipeline_builder.execution.apply_column_rules"
         ) as mock_apply_rules:
             mock_fqn.return_value = "test_schema.test_table"
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
@@ -608,8 +608,8 @@ class TestExecutionEngine:
 
         engine = ExecutionEngine(mock_spark, mock_config)
 
-        with patch("sparkforge.execution.fqn") as mock_fqn, patch(
-            "sparkforge.execution.apply_column_rules"
+        with patch("pipeline_builder.execution.fqn") as mock_fqn, patch(
+            "pipeline_builder.execution.apply_column_rules"
         ) as mock_apply_rules:
             mock_fqn.return_value = "test_schema.test_table"
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
@@ -662,8 +662,8 @@ class TestExecutionEngine:
 
         engine = ExecutionEngine(mock_spark, mock_config)
 
-        with patch("sparkforge.execution.fqn") as mock_fqn, patch(
-            "sparkforge.execution.apply_column_rules"
+        with patch("pipeline_builder.execution.fqn") as mock_fqn, patch(
+            "pipeline_builder.execution.apply_column_rules"
         ) as mock_apply_rules:
             mock_fqn.return_value = "test_schema.test_table"
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
@@ -757,8 +757,8 @@ class TestExecutionEngine:
 
         engine = ExecutionEngine(mock_spark, mock_config)
 
-        with patch("sparkforge.execution.fqn") as mock_fqn, patch(
-            "sparkforge.execution.apply_column_rules"
+        with patch("pipeline_builder.execution.fqn") as mock_fqn, patch(
+            "pipeline_builder.execution.apply_column_rules"
         ) as mock_apply_rules:
             mock_fqn.return_value = "test_schema.test_table"
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
@@ -766,7 +766,9 @@ class TestExecutionEngine:
             steps = [bronze_step, silver_step, gold_step]
             # Provide bronze data in context
             context = {"bronze1": mock_df}
-            result = engine.execute_pipeline(steps, ExecutionMode.INITIAL, context=context)
+            result = engine.execute_pipeline(
+                steps, ExecutionMode.INITIAL, context=context
+            )
 
             # Verify execution order: bronze first, then silver, then gold
             assert len(result.steps) == 3
@@ -789,8 +791,8 @@ class TestExecutionEngine:
 
         engine = ExecutionEngine(mock_spark, mock_config)
 
-        with patch("sparkforge.execution.fqn") as mock_fqn, patch(
-            "sparkforge.execution.apply_column_rules"
+        with patch("pipeline_builder.execution.fqn") as mock_fqn, patch(
+            "pipeline_builder.execution.apply_column_rules"
         ) as mock_apply_rules:
             mock_fqn.return_value = "test_schema.test_table"
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
@@ -841,8 +843,8 @@ class TestExecutionEngine:
 
         engine = ExecutionEngine(mock_spark, mock_config)
 
-        with patch("sparkforge.execution.fqn") as mock_fqn, patch(
-            "sparkforge.execution.apply_column_rules"
+        with patch("pipeline_builder.execution.fqn") as mock_fqn, patch(
+            "pipeline_builder.execution.apply_column_rules"
         ) as mock_apply_rules:
             mock_fqn.return_value = "test_schema.test_table"
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
@@ -869,7 +871,7 @@ class TestExecutionEngine:
 
     def test_backward_compatibility_aliases(self):
         """Test that backward compatibility aliases work."""
-        from sparkforge.execution import (
+        from pipeline_builder.execution import (
             UnifiedExecutionEngine,
             UnifiedStepExecutionResult,
         )

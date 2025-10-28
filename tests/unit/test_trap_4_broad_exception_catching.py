@@ -10,12 +10,12 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from sparkforge.writer.analytics import DataQualityAnalyzer
-from sparkforge.writer.core import LogWriter
-from sparkforge.writer.exceptions import WriterError, WriterTableError
-from sparkforge.writer.models import WriterConfig
-from sparkforge.writer.monitoring import PerformanceMonitor
-from sparkforge.writer.storage import StorageManager
+from pipeline_builder.writer.analytics import DataQualityAnalyzer
+from pipeline_builder.writer.core import LogWriter
+from pipeline_builder.writer.exceptions import WriterError, WriterTableError
+from pipeline_builder.writer.models import WriterConfig
+from pipeline_builder.writer.monitoring import PerformanceMonitor
+from pipeline_builder.writer.storage import StorageManager
 
 
 class TestTrap4BroadExceptionCatching:

@@ -16,14 +16,14 @@ from unittest.mock import Mock
 import pytest
 from pyspark.sql import SparkSession
 
-from sparkforge.logging import PipelineLogger
-from sparkforge.models import (
+from pipeline_builder.logging import PipelineLogger
+from pipeline_builder.models import (
     ExecutionContext,
     ExecutionMode,
     ExecutionResult,
     StepResult,
 )
-from sparkforge.writer.models import LogRow, WriteMode, WriterConfig
+from pipeline_builder.writer.models import LogRow, WriteMode, WriterConfig
 
 
 @pytest.fixture(scope="session")
@@ -34,6 +34,8 @@ def spark_session():
         .master("local[2]")
         .config("spark.sql.adaptive.enabled", "true")
         .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
+        .config("spark.driver.host", "127.0.0.1")
+        .config("spark.driver.bindAddress", "127.0.0.1")
         .getOrCreate()
     )
 

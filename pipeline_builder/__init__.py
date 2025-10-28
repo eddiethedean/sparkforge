@@ -1,5 +1,5 @@
 """
-The framework - A production-ready data pipeline framework for Apache Spark & Delta Lake.
+Pipeline Builder - A production-ready data pipeline framework for Apache Spark & Delta Lake.
 
 This framework transforms complex Spark + Delta Lake development into clean, maintainable code
 using the proven Medallion Architecture (Bronze → Silver → Gold). Features include:
@@ -15,8 +15,8 @@ using the proven Medallion Architecture (Bronze → Silver → Gold). Features i
 - **Flexible Engine Support**: Works with PySpark or mock-spark
 
 Quick Start:
-    # Install: pip install sparkforge[pyspark]  # or sparkforge[mock]
-    from the framework import PipelineBuilder
+    # Install: pip install pipeline_builder[pyspark]  # or pipeline_builder[mock]
+    from pipeline_builder import PipelineBuilder
     from pyspark.sql import functions as F
 
     # Initialize Spark (works with PySpark or mock-spark)

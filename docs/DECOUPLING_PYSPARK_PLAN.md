@@ -7,12 +7,12 @@ Status: In Progress
 Enable Sparkforge to run on either PySpark or mock-spark without changing user code by introducing a compatibility layer and refactoring imports to use it.
 
 ## Approach Overview
-- Add `sparkforge.compat` that exposes `SparkSession`, `DataFrame`, `Column`, `functions as F`, and `types`.
+- Add `pipeline_builder.compat` that exposes `SparkSession`, `DataFrame`, `Column`, `functions as F`, and `types`.
 - Resolve engine via env var `SPARKFORGE_ENGINE={pyspark|mock}` → PySpark (if importable) → mock-spark.
-- Refactor library imports to use `sparkforge.compat` instead of `pyspark.*` directly.
+- Refactor library imports to use `pipeline_builder.compat` instead of `pyspark.*` directly.
 - Provide safe fallbacks for persistence features when running on mock-spark.
 
-## Compat Layer (sparkforge/compat.py)
+## Compat Layer (pipeline_builder/compat.py)
 - Exports: `SparkSession`, `DataFrame`, `Column`, `F` (functions), `types` (StructType, etc.).
 - Helpers: `is_mock_spark()`, `compat_name()`, `require_pyspark(msg)`.
 - Shims:
@@ -20,12 +20,12 @@ Enable Sparkforge to run on either PySpark or mock-spark without changing user c
 
 ## Refactors
 - Replace direct PySpark imports across:
-  - `sparkforge/pipeline/*`
-  - `sparkforge/validation/*`
-  - `sparkforge/writer/*`
-  - `sparkforge/table_operations.py`
-  - `sparkforge/functions.py`, `sparkforge/types.py`, `sparkforge/models/types.py`
-- Rule: import from `sparkforge.compat` (e.g., `from sparkforge.compat import SparkSession, DataFrame, F`).
+  - `pipeline_builder/pipeline/*`
+  - `pipeline_builder/validation/*`
+  - `pipeline_builder/writer/*`
+  - `pipeline_builder/table_operations.py`
+  - `pipeline_builder/functions.py`, `pipeline_builder/types.py`, `pipeline_builder/models/types.py`
+- Rule: import from `pipeline_builder.compat` (e.g., `from pipeline_builder.compat import SparkSession, DataFrame, F`).
 
 ## Writer/Storage Behavior
 - Mock mode policy:
@@ -56,7 +56,7 @@ Enable Sparkforge to run on either PySpark or mock-spark without changing user c
   - Filtering/ordering parity in mock.
 
 ## Docs & Examples
-- Update examples to prefer `from sparkforge.compat import F`.
+- Update examples to prefer `from pipeline_builder.compat import F`.
 - Add "Mock Mode" section: engine selection, limitations, and recommended patterns.
 
 ## Milestones & Acceptance
@@ -78,7 +78,7 @@ Enable Sparkforge to run on either PySpark or mock-spark without changing user c
 
 ## Progress Log
 
-- [x] Added `sparkforge/compat.py` with engine selection, exports, and shims.
+- [x] Added `pipeline_builder/compat.py` with engine selection, exports, and shims.
 - [x] Refactored `validation/data_validation.py` to import `Column, DataFrame` from compat.
 - [x] Simplified `functions.get_default_functions()` to return compat `F`.
 - [x] Refactored `pipeline/builder.py` to use compat `DataFrame, SparkSession, F`.

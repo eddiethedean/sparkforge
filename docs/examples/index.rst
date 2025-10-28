@@ -105,7 +105,7 @@ Prerequisites
 1. **Install SparkForge:**
    .. code-block:: bash
 
-      pip install sparkforge
+      pip install pipeline_builder
 
 2. **Install Dependencies:**
    .. code-block:: bash
@@ -120,7 +120,7 @@ Running Examples
 1. **Navigate to the project directory:**
    .. code-block:: bash
 
-      cd sparkforge
+      cd pipeline_builder
 
 2. **Run any example:**
    .. code-block:: bash
@@ -270,7 +270,7 @@ Example Template
    Brief description of what this example demonstrates.
    """
 
-   from sparkforge import PipelineBuilder
+   from pipeline_builder import PipelineBuilder
    from pyspark.sql import SparkSession, functions as F
 
    def main():

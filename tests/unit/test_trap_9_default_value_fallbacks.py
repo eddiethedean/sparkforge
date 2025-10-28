@@ -5,13 +5,12 @@ This module tests that default value fallbacks no longer use the 'or' operator
 which could mask None values, and instead use explicit None checking.
 """
 
-
 import pytest
 
-from sparkforge.execution import ExecutionEngine
-from sparkforge.models.pipeline import PipelineConfig
-from sparkforge.writer.core import LogWriter
-from sparkforge.writer.models import WriterConfig
+from pipeline_builder.execution import ExecutionEngine
+from pipeline_builder.models.pipeline import PipelineConfig
+from pipeline_builder.writer.core import LogWriter
+from pipeline_builder.writer.models import WriterConfig
 
 
 class TestTrap9DefaultValueFallbacks:
@@ -85,7 +84,7 @@ class TestTrap9DefaultValueFallbacks:
     def test_execution_engine_context_validation(self, spark_session):
         """Test that ExecutionEngine properly validates context parameter."""
         # Test the context validation logic directly
-        from sparkforge.models.pipeline import ValidationThresholds
+        from pipeline_builder.models.pipeline import ValidationThresholds
 
         # Create a minimal config
         config = PipelineConfig(
@@ -99,7 +98,7 @@ class TestTrap9DefaultValueFallbacks:
 
         # Test that None context is converted to empty dict
         # We'll test the context validation by calling execute_pipeline with None
-        from sparkforge.models.steps import BronzeStep
+        from pipeline_builder.models.steps import BronzeStep
 
         step = BronzeStep(
             name="test_bronze",
@@ -112,7 +111,7 @@ class TestTrap9DefaultValueFallbacks:
 
     def test_execution_engine_context_type_validation(self, spark_session):
         """Test that ExecutionEngine validates context type."""
-        from sparkforge.models.pipeline import ValidationThresholds
+        from pipeline_builder.models.pipeline import ValidationThresholds
 
         # Create a minimal config
         config = PipelineConfig(
@@ -124,8 +123,8 @@ class TestTrap9DefaultValueFallbacks:
         )
         engine = ExecutionEngine(spark=spark_session, config=config)
 
-        from sparkforge.errors import ExecutionError
-        from sparkforge.models.steps import BronzeStep
+        from pipeline_builder.errors import ExecutionError
+        from pipeline_builder.models.steps import BronzeStep
 
         step = BronzeStep(
             name="test_bronze",
@@ -149,7 +148,7 @@ class TestTrap9DefaultValueFallbacks:
         # Should generate new run_id when None is provided
         from datetime import datetime
 
-        from sparkforge.models.execution import ExecutionContext, StepResult
+        from pipeline_builder.models.execution import ExecutionContext, StepResult
 
         context = ExecutionContext(
             pipeline_id="test_pipeline",
@@ -187,7 +186,7 @@ class TestTrap9DefaultValueFallbacks:
 
         from datetime import datetime
 
-        from sparkforge.models.execution import ExecutionContext, StepResult
+        from pipeline_builder.models.execution import ExecutionContext, StepResult
 
         ExecutionContext(
             pipeline_id="test_pipeline",
@@ -233,8 +232,8 @@ class TestTrap9DefaultValueFallbacks:
 
     def test_logger_initialization_explicit_none(self, spark_session):
         """Test that logger initialization properly handles explicit None."""
-        from sparkforge.logging import PipelineLogger
-        from sparkforge.writer.monitoring import PerformanceMonitor
+        from pipeline_builder.logging import PipelineLogger
+        from pipeline_builder.writer.monitoring import PerformanceMonitor
 
         # Should create new logger when None is explicitly passed
         monitor = PerformanceMonitor(spark=spark_session, logger=None)
@@ -243,8 +242,8 @@ class TestTrap9DefaultValueFallbacks:
 
     def test_logger_initialization_with_logger(self, spark_session):
         """Test that logger initialization preserves provided logger."""
-        from sparkforge.logging import PipelineLogger
-        from sparkforge.writer.monitoring import PerformanceMonitor
+        from pipeline_builder.logging import PipelineLogger
+        from pipeline_builder.writer.monitoring import PerformanceMonitor
 
         # Should use provided logger
         custom_logger = PipelineLogger("CustomLogger")
@@ -257,9 +256,9 @@ class TestTrap9DefaultValueFallbacks:
         from datetime import datetime
 
         # Create StepResult with None step_type
-        from sparkforge.models.enums import PipelinePhase
-        from sparkforge.models.execution import ExecutionContext, StepResult
-        from sparkforge.writer.models import create_log_row_from_step_result
+        from pipeline_builder.models.enums import PipelinePhase
+        from pipeline_builder.models.execution import ExecutionContext, StepResult
+        from pipeline_builder.writer.models import create_log_row_from_step_result
 
         step_result = StepResult(
             step_name="test_step",
@@ -293,9 +292,9 @@ class TestTrap9DefaultValueFallbacks:
         from datetime import datetime
 
         # Create StepResult with actual step_type
-        from sparkforge.models.enums import PipelinePhase
-        from sparkforge.models.execution import ExecutionContext, StepResult
-        from sparkforge.writer.models import create_log_row_from_step_result
+        from pipeline_builder.models.enums import PipelinePhase
+        from pipeline_builder.models.execution import ExecutionContext, StepResult
+        from pipeline_builder.writer.models import create_log_row_from_step_result
 
         step_result = StepResult(
             step_name="test_step",

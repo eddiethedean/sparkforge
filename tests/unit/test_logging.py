@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 import pytest
 
-from sparkforge.logging import (
+from pipeline_builder.logging import (
     PipelineLogger,
     create_logger,
     get_global_logger,
@@ -211,7 +211,7 @@ class TestPipelineLoggerComprehensive:
         """Test timer start functionality."""
         logger = PipelineLogger()
 
-        with patch("sparkforge.logging.datetime") as mock_datetime:
+        with patch("pipeline_builder.logging.datetime") as mock_datetime:
             mock_now = datetime(2024, 1, 15, 10, 30, 0)
             mock_datetime.utcnow.return_value = mock_now
 
@@ -224,7 +224,7 @@ class TestPipelineLoggerComprehensive:
         """Test timer end functionality."""
         logger = PipelineLogger()
 
-        with patch("sparkforge.logging.datetime") as mock_datetime, patch.object(
+        with patch("pipeline_builder.logging.datetime") as mock_datetime, patch.object(
             logger, "performance_metric"
         ) as mock_perf:
             start_time = datetime(2024, 1, 15, 10, 30, 0)
@@ -249,7 +249,7 @@ class TestPipelineLoggerComprehensive:
         """Test timer context manager."""
         logger = PipelineLogger()
 
-        with patch("sparkforge.logging.datetime") as mock_datetime, patch.object(
+        with patch("pipeline_builder.logging.datetime") as mock_datetime, patch.object(
             logger, "performance_metric"
         ) as mock_perf:
             start_time = datetime(2024, 1, 15, 10, 30, 0)
@@ -265,7 +265,7 @@ class TestPipelineLoggerComprehensive:
         """Test timer context manager with exception."""
         logger = PipelineLogger()
 
-        with patch("sparkforge.logging.datetime") as mock_datetime, patch.object(
+        with patch("pipeline_builder.logging.datetime") as mock_datetime, patch.object(
             logger, "performance_metric"
         ) as mock_perf:
             start_time = datetime(2024, 1, 15, 10, 30, 0)
@@ -349,9 +349,7 @@ class TestPipelineLoggerComprehensive:
             logger.logger, "warning"
         ) as mock_warning, patch.object(
             logger.logger, "error"
-        ) as mock_error, patch.object(
-            logger.logger, "critical"
-        ) as mock_critical:
+        ) as mock_error, patch.object(logger.logger, "critical") as mock_critical:
             logger.debug("Debug message")
             logger.info("Info message")
             logger.warning("Warning message")
@@ -454,7 +452,7 @@ class TestTimerContextManager:
         """Test timer context manager on success."""
         logger = PipelineLogger()
 
-        with patch("sparkforge.logging.datetime") as mock_datetime, patch.object(
+        with patch("pipeline_builder.logging.datetime") as mock_datetime, patch.object(
             logger, "performance_metric"
         ) as mock_perf:
             start_time = datetime(2024, 1, 15, 10, 30, 0)
@@ -471,7 +469,7 @@ class TestTimerContextManager:
         """Test timer context manager with exception."""
         logger = PipelineLogger()
 
-        with patch("sparkforge.logging.datetime") as mock_datetime, patch.object(
+        with patch("pipeline_builder.logging.datetime") as mock_datetime, patch.object(
             logger, "performance_metric"
         ) as mock_perf:
             start_time = datetime(2024, 1, 15, 10, 30, 0)

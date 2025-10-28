@@ -22,33 +22,31 @@ def clean_sparkforge_from_text(text: str) -> Tuple[str, int]:
 
     # Replace common patterns
     patterns = [
-        (r'SparkForge\s+PipelineBuilder', 'PipelineBuilder'),
-        (r'for\s+SparkForge', 'for the framework'),
-        (r'SparkForge\s+pipelines', 'pipelines'),
-        (r'SparkForge\s+pipeline', 'pipeline'),
-        (r'the\s+SparkForge\s+framework', 'the framework'),
-        (r'SparkForge\s+framework', 'the framework'),
-        (r'SparkForge\s+models', 'framework models'),
-        (r'SparkForge\s+model', 'framework model'),
-        (r'SparkForge\s+errors', 'framework errors'),
-        (r'SparkForge\s+error', 'framework error'),
-        (r'all\s+SparkForge\s+errors', 'all framework errors'),
-        (r'all\s+other\s+SparkForge\s+exceptions', 'all other framework exceptions'),
-        (r'SparkForge\s+exceptions', 'framework exceptions'),
-        (r'SparkForge\s+exception', 'framework exception'),
-        (r'SparkForge\s+integration', 'framework integration'),
-        (r'with\s+SparkForge', 'with the framework'),
-        (r'from\s+sparkforge', 'from the framework'),
-        (r'in\s+SparkForge', 'in the framework'),
-        (r'SparkForge\s+codebase', 'the codebase'),
-        (r'SparkForge\s+ecosystem', 'the ecosystem'),
-        (r'SparkForge\s+components', 'framework components'),
-        (r'SparkForge\s+validation', 'validation'),
-        (r'existing\s+SparkForge', 'existing framework'),
-
+        (r"SparkForge\s+PipelineBuilder", "PipelineBuilder"),
+        (r"for\s+SparkForge", "for the framework"),
+        (r"SparkForge\s+pipelines", "pipelines"),
+        (r"SparkForge\s+pipeline", "pipeline"),
+        (r"the\s+SparkForge\s+framework", "the framework"),
+        (r"SparkForge\s+framework", "the framework"),
+        (r"SparkForge\s+models", "framework models"),
+        (r"SparkForge\s+model", "framework model"),
+        (r"SparkForge\s+errors", "framework errors"),
+        (r"SparkForge\s+error", "framework error"),
+        (r"all\s+SparkForge\s+errors", "all framework errors"),
+        (r"all\s+other\s+SparkForge\s+exceptions", "all other framework exceptions"),
+        (r"SparkForge\s+exceptions", "framework exceptions"),
+        (r"SparkForge\s+exception", "framework exception"),
+        (r"SparkForge\s+integration", "framework integration"),
+        (r"with\s+SparkForge", "with the framework"),
+        (r"from\s+sparkforge", "from the framework"),
+        (r"in\s+SparkForge", "in the framework"),
+        (r"SparkForge\s+codebase", "the codebase"),
+        (r"SparkForge\s+ecosystem", "the ecosystem"),
+        (r"SparkForge\s+components", "framework components"),
+        (r"SparkForge\s+validation", "validation"),
+        (r"existing\s+SparkForge", "existing framework"),
         # Module and titles
-        (r'SparkForge\s+Writer\s+Module', 'Writer Module'),
-
+        (r"SparkForge\s+Writer\s+Module", "Writer Module"),
         # Standalone references
         (r'"SparkForge\s+Team"', '"Framework Team"'),
         (r"'SparkForge\s+Team'", "'Framework Team'"),
@@ -58,12 +56,11 @@ def clean_sparkforge_from_text(text: str) -> Tuple[str, int]:
         (r"name\s*=\s*'SparkForge'", "name='PipelineFramework'"),
         (r'__author__\s*=\s*"SparkForge\s+Team"', '__author__ = "Framework Team"'),
         (r"__author__\s*=\s*'SparkForge\s+Team'", "__author__ = 'Framework Team'"),
-
         # Common phrases
-        (r'SparkForge\s+-', 'The framework -'),
-        (r'SparkForge\s+provides', 'This framework provides'),
-        (r'SparkForge\s+transforms', 'This framework transforms'),
-        (r'SparkForge\.', 'The framework.'),
+        (r"SparkForge\s+-", "The framework -"),
+        (r"SparkForge\s+provides", "This framework provides"),
+        (r"SparkForge\s+transforms", "This framework transforms"),
+        (r"SparkForge\.", "The framework."),
     ]
 
     for pattern, replacement in patterns:
@@ -91,7 +88,7 @@ def process_file(file_path: Path, check_only: bool = False) -> Tuple[bool, int]:
 
         if num_replacements > 0:
             if not check_only:
-                with open(file_path, 'w') as f:
+                with open(file_path, "w") as f:
                     f.write(cleaned_content)
             return True, num_replacements
 
@@ -102,16 +99,22 @@ def process_file(file_path: Path, check_only: bool = False) -> Tuple[bool, int]:
         return False, 0
 
 
-def main():
+def main() -> int:
     """Main function."""
     import argparse
 
-    parser = argparse.ArgumentParser(description='Clean sparkforge references from docstrings')
-    parser.add_argument('--check-only', action='store_true', help='Only check, don\'t modify')
-    parser.add_argument('--verbose', action='store_true', help='Show details for each file')
+    parser = argparse.ArgumentParser(
+        description="Clean sparkforge references from docstrings"
+    )
+    parser.add_argument(
+        "--check-only", action="store_true", help="Only check, don't modify"
+    )
+    parser.add_argument(
+        "--verbose", action="store_true", help="Show details for each file"
+    )
     args = parser.parse_args()
 
-    sparkforge_root = Path('sparkforge')
+    sparkforge_root = Path("sparkforge")
 
     if not sparkforge_root.exists():
         print("❌ Error: sparkforge/ directory not found")
@@ -119,8 +122,8 @@ def main():
 
     # Find all Python files
     all_files = []
-    for py_file in sparkforge_root.rglob('*.py'):
-        if '__pycache__' not in str(py_file):
+    for py_file in sparkforge_root.rglob("*.py"):
+        if "__pycache__" not in str(py_file):
             all_files.append(py_file)
 
     print(f"🔍 Analyzing {len(all_files)} Python files...\n")
@@ -139,12 +142,16 @@ def main():
             modified_files.append(file_path)
 
             if args.verbose or args.check_only:
-                rel_path = file_path.relative_to(Path.cwd()) if Path.cwd() in file_path.parents else file_path
+                rel_path = (
+                    file_path.relative_to(Path.cwd())
+                    if Path.cwd() in file_path.parents
+                    else file_path
+                )
                 status = "⚠️  Would modify" if args.check_only else "✓ Modified"
                 print(f"{status} {rel_path} ({num_replacements} replacements)")
 
     # Summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("Summary:")
     print(f"  Total files analyzed: {len(all_files)}")
     print(f"  Files with sparkforge references: {files_modified}")
@@ -167,8 +174,9 @@ def main():
         return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
+
     try:
         sys.exit(main())
     except KeyboardInterrupt:
@@ -177,6 +185,6 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"\n❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(2)
-
