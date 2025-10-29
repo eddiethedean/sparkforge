@@ -1093,8 +1093,8 @@ class LogWriter:
         # Process bronze steps
         for step_name, step_info in report.bronze_results.items():
             # Calculate valid/invalid rows from validation rate
-            rows_processed = int(step_info.get("rows_processed", 0))
-            validation_rate = float(step_info.get("validation_rate", 100.0))
+            rows_processed = int(step_info.get("rows_processed") or 0)
+            validation_rate = float(step_info.get("validation_rate") or 100.0)
             valid_rows = int(rows_processed * validation_rate / 100.0)
             invalid_rows = rows_processed - valid_rows
 
@@ -1142,8 +1142,8 @@ class LogWriter:
         # Process silver steps
         for step_name, step_info in report.silver_results.items():
             # Calculate valid/invalid rows from validation rate
-            rows_processed = int(step_info.get("rows_processed", 0))
-            validation_rate = float(step_info.get("validation_rate", 100.0))
+            rows_processed = int(step_info.get("rows_processed") or 0)
+            validation_rate = float(step_info.get("validation_rate") or 100.0)
             valid_rows = int(rows_processed * validation_rate / 100.0)
             invalid_rows = rows_processed - valid_rows
 
@@ -1191,8 +1191,8 @@ class LogWriter:
         # Process gold steps
         for step_name, step_info in report.gold_results.items():
             # Calculate valid/invalid rows from validation rate
-            rows_processed = int(step_info.get("rows_processed", 0))
-            validation_rate = float(step_info.get("validation_rate", 100.0))
+            rows_processed = int(step_info.get("rows_processed") or 0)
+            validation_rate = float(step_info.get("validation_rate") or 100.0)
             valid_rows = int(rows_processed * validation_rate / 100.0)
             invalid_rows = rows_processed - valid_rows
 

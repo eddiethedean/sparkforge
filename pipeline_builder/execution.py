@@ -290,12 +290,29 @@ class ExecutionEngine:
                     )
 
                 output_table = fqn(schema, table_name)
-                output_df.write.mode("overwrite").saveAsTable(output_table)
+
+                # Determine write mode based on execution mode
+                # INCREMENTAL mode uses "append" to preserve existing data
+                # INITIAL and FULL_REFRESH modes use "overwrite"
+                if mode == ExecutionMode.INCREMENTAL:
+                    write_mode_str = "append"
+                else:  # INITIAL or FULL_REFRESH
+                    write_mode_str = "overwrite"
+
+                output_df.write.mode(write_mode_str).saveAsTable(output_table)
                 result.output_table = output_table
                 result.rows_processed = output_df.count()
+
+                # Set write mode in result for tracking
+                result.write_mode = write_mode_str
             elif isinstance(step, BronzeStep):
                 # Bronze steps only validate data, don't write to tables
                 result.rows_processed = output_df.count()
+                result.write_mode = None
+            else:  # VALIDATION_ONLY mode
+                # Validation-only mode doesn't write to tables
+                result.rows_processed = output_df.count()
+                result.write_mode = None
 
             result.status = StepStatus.COMPLETED
             result.end_time = datetime.now()
@@ -311,12 +328,6 @@ class ExecutionEngine:
             result.input_rows = rows_processed
             result.validation_rate = (
                 validation_rate if validation_rate is not None else 100.0
-            )
-            result.write_mode = (
-                "overwrite"
-                if mode != ExecutionMode.VALIDATION_ONLY
-                and not isinstance(step, BronzeStep)
-                else None
             )
 
             # Use logger's step_complete method for consistent formatting with emoji and uppercase

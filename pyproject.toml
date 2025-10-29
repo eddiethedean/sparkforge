@@ -46,7 +46,7 @@ pyspark = [
     "delta-spark>=2.4.0,<3.0.0",
 ]
 mock = [
-    "mock-spark==2.4.0",
+    "mock-spark>=2.13.1",
 ]
 dev = [
     "black>=23.0.0",
@@ -70,7 +70,7 @@ docs = [
     "myst-parser>=0.17.0",
 ]
 test = [
-    "mock-spark==2.10.1",
+    "mock-spark>=2.13.1",
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "pytest-xdist>=3.0.0",

@@ -488,7 +488,7 @@ class TestIotPipeline:
         )
 
         # Log execution results
-        log_result = log_writer.write_execution_result(result)
+        log_result = log_writer.append(result)
 
         # Verify logging and performance monitoring
         test_assertions.assert_pipeline_success(result)

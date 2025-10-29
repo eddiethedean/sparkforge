@@ -808,7 +808,7 @@ class TestMultiSourcePipeline:
         )
 
         # Log execution results
-        log_result = log_writer.write_execution_result(result)
+        log_result = log_writer.append(result)
 
         # Verify multi-source logging
         test_assertions.assert_pipeline_success(result)
