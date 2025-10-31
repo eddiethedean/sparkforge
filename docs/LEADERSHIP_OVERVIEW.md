@@ -27,6 +27,88 @@ The PipelineBuilder Framework is an enterprise-grade data engineering solution t
 
 ## How It Works
 
+### High-Level Architecture
+
+The following diagram illustrates how the PipelineBuilder Framework operates:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         YOUR APPLICATION                            │
+└─────────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ↓
+         ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+         ┃           PIPELINEBUILDER FRAMEWORK                    ┃
+         ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+    STEP 1: BUILD                STEP 2: EXECUTE
+    ═════════════                ════════════════
+    
+┌──────────────────────┐       ┌──────────────────────┐
+│  PipelineBuilder     │       │  PipelineRunner      │
+│  ──────────────      │       │  ──────────────      │
+│                      │       │                      │
+│  Configure:          │       │  Run Modes:          │
+│  • Bronze rules      │       │  • Initial load      │
+│  • Silver transforms │──────→│  • Incremental       │
+│  • Gold transforms   │       │  • Full refresh      │
+│  • Validation rules  │       │  • Validation only   │
+│                      │       │                      │
+│  to_pipeline()       │       │  Executes:           │
+│         ↓            │       │  • Dependency        │
+│  Returns Runner      │──────→│    analysis          │
+│                      │       │  • Parallel steps    │
+│                      │       │  • Data validation   │
+│                      │       │  • Delta writes      │
+└──────────────────────┘       │                      │
+                               │                      │
+                               └──────────────────────┘
+                                       │
+                                       ↓
+                              ┌─────────────────┐
+                              │ PipelineReport  │
+                              │ ─────────────── │
+                              │ • Status        │
+                              │ • Metrics       │
+                              │ • Step results  │
+                              │ • Errors        │
+                              └─────────────────┘
+
+         ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+         ┃                  DATA FLOW                             ┃
+         ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+    ┌─────────────┐         ┌─────────────┐         ┌─────────────┐
+    │   BRONZE    │         │   SILVER    │         │    GOLD     │
+    │ ─────────── │         │ ─────────── │         │ ─────────── │
+    │ Raw data    │         │ Clean data  │         │ Analytics   │
+    │ validation  │────────→│ transforms  │────────→│ aggregates  │
+    │             │         │             │         │             │
+    │ In-memory   │         │ Delta table │         │ Delta table │
+    └─────────────┘         └─────────────┘         └─────────────┘
+
+         ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+         ┃              MONITORING (OPTIONAL)                     ┃
+         ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+                        ┌──────────────────────┐
+                        │     LogWriter        │
+                        │  ──────────────────  │
+                        │  Log execution       │
+                        │  Track trends        │
+                        │  Detect anomalies    │
+                        │  Performance reports │
+                        └──────────────────────┘
+                                   │
+                                   ↓
+                        ┌──────────────────────┐
+                        │   Delta Log Table    │
+                        │ (Historical metrics) │
+                        └──────────────────────┘
+```
+
+**Key Insight**: The framework operates in two simple phases - configure once, execute anywhere. Data flows automatically through Bronze → Silver → Gold layers with built-in quality checks.
+
 ### The Medallion Architecture
 
 The framework implements the proven Medallion Architecture pattern, organizing data into three layers:
@@ -98,6 +180,94 @@ The framework implements the proven Medallion Architecture pattern, organizing d
 - **Parallel Processing**: Automatically leverages available compute resources
 - **Incremental Updates**: Process only changed data, reducing compute costs
 - **Cloud-Native**: Designed to scale with your data volume growth
+
+### Real-World Example: Multi-Source Pipeline
+
+The following diagram shows how the framework handles complex scenarios with multiple data sources:
+
+```
+SCENARIO: E-commerce pipeline with 3 bronze sources
+════════════════════════════════════════════════════════════════════════
+
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│  BRONZE 1   │  │  BRONZE 2   │  │  BRONZE 3   │
+│  ─────────  │  │  ─────────  │  │  ─────────  │
+│             │  │             │  │             │
+│   users     │  │   orders    │  │  products   │
+│    100K     │  │    500K     │  │    10K      │
+│   rows      │  │    rows     │  │   rows      │
+└──────┬──────┘  └──────┬──────┘  └──────┬──────┘
+       │                │                │
+       │ Validate       │ Validate       │ Validate
+       │ 95% pass       │ 95% pass       │ 95% pass
+       ↓                ↓                ↓
+  context["users"]  context["orders"] context["products"]
+       │                │                │
+       └────────┬───────┴────────┬───────┘
+                │                │
+                ↓                ↓
+       ┌─────────────┐  ┌─────────────┐
+       │  SILVER 1   │  │  SILVER 2   │
+       │  ─────────  │  │  ─────────  │
+       │             │  │             │
+       │ clean_users │  │clean_orders │
+       │   (users)   │  │  (orders +  │
+       │             │  │   users +   │
+       │   98K rows  │  │   products) │
+       │             │  │   475K rows │
+       └──────┬──────┘  └──────┬──────┘
+              │                │
+              │ Write Delta    │ Write Delta
+              ↓                ↓
+       Delta.clean_users  Delta.clean_orders
+              │                │
+              │ Read back      │ Read back
+              ↓                ↓
+       context["clean_users"] context["clean_orders"]
+              │                │
+              └────────┬───────┘
+                       │
+                       ↓
+              ┌─────────────────┐
+              │     SILVER 3    │
+              │  ─────────────  │
+              │                 │
+              │ order_summary   │
+              │ (clean_orders + │
+              │  clean_users)   │
+              │                 │
+              │   450K rows     │
+              └────────┬────────┘
+                       │
+                       │ Write Delta
+                       ↓
+               Delta.order_summary
+                       │
+                       │ Read back
+                       ↓
+              context["order_summary"]
+                       │
+                       ↓
+       ┌───────────────┴───────────────┐
+       │               │               │
+       ↓               ↓               ↓
+┌────────────┐  ┌────────────┐  ┌─────────────┐
+│  GOLD 1    │  │  GOLD 2    │  │  GOLD 3     │
+│ ────────── │  │ ────────── │  │ ──────────  │
+│            │  │            │  │             │
+│  daily_    │  │  user_     │  │  product_   │
+│  revenue   │  │  lifetime_ │  │  performance│
+│            │  │  value     │  │             │
+│  365 rows  │  │  100K rows │  │  10K rows   │
+└────────────┘  └────────────┘  └─────────────┘
+       │               │               │
+       │ Write Delta   │ Write Delta   │ Write Delta
+       ↓               ↓               ↓
+Delta.daily_    Delta.user_     Delta.product_
+   revenue         lifetime        performance
+```
+
+**Key Insight**: Notice how Bronze steps run in parallel (all 3 start at once), then Silver steps run in parallel, and finally Gold steps create business insights. The framework automatically optimizes execution order while ensuring data quality at each stage.
 
 ## Key Features
 
