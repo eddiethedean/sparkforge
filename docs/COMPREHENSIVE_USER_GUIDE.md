@@ -103,8 +103,14 @@ builder.add_gold_transform(
 pipeline = builder.to_pipeline()
 result = pipeline.run_initial_load(bronze_sources={"events": df})
 
-print(f"✅ Pipeline completed: {result.status}")
+print(f"✅ Pipeline completed: {result.status.value}")
 print(f"Rows written: {result.metrics.total_rows_written}")
+```
+
+**Expected Output:**
+```
+✅ Pipeline completed: completed
+Rows written: 1
 ```
 
 ---
@@ -439,7 +445,7 @@ FRAMEWORK OUTPUTS
 │                   (Available to User Code)                                 │
 │                                                                             │
 │  Use cases:                                                                 │
-│  • Check Status: if result.status == "completed"                           │
+│  • Check Status: if result.status.value == "completed"                     │
 │  • Monitor Metrics: result.metrics.total_rows_written                      │
 │  • Log Execution: writer.append(result)  # LogWriter integration           │
 │  • Alert on Failure: send_alert() if result.metrics.failed_steps > 0       │
@@ -711,8 +717,12 @@ KEY INSIGHTS:
 **Multi-Source Code Example**
 
 ```python
+from pyspark.sql import SparkSession
 from pipeline_builder import PipelineBuilder
 from pyspark.sql import functions as F
+
+# Initialize Spark
+spark = SparkSession.builder.appName("Multi-Source Pipeline").getOrCreate()
 
 # Initialize
 builder = PipelineBuilder(spark=spark, schema="analytics")
@@ -832,6 +842,11 @@ result = pipeline.run_initial_load(
         "products": products_df
     }
 )
+
+# View results
+print(f"✅ Pipeline completed: {result.status.value}")
+print(f"📊 Rows written: {result.metrics.total_rows_written}")
+print(f"⏱️  Duration: {result.duration_seconds:.2f}s")
 ```
 
 ---
@@ -902,8 +917,23 @@ Here's a complete, production-ready example showing the Bronze → Silver → Go
 **Complete Code Example**
 
 ```python
+from pyspark.sql import SparkSession
 from pipeline_builder import PipelineBuilder
 from pyspark.sql import functions as F
+
+# Initialize Spark
+spark = SparkSession.builder.appName("Medallion Pipeline").getOrCreate()
+
+# Load Bronze data (existing Spark DataFrame or Delta table)
+# source_df = spark.read.parquet("/path/to/raw/data")
+# OR: source_df = spark.table("existing_raw_table")
+# For this example, create sample data:
+data = [
+    ("user1", "2024-01-01 10:00:00", "active"),
+    ("user2", "2024-01-01 10:05:00", "active"),
+    ("user3", "2024-01-01 10:10:00", "inactive")
+]
+source_df = spark.createDataFrame(data, ["user_id", "timestamp", "status"])
 
 # Initialize builder
 builder = PipelineBuilder(
@@ -915,9 +945,6 @@ builder = PipelineBuilder(
 )
 
 # Bronze: Raw data validation
-# Note: Load your raw data into Spark first, then pass to pipeline
-# source_df = spark.read.parquet("/path/to/raw/data")
-# OR: source_df = spark.table("existing_raw_table")
 
 builder.with_bronze_rules(
     name="events",
@@ -970,6 +997,11 @@ builder.add_gold_transform(
 # Build and execute
 pipeline = builder.to_pipeline()
 result = pipeline.run_initial_load(bronze_sources={"events": source_df})
+
+# View results
+print(f"✅ Pipeline completed: {result.status.value}")
+print(f"📊 Rows written: {result.metrics.total_rows_written}")
+print(f"⏱️  Duration: {result.duration_seconds:.2f}s")
 ```
 
 ---
@@ -1081,13 +1113,16 @@ result = pipeline.run_initial_load(bronze_sources={"events": source_df})
 **Code Example**
 
 ```python
+from pyspark.sql import SparkSession
 from pipeline_builder import PipelineBuilder, LogWriter
 
-# Build and run pipeline
-builder = PipelineBuilder(spark=spark, schema="analytics")
-# ... configure pipeline ...
-pipeline = builder.to_pipeline()
-result = pipeline.run_initial_load(bronze_sources={"events": df})
+# Initialize Spark
+spark = SparkSession.builder.appName("LogWriter Example").getOrCreate()
+
+# Build and run pipeline (simplified example)
+# For full pipeline setup, see previous examples
+# ... configure your full pipeline here ...
+# result = pipeline.run_initial_load(bronze_sources={"events": df})
 
 # Initialize LogWriter
 writer = LogWriter(
@@ -1096,21 +1131,24 @@ writer = LogWriter(
     table_name="pipeline_logs"
 )
 
-# Log the execution
-writer.append(result)
+# Log the execution (after running your pipeline)
+# writer.append(result)
+
+# Note: LogWriter requires an actual pipeline execution result
+# The methods below work after you've logged pipeline executions
 
 # Query logs
-writer.show_logs(limit=20)
+# writer.show_logs(limit=20)
 
 # Analyze trends (last 30 days)
-quality_trends = writer.analyze_quality_trends(days=30)
-execution_trends = writer.analyze_execution_trends(days=30)
-anomalies = writer.detect_quality_anomalies()
+# quality_trends = writer.analyze_quality_trends(days=30)
+# execution_trends = writer.analyze_execution_trends(days=30)
+# anomalies = writer.detect_quality_anomalies()
 
 # Generate performance report
-report = writer.generate_performance_report()
-print(f"Average execution time: {report['avg_execution_time']}")
-print(f"Success rate: {report['success_rate']}")
+# report = writer.generate_performance_report()
+# print(f"Average execution time: {report['avg_execution_time']}")
+# print(f"Success rate: {report['success_rate']}")
 ```
 
 ---
@@ -1192,7 +1230,7 @@ writer = LogWriter(spark=spark, schema="monitoring", table_name="pipeline_logs")
 writer.append(result)
 
 # Check for failures
-if result.status != "completed":
+if result.status.value != "completed":
     raise Exception(f"Pipeline failed: {result.errors}")
 ```
 
