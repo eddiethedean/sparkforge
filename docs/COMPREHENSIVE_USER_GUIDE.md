@@ -130,7 +130,7 @@ Rows written: 1
                                   │
                                   ↓
          ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-         ┃           PIPELINEBUILDER FRAMEWORK                      ┃
+         ┃           PIPELINEBUILDER FRAMEWORK                    ┃
          ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
     STEP 1: BUILD                STEP 2: EXECUTE
@@ -159,7 +159,7 @@ Rows written: 1
                                        ↓
                               ┌─────────────────┐
                               │ PipelineReport  │
-                              │ ───────────────  │
+                              │ ─────────────── │
                               │ • Status        │
                               │ • Metrics       │
                               │ • Step results  │
@@ -167,7 +167,7 @@ Rows written: 1
                               └─────────────────┘
 
          ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-         ┃                  DATA FLOW                              ┃
+         ┃                  DATA FLOW                             ┃
          ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
     ┌─────────────┐         ┌─────────────┐         ┌─────────────┐
@@ -180,7 +180,7 @@ Rows written: 1
     └─────────────┘         └─────────────┘         └─────────────┘
 
          ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-         ┃              MONITORING (OPTIONAL)                      ┃
+         ┃              MONITORING (OPTIONAL)                     ┃
          ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
                         ┌──────────────────────┐
@@ -209,10 +209,10 @@ USER CODE
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                            PipelineBuilder                                  │
-│                      (Fluent API - Build Phase)                            │
+│                      (Fluent API - Build Phase)                             │
 │                                                                             │
 │  Initialize:                                                                │
-│  builder = PipelineBuilder(spark, schema="analytics",                      │
+│  builder = PipelineBuilder(spark, schema="analytics",                       │
 │                            min_bronze_rate=95.0,                            │
 │                            min_silver_rate=98.0,                            │
 │                            min_gold_rate=99.0)                              │
@@ -221,176 +221,176 @@ USER CODE
 │  │  1. BRONZE LAYER - with_bronze_rules()                                │ │
 │  │  ────────────────────────────────────────                             │ │
 │  │  Purpose: Define raw data validation rules                            │ │
-│  │                                                                        │ │
+│  │                                                                       │ │
 │  │  Parameters:                              Creates:                    │ │
 │  │  • name: "events"                         ┌────────────────┐          │ │
 │  │  • rules: validation expressions       ──→│  BronzeStep    │          │ │
-│  │  • incremental_col: "timestamp"            │  ────────────  │          │ │
-│  │  • schema (optional): "raw_data"         │  • name        │          │ │
+│  │  • incremental_col: "timestamp"            │  ────────────  │         │ │
+│  │  • schema (optional): "raw_data"         │  • name        │           │ │
 │  │                                           │  • rules       │          │ │
-│  │  Stored in: bronze_steps = {}            │  • incremental │          │ │
+│  │  Stored in: bronze_steps = {}            │  • incremental │           │ │
 │  │              {"events": BronzeStep}       └────────────────┘          │ │
 │  └───────────────────────────────────────────────────────────────────────┘ │
-│                                      ↓                                      │
+│                                      ↓                                     │
 │  ┌───────────────────────────────────────────────────────────────────────┐ │
 │  │  2. SILVER LAYER - add_silver_transform()                             │ │
 │  │  ──────────────────────────────────────────                           │ │
 │  │  Purpose: Define data transformation & enrichment                     │ │
-│  │                                                                        │ │
+│  │                                                                       │ │
 │  │  Parameters:                              Creates:                    │ │
 │  │  • name: "clean_events"                   ┌────────────────┐          │ │
 │  │  • source_bronze: "events"             ──→│  SilverStep    │          │ │
 │  │  • transform: clean_func()                │  ────────────  │          │ │
-│  │  • rules: validation expressions         │  • name        │          │ │
-│  │  • table_name: "clean_events"            │  • transform   │          │ │
-│  │  • schema (optional): "processing"       │  • rules       │          │ │
+│  │  • rules: validation expressions          │  • name        │          │ │
+│  │  • table_name: "clean_events"             │  • transform   │          │ │
+│  │  • schema (optional): "processing"        │  • rules       │          │ │
 │  │                                           │  • table_name  │          │ │
-│  │  Stored in: silver_steps = {}            │  • dependencies│          │ │
+│  │  Stored in: silver_steps = {}             │  • dependencies│          │ │
 │  │              {"clean_events": SilverStep} └────────────────┘          │ │
 │  └───────────────────────────────────────────────────────────────────────┘ │
-│                                      ↓                                      │
+│                                      ↓                                     │
 │  ┌───────────────────────────────────────────────────────────────────────┐ │
 │  │  3. GOLD LAYER - add_gold_transform()                                 │ │
 │  │  ────────────────────────────────────────                             │ │
 │  │  Purpose: Define business analytics & aggregations                    │ │
-│  │                                                                        │ │
+│  │                                                                       │ │
 │  │  Parameters:                              Creates:                    │ │
 │  │  • name: "daily_metrics"                  ┌────────────────┐          │ │
 │  │  • transform: metrics_func()           ──→│   GoldStep     │          │ │
 │  │  • rules: validation expressions          │  ────────────  │          │ │
-│  │  • table_name: "daily_metrics"           │  • name        │          │ │
-│  │  • source_silvers: ["clean_events"]      │  • transform   │          │ │
-│  │  • schema (optional): "analytics"        │  • rules       │          │ │
+│  │  • table_name: "daily_metrics"            │  • name        │          │ │
+│  │  • source_silvers: ["clean_events"]       │  • transform   │          │ │
+│  │  • schema (optional): "analytics"         │  • rules       │          │ │
 │  │                                           │  • table_name  │          │ │
-│  │  Stored in: gold_steps = {}              │  • dependencies│          │ │
+│  │  Stored in: gold_steps = {}               │  • dependencies│          │ │
 │  │              {"daily_metrics": GoldStep}  └────────────────┘          │ │
 │  └───────────────────────────────────────────────────────────────────────┘ │
-│                                                                             │
-│  Internal Components:                                                       │
+│                                                                            │
+│  Internal Components:                                                      │
 │  ├─ ValidationThresholds (min quality rates: bronze 95%, silver 98%, ...)  │
 │  ├─ PipelineConfig (schema, parallel settings, thresholds)                 │
 │  ├─ PipelineValidator (validates step configurations & dependencies)       │
 │  └─ Step Collections: bronze_steps{}, silver_steps{}, gold_steps{}         │
-│                                                                             │
+│                                                                            │
 │                    ↓ pipeline = builder.to_pipeline()                      │
 │                      (validates all steps & dependencies)                  │
-└─────────────────────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────────────────────┘
                                         │
                                         ↓
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                            PipelineRunner                                   │
-│                     (Orchestration - Execution Phase)                      │
+│                     (Orchestration - Execution Phase)                       │
 │                                                                             │
-│  Receives: bronze_steps, silver_steps, gold_steps, config, logger          │
+│  Receives: bronze_steps, silver_steps, gold_steps, config, logger           │
 │                                                                             │
 │  Execution Methods:                                                         │
-│  ┌────────────────────────────────────────────────────────────────────┐    │
-│  │ run_initial_load(bronze_sources: Dict[str, DataFrame])            │    │
-│  │   → Full data load with overwrite mode                            │    │
-│  │   → Use case: First-time pipeline execution                       │    │
-│  ├────────────────────────────────────────────────────────────────────┤    │
-│  │ run_incremental(bronze_sources: Dict[str, DataFrame])             │    │
-│  │   → Process new data only with append mode                        │    │
-│  │   → Use case: Daily/hourly incremental updates                    │    │
-│  ├────────────────────────────────────────────────────────────────────┤    │
-│  │ run_full_refresh(bronze_sources: Dict[str, DataFrame])            │    │
-│  │   → Reprocess all data with overwrite mode                        │    │
-│  │   → Use case: Data corrections, schema changes                    │    │
-│  ├────────────────────────────────────────────────────────────────────┤    │
-│  │ run_validation_only(bronze_sources: Dict[str, DataFrame])         │    │
-│  │   → Validate data quality without writing                         │    │
-│  │   → Use case: Testing, quality checks                             │    │
-│  └────────────────────────────────────────────────────────────────────┘    │
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │ run_initial_load(bronze_sources: Dict[str, DataFrame])             │     │
+│  │   → Full data load with overwrite mode                             │     │
+│  │   → Use case: First-time pipeline execution                        │     │
+│  ├────────────────────────────────────────────────────────────────────┤     │
+│  │ run_incremental(bronze_sources: Dict[str, DataFrame])              │     │
+│  │   → Process new data only with append mode                         │     │
+│  │   → Use case: Daily/hourly incremental updates                     │     │
+│  ├────────────────────────────────────────────────────────────────────┤     │
+│  │ run_full_refresh(bronze_sources: Dict[str, DataFrame])             │     │
+│  │   → Reprocess all data with overwrite mode                         │     │
+│  │   → Use case: Data corrections, schema changes                     │     │
+│  ├────────────────────────────────────────────────────────────────────┤     │
+│  │ run_validation_only(bronze_sources: Dict[str, DataFrame])          │     │
+│  │   → Validate data quality without writing                          │     │
+│  │   → Use case: Testing, quality checks                              │     │
+│  └────────────────────────────────────────────────────────────────────┘     │
 │                                    ↓                                        │
-│  ┌────────────────────────────────────────────────────────────────────┐    │
-│  │                      ExecutionEngine                               │    │
-│  │                   (Core Execution Logic)                           │    │
-│  │                                                                    │    │
-│  │  ┌──────────────────────────────────────────────────────────────┐ │    │
-│  │  │ PHASE 1: DEPENDENCY ANALYSIS                                 │ │    │
-│  │  │ ──────────────────────────────                               │ │    │
-│  │  │ DependencyAnalyzer.analyze_dependencies(all_steps)           │ │    │
-│  │  │                                                               │ │    │
-│  │  │ Builds dependency graph:                                     │ │    │
-│  │  │ • Bronze steps: No dependencies (execute first)              │ │    │
-│  │  │ • Silver steps: Depend on Bronze + optional other Silvers    │ │    │
-│  │  │ • Gold steps: Depend on Silver steps                         │ │    │
-│  │  │                                                               │ │    │
-│  │  │ Creates execution groups for parallel processing:            │ │    │
-│  │  │   Group 0: [bronze_events, bronze_users, bronze_products]    │ │    │
-│  │  │   Group 1: [silver_clean_events, silver_clean_users]         │ │    │
-│  │  │   Group 2: [silver_enriched_events] (depends on group 1)     │ │    │
-│  │  │   Group 3: [gold_daily_metrics, gold_user_summary]           │ │    │
-│  │  └──────────────────────────────────────────────────────────────┘ │    │
-│  │                                                                    │    │
-│  │  ┌──────────────────────────────────────────────────────────────┐ │    │
-│  │  │ PHASE 2: PARALLEL EXECUTION                                  │ │    │
-│  │  │ ─────────────────────────                                    │ │    │
-│  │  │ ThreadPoolExecutor (max_workers=4 by default)                │ │    │
-│  │  │                                                               │ │    │
-│  │  │ For each execution group (in order):                         │ │    │
-│  │  │   Submit all steps in group to thread pool                   │ │    │
-│  │  │   Wait for all steps in group to complete                    │ │    │
-│  │  │   Move to next group                                         │ │    │
-│  │  │                                                               │ │    │
-│  │  │ Example timeline:                                            │ │    │
-│  │  │   t0: Group 0 starts → [Bronze1, Bronze2, Bronze3] parallel │ │    │
-│  │  │   t1: Group 0 done                                           │ │    │
-│  │  │   t1: Group 1 starts → [Silver1, Silver2] parallel          │ │    │
-│  │  │   t2: Group 1 done                                           │ │    │
-│  │  │   t2: Group 2 starts → [Gold1, Gold2] parallel              │ │    │
-│  │  │   t3: All done                                               │ │    │
-│  │  └──────────────────────────────────────────────────────────────┘ │    │
-│  │                                                                    │    │
-│  │  ┌──────────────────────────────────────────────────────────────┐ │    │
-│  │  │ PHASE 3: STEP EXECUTION (per step)                          │ │    │
-│  │  │ ────────────────────────────────                             │ │    │
-│  │  │ For each step:                                               │ │    │
-│  │  │                                                               │ │    │
-│  │  │ Bronze Step:                                                 │ │    │
-│  │  │   1. Get source DataFrame from bronze_sources                │ │    │
-│  │  │   2. Apply validation rules → apply_column_rules()           │ │    │
-│  │  │   3. Calculate validation_rate                               │ │    │
-│  │  │   4. Check against min_bronze_rate threshold                 │ │    │
-│  │  │   5. Store validated DataFrame in context (in-memory)        │ │    │
-│  │  │                                                               │ │    │
-│  │  │ Silver Step:                                                 │ │    │
-│  │  │   1. Get Bronze DataFrame from context                       │ │    │
-│  │  │   2. Get prior Silver DataFrames from context (if needed)    │ │    │
-│  │  │   3. Execute transform(spark, bronze_df, prior_silvers)      │ │    │
-│  │  │   4. Apply validation rules → apply_column_rules()           │ │    │
-│  │  │   5. Check against min_silver_rate threshold                 │ │    │
-│  │  │   6. Write to Delta Lake: schema.table_name                  │ │    │
-│  │  │   7. Track metrics (rows_written, duration)                  │ │    │
-│  │  │                                                               │ │    │
-│  │  │ Gold Step:                                                   │ │    │
-│  │  │   1. Get all required Silver DataFrames from context         │ │    │
-│  │  │   2. Execute transform(spark, silvers_dict)                  │ │    │
-│  │  │   3. Apply validation rules → apply_column_rules()           │ │    │
-│  │  │   4. Check against min_gold_rate threshold                   │ │    │
-│  │  │   5. Write to Delta Lake: schema.table_name                  │ │    │
-│  │  │   6. Track metrics (rows_written, duration)                  │ │    │
-│  │  └──────────────────────────────────────────────────────────────┘ │    │
-│  │                                                                    │    │
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │                      ExecutionEngine                               │     │
+│  │                   (Core Execution Logic)                           │     │
+│  │                                                                    │     │
+│  │  ┌──────────────────────────────────────────────────────────────┐  │     │
+│  │  │ PHASE 1: DEPENDENCY ANALYSIS                                 │  │     │
+│  │  │ ──────────────────────────────                               │  │     │
+│  │  │ DependencyAnalyzer.analyze_dependencies(all_steps)           │  │     │
+│  │  │                                                              │  │     │
+│  │  │ Builds dependency graph:                                     │  │     │
+│  │  │ • Bronze steps: No dependencies (execute first)              │  │     │
+│  │  │ • Silver steps: Depend on Bronze + optional other Silvers    │  │     │
+│  │  │ • Gold steps: Depend on Silver steps                         │  │     │
+│  │  │                                                              │  │     │
+│  │  │ Creates execution groups for parallel processing:            │  │     │
+│  │  │   Group 0: [bronze_events, bronze_users, bronze_products]    │  │     │
+│  │  │   Group 1: [silver_clean_events, silver_clean_users]         │  │     │
+│  │  │   Group 2: [silver_enriched_events] (depends on group 1)     │  │     │
+│  │  │   Group 3: [gold_daily_metrics, gold_user_summary]           │  │     │
+│  │  └──────────────────────────────────────────────────────────────┘  │     │
+│  │                                                                    │     │
+│  │  ┌──────────────────────────────────────────────────────────────┐  │     │
+│  │  │ PHASE 2: PARALLEL EXECUTION                                  │  │     │
+│  │  │ ─────────────────────────                                    │  │     │
+│  │  │ ThreadPoolExecutor (max_workers=4 by default)                │  │     │
+│  │  │                                                              │  │     │
+│  │  │ For each execution group (in order):                         │  │     │
+│  │  │   Submit all steps in group to thread pool                   │  │     │
+│  │  │   Wait for all steps in group to complete                    │  │     │
+│  │  │   Move to next group                                         │  │     │
+│  │  │                                                              │  │     │
+│  │  │ Example timeline:                                            │  │     │
+│  │  │   t0: Group 0 starts → [Bronze1, Bronze2, Bronze3] parallel  │  │     │
+│  │  │   t1: Group 0 done                                           │  │     │
+│  │  │   t1: Group 1 starts → [Silver1, Silver2] parallel           │  │     │
+│  │  │   t2: Group 1 done                                           │  │     │
+│  │  │   t2: Group 2 starts → [Gold1, Gold2] parallel               │  │     │
+│  │  │   t3: All done                                               │  │     │
+│  │  └──────────────────────────────────────────────────────────────┘  │     │
+│  │                                                                    │     │
+│  │  ┌──────────────────────────────────────────────────────────────┐  │     │
+│  │  │ PHASE 3: STEP EXECUTION (per step)                           │  │     │
+│  │  │ ────────────────────────────────                             │  │     │
+│  │  │ For each step:                                               │  │     │
+│  │  │                                                              │  │     │
+│  │  │ Bronze Step:                                                 │  │     │
+│  │  │   1. Get source DataFrame from bronze_sources                │  │     │
+│  │  │   2. Apply validation rules → apply_column_rules()           │  │     │
+│  │  │   3. Calculate validation_rate                               │  │     │
+│  │  │   4. Check against min_bronze_rate threshold                 │  │     │
+│  │  │   5. Store validated DataFrame in context (in-memory)        │  │     │
+│  │  │                                                              │  │     │
+│  │  │ Silver Step:                                                 │  │     │
+│  │  │   1. Get Bronze DataFrame from context                       │  │     │
+│  │  │   2. Get prior Silver DataFrames from context (if needed)    │  │     │
+│  │  │   3. Execute transform(spark, bronze_df, prior_silvers)      │  │     │
+│  │  │   4. Apply validation rules → apply_column_rules()           │  │     │
+│  │  │   5. Check against min_silver_rate threshold                 │  │     │
+│  │  │   6. Write to Delta Lake: schema.table_name                  │  │     │
+│  │  │   7. Track metrics (rows_written, duration)                  │  │     │
+│  │  │                                                              │  │     │
+│  │  │ Gold Step:                                                   │  │     │
+│  │  │   1. Get all required Silver DataFrames from context         │  │     │
+│  │  │   2. Execute transform(spark, silvers_dict)                  │  │     │
+│  │  │   3. Apply validation rules → apply_column_rules()           │  │     │
+│  │  │   4. Check against min_gold_rate threshold                   │  │     │
+│  │  │   5. Write to Delta Lake: schema.table_name                  │  │     │
+│  │  │   6. Track metrics (rows_written, duration)                  │  │     │
+│  │  └──────────────────────────────────────────────────────────────┘  │     │
+│  │                                                                    │     │
 │  │  ┌──────────────────────────────────────────────────────────────┐ │    │
 │  │  │ PHASE 4: VALIDATION ENGINE                                   │ │    │
 │  │  │ ────────────────────────                                     │ │    │
-│  │  │ apply_column_rules(df, rules, stage, step_name)             │ │    │
-│  │  │                                                               │ │    │
+│  │  │ apply_column_rules(df, rules, stage, step_name)              │ │    │
+│  │  │                                                              │ │    │
 │  │  │ For each column in rules:                                    │ │    │
 │  │  │   • Apply PySpark Column expressions                         │ │    │
 │  │  │   • Mark rows as valid/invalid                               │ │    │
 │  │  │   • Separate valid_df and invalid_df                         │ │    │
 │  │  │   • Calculate validation_rate = valid / total * 100          │ │    │
-│  │  │                                                               │ │    │
+│  │  │                                                              │ │    │
 │  │  │ If validation_rate < threshold:                              │ │    │
 │  │  │   • Raise ValidationError                                    │ │    │
 │  │  │   • Include detailed error context                           │ │    │
 │  │  │   • Provide suggestions for fixing                           │ │    │
-│  │  │                                                               │ │    │
-│  │  │ Return: (valid_df, invalid_df, validation_stats)            │ │    │
+│  │  │                                                              │ │    │
+│  │  │ Return: (valid_df, invalid_df, validation_stats)             │ │    │
 │  │  └──────────────────────────────────────────────────────────────┘ │    │
-│  │                                                                    │    │
+│  │                                                                   │    │
 │  │  ┌──────────────────────────────────────────────────────────────┐ │    │
 │  │  │ PHASE 5: ERROR HANDLING                                      │ │    │
 │  │  │ ─────────────────────                                        │ │    │
@@ -401,7 +401,7 @@ USER CODE
 │  │  │ • Aggregate all errors in final report                       │ │    │
 │  │  └──────────────────────────────────────────────────────────────┘ │    │
 │  └────────────────────────────────────────────────────────────────────┘    │
-│                                    ↓                                        │
+│                                    ↓                                       │
 │  Returns: PipelineReport                                                   │
 │  ┌────────────────────────────────────────────────────────────────────┐    │
 │  │  • pipeline_id: Unique identifier for this pipeline               │    │
@@ -427,12 +427,12 @@ FRAMEWORK OUTPUTS
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         Delta Lake Tables                                   │
-│                    (Persisted in Spark Metastore)                          │
+│                    (Persisted in Spark Metastore)                           │
 │                                                                             │
-│  analytics.clean_events      ← Silver table written by ExecutionEngine     │
-│  analytics.enriched_events   ← Silver table                                │
-│  analytics.daily_metrics     ← Gold table written by ExecutionEngine       │
-│  analytics.user_summary      ← Gold table                                  │
+│  analytics.clean_events      ← Silver table written by ExecutionEngine      │
+│  analytics.enriched_events   ← Silver table                                 │
+│  analytics.daily_metrics     ← Gold table written by ExecutionEngine        │
+│  analytics.user_summary      ← Gold table                                   │
 │                                                                             │
 │  Features:                                                                  │
 │  • ACID Transactions: Reliable concurrent writes                           │
@@ -444,7 +444,7 @@ FRAMEWORK OUTPUTS
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                      PipelineReport Object                                  │
-│                   (Available to User Code)                                 │
+│                   (Available to User Code)                                  │
 │                                                                             │
 │  Use cases:                                                                 │
 │  • Check Status: if result.status.value == "completed"                     │
@@ -483,7 +483,7 @@ DATA FLOW THROUGH PIPELINE
 ════════════════════════════════════════════════════════════════════════
 
 ┌─────────────────────────────────────────────────────────────────────┐
-│  BRONZE LAYER: Data Validation (In-Memory Only)                    │
+│  BRONZE LAYER: Data Validation (In-Memory Only)                     │
 └─────────────────────────────────────────────────────────────────────┘
 
 Input: bronze_sources = {"events": source_df, "users": users_df}
@@ -503,7 +503,7 @@ Step 1: Bronze "events"                   Step 2: Bronze "users"
 
 
 ┌─────────────────────────────────────────────────────────────────────┐
-│  SILVER LAYER: Data Transformation (Writes to Delta Tables)        │
+│  SILVER LAYER: Data Transformation (Writes to Delta Tables)         │
 └─────────────────────────────────────────────────────────────────────┘
 
 Step 3: Silver "clean_events"               Step 4: Silver "clean_users"
@@ -573,7 +573,7 @@ context["enriched_events"] = spark.table(...)
 
 
 ┌─────────────────────────────────────────────────────────────────────┐
-│  GOLD LAYER: Business Analytics (Writes to Delta Tables)           │
+│  GOLD LAYER: Business Analytics (Writes to Delta Tables)            │
 └─────────────────────────────────────────────────────────────────────┘
 
 Step 6: Gold "user_analytics"
@@ -590,7 +590,7 @@ Step 6: Gold "user_analytics"
 │ Execute transform:                         │
 │   output_df = transform(                   │
 │     spark,                                 │
-│     silvers  # Dict of all silver DFs     │
+│     silvers  # Dict of all silver DFs      │
 │   )                                        │
 │   ↓                                        │
 │ Example transform:                         │
@@ -685,7 +685,7 @@ SCENARIO: E-commerce pipeline with 3 bronze sources
        ↓               ↓               ↓
 ┌────────────┐  ┌────────────┐  ┌────────────┐
 │  GOLD 1    │  │  GOLD 2    │  │  GOLD 3    │
-│ ──────────  │  │ ──────────  │  │ ──────────  │
+│ ────────── │  │ ────────── │  │ ────────── │
 │            │  │            │  │            │
 │  daily_    │  │  user_     │  │  product_  │
 │  revenue   │  │  lifetime_ │  │  performance│
