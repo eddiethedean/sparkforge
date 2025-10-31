@@ -65,7 +65,10 @@ def main():
             transform=clean_events,
             rules={
                 "user_id": [F.col("user_id").isNotNull()],
+                "product_id": [F.col("product_id").isNotNull()],
+                "timestamp": [F.col("timestamp").isNotNull()],
                 "action": [F.col("action").isNotNull()],
+                "event_date": [F.col("event_date").isNotNull()],
                 "is_purchase": [F.col("is_purchase").isNotNull()],
             },
             table_name="clean_events",
@@ -95,7 +98,13 @@ def main():
             transform=enriched_events,
             rules={
                 "user_id": [F.col("user_id").isNotNull()],
+                "product_id": [F.col("product_id").isNotNull()],
+                "timestamp": [F.col("timestamp").isNotNull()],
+                "action": [F.col("action").isNotNull()],
+                "event_date": [F.col("event_date").isNotNull()],
                 "hour_of_day": [F.col("hour_of_day").isNotNull()],
+                "is_purchase": [F.col("is_purchase").isNotNull()],
+                "is_weekend": [F.col("is_weekend").isNotNull()],
                 "user_activity_level": [F.col("user_activity_level").isNotNull()],
             },
             table_name="enriched_events",
@@ -127,7 +136,11 @@ def main():
             transform=daily_analytics,
             rules={
                 "event_date": [F.col("event_date").isNotNull()],
+                "user_activity_level": [F.col("user_activity_level").isNotNull()],
                 "event_count": [F.col("event_count") > 0],
+                "unique_users": [F.col("unique_users") > 0],
+                "purchases": [F.col("purchases") >= 0],
+                "conversion_rate": [F.col("conversion_rate") >= 0],
             },
             table_name="daily_analytics",
         )

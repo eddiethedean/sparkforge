@@ -93,6 +93,7 @@ def main():
                 "action": [F.col("action").isNotNull()],
                 "value": [F.col("value") > 50],
                 "event_date": [F.col("event_date").isNotNull()],
+                "processed_at": [F.col("processed_at").isNotNull()],
             },
             table_name="silver_events",
         )
@@ -123,6 +124,8 @@ def main():
                 "event_date": [F.col("event_date").isNotNull()],
                 "action": [F.col("action").isNotNull()],
                 "event_count": [F.col("event_count") > 0],
+                "total_value": [F.col("total_value") > 0],
+                "avg_value": [F.col("avg_value") > 0],
             },
             table_name="gold_summary",
             source_silvers=["silver_events"],
