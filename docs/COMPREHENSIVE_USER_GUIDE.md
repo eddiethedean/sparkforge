@@ -221,7 +221,7 @@ USER CODE
 │  │  • schema (optional): "raw_data"         │  • name        │          │ │
 │  │                                           │  • rules       │          │ │
 │  │  Stored in: bronze_steps = {}            │  • incremental │          │ │
-│  │              {"events": BronzeStep}      └────────────────┘          │ │
+│  │              {"events": BronzeStep}       └────────────────┘          │ │
 │  └───────────────────────────────────────────────────────────────────────┘ │
 │                                      ↓                                      │
 │  ┌───────────────────────────────────────────────────────────────────────┐ │
@@ -238,7 +238,7 @@ USER CODE
 │  │  • schema (optional): "processing"       │  • rules       │          │ │
 │  │                                           │  • table_name  │          │ │
 │  │  Stored in: silver_steps = {}            │  • dependencies│          │ │
-│  │              {"clean_events": SilverStep}└────────────────┘          │ │
+│  │              {"clean_events": SilverStep} └────────────────┘          │ │
 │  └───────────────────────────────────────────────────────────────────────┘ │
 │                                      ↓                                      │
 │  ┌───────────────────────────────────────────────────────────────────────┐ │
@@ -255,7 +255,7 @@ USER CODE
 │  │  • schema (optional): "analytics"        │  • rules       │          │ │
 │  │                                           │  • table_name  │          │ │
 │  │  Stored in: gold_steps = {}              │  • dependencies│          │ │
-│  │              {"daily_metrics": GoldStep} └────────────────┘          │ │
+│  │              {"daily_metrics": GoldStep}  └────────────────┘          │ │
 │  └───────────────────────────────────────────────────────────────────────┘ │
 │                                                                             │
 │  Internal Components:                                                       │
