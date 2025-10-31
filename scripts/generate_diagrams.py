@@ -97,18 +97,18 @@ def create_box_diagram_1b() -> str:
     """Create Diagram 1B: Component Architecture - Detailed Breakdown."""
     return """
 USER CODE
-═════════════════════════════════════════════════════════════════════════════════
+══════════════════════════════════════════════════════════════════════════════
 
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                            PipelineBuilder                                  │
-│                      (Fluent API - Build Phase)                             │
-│                                                                             │
-│  Initialize:                                                                │
-│  builder = PipelineBuilder(spark, schema="analytics",                       │
-│                            min_bronze_rate=95.0,                            │
-│                            min_silver_rate=98.0,                            │
-│                            min_gold_rate=99.0)                              │
-│                                                                             │
+┌────────────────────────────────────────────────────────────────────────────┐
+│                            PipelineBuilder                                 │
+│                      (Fluent API - Build Phase)                            │
+│                                                                            │
+│  Initialize:                                                               │
+│  builder = PipelineBuilder(spark, schema="analytics",                      │
+│                            min_bronze_rate=95.0,                           │
+│                            min_silver_rate=98.0,                           │
+│                            min_gold_rate=99.0)                             │
+│                                                                            │
 │  ┌───────────────────────────────────────────────────────────────────────┐ │
 │  │  1. BRONZE LAYER - with_bronze_rules()                                │ │
 │  │  ────────────────────────────────────────                             │ │
@@ -117,10 +117,10 @@ USER CODE
 │  │  Parameters:                              Creates:                    │ │
 │  │  • name: "events"                         ┌────────────────┐          │ │
 │  │  • rules: validation expressions       ──→│  BronzeStep    │          │ │
-│  │  • incremental_col: "timestamp"            │  ────────────  │         │ │
-│  │  • schema (optional): "raw_data"         │  • name        │           │ │
+│  │  • incremental_col: "timestamp"           │  ────────────  │          │ │
+│  │  • schema (optional): "raw_data"          │  • name        │          │ │
 │  │                                           │  • rules       │          │ │
-│  │  Stored in: bronze_steps = {}            │  • incremental │           │ │
+│  │  Stored in: bronze_steps = {}             │  • incremental │          │ │
 │  │              {"events": BronzeStep}       └────────────────┘          │ │
 │  └───────────────────────────────────────────────────────────────────────┘ │
 │                                      ↓                                     │
@@ -347,6 +347,7 @@ FRAMEWORK OUTPUTS
 │  • Access Step Data: result.silver_results["clean_events"]["dataframe"]    │
 └────────────────────────────────────────────────────────────────────────────┘
 """
+
 def create_diagram_2a() -> str:
     """Create Diagram 2A: Execution Context & Data Flow."""
     return """
