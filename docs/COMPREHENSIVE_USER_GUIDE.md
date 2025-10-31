@@ -3,6 +3,8 @@
 **Version**: 1.3.3  
 **Last Updated**: January 2025
 
+![PipelineBuilder Architecture Diagram](pipelinebuilder-diagram.png)
+
 ## Table of Contents
 
 1. [Introduction](#introduction)
