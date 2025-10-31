@@ -992,25 +992,24 @@ result = pipeline.run_initial_load(bronze_sources={"events": source_df})
         │                  │                  │
         └──────────────────┼──────────────────┘
                            ↓
-              ┌────────────────────────┐
-              │       GOLD 1           │
-              │  "user_analytics"      │
-              │  (joins all silvers)   │
-              └────────────────────────┘
-                           │
+              ┌─────────────────────────────────────┐
+              │  All Gold steps use Silver sources  │
+              │  (can run in parallel)              │
+              └─────────────────────────────────────┘
+                           ↓
               ┌────────────┼────────────┐
               ↓            ↓            ↓
      ┌────────────┐ ┌────────────┐ ┌────────────┐
-     │  GOLD 2    │ │  GOLD 3    │ │  GOLD 4    │
-     │"daily_kpis"│ │"product_   │ │"revenue_   │
-     │            │ │ summary"   │ │ summary"   │
+     │  GOLD 1    │ │  GOLD 2    │ │  GOLD 3    │
+     │"user_analyt│ │"daily_kpis"│ │"product_sum│
+     │    ics"    │ │            │ │   mary"    │
      └────────────┘ └────────────┘ └────────────┘
 ```
 
 **Execution Flow**:
 1. All Bronze steps execute first (can run in parallel)
 2. All Silver steps execute after their Bronze dependencies (can run in parallel)
-3. Gold steps execute based on their Silver dependencies
+3. All Gold steps execute based on their Silver dependencies (can run in parallel)
 4. Multiple Gold tables can be created from the same Silver sources
 
 ---
