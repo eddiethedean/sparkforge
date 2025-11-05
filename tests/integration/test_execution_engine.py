@@ -841,6 +841,7 @@ class TestExecutionEngine:
             schema="test_schema",
         )
 
+        # Create fresh engine instance to avoid state pollution
         engine = ExecutionEngine(mock_spark, mock_config)
 
         with patch("pipeline_builder.execution.fqn") as mock_fqn, patch(
@@ -851,22 +852,40 @@ class TestExecutionEngine:
 
             steps = [sample_bronze_step, silver_step]
 
-            # Provide data in context for bronze step
-            context = {"test_bronze": mock_df}
+            # Provide data in context for bronze step - ensure key matches step name
+            # Use step name from fixture to ensure proper matching
+            bronze_step_name = sample_bronze_step.name
+            context = {bronze_step_name: mock_df}
 
             result = engine.execute_pipeline(
                 steps, ExecutionMode.INITIAL, context=context
             )
 
             # Check that the pipeline failed
-            assert result.status == "failed"
-            assert len(result.steps) == 2
-            assert result.steps[0].status.value == "completed"  # Bronze step succeeded
-            assert result.steps[1].status.value == "failed"  # Silver step failed
-            assert result.steps[1].error is not None
+            assert result.status == "failed", (
+                f"Pipeline status was {result.status}, expected 'failed'"
+            )
+            assert len(result.steps) == 2, f"Expected 2 steps, got {len(result.steps)}"
+            # Bronze step should succeed - check by step name to be more robust
+            bronze_result = next(
+                (s for s in result.steps if s.step_name == bronze_step_name), None
+            )
+            assert bronze_result is not None, "Bronze step result not found"
+            assert bronze_result.status.value == "completed", (
+                f"Bronze step {bronze_step_name} status was {bronze_result.status.value}, expected 'completed'"
+            )
+            # Silver step should fail
+            silver_result = next(
+                (s for s in result.steps if s.step_name == silver_step.name), None
+            )
+            assert silver_result is not None, "Silver step result not found"
+            assert silver_result.status.value == "failed", (
+                f"Silver step {silver_step.name} status was {silver_result.status.value}, expected 'failed'"
+            )
+            assert silver_result.error is not None
             assert (
                 "Source bronze step nonexistent not found in context"
-                in result.steps[1].error
+                in silver_result.error
             )
 
     def test_backward_compatibility_aliases(self):

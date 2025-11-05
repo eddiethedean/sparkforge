@@ -190,14 +190,16 @@ class DependencyAnalyzer:
                         )
 
                 # Check for additional dependencies (depends_on is not a standard attribute)
-                if hasattr(silver_step, "depends_on") and silver_step.depends_on:
-                    for dep in silver_step.depends_on:
-                        if dep in graph.nodes:
-                            graph.add_dependency(name, dep)
-                        else:
-                            self.logger.warning(
-                                f"Silver step {name} references non-existent dependency {dep}"
-                            )
+                if hasattr(silver_step, "depends_on"):
+                    depends_on = getattr(silver_step, "depends_on", None)
+                    if depends_on and isinstance(depends_on, (list, tuple, set)):
+                        for dep in depends_on:
+                            if dep in graph.nodes:
+                                graph.add_dependency(name, dep)
+                            else:
+                                self.logger.warning(
+                                    f"Silver step {name} references non-existent dependency {dep}"
+                                )
 
         # Add gold steps
         if gold_steps:

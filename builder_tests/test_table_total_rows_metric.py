@@ -12,7 +12,12 @@ class TestTableTotalRowsMetric:
     """Test the new table_total_rows metric functionality."""
 
     def test_table_total_rows_in_initial_load(
-        self, spark_session, pipeline_builder, log_writer, test_schema, simple_events_data
+        self,
+        spark_session,
+        pipeline_builder,
+        log_writer,
+        test_schema,
+        simple_events_data,
     ):
         """Test table_total_rows metric after initial load."""
         builder = pipeline_builder
@@ -29,7 +34,9 @@ class TestTableTotalRowsMetric:
         builder.add_silver_transform(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
                 "name": [F.col("name").isNotNull()],
@@ -39,7 +46,9 @@ class TestTableTotalRowsMetric:
 
         # Execute pipeline
         pipeline = builder.to_pipeline()
-        report = pipeline.run_initial_load(bronze_sources={"events": simple_events_data})
+        report = pipeline.run_initial_load(
+            bronze_sources={"events": simple_events_data}
+        )
 
         # Verify pipeline execution
         assert report.success is True
@@ -100,7 +109,12 @@ class TestTableTotalRowsMetric:
         assert log_row_data["write_mode"] == "overwrite"
 
     def test_table_total_rows_in_incremental_load(
-        self, spark_session, pipeline_builder, log_writer, test_schema, simple_events_data
+        self,
+        spark_session,
+        pipeline_builder,
+        log_writer,
+        test_schema,
+        simple_events_data,
     ):
         """Test table_total_rows metric after incremental load."""
         builder = pipeline_builder
@@ -117,7 +131,9 @@ class TestTableTotalRowsMetric:
         builder.add_silver_transform(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
                 "name": [F.col("name").isNotNull()],
@@ -129,7 +145,9 @@ class TestTableTotalRowsMetric:
         pipeline = builder.to_pipeline()
 
         # Run initial load
-        initial_report = pipeline.run_initial_load(bronze_sources={"events": simple_events_data})
+        initial_report = pipeline.run_initial_load(
+            bronze_sources={"events": simple_events_data}
+        )
         assert initial_report.success is True
 
         # Create incremental data
@@ -230,7 +248,9 @@ class TestTableTotalRowsMetric:
         # Verify table_total_rows shows accumulation
         log_df = spark_session.table(f"{test_schema}.pipeline_logs")
         initial_log = log_df.filter(log_df.run_id == "test_initial_load").collect()[0]
-        incremental_log = log_df.filter(log_df.run_id == "test_incremental_load").collect()[0]
+        incremental_log = log_df.filter(
+            log_df.run_id == "test_incremental_load"
+        ).collect()[0]
 
         assert initial_log["table_total_rows"] == 5
         assert incremental_log["table_total_rows"] == 6
@@ -238,7 +258,12 @@ class TestTableTotalRowsMetric:
         assert incremental_log["write_mode"] == "append"
 
     def test_table_total_rows_in_full_refresh(
-        self, spark_session, pipeline_builder, log_writer, test_schema, simple_events_data
+        self,
+        spark_session,
+        pipeline_builder,
+        log_writer,
+        test_schema,
+        simple_events_data,
     ):
         """Test table_total_rows metric after full refresh."""
         builder = pipeline_builder
@@ -255,7 +280,9 @@ class TestTableTotalRowsMetric:
         builder.add_silver_transform(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
                 "name": [F.col("name").isNotNull()],
@@ -267,17 +294,24 @@ class TestTableTotalRowsMetric:
         pipeline = builder.to_pipeline()
 
         # Run initial load
-        initial_report = pipeline.run_initial_load(bronze_sources={"events": simple_events_data})
+        initial_report = pipeline.run_initial_load(
+            bronze_sources={"events": simple_events_data}
+        )
         assert initial_report.success is True
 
         # Create new data for full refresh
         new_data = spark_session.createDataFrame(
-            [(7, "event7", "2024-01-03 10:00:00", 700), (8, "event8", "2024-01-03 11:00:00", 800)],
+            [
+                (7, "event7", "2024-01-03 10:00:00", 700),
+                (8, "event8", "2024-01-03 11:00:00", 800),
+            ],
             ["id", "name", "timestamp", "value"],
         )
 
         # Run full refresh (overwrite mode)
-        full_refresh_report = pipeline.run_initial_load(bronze_sources={"events": new_data})
+        full_refresh_report = pipeline.run_initial_load(
+            bronze_sources={"events": new_data}
+        )
         assert full_refresh_report.success is True
 
         # Verify table was refreshed with new data
@@ -335,7 +369,12 @@ class TestTableTotalRowsMetric:
         assert refresh_log["rows_written"] == 2
 
     def test_table_total_rows_multiple_tables(
-        self, spark_session, pipeline_builder, log_writer, test_schema, simple_events_data
+        self,
+        spark_session,
+        pipeline_builder,
+        log_writer,
+        test_schema,
+        simple_events_data,
     ):
         """Test table_total_rows metric with multiple tables."""
         builder = pipeline_builder
@@ -352,7 +391,9 @@ class TestTableTotalRowsMetric:
         builder.add_silver_transform(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
                 "name": [F.col("name").isNotNull()],
@@ -363,7 +404,9 @@ class TestTableTotalRowsMetric:
         builder.add_silver_transform(
             name="processed_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
                 "name": [F.col("name").isNotNull()],
@@ -373,7 +416,9 @@ class TestTableTotalRowsMetric:
 
         # Execute pipeline
         pipeline = builder.to_pipeline()
-        report = pipeline.run_initial_load(bronze_sources={"events": simple_events_data})
+        report = pipeline.run_initial_load(
+            bronze_sources={"events": simple_events_data}
+        )
 
         # Verify pipeline execution
         assert report.success is True
@@ -475,7 +520,9 @@ class TestTableTotalRowsMetric:
 
         # Find log entries for each table
         clean_log = next(row for row in log_data if row["step_name"] == "clean_events")
-        processed_log = next(row for row in log_data if row["step_name"] == "processed_events")
+        processed_log = next(
+            row for row in log_data if row["step_name"] == "processed_events"
+        )
 
         assert clean_log["table_total_rows"] == 5
         assert processed_log["table_total_rows"] == 5
@@ -536,7 +583,12 @@ class TestTableTotalRowsMetric:
         assert error_log["error_message"] == "Table write operation failed"
 
     def test_table_total_rows_validation_only_mode(
-        self, spark_session, pipeline_builder, log_writer, test_schema, simple_events_data
+        self,
+        spark_session,
+        pipeline_builder,
+        log_writer,
+        test_schema,
+        simple_events_data,
     ):
         """Test table_total_rows metric in validation-only mode."""
         builder = pipeline_builder
@@ -553,7 +605,9 @@ class TestTableTotalRowsMetric:
         builder.add_silver_transform(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
                 "name": [F.col("name").isNotNull()],
@@ -565,7 +619,9 @@ class TestTableTotalRowsMetric:
         pipeline = builder.to_pipeline()
         # Note: For validation-only mode, we use run_initial_load but with validation-only mode
         # This will be supported in the future. For now, let's use run_initial_load
-        report = pipeline.run_initial_load(bronze_sources={"events": simple_events_data})
+        report = pipeline.run_initial_load(
+            bronze_sources={"events": simple_events_data}
+        )
 
         # Verify pipeline execution
         assert report.success is True
@@ -613,7 +669,9 @@ class TestTableTotalRowsMetric:
 
         # Verify table_total_rows is None for validation-only mode
         log_df = spark_session.table(f"{test_schema}.pipeline_logs")
-        validation_log = log_df.filter(log_df.run_id == "test_validation_only").collect()[0]
+        validation_log = log_df.filter(
+            log_df.run_id == "test_validation_only"
+        ).collect()[0]
 
         assert validation_log["table_total_rows"] is None
         assert validation_log["write_mode"] is None
@@ -627,7 +685,9 @@ class TestTableTotalRowsMetric:
         # Create larger dataset
         large_data = []
         for i in range(100):
-            large_data.append((i, f"event_{i}", f"2024-01-01 {10 + i % 24:02d}:00:00", i * 10))
+            large_data.append(
+                (i, f"event_{i}", f"2024-01-01 {10 + i % 24:02d}:00:00", i * 10)
+            )
 
         large_df = spark_session.createDataFrame(
             large_data, ["id", "name", "timestamp", "value"]
@@ -647,7 +707,9 @@ class TestTableTotalRowsMetric:
         builder.add_silver_transform(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
                 "name": [F.col("name").isNotNull()],

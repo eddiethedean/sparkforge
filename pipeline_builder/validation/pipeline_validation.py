@@ -225,11 +225,13 @@ class UnifiedValidator:
         for step_name, step in all_steps.items():
             # Check for circular dependencies in non-standard dependencies attribute
             # This is only for custom step types that might have a dependencies field
-            if hasattr(step, "dependencies") and step.dependencies:
-                for dep in step.dependencies:
-                    if hasattr(dep, "step_name") and dep.step_name == step_name:
-                        errors.append(
-                            f"Step {step_name} has circular dependency on itself"
-                        )
+            if hasattr(step, "dependencies"):
+                dependencies = getattr(step, "dependencies", None)
+                if dependencies and isinstance(dependencies, (list, tuple, set)):
+                    for dep in dependencies:
+                        if hasattr(dep, "step_name") and dep.step_name == step_name:
+                            errors.append(
+                                f"Step {step_name} has circular dependency on itself"
+                            )
 
         return errors, warnings

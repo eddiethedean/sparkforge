@@ -253,7 +253,9 @@ class TestEcommercePipeline:
         mock_spark_session.storage.create_schema("gold")
 
         # Create pipeline
-        builder = PipelineBuilder(spark=mock_spark_session, schema="bronze", functions=F)
+        builder = PipelineBuilder(
+            spark=mock_spark_session, schema="bronze", functions=F
+        )
 
         # Bronze layer
         builder.with_bronze_rules(
@@ -412,7 +414,9 @@ class TestEcommercePipeline:
         )
 
         # Create pipeline
-        builder = PipelineBuilder(spark=mock_spark_session, schema="bronze", functions=F)
+        builder = PipelineBuilder(
+            spark=mock_spark_session, schema="bronze", functions=F
+        )
 
         builder.with_bronze_rules(name="orders", rules={"order_id": ["not_null"]})
 

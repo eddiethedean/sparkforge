@@ -243,7 +243,9 @@ class TestIotPipeline:
         mock_spark_session.storage.create_schema("gold")
 
         # Create pipeline
-        builder = PipelineBuilder(spark=mock_spark_session, schema="bronze", functions=F)
+        builder = PipelineBuilder(
+            spark=mock_spark_session, schema="bronze", functions=F
+        )
 
         # Bronze layer
         builder.with_bronze_rules(
@@ -357,7 +359,9 @@ class TestIotPipeline:
         mock_spark_session.storage.create_schema("gold")
 
         # Create pipeline with anomaly detection
-        builder = PipelineBuilder(spark=mock_spark_session, schema="bronze")
+        builder = PipelineBuilder(
+            spark=mock_spark_session, schema="bronze", functions=F
+        )
 
         builder.with_bronze_rules(
             name="sensor_readings",
@@ -454,7 +458,9 @@ class TestIotPipeline:
         )
 
         # Create pipeline
-        builder = PipelineBuilder(spark=mock_spark_session, schema="bronze", functions=F)
+        builder = PipelineBuilder(
+            spark=mock_spark_session, schema="bronze", functions=F
+        )
 
         builder.with_bronze_rules(
             name="sensor_readings", rules={"sensor_id": ["not_null"]}

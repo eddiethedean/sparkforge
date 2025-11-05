@@ -11,7 +11,9 @@ def test_simple_pipeline_creation(mock_spark_session):
     """Test basic pipeline creation with mock-spark."""
 
     # Create pipeline builder
-    builder = PipelineBuilder(spark=mock_spark_session, schema="bronze", verbose=True, functions=F)
+    builder = PipelineBuilder(
+        spark=mock_spark_session, schema="bronze", verbose=True, functions=F
+    )
 
     # Add bronze rules with string-based validation
     builder.with_bronze_rules(

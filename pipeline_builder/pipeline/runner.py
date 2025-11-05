@@ -254,11 +254,14 @@ class SimplePipelineRunner:
                 step_info["error"] = step_result.error
 
             # Add dataframe if available in context (for users who want to access output)
-            if hasattr(execution_result, "context") and execution_result.context:
-                if step_result.step_name in execution_result.context:
-                    step_info["dataframe"] = execution_result.context[
-                        step_result.step_name
-                    ]
+            if hasattr(execution_result, "context"):
+                context = getattr(execution_result, "context", None)
+                if (
+                    context
+                    and isinstance(context, dict)
+                    and step_result.step_name in context
+                ):
+                    step_info["dataframe"] = context[step_result.step_name]
 
             # Categorize by step type
             if step_result.step_type.value == "bronze":

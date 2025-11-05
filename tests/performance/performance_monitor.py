@@ -90,7 +90,9 @@ class PerformanceMonitor:
             json.dump(baseline_data, f, indent=2)
 
     @contextmanager
-    def measure_performance(self, function_name: str, iterations: int = 1) -> Generator[PerformanceResult, None, None]:
+    def measure_performance(
+        self, function_name: str, iterations: int = 1
+    ) -> Generator[PerformanceResult, None, None]:
         """Context manager for measuring function performance."""
         # Start memory tracing
         tracemalloc.start()

@@ -70,7 +70,9 @@ def log_writer(spark_session, test_schema):
         spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {test_schema}")
     except Exception:
         # Try storage API if SQL fails
-        if hasattr(spark_session, "storage") and hasattr(spark_session.storage, "create_schema"):
+        if hasattr(spark_session, "storage") and hasattr(
+            spark_session.storage, "create_schema"
+        ):
             try:
                 spark_session.storage.create_schema(test_schema)
             except Exception:
@@ -96,7 +98,9 @@ def pipeline_builder(spark_session, test_schema):
         spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {test_schema}")
     except Exception:
         # Try storage API if SQL fails
-        if hasattr(spark_session, "storage") and hasattr(spark_session.storage, "create_schema"):
+        if hasattr(spark_session, "storage") and hasattr(
+            spark_session.storage, "create_schema"
+        ):
             try:
                 spark_session.storage.create_schema(test_schema)
             except Exception:
@@ -126,11 +130,36 @@ def simple_events_schema():
 def simple_events_data(spark_session, simple_events_schema):
     """Create simple events data for testing."""
     data = [
-        {"id": 1, "name": "event1", "timestamp": datetime(2024, 1, 1, 10, 0, 0), "value": 100},
-        {"id": 2, "name": "event2", "timestamp": datetime(2024, 1, 1, 11, 0, 0), "value": 200},
-        {"id": 3, "name": "event3", "timestamp": datetime(2024, 1, 1, 12, 0, 0), "value": 300},
-        {"id": 4, "name": "event4", "timestamp": datetime(2024, 1, 1, 13, 0, 0), "value": 400},
-        {"id": 5, "name": "event5", "timestamp": datetime(2024, 1, 1, 14, 0, 0), "value": 500},
+        {
+            "id": 1,
+            "name": "event1",
+            "timestamp": datetime(2024, 1, 1, 10, 0, 0),
+            "value": 100,
+        },
+        {
+            "id": 2,
+            "name": "event2",
+            "timestamp": datetime(2024, 1, 1, 11, 0, 0),
+            "value": 200,
+        },
+        {
+            "id": 3,
+            "name": "event3",
+            "timestamp": datetime(2024, 1, 1, 12, 0, 0),
+            "value": 300,
+        },
+        {
+            "id": 4,
+            "name": "event4",
+            "timestamp": datetime(2024, 1, 1, 13, 0, 0),
+            "value": 400,
+        },
+        {
+            "id": 5,
+            "name": "event5",
+            "timestamp": datetime(2024, 1, 1, 14, 0, 0),
+            "value": 500,
+        },
     ]
 
     return spark_session.createDataFrame(data, simple_events_schema)
@@ -153,9 +182,24 @@ def simple_users_schema():
 def simple_users_data(spark_session, simple_users_schema):
     """Create simple users data for testing."""
     data = [
-        {"user_id": 1, "username": "user1", "email": "user1@example.com", "registration_date": datetime(2024, 1, 1, 0, 0, 0)},
-        {"user_id": 2, "username": "user2", "email": "user2@example.com", "registration_date": datetime(2024, 1, 1, 0, 0, 0)},
-        {"user_id": 3, "username": "user3", "email": "user3@example.com", "registration_date": datetime(2024, 1, 1, 0, 0, 0)},
+        {
+            "user_id": 1,
+            "username": "user1",
+            "email": "user1@example.com",
+            "registration_date": datetime(2024, 1, 1, 0, 0, 0),
+        },
+        {
+            "user_id": 2,
+            "username": "user2",
+            "email": "user2@example.com",
+            "registration_date": datetime(2024, 1, 1, 0, 0, 0),
+        },
+        {
+            "user_id": 3,
+            "username": "user3",
+            "email": "user3@example.com",
+            "registration_date": datetime(2024, 1, 1, 0, 0, 0),
+        },
     ]
 
     return spark_session.createDataFrame(data, simple_users_schema)

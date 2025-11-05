@@ -58,7 +58,9 @@ class TestWriteModeIntegration:
         return PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(max_workers=1, enabled=False),  # Disabled for schema creation compatibility
+            parallel=ParallelConfig(
+                max_workers=1, enabled=False
+            ),  # Disabled for schema creation compatibility
         )
 
     @pytest.fixture
@@ -189,7 +191,14 @@ class TestWriteModeIntegration:
             )
 
     def test_write_mode_consistency_across_pipeline_runs(
-        self, spark_session, config, logger, bronze_step, silver_step, gold_step, bronze_sources
+        self,
+        spark_session,
+        config,
+        logger,
+        bronze_step,
+        silver_step,
+        gold_step,
+        bronze_sources,
     ):
         """Test that write_mode is consistent across multiple pipeline runs."""
         # Create pipeline runner
@@ -235,7 +244,14 @@ class TestWriteModeIntegration:
                 )
 
     def test_mixed_pipeline_modes_have_correct_write_modes(
-        self, spark_session, config, logger, bronze_step, silver_step, gold_step, bronze_sources
+        self,
+        spark_session,
+        config,
+        logger,
+        bronze_step,
+        silver_step,
+        gold_step,
+        bronze_sources,
     ):
         """Test that mixing different pipeline modes results in correct write_modes."""
         # Create pipeline runner
@@ -255,9 +271,18 @@ class TestWriteModeIntegration:
 
         # Verify write_modes are correct for each mode (only silver/gold write to tables)
         # Note: In mock-spark, tables don't persist between runs, so incremental after initial may fail
-        initial_silver_gold = {**initial_report.silver_results, **initial_report.gold_results}
-        incremental_silver_gold = {**incremental_report.silver_results, **incremental_report.gold_results}
-        full_refresh_silver_gold = {**full_refresh_report.silver_results, **full_refresh_report.gold_results}
+        initial_silver_gold = {
+            **initial_report.silver_results,
+            **initial_report.gold_results,
+        }
+        incremental_silver_gold = {
+            **incremental_report.silver_results,
+            **incremental_report.gold_results,
+        }
+        full_refresh_silver_gold = {
+            **full_refresh_report.silver_results,
+            **full_refresh_report.gold_results,
+        }
         for step_name in initial_silver_gold.keys():
             # Initial should use overwrite
             assert initial_silver_gold[step_name].get("write_mode") == "overwrite"
@@ -270,7 +295,14 @@ class TestWriteModeIntegration:
             assert full_refresh_silver_gold[step_name].get("write_mode") == "overwrite"
 
     def test_write_mode_regression_prevention(
-        self, spark_session, config, logger, bronze_step, silver_step, gold_step, bronze_sources
+        self,
+        spark_session,
+        config,
+        logger,
+        bronze_step,
+        silver_step,
+        gold_step,
+        bronze_sources,
     ):
         """Test specifically designed to prevent the write_mode regression bug."""
         # Create pipeline runner
@@ -301,7 +333,14 @@ class TestWriteModeIntegration:
             )
 
     def test_log_writer_receives_correct_write_mode(
-        self, spark_session, config, logger, bronze_step, silver_step, gold_step, bronze_sources
+        self,
+        spark_session,
+        config,
+        logger,
+        bronze_step,
+        silver_step,
+        gold_step,
+        bronze_sources,
     ):
         """Test that LogWriter receives the correct write_mode from step results."""
         # Create pipeline runner
@@ -322,8 +361,14 @@ class TestWriteModeIntegration:
 
         # Verify that the step results have the correct write_mode
         # that would be passed to LogWriter (only silver/gold write to tables)
-        incremental_silver_gold = {**incremental_report.silver_results, **incremental_report.gold_results}
-        initial_silver_gold = {**initial_report.silver_results, **initial_report.gold_results}
+        incremental_silver_gold = {
+            **incremental_report.silver_results,
+            **incremental_report.gold_results,
+        }
+        initial_silver_gold = {
+            **initial_report.silver_results,
+            **initial_report.gold_results,
+        }
         for step_name in incremental_silver_gold.keys():
             incremental_step_result = incremental_silver_gold[step_name]
             initial_step_result = initial_silver_gold[step_name]

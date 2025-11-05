@@ -6,6 +6,9 @@ Bronze → Silver → Gold medallion architecture with incremental streaming upd
 and batch backfill capabilities.
 """
 
+import os
+
+import pytest
 from mock_spark import functions as F
 
 from pipeline_builder.pipeline import PipelineBuilder
@@ -14,6 +17,10 @@ from pipeline_builder.pipeline import PipelineBuilder
 class TestStreamingHybridPipeline:
     """Test streaming/batch hybrid pipeline with bronze-silver-gold architecture."""
 
+    @pytest.mark.skipif(
+        os.environ.get("SPARK_MODE", "mock").lower() == "mock",
+        reason="regexp_replace SQL syntax not supported in DuckDB backend",
+    )
     def test_complete_streaming_hybrid_pipeline_execution(
         self, mock_spark_session, data_generator, test_assertions
     ):
@@ -74,7 +81,7 @@ class TestStreamingHybridPipeline:
                     "event_timestamp_parsed",
                     F.to_timestamp(
                         F.regexp_replace(F.col("event_timestamp"), r"\.\d+", ""),
-                        "yyyy-MM-dd'T'HH:mm:ss"
+                        "yyyy-MM-dd'T'HH:mm:ss",
                     ),
                 )
                 .withColumn(
@@ -130,7 +137,7 @@ class TestStreamingHybridPipeline:
                     "event_timestamp_parsed",
                     F.to_timestamp(
                         F.regexp_replace(F.col("event_timestamp"), r"\.\d+", ""),
-                        "yyyy-MM-dd'T'HH:mm:ss"
+                        "yyyy-MM-dd'T'HH:mm:ss",
                     ),
                 )
                 .withColumn(
@@ -250,7 +257,9 @@ class TestStreamingHybridPipeline:
                     .agg(
                         F.count("*").alias("batch_events"),
                         F.countDistinct("user_id").alias("batch_users"),
-                        F.sum(F.when(F.col("is_purchase"), 1).otherwise(0)).alias("batch_purchases"),
+                        F.sum(F.when(F.col("is_purchase"), 1).otherwise(0)).alias(
+                            "batch_purchases"
+                        ),
                         F.sum("event_value").alias("batch_revenue"),
                     )
                 )
@@ -266,38 +275,49 @@ class TestStreamingHybridPipeline:
                     .agg(
                         F.count("*").alias("streaming_events"),
                         F.countDistinct("user_id").alias("streaming_users"),
-                        F.sum(F.when(F.col("is_purchase"), 1).otherwise(0)).alias("streaming_purchases"),
+                        F.sum(F.when(F.col("is_purchase"), 1).otherwise(0)).alias(
+                            "streaming_purchases"
+                        ),
                         F.sum("event_value").alias("streaming_revenue"),
-                        F.sum(F.when(F.col("is_mobile"), 1).otherwise(0)).alias("mobile_events"),
+                        F.sum(F.when(F.col("is_mobile"), 1).otherwise(0)).alias(
+                            "mobile_events"
+                        ),
                     )
                 )
 
             # Combine metrics
             if batch_metrics is not None and streaming_metrics is not None:
                 analytics = (
-                    batch_metrics
-                    .join(streaming_metrics, "metric_date", "full")
+                    batch_metrics.join(streaming_metrics, "metric_date", "full")
                     .withColumn(
                         "total_events",
-                        F.coalesce(F.col("batch_events"), F.lit(0)) + F.coalesce(F.col("streaming_events"), F.lit(0)),
+                        F.coalesce(F.col("batch_events"), F.lit(0))
+                        + F.coalesce(F.col("streaming_events"), F.lit(0)),
                     )
                     .withColumn(
                         "total_users",
-                        F.coalesce(F.col("batch_users"), F.lit(0)) + F.coalesce(F.col("streaming_users"), F.lit(0)),
+                        F.coalesce(F.col("batch_users"), F.lit(0))
+                        + F.coalesce(F.col("streaming_users"), F.lit(0)),
                     )
                     .withColumn(
                         "total_purchases",
-                        F.coalesce(F.col("batch_purchases"), F.lit(0)) + F.coalesce(F.col("streaming_purchases"), F.lit(0)),
+                        F.coalesce(F.col("batch_purchases"), F.lit(0))
+                        + F.coalesce(F.col("streaming_purchases"), F.lit(0)),
                     )
                     .withColumn(
                         "total_revenue",
-                        F.coalesce(F.col("batch_revenue"), F.lit(0.0)) + F.coalesce(F.col("streaming_revenue"), F.lit(0.0)),
+                        F.coalesce(F.col("batch_revenue"), F.lit(0.0))
+                        + F.coalesce(F.col("streaming_revenue"), F.lit(0.0)),
                     )
                     .withColumn(
                         "mobile_pct",
                         F.when(
                             F.col("total_events") > 0,
-                            (F.coalesce(F.col("mobile_events"), F.lit(0)) / F.col("total_events")) * 100,
+                            (
+                                F.coalesce(F.col("mobile_events"), F.lit(0))
+                                / F.col("total_events")
+                            )
+                            * 100,
                         ).otherwise(0),
                     )
                     .withColumn(
@@ -320,11 +340,69 @@ class TestStreamingHybridPipeline:
                     )
                 )
             elif batch_metrics is not None:
-                analytics = batch_metrics.withColumn("total_events", F.col("batch_events")).withColumn("streaming_events", F.lit(0)).withColumn("total_users", F.col("batch_users")).withColumn("total_purchases", F.col("batch_purchases")).withColumn("total_revenue", F.col("batch_revenue")).withColumn("mobile_pct", F.lit(0)).select("metric_date", "total_events", "batch_events", "streaming_events", "total_users", "total_purchases", "total_revenue", "mobile_pct")
+                analytics = (
+                    batch_metrics.withColumn("total_events", F.col("batch_events"))
+                    .withColumn("streaming_events", F.lit(0))
+                    .withColumn("total_users", F.col("batch_users"))
+                    .withColumn("total_purchases", F.col("batch_purchases"))
+                    .withColumn("total_revenue", F.col("batch_revenue"))
+                    .withColumn("mobile_pct", F.lit(0))
+                    .select(
+                        "metric_date",
+                        "total_events",
+                        "batch_events",
+                        "streaming_events",
+                        "total_users",
+                        "total_purchases",
+                        "total_revenue",
+                        "mobile_pct",
+                    )
+                )
             elif streaming_metrics is not None:
-                analytics = streaming_metrics.withColumn("total_events", F.col("streaming_events")).withColumn("batch_events", F.lit(0)).withColumn("total_users", F.col("streaming_users")).withColumn("total_purchases", F.col("streaming_purchases")).withColumn("total_revenue", F.col("streaming_revenue")).withColumn("mobile_pct", F.when(F.col("total_events") > 0, (F.coalesce(F.col("mobile_events"), F.lit(0)) / F.col("total_events")) * 100).otherwise(0)).select("metric_date", "total_events", "batch_events", "streaming_events", "total_users", "total_purchases", "total_revenue", "mobile_pct")
+                analytics = (
+                    streaming_metrics.withColumn(
+                        "total_events", F.col("streaming_events")
+                    )
+                    .withColumn("batch_events", F.lit(0))
+                    .withColumn("total_users", F.col("streaming_users"))
+                    .withColumn("total_purchases", F.col("streaming_purchases"))
+                    .withColumn("total_revenue", F.col("streaming_revenue"))
+                    .withColumn(
+                        "mobile_pct",
+                        F.when(
+                            F.col("total_events") > 0,
+                            (
+                                F.coalesce(F.col("mobile_events"), F.lit(0))
+                                / F.col("total_events")
+                            )
+                            * 100,
+                        ).otherwise(0),
+                    )
+                    .select(
+                        "metric_date",
+                        "total_events",
+                        "batch_events",
+                        "streaming_events",
+                        "total_users",
+                        "total_purchases",
+                        "total_revenue",
+                        "mobile_pct",
+                    )
+                )
             else:
-                return spark.createDataFrame([], ["metric_date", "total_events", "batch_events", "streaming_events", "total_users", "total_purchases", "total_revenue", "mobile_pct"])
+                return spark.createDataFrame(
+                    [],
+                    [
+                        "metric_date",
+                        "total_events",
+                        "batch_events",
+                        "streaming_events",
+                        "total_users",
+                        "total_purchases",
+                        "total_revenue",
+                        "mobile_pct",
+                    ],
+                )
 
             return analytics
 
@@ -365,12 +443,18 @@ class TestStreamingHybridPipeline:
                     F.min("event_timestamp_parsed").alias("session_start"),
                     F.max("event_timestamp_parsed").alias("session_end"),
                     F.count("*").alias("event_count"),
-                    F.max(F.when(F.col("is_purchase"), 1).otherwise(0)).alias("has_purchase"),
+                    F.max(F.when(F.col("is_purchase"), 1).otherwise(0)).alias(
+                        "has_purchase"
+                    ),
                     F.sum("event_value").alias("total_value"),
                 )
                 .withColumn(
                     "duration_minutes",
-                    (F.unix_timestamp(F.col("session_end")) - F.unix_timestamp(F.col("session_start"))) / 60.0,
+                    (
+                        F.unix_timestamp(F.col("session_end"))
+                        - F.unix_timestamp(F.col("session_start"))
+                    )
+                    / 60.0,
                 )
                 .select(
                     "session_id",
@@ -457,13 +541,19 @@ class TestStreamingHybridPipeline:
         mock_spark_session.storage.create_schema("silver")
 
         def unified_events_transform(spark, df, silvers):
-            return df.withColumn(
-                "event_timestamp_clean",
-                F.regexp_replace(F.col("event_timestamp"), r"\.\d+", "")
-            ).withColumn(
-                "event_timestamp_parsed",
-                F.to_timestamp(F.col("event_timestamp_clean"), "yyyy-MM-dd'T'HH:mm:ss"),
-            ).drop("event_timestamp_clean")
+            return (
+                df.withColumn(
+                    "event_timestamp_clean",
+                    F.regexp_replace(F.col("event_timestamp"), r"\.\d+", ""),
+                )
+                .withColumn(
+                    "event_timestamp_parsed",
+                    F.to_timestamp(
+                        F.col("event_timestamp_clean"), "yyyy-MM-dd'T'HH:mm:ss"
+                    ),
+                )
+                .drop("event_timestamp_clean")
+            )
 
         builder.add_silver_transform(
             name="unified_batch_events",
@@ -493,4 +583,3 @@ class TestStreamingHybridPipeline:
 
         test_assertions.assert_pipeline_success(result2)
         assert result2.mode.value == "incremental"
-

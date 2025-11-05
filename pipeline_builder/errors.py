@@ -7,7 +7,7 @@ with just the essential error types needed for the project.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union, cast
 
@@ -79,7 +79,7 @@ class SparkForgeError(Exception):
         self.severity = severity
         self.context = context or {}
         self.suggestions = suggestions or []
-        self.timestamp = timestamp or datetime.utcnow()
+        self.timestamp = timestamp or datetime.now(timezone.utc)
         self.cause = cause
 
     def __str__(self) -> str:

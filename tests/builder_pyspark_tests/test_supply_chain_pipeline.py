@@ -82,7 +82,9 @@ class TestSupplyChainPipeline:
             return (
                 df.withColumn(
                     "order_date_parsed",
-                    F.to_timestamp(F.col("order_date"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"),
+                    F.to_timestamp(
+                        F.col("order_date"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"
+                    ),
                 )
                 .withColumn(
                     "total_value",
@@ -128,17 +130,23 @@ class TestSupplyChainPipeline:
             return (
                 df.withColumn(
                     "shipping_date_parsed",
-                    F.to_timestamp(F.col("shipping_date"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"),
+                    F.to_timestamp(
+                        F.col("shipping_date"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"
+                    ),
                 )
                 .withColumn(
                     "delivery_date_parsed",
-                    F.to_timestamp(F.col("delivery_date"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"),
+                    F.to_timestamp(
+                        F.col("delivery_date"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"
+                    ),
                 )
                 .withColumn(
                     "days_to_deliver",
                     F.when(
                         F.col("delivery_date_parsed").isNotNull(),
-                        F.datediff(F.col("delivery_date_parsed"), F.col("shipping_date_parsed")),
+                        F.datediff(
+                            F.col("delivery_date_parsed"), F.col("shipping_date_parsed")
+                        ),
                     ).otherwise(None),
                 )
                 .withColumn(
@@ -186,7 +194,9 @@ class TestSupplyChainPipeline:
             return (
                 df.withColumn(
                     "snapshot_date_parsed",
-                    F.to_timestamp(F.col("snapshot_date"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"),
+                    F.to_timestamp(
+                        F.col("snapshot_date"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"
+                    ),
                 )
                 .withColumn(
                     "available_quantity",
@@ -287,9 +297,7 @@ class TestSupplyChainPipeline:
                     "on_time_rate",
                     F.when(
                         F.col("total_shipments") > 0,
-                        (
-                            F.col("total_shipments") - F.col("delayed_count")
-                        )
+                        (F.col("total_shipments") - F.col("delayed_count"))
                         / F.col("total_shipments")
                         * 100,
                     ).otherwise(0),
@@ -339,28 +347,26 @@ class TestSupplyChainPipeline:
                 )
 
             # Aggregate orders by warehouse and product
-            order_metrics = (
-                processed_orders.groupBy("warehouse_id", "product_id")
-                .agg(
-                    F.count("order_id").alias("total_orders"),
-                    F.sum("quantity").alias("total_quantity_ordered"),
-                )
+            order_metrics = processed_orders.groupBy("warehouse_id", "product_id").agg(
+                F.count("order_id").alias("total_orders"),
+                F.sum("quantity").alias("total_quantity_ordered"),
             )
 
             # Aggregate inventory by warehouse and product
-            inventory_metrics = (
-                processed_inventory.groupBy("warehouse_id", "product_id")
-                .agg(
-                    F.avg("quantity_on_hand").alias("avg_inventory_level"),
-                    F.sum(
-                        F.when(F.col("is_low_stock"), 1).otherwise(0)
-                    ).alias("low_stock_indicators"),
-                )
+            inventory_metrics = processed_inventory.groupBy(
+                "warehouse_id", "product_id"
+            ).agg(
+                F.avg("quantity_on_hand").alias("avg_inventory_level"),
+                F.sum(F.when(F.col("is_low_stock"), 1).otherwise(0)).alias(
+                    "low_stock_indicators"
+                ),
             )
 
             # Calculate inventory turnover
             turnover = (
-                order_metrics.join(inventory_metrics, ["warehouse_id", "product_id"], "outer")
+                order_metrics.join(
+                    inventory_metrics, ["warehouse_id", "product_id"], "outer"
+                )
                 .withColumn(
                     "inventory_turnover",
                     F.when(
@@ -482,9 +488,7 @@ class TestSupplyChainPipeline:
         assert result2.mode.value == "incremental"
 
     @pytest.mark.pyspark
-    def test_supply_chain_logging(
-        self, spark_session, data_generator, test_assertions
-    ):
+    def test_supply_chain_logging(self, spark_session, data_generator, test_assertions):
         """Test comprehensive logging for supply chain pipeline."""
         # Skip if in mock mode (requires real PySpark with Delta Lake)
         if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
@@ -541,4 +545,3 @@ class TestSupplyChainPipeline:
         test_assertions.assert_pipeline_success(result)
         assert log_result is not None
         assert log_result.get("success") is True
-

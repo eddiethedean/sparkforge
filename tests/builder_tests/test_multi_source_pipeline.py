@@ -556,7 +556,9 @@ class TestMultiSourcePipeline:
         mock_spark_session.storage.create_schema("gold")
 
         # Create pipeline
-        builder = PipelineBuilder(spark=mock_spark_session, schema="bronze", functions=F)
+        builder = PipelineBuilder(
+            spark=mock_spark_session, schema="bronze", functions=F
+        )
 
         builder.with_bronze_rules(name="customers", rules={"customer_id": ["not_null"]})
 
@@ -642,7 +644,9 @@ class TestMultiSourcePipeline:
         mock_spark_session.storage.create_schema("gold")
 
         # Create pipeline with complex dependencies
-        builder = PipelineBuilder(spark=mock_spark_session, schema="bronze", functions=F)
+        builder = PipelineBuilder(
+            spark=mock_spark_session, schema="bronze", functions=F
+        )
 
         # Multiple bronze sources
         builder.with_bronze_rules(name="customers", rules={"customer_id": ["not_null"]})
@@ -776,7 +780,9 @@ class TestMultiSourcePipeline:
         )
 
         # Create pipeline
-        builder = PipelineBuilder(spark=mock_spark_session, schema="bronze", functions=F)
+        builder = PipelineBuilder(
+            spark=mock_spark_session, schema="bronze", functions=F
+        )
 
         builder.with_bronze_rules(name="crm_data", rules={"customer_id": ["not_null"]})
 

@@ -211,12 +211,20 @@ class DataGenerator:
                     "patient_id": f"PAT-{i:06d}",
                     "first_name": f"Patient{i % 100}",
                     "last_name": f"LastName{i % 20}",
-                    "date_of_birth": (datetime.now() - timedelta(days=365 * (20 + i % 60))).strftime("%Y-%m-%d"),
+                    "date_of_birth": (
+                        datetime.now() - timedelta(days=365 * (20 + i % 60))
+                    ).strftime("%Y-%m-%d"),
                     "gender": ["M", "F", "Other"][i % 3],
-                    "ethnicity": ["White", "Black", "Hispanic", "Asian", "Other"][i % 5],
+                    "ethnicity": ["White", "Black", "Hispanic", "Asian", "Other"][
+                        i % 5
+                    ],
                     "address": f"123 Main St, City {i % 10}",
-                    "insurance_provider": ["Medicare", "Medicaid", "Private", "None"][i % 4],
-                    "registration_date": (datetime.now() - timedelta(days=i * 30)).isoformat(),
+                    "insurance_provider": ["Medicare", "Medicaid", "Private", "None"][
+                        i % 4
+                    ],
+                    "registration_date": (
+                        datetime.now() - timedelta(days=i * 30)
+                    ).isoformat(),
                 }
             )
 
@@ -247,7 +255,13 @@ class DataGenerator:
                     "lab_id": f"LAB-{i:08d}",
                     "patient_id": f"PAT-{(i % 50):06d}",
                     "test_date": (datetime.now() - timedelta(days=i % 90)).isoformat(),
-                    "test_type": ["glucose", "cholesterol", "hemoglobin", "blood_pressure", "lipid_panel"][i % 5],
+                    "test_type": [
+                        "glucose",
+                        "cholesterol",
+                        "hemoglobin",
+                        "blood_pressure",
+                        "lipid_panel",
+                    ][i % 5],
                     "result_value": round(50.0 + (i % 200), 1),
                     "unit": ["mg/dL", "mg/dL", "g/dL", "mmHg", "mg/dL"][i % 5],
                     "reference_range_min": 50.0,
@@ -278,8 +292,16 @@ class DataGenerator:
     def create_healthcare_diagnoses(spark, num_diagnoses: int = 150) -> Any:
         """Create healthcare diagnosis data."""
         diagnoses_list = [
-            "Hypertension", "Diabetes Type 2", "Asthma", "Obesity", "Depression",
-            "Anxiety", "Migraine", "Arthritis", "COPD", "Heart Disease"
+            "Hypertension",
+            "Diabetes Type 2",
+            "Asthma",
+            "Obesity",
+            "Depression",
+            "Anxiety",
+            "Migraine",
+            "Arthritis",
+            "COPD",
+            "Heart Disease",
         ]
 
         diagnoses = []
@@ -288,7 +310,9 @@ class DataGenerator:
                 {
                     "diagnosis_id": f"DX-{i:08d}",
                     "patient_id": f"PAT-{(i % 50):06d}",
-                    "diagnosis_date": (datetime.now() - timedelta(days=i % 180)).isoformat(),
+                    "diagnosis_date": (
+                        datetime.now() - timedelta(days=i % 180)
+                    ).isoformat(),
                     "diagnosis_code": f"ICD10-{i % 1000:04d}",
                     "diagnosis_name": diagnoses_list[i % len(diagnoses_list)],
                     "severity": ["mild", "moderate", "severe"][i % 3],
@@ -316,8 +340,16 @@ class DataGenerator:
     def create_healthcare_medications(spark, num_prescriptions: int = 180) -> Any:
         """Create healthcare medication/prescription data."""
         medications_list = [
-            "Aspirin", "Metformin", "Lisinopril", "Atorvastatin", "Amlodipine",
-            "Omeprazole", "Metoprolol", "Albuterol", "Gabapentin", "Sertraline"
+            "Aspirin",
+            "Metformin",
+            "Lisinopril",
+            "Atorvastatin",
+            "Amlodipine",
+            "Omeprazole",
+            "Metoprolol",
+            "Albuterol",
+            "Gabapentin",
+            "Sertraline",
         ]
 
         medications = []
@@ -326,7 +358,9 @@ class DataGenerator:
                 {
                     "prescription_id": f"RX-{i:08d}",
                     "patient_id": f"PAT-{(i % 50):06d}",
-                    "prescription_date": (datetime.now() - timedelta(days=i % 120)).isoformat(),
+                    "prescription_date": (
+                        datetime.now() - timedelta(days=i % 120)
+                    ).isoformat(),
                     "medication_name": medications_list[i % len(medications_list)],
                     "dosage": f"{(i % 10) + 1 * 10}mg",
                     "frequency": ["daily", "twice_daily", "weekly", "as_needed"][i % 4],
@@ -396,8 +430,14 @@ class DataGenerator:
                 {
                     "shipment_id": f"SHIP-{i:08d}",
                     "order_id": f"ORD-{(i % 100):08d}",
-                    "shipping_date": (datetime.now() - timedelta(days=i % 85)).isoformat(),
-                    "delivery_date": (datetime.now() - timedelta(days=(i % 85) - 3)).isoformat() if i % 4 != 0 else None,
+                    "shipping_date": (
+                        datetime.now() - timedelta(days=i % 85)
+                    ).isoformat(),
+                    "delivery_date": (
+                        datetime.now() - timedelta(days=(i % 85) - 3)
+                    ).isoformat()
+                    if i % 4 != 0
+                    else None,
                     "carrier": ["UPS", "FedEx", "DHL", "USPS"][i % 4],
                     "tracking_number": f"TRACK{i:010d}",
                     "status": ["in_transit", "delivered", "pending", "delayed"][i % 4],
@@ -430,7 +470,9 @@ class DataGenerator:
                     "inventory_id": f"INV-{i:08d}",
                     "product_id": f"PROD-{i % 25:03d}",
                     "warehouse_id": f"WH-{i % 5:02d}",
-                    "snapshot_date": (datetime.now() - timedelta(days=i % 30)).isoformat(),
+                    "snapshot_date": (
+                        datetime.now() - timedelta(days=i % 30)
+                    ).isoformat(),
                     "quantity_on_hand": (i % 1000) + 100,
                     "quantity_reserved": (i % 100),
                     "reorder_point": 200,
@@ -463,8 +505,12 @@ class DataGenerator:
                     "impression_id": f"IMP-{i:08d}",
                     "campaign_id": f"CAMP-{i % 10:02d}",
                     "customer_id": f"CUST-{i % 40:04d}",
-                    "impression_date": (datetime.now() - timedelta(hours=i % 720)).isoformat(),
-                    "channel": ["google", "facebook", "twitter", "email", "display"][i % 5],
+                    "impression_date": (
+                        datetime.now() - timedelta(hours=i % 720)
+                    ).isoformat(),
+                    "channel": ["google", "facebook", "twitter", "email", "display"][
+                        i % 5
+                    ],
                     "ad_id": f"AD-{i % 20:03d}",
                     "cost_per_impression": round(0.01 + (i % 50) / 1000, 3),
                     "device_type": ["desktop", "mobile", "tablet"][i % 3],
@@ -496,8 +542,12 @@ class DataGenerator:
                     "click_id": f"CLK-{i:08d}",
                     "impression_id": f"IMP-{(i * 2) % 200:08d}",
                     "customer_id": f"CUST-{i % 40:04d}",
-                    "click_date": (datetime.now() - timedelta(hours=(i * 2) % 700)).isoformat(),
-                    "channel": ["google", "facebook", "twitter", "email", "display"][i % 5],
+                    "click_date": (
+                        datetime.now() - timedelta(hours=(i * 2) % 700)
+                    ).isoformat(),
+                    "channel": ["google", "facebook", "twitter", "email", "display"][
+                        i % 5
+                    ],
                     "time_to_click_seconds": (i % 300) + 10,
                 }
             )
@@ -525,10 +575,16 @@ class DataGenerator:
                     "conversion_id": f"CONV-{i:08d}",
                     "customer_id": f"CUST-{i % 40:04d}",
                     "click_id": f"CLK-{i % 80:08d}",
-                    "conversion_date": (datetime.now() - timedelta(hours=(i * 3) % 680)).isoformat(),
-                    "conversion_type": ["purchase", "signup", "download", "trial"][i % 4],
+                    "conversion_date": (
+                        datetime.now() - timedelta(hours=(i * 3) % 680)
+                    ).isoformat(),
+                    "conversion_type": ["purchase", "signup", "download", "trial"][
+                        i % 4
+                    ],
                     "conversion_value": round(10.0 + (i % 200), 2),
-                    "channel": ["google", "facebook", "twitter", "email", "display"][i % 5],
+                    "channel": ["google", "facebook", "twitter", "email", "display"][
+                        i % 5
+                    ],
                 }
             )
 
@@ -555,11 +611,21 @@ class DataGenerator:
             records.append(
                 {
                     "id": f"A-{i:06d}",
-                    "customer_id": f"CUST-{i % 50:04d}" if i % 20 != 0 else None,  # 5% missing
-                    "transaction_date": (datetime.now() - timedelta(days=i % 90)).isoformat(),
-                    "amount": round(10.0 + (i % 200), 2) if i % 15 != 0 else -5.0,  # Some negative amounts
-                    "status": ["completed", "pending", "failed", None][i % 4],  # 25% None
-                    "category": ["food", "clothing", "electronics", ""][i % 4],  # Some empty strings
+                    "customer_id": f"CUST-{i % 50:04d}"
+                    if i % 20 != 0
+                    else None,  # 5% missing
+                    "transaction_date": (
+                        datetime.now() - timedelta(days=i % 90)
+                    ).isoformat(),
+                    "amount": round(10.0 + (i % 200), 2)
+                    if i % 15 != 0
+                    else -5.0,  # Some negative amounts
+                    "status": ["completed", "pending", "failed", None][
+                        i % 4
+                    ],  # 25% None
+                    "category": ["food", "clothing", "electronics", ""][
+                        i % 4
+                    ],  # Some empty strings
                     "region": f"Region{i % 5}",
                 }
             )
@@ -587,7 +653,9 @@ class DataGenerator:
                 {
                     "record_id": f"B-{i:06d}",
                     "cust_id": f"CUST-{i % 50:04d}",
-                    "date": (datetime.now() - timedelta(days=(i+5) % 90)).isoformat(),  # Slightly different dates
+                    "date": (
+                        datetime.now() - timedelta(days=(i + 5) % 90)
+                    ).isoformat(),  # Slightly different dates
                     "value": round(10.0 + (i % 200), 2),
                     "transaction_status": ["done", "in_progress", "error"][i % 3],
                     "item_type": ["food", "clothing", "electronics", "other"][i % 4],
@@ -618,8 +686,16 @@ class DataGenerator:
                 {
                     "event_id": f"EVT-{i:08d}",
                     "user_id": f"USER-{i % 40:04d}",
-                    "event_timestamp": (datetime.now() - timedelta(minutes=i % 1440)).isoformat(),
-                    "event_type": ["click", "view", "purchase", "search", "add_to_cart"][i % 5],
+                    "event_timestamp": (
+                        datetime.now() - timedelta(minutes=i % 1440)
+                    ).isoformat(),
+                    "event_type": [
+                        "click",
+                        "view",
+                        "purchase",
+                        "search",
+                        "add_to_cart",
+                    ][i % 5],
                     "product_id": f"PROD-{i % 30:03d}",
                     "session_id": f"SESS-{i % 25:03d}",
                     "amount": round(10.0 + (i % 100), 2) if i % 5 == 0 else None,
@@ -651,8 +727,16 @@ class DataGenerator:
                 {
                     "event_id": f"HIST-{i:08d}",
                     "user_id": f"USER-{i % 40:04d}",
-                    "event_timestamp": (datetime.now() - timedelta(days=90 - (i % 60))).isoformat(),
-                    "event_type": ["click", "view", "purchase", "search", "add_to_cart"][i % 5],
+                    "event_timestamp": (
+                        datetime.now() - timedelta(days=90 - (i % 60))
+                    ).isoformat(),
+                    "event_type": [
+                        "click",
+                        "view",
+                        "purchase",
+                        "search",
+                        "add_to_cart",
+                    ][i % 5],
                     "product_id": f"PROD-{i % 30:03d}",
                     "session_id": f"SESS-{i % 25:03d}",
                     "amount": round(10.0 + (i % 100), 2) if i % 5 == 0 else None,

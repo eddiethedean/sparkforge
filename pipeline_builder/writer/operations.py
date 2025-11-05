@@ -173,6 +173,7 @@ class DataProcessor:
                     error_message=step_result.error_message,
                     metadata=metadata or {},
                     rows_processed=step_result.rows_processed,
+                    table_total_rows=None,
                     memory_usage_mb=0.0,
                     cpu_usage_percent=0.0,
                 )
@@ -319,6 +320,12 @@ class DataProcessor:
         """Calculate data quality score."""
         try:
             total_rows = df_info["row_count"]
+            if total_rows == 0:
+                return 0.0
+
+            # Ensure total_rows is an integer for division
+            if not isinstance(total_rows, int):
+                total_rows = int(total_rows) if total_rows else 0
             if total_rows == 0:
                 return 0.0
 

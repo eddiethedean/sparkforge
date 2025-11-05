@@ -156,6 +156,7 @@ def create_log_rows_from_execution_result(
         "output_rows": 0,
         "rows_written": 0,
         "rows_processed": 0,
+        "table_total_rows": None,
         "valid_rows": 0,
         "invalid_rows": 0,
         "validation_rate": 100.0,
@@ -169,38 +170,41 @@ def create_log_rows_from_execution_result(
     log_rows.append(main_row)
 
     # Add step results if available
-    if hasattr(execution_result, "steps") and execution_result.steps:
-        for step in execution_result.steps:
-            step_row: LogRow = {
-                "run_id": run_id,
-                "run_mode": run_mode,  # type: ignore[typeddict-item]
-                "run_started_at": getattr(execution_result, "start_time", None),
-                "run_ended_at": getattr(execution_result, "end_time", None),
-                "execution_id": getattr(execution_result, "execution_id", run_id),
-                "pipeline_id": getattr(execution_result, "pipeline_id", "unknown"),
-                "schema": getattr(execution_result, "schema", "default"),
-                "phase": getattr(step, "step_type", "bronze").lower(),  # type: ignore[typeddict-item]
-                "step_name": getattr(step, "step_name", "unknown"),
-                "step_type": getattr(step, "step_type", "unknown"),
-                "start_time": getattr(step, "start_time", None),
-                "end_time": getattr(step, "end_time", None),
-                "duration_secs": getattr(step, "duration", 0.0),
-                "table_fqn": getattr(step, "output_table", None),
-                "write_mode": getattr(step, "write_mode", None),
-                "input_rows": getattr(step, "input_rows", 0),
-                "output_rows": getattr(step, "rows_processed", 0),
-                "rows_written": getattr(step, "rows_written", 0),
-                "rows_processed": getattr(step, "rows_processed", 0),
-                "valid_rows": 0,
-                "invalid_rows": 0,
-                "validation_rate": 100.0,
-                "success": getattr(step, "status", "unknown") == "completed",
-                "error_message": getattr(step, "error", None),
-                "memory_usage_mb": 0.0,
-                "cpu_usage_percent": 0.0,
-                "metadata": {},
-            }
-            log_rows.append(step_row)
+    if hasattr(execution_result, "steps"):
+        steps = getattr(execution_result, "steps", None)
+        if steps and isinstance(steps, (list, tuple)):
+            for step in steps:
+                step_row: LogRow = {
+                    "run_id": run_id,
+                    "run_mode": run_mode,  # type: ignore[typeddict-item]
+                    "run_started_at": getattr(execution_result, "start_time", None),
+                    "run_ended_at": getattr(execution_result, "end_time", None),
+                    "execution_id": getattr(execution_result, "execution_id", run_id),
+                    "pipeline_id": getattr(execution_result, "pipeline_id", "unknown"),
+                    "schema": getattr(execution_result, "schema", "default"),
+                    "phase": getattr(step, "step_type", "bronze").lower(),  # type: ignore[typeddict-item]
+                    "step_name": getattr(step, "step_name", "unknown"),
+                    "step_type": getattr(step, "step_type", "unknown"),
+                    "start_time": getattr(step, "start_time", None),
+                    "end_time": getattr(step, "end_time", None),
+                    "duration_secs": getattr(step, "duration", 0.0),
+                    "table_fqn": getattr(step, "output_table", None),
+                    "write_mode": getattr(step, "write_mode", None),
+                    "input_rows": getattr(step, "input_rows", 0),
+                    "output_rows": getattr(step, "rows_processed", 0),
+                    "rows_written": getattr(step, "rows_written", 0),
+                    "rows_processed": getattr(step, "rows_processed", 0),
+                    "table_total_rows": None,
+                    "valid_rows": 0,
+                    "invalid_rows": 0,
+                    "validation_rate": 100.0,
+                    "success": getattr(step, "status", "unknown") == "completed",
+                    "error_message": getattr(step, "error", None),
+                    "memory_usage_mb": 0.0,
+                    "cpu_usage_percent": 0.0,
+                    "metadata": {},
+                }
+                log_rows.append(step_row)
 
     return log_rows
 
@@ -1095,7 +1099,9 @@ class LogWriter:
             # Calculate valid/invalid rows from validation rate
             rows_processed = int(step_info.get("rows_processed") or 0)
             validation_rate_val = step_info.get("validation_rate")
-            validation_rate = float(validation_rate_val if validation_rate_val is not None else 100.0)
+            validation_rate = float(
+                validation_rate_val if validation_rate_val is not None else 100.0
+            )
             valid_rows = int(rows_processed * validation_rate / 100.0)
             invalid_rows = rows_processed - valid_rows
 
@@ -1125,6 +1131,7 @@ class LogWriter:
                 "rows_written": int(step_info.get("rows_written") or rows_processed),
                 "input_rows": int(step_info.get("input_rows") or rows_processed),
                 "output_rows": int(step_info.get("rows_written") or rows_processed),
+                "table_total_rows": step_info.get("table_total_rows"),
                 # Validation metrics
                 "valid_rows": valid_rows,
                 "invalid_rows": invalid_rows,
@@ -1145,7 +1152,9 @@ class LogWriter:
             # Calculate valid/invalid rows from validation rate
             rows_processed = int(step_info.get("rows_processed") or 0)
             validation_rate_val = step_info.get("validation_rate")
-            validation_rate = float(validation_rate_val if validation_rate_val is not None else 100.0)
+            validation_rate = float(
+                validation_rate_val if validation_rate_val is not None else 100.0
+            )
             valid_rows = int(rows_processed * validation_rate / 100.0)
             invalid_rows = rows_processed - valid_rows
 
@@ -1175,6 +1184,7 @@ class LogWriter:
                 "rows_written": int(step_info.get("rows_written") or rows_processed),
                 "input_rows": int(step_info.get("input_rows") or rows_processed),
                 "output_rows": int(step_info.get("rows_written") or rows_processed),
+                "table_total_rows": step_info.get("table_total_rows"),
                 # Validation metrics
                 "valid_rows": valid_rows,
                 "invalid_rows": invalid_rows,
@@ -1195,7 +1205,9 @@ class LogWriter:
             # Calculate valid/invalid rows from validation rate
             rows_processed = int(step_info.get("rows_processed") or 0)
             validation_rate_val = step_info.get("validation_rate")
-            validation_rate = float(validation_rate_val if validation_rate_val is not None else 100.0)
+            validation_rate = float(
+                validation_rate_val if validation_rate_val is not None else 100.0
+            )
             valid_rows = int(rows_processed * validation_rate / 100.0)
             invalid_rows = rows_processed - valid_rows
 
@@ -1225,6 +1237,7 @@ class LogWriter:
                 "rows_written": int(step_info.get("rows_written") or rows_processed),
                 "input_rows": int(step_info.get("input_rows") or rows_processed),
                 "output_rows": int(step_info.get("rows_written") or rows_processed),
+                "table_total_rows": step_info.get("table_total_rows"),
                 # Validation metrics
                 "valid_rows": valid_rows,
                 "invalid_rows": invalid_rows,

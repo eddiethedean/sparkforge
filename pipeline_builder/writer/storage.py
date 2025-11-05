@@ -143,8 +143,10 @@ class StorageManager:
             self.logger.info(f"Creating table if not exists: {self.table_fqn}")
 
             # Extract schema name from table_fqn (format: "schema.table")
-            schema_name = self.table_fqn.split(".")[0] if "." in self.table_fqn else None
-            
+            schema_name = (
+                self.table_fqn.split(".")[0] if "." in self.table_fqn else None
+            )
+
             # CRITICAL: Ensure schema exists before creating table (required in mock-spark 2.16.1+)
             # This is especially important for LogWriter which creates tables in different schemas
             if schema_name:
@@ -154,11 +156,15 @@ class StorageManager:
                 except Exception as e:
                     # If SQL fails, try storage API
                     try:
-                        if hasattr(self.spark, "storage") and hasattr(self.spark.storage, "create_schema"):
+                        if hasattr(self.spark, "storage") and hasattr(
+                            self.spark.storage, "create_schema"
+                        ):
                             self.spark.storage.create_schema(schema_name)
                     except Exception:
                         # If both fail, log warning but continue (schema might already exist)
-                        self.logger.debug(f"Could not create schema '{schema_name}': {e}")
+                        self.logger.debug(
+                            f"Could not create schema '{schema_name}': {e}"
+                        )
 
             if not table_exists(self.spark, self.table_fqn):
                 # Create empty DataFrame with schema
@@ -586,7 +592,9 @@ class StorageManager:
                     "output_rows": row["output_rows"],
                     "rows_written": row["rows_written"],
                     "rows_processed": row["rows_processed"],
-                    "table_total_rows": row.get("table_total_rows"),  # Include table_total_rows metric
+                    "table_total_rows": row.get(
+                        "table_total_rows"
+                    ),  # Include table_total_rows metric
                     "valid_rows": row["valid_rows"],
                     "invalid_rows": row["invalid_rows"],
                     "validation_rate": row["validation_rate"],

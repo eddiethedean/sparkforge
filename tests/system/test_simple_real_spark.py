@@ -203,6 +203,7 @@ class TestRealSparkOperations:
         """Test join operations with real Spark DataFrames."""
         # Skip if in mock mode (requires real Spark)
         import os
+
         if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
             pytest.skip("Requires real Spark environment")
         # Create two DataFrames

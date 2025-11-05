@@ -59,7 +59,9 @@ class TestPipelineRunnerWriteMode:
         return PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(max_workers=1, enabled=False),  # Disabled for schema creation compatibility
+            parallel=ParallelConfig(
+                max_workers=1, enabled=False
+            ),  # Disabled for schema creation compatibility
         )
 
     @pytest.fixture
@@ -118,7 +120,14 @@ class TestPipelineRunnerWriteMode:
         }
 
     def test_run_incremental_uses_append_mode(
-        self, spark_session, config, logger, bronze_step, silver_step, gold_step, bronze_sources
+        self,
+        spark_session,
+        config,
+        logger,
+        bronze_step,
+        silver_step,
+        gold_step,
+        bronze_sources,
     ):
         """Test that run_incremental uses append mode for all steps."""
         # Create pipeline runner with steps
@@ -143,7 +152,14 @@ class TestPipelineRunnerWriteMode:
             )
 
     def test_run_initial_load_uses_overwrite_mode(
-        self, spark_session, config, logger, bronze_step, silver_step, gold_step, bronze_sources
+        self,
+        spark_session,
+        config,
+        logger,
+        bronze_step,
+        silver_step,
+        gold_step,
+        bronze_sources,
     ):
         """Test that run_initial_load uses overwrite mode for all steps."""
         # Create pipeline runner with steps
@@ -168,7 +184,14 @@ class TestPipelineRunnerWriteMode:
             )
 
     def test_run_full_refresh_uses_overwrite_mode(
-        self, spark_session, config, logger, bronze_step, silver_step, gold_step, bronze_sources
+        self,
+        spark_session,
+        config,
+        logger,
+        bronze_step,
+        silver_step,
+        gold_step,
+        bronze_sources,
     ):
         """Test that run_full_refresh uses overwrite mode for all steps."""
         # Create pipeline runner with steps
@@ -193,7 +216,14 @@ class TestPipelineRunnerWriteMode:
             )
 
     def test_run_pipeline_with_incremental_mode_uses_append(
-        self, spark_session, config, logger, bronze_step, silver_step, gold_step, bronze_sources
+        self,
+        spark_session,
+        config,
+        logger,
+        bronze_step,
+        silver_step,
+        gold_step,
+        bronze_sources,
     ):
         """Test that run_pipeline with INCREMENTAL mode uses append for all steps."""
         # Create pipeline runner with steps
@@ -219,7 +249,14 @@ class TestPipelineRunnerWriteMode:
             )
 
     def test_run_pipeline_with_initial_mode_uses_overwrite(
-        self, spark_session, config, logger, bronze_step, silver_step, gold_step, bronze_sources
+        self,
+        spark_session,
+        config,
+        logger,
+        bronze_step,
+        silver_step,
+        gold_step,
+        bronze_sources,
     ):
         """Test that run_pipeline with INITIAL mode uses overwrite for all steps."""
         # Create pipeline runner with steps
@@ -264,7 +301,14 @@ class TestPipelineRunnerWriteMode:
             )
 
     def test_incremental_vs_initial_write_mode_difference(
-        self, spark_session, config, logger, bronze_step, silver_step, gold_step, bronze_sources
+        self,
+        spark_session,
+        config,
+        logger,
+        bronze_step,
+        silver_step,
+        gold_step,
+        bronze_sources,
     ):
         """Test that incremental and initial modes produce different write_modes."""
         # Create pipeline runner with steps
@@ -284,10 +328,18 @@ class TestPipelineRunnerWriteMode:
         initial_report = runner.run_initial_load(bronze_sources=bronze_sources)
 
         # Verify that write_modes are different between the two runs (only silver/gold write to tables)
-        incremental_silver_gold = {**incremental_report.silver_results, **incremental_report.gold_results}
-        initial_silver_gold = {**initial_report.silver_results, **initial_report.gold_results}
+        incremental_silver_gold = {
+            **incremental_report.silver_results,
+            **incremental_report.gold_results,
+        }
+        initial_silver_gold = {
+            **initial_report.silver_results,
+            **initial_report.gold_results,
+        }
         for step_name in incremental_silver_gold.keys():
-            incremental_write_mode = incremental_silver_gold[step_name].get("write_mode")
+            incremental_write_mode = incremental_silver_gold[step_name].get(
+                "write_mode"
+            )
             initial_write_mode = initial_silver_gold[step_name].get("write_mode")
 
             assert incremental_write_mode != initial_write_mode, (
@@ -307,7 +359,14 @@ class TestPipelineRunnerWriteMode:
             )
 
     def test_no_data_loss_in_incremental_mode(
-        self, spark_session, config, logger, bronze_step, silver_step, gold_step, bronze_sources
+        self,
+        spark_session,
+        config,
+        logger,
+        bronze_step,
+        silver_step,
+        gold_step,
+        bronze_sources,
     ):
         """Test that incremental mode preserves existing data (uses append)."""
         # Create pipeline runner with steps

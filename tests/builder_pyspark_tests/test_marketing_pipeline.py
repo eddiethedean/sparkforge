@@ -23,9 +23,7 @@ class TestMarketingPipeline:
         impressions_df = data_generator.create_marketing_impressions(
             spark_session, num_impressions=150
         )
-        clicks_df = data_generator.create_marketing_clicks(
-            spark_session, num_clicks=60
-        )
+        clicks_df = data_generator.create_marketing_clicks(spark_session, num_clicks=60)
         conversions_df = data_generator.create_marketing_conversions(
             spark_session, num_conversions=40
         )
@@ -80,7 +78,9 @@ class TestMarketingPipeline:
             return (
                 df.withColumn(
                     "impression_date_parsed",
-                    F.to_timestamp(F.col("impression_date"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"),
+                    F.to_timestamp(
+                        F.col("impression_date"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"
+                    ),
                 )
                 .withColumn(
                     "hour_of_day",
@@ -131,7 +131,9 @@ class TestMarketingPipeline:
             return (
                 df.withColumn(
                     "click_date_parsed",
-                    F.to_timestamp(F.col("click_date"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"),
+                    F.to_timestamp(
+                        F.col("click_date"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"
+                    ),
                 )
                 .withColumn(
                     "time_to_click_minutes",
@@ -173,11 +175,15 @@ class TestMarketingPipeline:
             return (
                 df.withColumn(
                     "conversion_date_parsed",
-                    F.to_timestamp(F.col("conversion_date"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"),
+                    F.to_timestamp(
+                        F.col("conversion_date"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"
+                    ),
                 )
                 .withColumn(
                     "is_purchase",
-                    F.when(F.col("conversion_type") == "purchase", True).otherwise(False),
+                    F.when(F.col("conversion_type") == "purchase", True).otherwise(
+                        False
+                    ),
                 )
                 .withColumn(
                     "is_high_value",
@@ -238,65 +244,76 @@ class TestMarketingPipeline:
                 )
 
             # Aggregations by campaign and channel
-            impression_metrics = (
-                processed_impressions.groupBy("campaign_id", "channel")
-                .agg(
-                    F.count("impression_id").alias("total_impressions"),
-                    F.sum("cost_per_impression").alias("total_cost"),
-                )
+            impression_metrics = processed_impressions.groupBy(
+                "campaign_id", "channel"
+            ).agg(
+                F.count("impression_id").alias("total_impressions"),
+                F.sum("cost_per_impression").alias("total_cost"),
             )
 
             # Need to join clicks with impressions to get campaign_id
             clicks_with_campaign = processed_clicks.join(
                 processed_impressions.select("impression_id", "campaign_id"),
                 "impression_id",
-                "left"
+                "left",
             )
 
-            click_metrics = (
-                clicks_with_campaign.groupBy("campaign_id", "channel")
-                .agg(F.count("click_id").alias("total_clicks"))
+            click_metrics = clicks_with_campaign.groupBy("campaign_id", "channel").agg(
+                F.count("click_id").alias("total_clicks")
             )
 
             # Need to join conversions with clicks and impressions to get campaign_id
             conversions_with_campaign = (
                 processed_conversions.join(
-                    processed_clicks.select("click_id", "impression_id", "channel").withColumnRenamed("channel", "conv_channel"),
+                    processed_clicks.select(
+                        "click_id", "impression_id", "channel"
+                    ).withColumnRenamed("channel", "conv_channel"),
                     "click_id",
-                    "left"
+                    "left",
                 )
                 .join(
                     processed_impressions.select("impression_id", "campaign_id"),
                     "impression_id",
-                    "left"
+                    "left",
                 )
-                .withColumn("channel", F.coalesce(F.col("channel"), F.col("conv_channel")))
+                .withColumn(
+                    "channel", F.coalesce(F.col("channel"), F.col("conv_channel"))
+                )
             )
 
-            conversion_metrics = (
-                conversions_with_campaign.groupBy("campaign_id", "channel")
-                .agg(
-                    F.count("conversion_id").alias("total_conversions"),
-                    F.sum("conversion_value").alias("total_conversion_value"),
-                )
+            conversion_metrics = conversions_with_campaign.groupBy(
+                "campaign_id", "channel"
+            ).agg(
+                F.count("conversion_id").alias("total_conversions"),
+                F.sum("conversion_value").alias("total_conversion_value"),
             )
 
             # Join all metrics
             campaign_metrics = (
-                impression_metrics.join(click_metrics, ["campaign_id", "channel"], "left")
+                impression_metrics.join(
+                    click_metrics, ["campaign_id", "channel"], "left"
+                )
                 .join(conversion_metrics, ["campaign_id", "channel"], "left")
                 .withColumn(
                     "click_through_rate",
                     F.when(
                         F.col("total_impressions") > 0,
-                        (F.coalesce(F.col("total_clicks"), F.lit(0)) / F.col("total_impressions")) * 100,
+                        (
+                            F.coalesce(F.col("total_clicks"), F.lit(0))
+                            / F.col("total_impressions")
+                        )
+                        * 100,
                     ).otherwise(0),
                 )
                 .withColumn(
                     "conversion_rate",
                     F.when(
                         F.coalesce(F.col("total_clicks"), F.lit(0)) > 0,
-                        (F.coalesce(F.col("total_conversions"), F.lit(0)) / F.col("total_clicks")) * 100,
+                        (
+                            F.coalesce(F.col("total_conversions"), F.lit(0))
+                            / F.col("total_clicks")
+                        )
+                        * 100,
                     ).otherwise(0),
                 )
                 .withColumn(
@@ -310,7 +327,14 @@ class TestMarketingPipeline:
                     "roi",
                     F.when(
                         F.col("total_cost") > 0,
-                        ((F.coalesce(F.col("total_conversion_value"), F.lit(0)) - F.col("total_cost")) / F.col("total_cost")) * 100,
+                        (
+                            (
+                                F.coalesce(F.col("total_conversion_value"), F.lit(0))
+                                - F.col("total_cost")
+                            )
+                            / F.col("total_cost")
+                        )
+                        * 100,
                     ).otherwise(None),
                 )
                 .select(
@@ -339,7 +363,11 @@ class TestMarketingPipeline:
                 "click_through_rate": [["gte", 0]],
             },
             table_name="campaign_performance",
-            source_silvers=["processed_impressions", "processed_clicks", "processed_conversions"],
+            source_silvers=[
+                "processed_impressions",
+                "processed_clicks",
+                "processed_conversions",
+            ],
         )
 
         def customer_journey_transform(spark, silvers):
@@ -363,40 +391,39 @@ class TestMarketingPipeline:
                 )
 
             # Calculate touchpoint counts per customer
-            touchpoint_counts = (
-                processed_impressions.groupBy("customer_id")
-                .agg(
-                    F.count("impression_id").alias("total_impressions"),
-                    F.countDistinct("channel").alias("channels_impressions"),
-                )
+            touchpoint_counts = processed_impressions.groupBy("customer_id").agg(
+                F.count("impression_id").alias("total_impressions"),
+                F.countDistinct("channel").alias("channels_impressions"),
             )
 
-            click_counts = (
-                processed_clicks.groupBy("customer_id")
-                .agg(
-                    F.count("click_id").alias("total_clicks"),
-                    F.countDistinct("channel").alias("channels_clicks"),
-                )
+            click_counts = processed_clicks.groupBy("customer_id").agg(
+                F.count("click_id").alias("total_clicks"),
+                F.countDistinct("channel").alias("channels_clicks"),
             )
 
             # Conversion journey - join conversions with impressions on customer_id
-            conversion_with_impressions = (
-                processed_conversions.select("customer_id", "conversion_date_parsed", "conversion_value")
-                .join(
-                    processed_impressions.select("customer_id", "impression_date_parsed", "channel"),
-                    "customer_id",
-                    "inner"
-                )
+            conversion_with_impressions = processed_conversions.select(
+                "customer_id", "conversion_date_parsed", "conversion_value"
+            ).join(
+                processed_impressions.select(
+                    "customer_id", "impression_date_parsed", "channel"
+                ),
+                "customer_id",
+                "inner",
             )
 
             # Join with clicks
             conversion_journey = (
                 conversion_with_impressions.join(
-                    processed_clicks.select("customer_id", "channel").withColumnRenamed("channel", "click_channel"),
+                    processed_clicks.select("customer_id", "channel").withColumnRenamed(
+                        "channel", "click_channel"
+                    ),
                     "customer_id",
-                    "left"
+                    "left",
                 )
-                .withColumn("channel", F.coalesce(F.col("channel"), F.col("click_channel")))
+                .withColumn(
+                    "channel", F.coalesce(F.col("channel"), F.col("click_channel"))
+                )
                 .drop("click_channel")
                 .groupBy("customer_id")
                 .agg(
@@ -449,7 +476,11 @@ class TestMarketingPipeline:
                 "total_touchpoints": [["gte", 0]],
             },
             table_name="customer_journey",
-            source_silvers=["processed_impressions", "processed_clicks", "processed_conversions"],
+            source_silvers=[
+                "processed_impressions",
+                "processed_clicks",
+                "processed_conversions",
+            ],
         )
 
         # Build and execute pipeline
@@ -509,7 +540,9 @@ class TestMarketingPipeline:
         def processed_impressions_transform(spark, df, silvers):
             return df.withColumn(
                 "impression_date_parsed",
-                F.to_timestamp(F.col("impression_date"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"),
+                F.to_timestamp(
+                    F.col("impression_date"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"
+                ),
             )
 
         builder.add_silver_transform(
@@ -540,4 +573,3 @@ class TestMarketingPipeline:
 
         test_assertions.assert_pipeline_success(result2)
         assert result2.mode.value == "incremental"
-

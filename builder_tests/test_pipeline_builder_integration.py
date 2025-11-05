@@ -31,7 +31,9 @@ class TestPipelineBuilderIntegration:
         builder.add_silver_transform(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
                 "name": [F.col("name").isNotNull()],
@@ -54,7 +56,9 @@ class TestPipelineBuilderIntegration:
 
         # Build and execute pipeline
         pipeline = builder.to_pipeline()
-        report = pipeline.run_initial_load(bronze_sources={"events": simple_events_data})
+        report = pipeline.run_initial_load(
+            bronze_sources={"events": simple_events_data}
+        )
 
         # Verify pipeline execution
         assert report.success is True
@@ -85,7 +89,9 @@ class TestPipelineBuilderIntegration:
         builder.add_silver_transform(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
             },
@@ -96,14 +102,23 @@ class TestPipelineBuilderIntegration:
         pipeline = builder.to_pipeline()
 
         # Run initial load
-        initial_report = pipeline.run_initial_load(bronze_sources={"events": simple_events_data})
+        initial_report = pipeline.run_initial_load(
+            bronze_sources={"events": simple_events_data}
+        )
         assert initial_report.success is True
 
         # Create incremental data
         from datetime import datetime
 
         incremental_data = spark_session.createDataFrame(
-            [{"id": 6, "name": "event6", "timestamp": datetime(2024, 1, 2, 10, 0, 0), "value": 600}],
+            [
+                {
+                    "id": 6,
+                    "name": "event6",
+                    "timestamp": datetime(2024, 1, 2, 10, 0, 0),
+                    "value": 600,
+                }
+            ],
             ["id", "name", "timestamp", "value"],
         )
 
@@ -118,7 +133,12 @@ class TestPipelineBuilderIntegration:
         assert clean_events_df.count() == 6  # 5 initial + 1 incremental
 
     def test_multiple_bronze_sources(
-        self, spark_session, pipeline_builder, test_schema, simple_events_data, simple_users_data
+        self,
+        spark_session,
+        pipeline_builder,
+        test_schema,
+        simple_events_data,
+        simple_users_data,
     ):
         """Test pipeline with multiple bronze sources."""
         builder = pipeline_builder
@@ -144,7 +164,9 @@ class TestPipelineBuilderIntegration:
         builder.add_silver_transform(
             name="enriched_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
             },
@@ -185,7 +207,9 @@ class TestPipelineBuilderIntegration:
         builder.add_silver_transform(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
             },
@@ -195,7 +219,9 @@ class TestPipelineBuilderIntegration:
         builder.add_silver_transform(
             name="processed_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
             },
@@ -221,7 +247,9 @@ class TestPipelineBuilderIntegration:
 
         # Build and execute pipeline
         pipeline = builder.to_pipeline()
-        report = pipeline.run_initial_load(bronze_sources={"events": simple_events_data})
+        report = pipeline.run_initial_load(
+            bronze_sources={"events": simple_events_data}
+        )
 
         # Verify pipeline execution
         assert report.success is True
@@ -255,7 +283,9 @@ class TestPipelineBuilderIntegration:
         builder.add_silver_transform(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
             },

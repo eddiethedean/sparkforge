@@ -212,8 +212,10 @@ class TestPipelineLoggerComprehensive:
         logger = PipelineLogger()
 
         with patch("pipeline_builder.logging.datetime") as mock_datetime:
-            mock_now = datetime(2024, 1, 15, 10, 30, 0)
-            mock_datetime.utcnow.return_value = mock_now
+            from datetime import timezone
+            mock_now = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+            # Mock datetime.now to return mock_now when called with timezone.utc
+            mock_datetime.now = lambda tz=None: mock_now
 
             logger.start_timer("test_timer")
 
@@ -227,9 +229,14 @@ class TestPipelineLoggerComprehensive:
         with patch("pipeline_builder.logging.datetime") as mock_datetime, patch.object(
             logger, "performance_metric"
         ) as mock_perf:
-            start_time = datetime(2024, 1, 15, 10, 30, 0)
-            end_time = datetime(2024, 1, 15, 10, 32, 30)
-            mock_datetime.utcnow.side_effect = [start_time, end_time]
+            from datetime import timezone
+            start_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+            end_time = datetime(2024, 1, 15, 10, 32, 30, tzinfo=timezone.utc)
+            call_count = [0]
+            def mock_now(tz=None):
+                call_count[0] += 1
+                return [start_time, end_time][call_count[0] - 1]
+            mock_datetime.now = mock_now
 
             logger.start_timer("test_timer")
             duration = logger.end_timer("test_timer")
@@ -252,9 +259,14 @@ class TestPipelineLoggerComprehensive:
         with patch("pipeline_builder.logging.datetime") as mock_datetime, patch.object(
             logger, "performance_metric"
         ) as mock_perf:
-            start_time = datetime(2024, 1, 15, 10, 30, 0)
-            end_time = datetime(2024, 1, 15, 10, 30, 5)
-            mock_datetime.utcnow.side_effect = [start_time, end_time]
+            from datetime import timezone
+            start_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+            end_time = datetime(2024, 1, 15, 10, 30, 5, tzinfo=timezone.utc)
+            call_count = [0]
+            def mock_now(tz=None):
+                call_count[0] += 1
+                return [start_time, end_time][call_count[0] - 1]
+            mock_datetime.now = mock_now
 
             with logger.timer("context_timer"):
                 pass
@@ -268,9 +280,14 @@ class TestPipelineLoggerComprehensive:
         with patch("pipeline_builder.logging.datetime") as mock_datetime, patch.object(
             logger, "performance_metric"
         ) as mock_perf:
-            start_time = datetime(2024, 1, 15, 10, 30, 0)
-            end_time = datetime(2024, 1, 15, 10, 30, 5)
-            mock_datetime.utcnow.side_effect = [start_time, end_time]
+            from datetime import timezone
+            start_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+            end_time = datetime(2024, 1, 15, 10, 30, 5, tzinfo=timezone.utc)
+            call_count = [0]
+            def mock_now(tz=None):
+                call_count[0] += 1
+                return [start_time, end_time][call_count[0] - 1]
+            mock_datetime.now = mock_now
 
             with pytest.raises(ValueError):
                 with logger.timer("context_timer"):
@@ -455,9 +472,14 @@ class TestTimerContextManager:
         with patch("pipeline_builder.logging.datetime") as mock_datetime, patch.object(
             logger, "performance_metric"
         ) as mock_perf:
-            start_time = datetime(2024, 1, 15, 10, 30, 0)
-            end_time = datetime(2024, 1, 15, 10, 30, 3)
-            mock_datetime.utcnow.side_effect = [start_time, end_time]
+            from datetime import timezone
+            start_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+            end_time = datetime(2024, 1, 15, 10, 30, 3, tzinfo=timezone.utc)
+            call_count = [0]
+            def mock_now(tz=None):
+                call_count[0] += 1
+                return [start_time, end_time][call_count[0] - 1]
+            mock_datetime.now = mock_now
 
             with logger.timer("test_timer"):
                 pass
@@ -472,9 +494,14 @@ class TestTimerContextManager:
         with patch("pipeline_builder.logging.datetime") as mock_datetime, patch.object(
             logger, "performance_metric"
         ) as mock_perf:
-            start_time = datetime(2024, 1, 15, 10, 30, 0)
-            end_time = datetime(2024, 1, 15, 10, 30, 3)
-            mock_datetime.utcnow.side_effect = [start_time, end_time]
+            from datetime import timezone
+            start_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+            end_time = datetime(2024, 1, 15, 10, 30, 3, tzinfo=timezone.utc)
+            call_count = [0]
+            def mock_now(tz=None):
+                call_count[0] += 1
+                return [start_time, end_time][call_count[0] - 1]
+            mock_datetime.now = mock_now
 
             with pytest.raises(ValueError):
                 with logger.timer("test_timer"):

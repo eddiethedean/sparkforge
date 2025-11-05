@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict
 
 from .base import BaseModel
@@ -78,7 +78,7 @@ class ExecutionContext(BaseModel):
 
     def finish(self) -> None:
         """Mark execution as finished and calculate duration."""
-        self.end_time = datetime.utcnow()
+        self.end_time = datetime.now(timezone.utc)
         if self.start_time:
             self.duration_secs = (self.end_time - self.start_time).total_seconds()
 

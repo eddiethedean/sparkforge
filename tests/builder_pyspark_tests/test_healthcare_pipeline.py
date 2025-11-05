@@ -26,9 +26,7 @@ class TestHealthcarePipeline:
         patients_df = data_generator.create_healthcare_patients(
             spark_session, num_patients=40
         )
-        labs_df = data_generator.create_healthcare_labs(
-            spark_session, num_results=150
-        )
+        labs_df = data_generator.create_healthcare_labs(spark_session, num_results=150)
         diagnoses_df = data_generator.create_healthcare_diagnoses(
             spark_session, num_diagnoses=120
         )
@@ -101,7 +99,10 @@ class TestHealthcarePipeline:
                         / 365.25
                     ),
                 )
-                .withColumn("full_name", F.concat(F.col("first_name"), F.lit(" "), F.col("last_name")))
+                .withColumn(
+                    "full_name",
+                    F.concat(F.col("first_name"), F.lit(" "), F.col("last_name")),
+                )
                 .withColumn(
                     "age_group",
                     F.when(F.col("age") < 18, "pediatric")
@@ -141,7 +142,9 @@ class TestHealthcarePipeline:
             return (
                 df.withColumn(
                     "test_date_parsed",
-                    F.to_timestamp(F.col("test_date"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"),
+                    F.to_timestamp(
+                        F.col("test_date"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"
+                    ),
                 )
                 .withColumn(
                     "is_abnormal",
@@ -200,7 +203,9 @@ class TestHealthcarePipeline:
             return (
                 df.withColumn(
                     "diagnosis_date_parsed",
-                    F.to_timestamp(F.col("diagnosis_date"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"),
+                    F.to_timestamp(
+                        F.col("diagnosis_date"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"
+                    ),
                 )
                 .withColumn(
                     "is_chronic",
@@ -248,7 +253,11 @@ class TestHealthcarePipeline:
             processed_diagnoses = silvers.get("processed_diagnoses")
 
             # Handle None cases gracefully
-            if normalized_labs is None or processed_diagnoses is None or clean_patients is None:
+            if (
+                normalized_labs is None
+                or processed_diagnoses is None
+                or clean_patients is None
+            ):
                 return spark.createDataFrame(
                     [],
                     [
@@ -269,33 +278,32 @@ class TestHealthcarePipeline:
                 )
 
             # Calculate abnormal lab count per patient
-            lab_metrics = (
-                normalized_labs.groupBy("patient_id")
-                .agg(
-                    F.count("*").alias("total_labs"),
-                    F.sum(F.when(F.col("is_abnormal"), 1).otherwise(0)).alias(
-                        "abnormal_labs"
-                    ),
-                    F.sum(
-                        F.when(F.col("result_category").isin(["critical_high", "critical_low"]), 1).otherwise(0)
-                    ).alias("critical_labs"),
-                )
+            lab_metrics = normalized_labs.groupBy("patient_id").agg(
+                F.count("*").alias("total_labs"),
+                F.sum(F.when(F.col("is_abnormal"), 1).otherwise(0)).alias(
+                    "abnormal_labs"
+                ),
+                F.sum(
+                    F.when(
+                        F.col("result_category").isin(
+                            ["critical_high", "critical_low"]
+                        ),
+                        1,
+                    ).otherwise(0)
+                ).alias("critical_labs"),
             )
 
             # Calculate diagnosis risk metrics
-            diagnosis_metrics = (
-                processed_diagnoses.groupBy("patient_id")
-                .agg(
-                    F.count("*").alias("total_diagnoses"),
-                    F.sum(F.when(F.col("is_chronic"), 1).otherwise(0)).alias(
-                        "chronic_conditions"
-                    ),
-                    F.sum(
-                        F.when(F.col("risk_level") == "high", 3)
-                        .when(F.col("risk_level") == "medium", 2)
-                        .otherwise(1)
-                    ).alias("risk_score_sum"),
-                )
+            diagnosis_metrics = processed_diagnoses.groupBy("patient_id").agg(
+                F.count("*").alias("total_diagnoses"),
+                F.sum(F.when(F.col("is_chronic"), 1).otherwise(0)).alias(
+                    "chronic_conditions"
+                ),
+                F.sum(
+                    F.when(F.col("risk_level") == "high", 3)
+                    .when(F.col("risk_level") == "medium", 2)
+                    .otherwise(1)
+                ).alias("risk_score_sum"),
             )
 
             # Combine metrics and calculate overall risk
@@ -304,8 +312,10 @@ class TestHealthcarePipeline:
                 .join(diagnosis_metrics, "patient_id", "left")
                 .withColumn(
                     "abnormal_lab_rate",
-                    F.when(F.col("total_labs") > 0, F.col("abnormal_labs") / F.col("total_labs") * 100)
-                    .otherwise(0),
+                    F.when(
+                        F.col("total_labs") > 0,
+                        F.col("abnormal_labs") / F.col("total_labs") * 100,
+                    ).otherwise(0),
                 )
                 .withColumn(
                     "overall_risk_score",
@@ -373,9 +383,13 @@ class TestHealthcarePipeline:
                 )
 
             if normalized_labs is None:
-                normalized_labs = spark.createDataFrame([], ["lab_id", "patient_id", "is_abnormal", "result_value"])
+                normalized_labs = spark.createDataFrame(
+                    [], ["lab_id", "patient_id", "is_abnormal", "result_value"]
+                )
             if processed_diagnoses is None:
-                processed_diagnoses = spark.createDataFrame([], ["diagnosis_id", "patient_id", "is_chronic"])
+                processed_diagnoses = spark.createDataFrame(
+                    [], ["diagnosis_id", "patient_id", "is_chronic"]
+                )
 
             # Population demographics
             population_demo = clean_patients.agg(
@@ -404,18 +418,25 @@ class TestHealthcarePipeline:
             )
 
             # Combine into summary
-            summary = population_demo.crossJoin(lab_stats).crossJoin(diagnosis_stats).withColumn(
-                "abnormal_test_rate",
-                F.when(F.col("total_lab_tests") > 0, F.col("abnormal_tests") / F.col("total_lab_tests") * 100)
-                .otherwise(0),
-            ).select(
-                "total_patients",
-                "avg_age",
-                "total_lab_tests",
-                "abnormal_tests",
-                "abnormal_test_rate",
-                "total_diagnoses",
-                "chronic_diagnoses",
+            summary = (
+                population_demo.crossJoin(lab_stats)
+                .crossJoin(diagnosis_stats)
+                .withColumn(
+                    "abnormal_test_rate",
+                    F.when(
+                        F.col("total_lab_tests") > 0,
+                        F.col("abnormal_tests") / F.col("total_lab_tests") * 100,
+                    ).otherwise(0),
+                )
+                .select(
+                    "total_patients",
+                    "avg_age",
+                    "total_lab_tests",
+                    "abnormal_tests",
+                    "abnormal_test_rate",
+                    "total_diagnoses",
+                    "chronic_diagnoses",
+                )
             )
 
             return summary
@@ -548,9 +569,7 @@ class TestHealthcarePipeline:
         patients_df = data_generator.create_healthcare_patients(
             spark_session, num_patients=15
         )
-        labs_df = data_generator.create_healthcare_labs(
-            spark_session, num_results=50
-        )
+        labs_df = data_generator.create_healthcare_labs(spark_session, num_results=50)
 
         # Create analytics schema for logging
         spark_session.sql("CREATE DATABASE IF NOT EXISTS analytics")
@@ -606,4 +625,3 @@ class TestHealthcarePipeline:
         test_assertions.assert_pipeline_success(result)
         assert log_result is not None
         assert log_result.get("success") is True
-

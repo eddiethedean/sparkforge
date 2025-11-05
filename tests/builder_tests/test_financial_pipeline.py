@@ -458,7 +458,9 @@ class TestFinancialPipeline:
         mock_spark_session.storage.create_schema("gold")
 
         # Create pipeline
-        builder = PipelineBuilder(spark=mock_spark_session, schema="bronze", functions=F)
+        builder = PipelineBuilder(
+            spark=mock_spark_session, schema="bronze", functions=F
+        )
 
         builder.with_bronze_rules(
             name="transactions", rules={"transaction_id": ["not_null"]}
@@ -598,7 +600,9 @@ class TestFinancialPipeline:
         mock_spark_session.storage.create_schema("gold")
 
         # Create pipeline
-        builder = PipelineBuilder(spark=mock_spark_session, schema="bronze", functions=F)
+        builder = PipelineBuilder(
+            spark=mock_spark_session, schema="bronze", functions=F
+        )
 
         builder.with_bronze_rules(
             name="transactions", rules={"transaction_id": ["not_null"]}
@@ -694,7 +698,9 @@ class TestFinancialPipeline:
         )
 
         # Create pipeline
-        builder = PipelineBuilder(spark=mock_spark_session, schema="bronze", functions=F)
+        builder = PipelineBuilder(
+            spark=mock_spark_session, schema="bronze", functions=F
+        )
 
         builder.with_bronze_rules(
             name="transactions", rules={"transaction_id": ["not_null"]}

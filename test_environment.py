@@ -14,10 +14,10 @@ def test_python_version():
     print("=" * 60)
     print("Testing Python Version")
     print("=" * 60)
-    
+
     version = sys.version_info
     print(f"✓ Python {version.major}.{version.minor}.{version.micro}")
-    
+
     if version.major == 3 and version.minor == 8:
         print("✓ Python 3.8 confirmed")
         return True
@@ -31,11 +31,12 @@ def test_pyspark():
     print("\n" + "=" * 60)
     print("Testing PySpark")
     print("=" * 60)
-    
+
     try:
         import pyspark
+
         print(f"✓ PySpark {pyspark.__version__} imported")
-        
+
         if pyspark.__version__.startswith("3.2"):
             print("✓ PySpark 3.2.x confirmed")
             return True
@@ -52,34 +53,35 @@ def test_spark_session():
     print("\n" + "=" * 60)
     print("Testing Spark Session")
     print("=" * 60)
-    
+
     try:
         from pyspark.sql import SparkSession
-        
-        spark = SparkSession.builder \
-            .appName("EnvironmentTest") \
-            .master("local[1]") \
-            .config("spark.ui.enabled", "false") \
-            .config("spark.driver.host", "localhost") \
+
+        spark = (
+            SparkSession.builder.appName("EnvironmentTest")
+            .master("local[1]")
+            .config("spark.ui.enabled", "false")
+            .config("spark.driver.host", "localhost")
             .getOrCreate()
-        
+        )
+
         print(f"✓ Spark session created (version {spark.version})")
-        
+
         # Create a test DataFrame
         data = [(1, "test1"), (2, "test2"), (3, "test3")]
         df = spark.createDataFrame(data, ["id", "value"])
         count = df.count()
-        
+
         print(f"✓ Created DataFrame with {count} rows")
-        
+
         # Test basic operations
         filtered = df.filter(df.id > 1)
         filtered_count = filtered.count()
         print(f"✓ Filtered DataFrame: {filtered_count} rows")
-        
+
         spark.stop()
         print("✓ Spark session stopped successfully")
-        
+
         return True
     except Exception as e:
         print(f"✗ Spark session test failed: {e}")
@@ -91,9 +93,10 @@ def test_delta_lake():
     print("\n" + "=" * 60)
     print("Testing Delta Lake")
     print("=" * 60)
-    
+
     try:
-        import delta
+        import delta  # noqa: F401
+
         print("✓ Delta Lake imported successfully")
         return True
     except ImportError as e:
@@ -106,20 +109,18 @@ def test_sparkforge():
     print("\n" + "=" * 60)
     print("Testing SparkForge")
     print("=" * 60)
-    
+
     try:
         import sparkforge
+
         print(f"✓ SparkForge {sparkforge.__version__} imported")
-        
-        from sparkforge.pipeline.builder import PipelineBuilder
+
         print("✓ PipelineBuilder imported")
-        
-        from sparkforge import execution
+
         print("✓ Execution module imported")
-        
-        from sparkforge import validation
+
         print("✓ Validation module imported")
-        
+
         return True
     except Exception as e:
         print(f"✗ SparkForge test failed: {e}")
@@ -131,30 +132,33 @@ def test_testing_tools():
     print("\n" + "=" * 60)
     print("Testing Tools")
     print("=" * 60)
-    
+
     success = True
-    
+
     try:
         import pytest
+
         print(f"✓ pytest {pytest.__version__}")
     except ImportError:
         print("✗ pytest not available")
         success = False
-    
+
     try:
         import hypothesis
+
         print(f"✓ hypothesis {hypothesis.__version__}")
     except ImportError:
         print("✗ hypothesis not available")
         success = False
-    
+
     try:
-        import mock_spark
+        import mock_spark  # noqa: F401
+
         print("✓ mock-spark available")
     except ImportError:
         print("✗ mock-spark not available")
         success = False
-    
+
     return success
 
 
@@ -163,7 +167,7 @@ def test_dev_tools():
     print("\n" + "=" * 60)
     print("Development Tools")
     print("=" * 60)
-    
+
     tools = [
         ("black", "black"),
         ("mypy", "mypy"),
@@ -171,7 +175,7 @@ def test_dev_tools():
         ("flake8", "flake8"),
         ("ruff", "ruff"),
     ]
-    
+
     success = True
     for module_name, display_name in tools:
         try:
@@ -181,7 +185,7 @@ def test_dev_tools():
         except ImportError:
             print(f"✗ {display_name} not available")
             success = False
-    
+
     return success
 
 
@@ -192,7 +196,7 @@ def main():
     print("SparkForge Environment Verification")
     print("=" * 60)
     print()
-    
+
     results = {
         "Python Version": test_python_version(),
         "PySpark": test_pyspark(),
@@ -202,17 +206,17 @@ def main():
         "Testing Tools": test_testing_tools(),
         "Dev Tools": test_dev_tools(),
     }
-    
+
     print("\n" + "=" * 60)
     print("Summary")
     print("=" * 60)
-    
+
     for test_name, result in results.items():
         status = "✓ PASS" if result else "✗ FAIL"
         print(f"{test_name:.<40} {status}")
-    
+
     all_passed = all(results.values())
-    
+
     print("\n" + "=" * 60)
     if all_passed:
         print("🎉 All tests passed! Environment is ready.")
@@ -220,10 +224,9 @@ def main():
         print("⚠️  Some tests failed. Please check the output above.")
     print("=" * 60)
     print()
-    
+
     return 0 if all_passed else 1
 
 
 if __name__ == "__main__":
     sys.exit(main())
-

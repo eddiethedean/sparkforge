@@ -9,10 +9,6 @@ Usage:
     python scripts/generate_diagrams.py
 """
 
-from asciimatics.screen import Screen
-from asciimatics.widgets import Widget
-from typing import List, Tuple
-
 
 def create_box_diagram_1a() -> str:
     """Create Diagram 1A: Component Architecture - High-Level Overview."""
@@ -28,7 +24,7 @@ def create_box_diagram_1a() -> str:
 
     STEP 1: BUILD                STEP 2: EXECUTE
     ═════════════                ════════════════
-    
+
 ┌──────────────────────┐       ┌──────────────────────┐
 │  PipelineBuilder     │       │  PipelineRunner      │
 │  ──────────────      │       │  ──────────────      │
@@ -277,7 +273,7 @@ USER CODE
 │  │  │                                                              │  │    │
 │  │  │ If validation_rate < threshold:                              │  │    │
 │  │  │   • Raise ValidationError                                    │  │    │
-│  │  │   • Include detailed error context                           │  │    │ 
+│  │  │   • Include detailed error context                           │  │    │
 │  │  │   • Provide suggestions for fixing                           │  │    │
 │  │  │                                                              │  │    │
 │  │  │ Return: (valid_df, invalid_df, validation_stats)             │  │    │
@@ -347,6 +343,7 @@ FRAMEWORK OUTPUTS
 │  • Access Step Data: result.silver_results["clean_events"]["dataframe"]    │
 └────────────────────────────────────────────────────────────────────────────┘
 """
+
 
 def create_diagram_2a() -> str:
     """Create Diagram 2A: Execution Context & Data Flow."""
@@ -889,20 +886,19 @@ def main() -> None:
         "Diagram 5": create_diagram_5,
         "Diagram 6": create_diagram_6,
     }
-    
+
     print("Diagram Generation Utility")
     print("=" * 80)
     print()
-    
+
     for name, func in diagrams.items():
         diagram = func()
         print(f"{name}:")
         print(diagram)
         print("\n" + "=" * 80 + "\n")
-    
+
     print("All diagrams generated successfully!")
 
 
 if __name__ == "__main__":
     main()
-

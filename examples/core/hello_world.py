@@ -34,11 +34,11 @@ def main():
 
         # Bronze: Just validate user exists
         builder.with_bronze_rules(
-            name="events", 
+            name="events",
             rules={
                 "user": [F.col("user").isNotNull()],
-                "action": [F.col("action").isNotNull()]
-            }
+                "action": [F.col("action").isNotNull()],
+            },
         )
 
         # Silver: Filter to only purchases
@@ -50,7 +50,7 @@ def main():
             ),
             rules={
                 "user": [F.col("user").isNotNull()],
-                "action": [F.col("action") == "purchase"]
+                "action": [F.col("action") == "purchase"],
             },
             table_name="purchases",
         )
@@ -61,10 +61,7 @@ def main():
             transform=lambda spark, silvers: silvers["purchases"]
             .groupBy("user")
             .count(),
-            rules={
-                "user": [F.col("user").isNotNull()],
-                "count": [F.col("count") > 0]
-            },
+            rules={"user": [F.col("user").isNotNull()], "count": [F.col("count") > 0]},
             table_name="user_counts",
             source_silvers=["purchases"],
         )

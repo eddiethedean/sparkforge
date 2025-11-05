@@ -13,7 +13,7 @@ Factory functions for creating and managing pipeline models.
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .base import ParallelConfig, ValidationThresholds
 from .enums import ExecutionMode
@@ -44,7 +44,7 @@ def create_pipeline_config(
 
 def create_execution_context(mode: ExecutionMode) -> ExecutionContext:
     """Factory function to create execution context."""
-    return ExecutionContext(mode=mode, start_time=datetime.utcnow())
+    return ExecutionContext(mode=mode, start_time=datetime.now(timezone.utc))
 
 
 def validate_pipeline_config(config: PipelineConfig) -> None:

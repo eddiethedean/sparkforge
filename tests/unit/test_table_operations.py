@@ -264,7 +264,8 @@ class TestTableExists:
         """Test table_exists returns False with AnalysisException."""
         mock_spark = MagicMock()
         # Create a proper AnalysisException - use positional message arg that works with both PySpark and mock-spark
-        analysis_exception = AnalysisException("Table not found")
+        # mock-spark requires stackTrace parameter (can be None)
+        analysis_exception = AnalysisException("Table not found", None)
         mock_spark.table.side_effect = analysis_exception
 
         with patch("pipeline_builder.table_operations.logger") as mock_logger:

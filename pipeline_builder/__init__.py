@@ -74,7 +74,7 @@ Validation Requirements:
 from .pipeline import PipelineBuilder, PipelineRunner
 from .writer import LogWriter
 
-__version__ = "1.3.3"
+__version__ = "1.4.0"
 __author__ = "Odos Matthews"
 __email__ = "odosmattthewsm@gmail.com"
 __description__ = "A simplified, production-ready data pipeline builder for Apache Spark and Delta Lake"

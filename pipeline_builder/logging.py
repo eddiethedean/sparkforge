@@ -8,7 +8,7 @@ without the complexity of the previous over-engineered system.
 import logging
 import sys
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Generator, List, Optional, Union
 
 
@@ -212,7 +212,7 @@ class PipelineLogger:
     # Performance timing
     def start_timer(self, operation: str) -> None:
         """Start timing an operation."""
-        self._timers[operation] = datetime.utcnow()
+        self._timers[operation] = datetime.now(timezone.utc)
 
     def end_timer(self, operation: str) -> float:
         """End timing an operation and return duration."""
@@ -220,7 +220,7 @@ class PipelineLogger:
             return 0.0
 
         start_time = self._timers.pop(operation)
-        duration = (datetime.utcnow() - start_time).total_seconds()
+        duration = (datetime.now(timezone.utc) - start_time).total_seconds()
         self.performance_metric(operation, duration)
         return duration
 

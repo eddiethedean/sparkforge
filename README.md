@@ -5,7 +5,7 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://sparkforge.readthedocs.io/)
-[![Tests](https://img.shields.io/badge/tests-1441%20passed-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
+[![Tests](https://img.shields.io/badge/tests-1545%20passed-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
 [![Coverage](https://img.shields.io/badge/coverage-83%25-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
 [![Type Safety](https://img.shields.io/badge/type%20safety-100%25-brightgreen.svg)](https://github.com/eddiethedean/sparkforge)
 [![CI/CD](https://github.com/eddiethedean/sparkforge/workflows/Tests/badge.svg)](https://github.com/eddiethedean/sparkforge/actions)
@@ -558,6 +558,26 @@ Total: 16s                  Group 3: 1s
                             ─────────────────────────────────
                             Total: 6s (2.7x faster!)
 ```
+
+## 🚀 What's New in v1.4.0
+
+### 🎯 **Type Safety & Code Quality Improvements**
+- ✅ **Full type checker compliance** - All type errors resolved with pyright/ty
+- ✅ **Timezone-aware datetime** - Replaced deprecated `datetime.utcnow()` with `datetime.now(timezone.utc)`
+- ✅ **Enhanced TypedDict support** - Complete LogRow type safety across all writer operations
+- ✅ **Improved type annotations** - Better type inference and validation throughout codebase
+- ✅ **Comprehensive test coverage** - 1,545 tests passing with 11 intentionally skipped
+
+### ⚡ **Performance & Reliability**
+- ✅ **Parallel test execution** - Optimized test runs with 10 workers (35% faster)
+- ✅ **Mock-spark 2.17.0 compatibility** - Upgraded to latest version fixing threading issues
+- ✅ **Robust error handling** - Fixed all type-related errors and edge cases
+- ✅ **Better iteration safety** - Improved type checks for iterable objects
+
+### 🔧 **Code Quality**
+- ✅ **Ruff formatting** - Consistent code formatting across entire codebase
+- ✅ **Type ignore annotations** - Strategic use of type ignores for dynamic imports
+- ✅ **Enhanced validation** - Improved type checking in dependencies and validation modules
 
 ## 🚀 What's New in v1.2.0
 

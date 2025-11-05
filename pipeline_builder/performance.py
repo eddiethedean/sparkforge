@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 import time
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 from typing import Any, Callable, Generator
 
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 def now_dt() -> datetime:
     """Get current UTC datetime."""
-    return datetime.utcnow()
+    return datetime.now(timezone.utc)
 
 
 def format_duration(seconds: float) -> str:

@@ -439,7 +439,9 @@ class TestCustomerAnalyticsPipeline:
         mock_spark_session.storage.create_schema("gold")
 
         # Create pipeline
-        builder = PipelineBuilder(spark=mock_spark_session, schema="bronze", functions=F)
+        builder = PipelineBuilder(
+            spark=mock_spark_session, schema="bronze", functions=F
+        )
 
         builder.with_bronze_rules(name="customers", rules={"customer_id": ["not_null"]})
 
@@ -572,7 +574,9 @@ class TestCustomerAnalyticsPipeline:
         mock_spark_session.storage.create_schema("gold")
 
         # Create pipeline
-        builder = PipelineBuilder(spark=mock_spark_session, schema="bronze", functions=F)
+        builder = PipelineBuilder(
+            spark=mock_spark_session, schema="bronze", functions=F
+        )
 
         builder.with_bronze_rules(name="customers", rules={"customer_id": ["not_null"]})
 
@@ -728,7 +732,9 @@ class TestCustomerAnalyticsPipeline:
         )
 
         # Create pipeline
-        builder = PipelineBuilder(spark=mock_spark_session, schema="bronze", functions=F)
+        builder = PipelineBuilder(
+            spark=mock_spark_session, schema="bronze", functions=F
+        )
 
         builder.with_bronze_rules(name="customers", rules={"customer_id": ["not_null"]})
 

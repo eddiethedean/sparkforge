@@ -12,7 +12,12 @@ class TestLogWriterIntegration:
     """Test LogWriter integration with pipeline components."""
 
     def test_logwriter_writes_execution_result(
-        self, spark_session, pipeline_builder, log_writer, test_schema, simple_events_data
+        self,
+        spark_session,
+        pipeline_builder,
+        log_writer,
+        test_schema,
+        simple_events_data,
     ):
         """Test basic LogWriter write functionality."""
         builder = pipeline_builder
@@ -29,7 +34,9 @@ class TestLogWriterIntegration:
         builder.add_silver_transform(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
                 "name": [F.col("name").isNotNull()],
@@ -39,7 +46,9 @@ class TestLogWriterIntegration:
 
         # Create data and execute
         pipeline = builder.to_pipeline()
-        report = pipeline.run_initial_load(bronze_sources={"events": simple_events_data})
+        report = pipeline.run_initial_load(
+            bronze_sources={"events": simple_events_data}
+        )
 
         # Write to log using LogWriter
         # Note: We need to create an ExecutionResult from the PipelineReport
@@ -87,7 +96,12 @@ class TestLogWriterIntegration:
         assert "run_id" in result
 
     def test_logwriter_tracks_table_total_rows(
-        self, spark_session, pipeline_builder, log_writer, test_schema, simple_events_data
+        self,
+        spark_session,
+        pipeline_builder,
+        log_writer,
+        test_schema,
+        simple_events_data,
     ):
         """Test that LogWriter correctly tracks the table_total_rows metric."""
         builder = pipeline_builder
@@ -104,7 +118,9 @@ class TestLogWriterIntegration:
         builder.add_silver_transform(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
                 "name": [F.col("name").isNotNull()],
@@ -114,7 +130,9 @@ class TestLogWriterIntegration:
 
         # Execute pipeline
         pipeline = builder.to_pipeline()
-        report = pipeline.run_initial_load(bronze_sources={"events": simple_events_data})
+        report = pipeline.run_initial_load(
+            bronze_sources={"events": simple_events_data}
+        )
 
         # Create log rows with table_total_rows metric
         from pipeline_builder.writer.models import LogRow
@@ -167,7 +185,12 @@ class TestLogWriterIntegration:
         assert log_rows[0]["table_total_rows"] == 5
 
     def test_logwriter_handles_multiple_runs(
-        self, spark_session, pipeline_builder, log_writer, test_schema, simple_events_data
+        self,
+        spark_session,
+        pipeline_builder,
+        log_writer,
+        test_schema,
+        simple_events_data,
     ):
         """Test LogWriter handling multiple execution runs."""
         builder = pipeline_builder
@@ -184,7 +207,9 @@ class TestLogWriterIntegration:
         builder.add_silver_transform(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
                 "name": [F.col("name").isNotNull()],
@@ -196,7 +221,9 @@ class TestLogWriterIntegration:
         pipeline = builder.to_pipeline()
 
         # Run 1: Initial load
-        report1 = pipeline.run_initial_load(bronze_sources={"events": simple_events_data})
+        report1 = pipeline.run_initial_load(
+            bronze_sources={"events": simple_events_data}
+        )
 
         # Run 2: Incremental load
         incremental_data = spark_session.createDataFrame(
@@ -209,7 +236,9 @@ class TestLogWriterIntegration:
         from pipeline_builder.writer.models import LogRow
 
         log_rows = []
-        for i, (run_id, report) in enumerate([("run_001", report1), ("run_002", report2)]):
+        for i, (run_id, report) in enumerate(
+            [("run_001", report1), ("run_002", report2)]
+        ):
             log_row: LogRow = {
                 "run_id": run_id,
                 "run_mode": "initial" if i == 0 else "incremental",
@@ -262,9 +291,7 @@ class TestLogWriterIntegration:
         assert run_001_row["table_total_rows"] == 5
         assert run_002_row["table_total_rows"] == 6
 
-    def test_logwriter_error_handling(
-        self, spark_session, log_writer, test_schema
-    ):
+    def test_logwriter_error_handling(self, spark_session, log_writer, test_schema):
         """Test LogWriter error handling capabilities."""
         from pipeline_builder.writer.models import LogRow
 
@@ -316,7 +343,12 @@ class TestLogWriterIntegration:
         assert error_row["validation_rate"] == 0.0
 
     def test_logwriter_performance_metrics(
-        self, spark_session, pipeline_builder, log_writer, test_schema, simple_events_data
+        self,
+        spark_session,
+        pipeline_builder,
+        log_writer,
+        test_schema,
+        simple_events_data,
     ):
         """Test LogWriter performance metrics tracking."""
         builder = pipeline_builder
@@ -333,7 +365,9 @@ class TestLogWriterIntegration:
         builder.add_silver_transform(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
                 "name": [F.col("name").isNotNull()],
@@ -343,7 +377,9 @@ class TestLogWriterIntegration:
 
         # Execute pipeline
         pipeline = builder.to_pipeline()
-        report = pipeline.run_initial_load(bronze_sources={"events": simple_events_data})
+        report = pipeline.run_initial_load(
+            bronze_sources={"events": simple_events_data}
+        )
 
         # Create log row with performance metrics
         from pipeline_builder.writer.models import LogRow

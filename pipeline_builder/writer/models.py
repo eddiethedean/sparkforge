@@ -408,6 +408,7 @@ def create_log_row_from_step_result(
         output_rows=step_result.rows_processed,
         rows_written=step_result.rows_written,
         rows_processed=step_result.rows_processed,
+        table_total_rows=None,
         # Validation metrics
         valid_rows=int(step_result.rows_processed * step_result.validation_rate / 100),
         invalid_rows=int(
@@ -498,6 +499,7 @@ def create_log_rows_from_pipeline_report(
         "output_rows": 0,
         "rows_written": 0,
         "rows_processed": 0,
+        "table_total_rows": None,
         "valid_rows": 0,
         "invalid_rows": 0,
         "validation_rate": 100.0,
@@ -541,6 +543,7 @@ def create_log_rows_from_pipeline_report(
             "output_rows": 0,
             "rows_written": 0,
             "rows_processed": 0,
+            "table_total_rows": None,
             "valid_rows": 0,
             "invalid_rows": 0,
             "validation_rate": 100.0,

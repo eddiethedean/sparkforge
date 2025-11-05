@@ -81,9 +81,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Dict
+from typing import Any, Dict
 
-from .compat import DataFrame, SparkSession
+from .compat import DataFrame, SparkSession  # type: ignore[invalid-type-form]
 from .dependencies import DependencyAnalyzer
 from .errors import ExecutionError
 from .functions import FunctionsProtocol
@@ -222,10 +222,12 @@ class ExecutionEngine:
                 return  # Schema already exists, nothing to do
         except Exception:
             pass  # If we can't check, try to create anyway
-        
+
         try:
             # Try using mock-spark storage API if available (for mock-spark compatibility)
-            if hasattr(self.spark, "storage") and hasattr(self.spark.storage, "create_schema"):
+            if hasattr(self.spark, "storage") and hasattr(
+                self.spark.storage, "create_schema"
+            ):
                 try:
                     self.spark.storage.create_schema(schema)
                     # Verify it was created
@@ -239,8 +241,10 @@ class ExecutionEngine:
                         )
                 except Exception as storage_error:
                     # If storage API fails, fall through to SQL approach
-                    self.logger.debug(f"Storage API schema creation failed: {storage_error}, trying SQL")
-            
+                    self.logger.debug(
+                        f"Storage API schema creation failed: {storage_error}, trying SQL"
+                    )
+
             # Fall back to SQL for real Spark or if storage API not available
             self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
             # Verify it was created
@@ -254,9 +258,7 @@ class ExecutionEngine:
             raise  # Re-raise ExecutionError
         except Exception as e:
             # Wrap other exceptions
-            raise ExecutionError(
-                f"Failed to create schema '{schema}': {str(e)}"
-            ) from e
+            raise ExecutionError(f"Failed to create schema '{schema}': {str(e)}") from e
 
     def _ensure_materialized_for_validation(
         self, df: DataFrame, rules: Dict[str, Any]
@@ -286,14 +288,13 @@ class ExecutionEngine:
                 # Force full materialization by collecting and recreating DataFrame
                 # This bypasses CTE optimization entirely
                 try:
-                    # Get schema and columns first
-                    columns = df.columns
+                    # Get schema first
                     schema = df.schema
-                    
+
                     # Collect data to force full materialization
                     # This bypasses CTE optimization in mock-spark
                     collected_data = df.collect()
-                    
+
                     # Recreate DataFrame from collected data
                     # This ensures all columns are fully materialized
                     df = self.spark.createDataFrame(collected_data, schema)
@@ -416,7 +417,9 @@ class ExecutionEngine:
                     # Method 1: Try SQL (most reliable for DuckDB in mock-spark)
                     self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
                     # Method 2: Also try storage API if available (redundancy for mock-spark)
-                    if hasattr(self.spark, "storage") and hasattr(self.spark.storage, "create_schema"):
+                    if hasattr(self.spark, "storage") and hasattr(
+                        self.spark.storage, "create_schema"
+                    ):
                         try:
                             self.spark.storage.create_schema(schema)
                         except Exception:
@@ -565,7 +568,7 @@ class ExecutionEngine:
                 except Exception as e:
                     # Log but don't fail - schema might already exist or creation might work later
                     self.logger.debug(f"Schema '{schema}' pre-creation attempt: {e}")
-            
+
             # Validate context parameter
             if context is None:
                 context = {}
@@ -852,7 +855,7 @@ class ExecutionEngine:
                     self.logger.debug(
                         f"Schema '{step.schema}' creation in worker thread (non-critical): {e}"
                     )
-        
+
         # Read from context with lock to get a snapshot
         with context_lock:
             local_context = dict(context)

@@ -29,7 +29,9 @@ class TestPipelineCombinations:
 
         # Build and execute pipeline
         pipeline = builder.to_pipeline()
-        report = pipeline.run_initial_load(bronze_sources={"events": simple_events_data})
+        report = pipeline.run_initial_load(
+            bronze_sources={"events": simple_events_data}
+        )
 
         # Verify pipeline execution
         assert report.success is True
@@ -56,7 +58,9 @@ class TestPipelineCombinations:
         builder.add_silver_transform(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
             },
@@ -65,7 +69,9 @@ class TestPipelineCombinations:
 
         # Build and execute pipeline
         pipeline = builder.to_pipeline()
-        report = pipeline.run_initial_load(bronze_sources={"events": simple_events_data})
+        report = pipeline.run_initial_load(
+            bronze_sources={"events": simple_events_data}
+        )
 
         # Verify pipeline execution
         assert report.success is True
@@ -104,7 +110,9 @@ class TestPipelineCombinations:
 
         # Build and execute pipeline
         pipeline = builder.to_pipeline()
-        report = pipeline.run_initial_load(bronze_sources={"events": simple_events_data})
+        report = pipeline.run_initial_load(
+            bronze_sources={"events": simple_events_data}
+        )
 
         # Verify pipeline execution
         assert report.success is True
@@ -131,7 +139,9 @@ class TestPipelineCombinations:
         builder.add_silver_transform(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
             },
@@ -151,7 +161,9 @@ class TestPipelineCombinations:
 
         # Build and execute pipeline
         pipeline = builder.to_pipeline()
-        report = pipeline.run_initial_load(bronze_sources={"events": simple_events_data})
+        report = pipeline.run_initial_load(
+            bronze_sources={"events": simple_events_data}
+        )
 
         # Verify pipeline execution
         assert report.success is True
@@ -160,7 +172,12 @@ class TestPipelineCombinations:
         assert report.metrics.failed_steps == 0
 
     def test_multiple_bronze_steps_pipeline(
-        self, spark_session, pipeline_builder, test_schema, simple_events_data, simple_users_data
+        self,
+        spark_session,
+        pipeline_builder,
+        test_schema,
+        simple_events_data,
+        simple_users_data,
     ):
         """Test pipeline with multiple bronze steps."""
         builder = pipeline_builder
@@ -186,7 +203,9 @@ class TestPipelineCombinations:
         builder.add_silver_transform(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
             },
@@ -224,7 +243,9 @@ class TestPipelineCombinations:
         builder.add_silver_transform(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
             },
@@ -234,7 +255,9 @@ class TestPipelineCombinations:
         builder.add_silver_transform(
             name="processed_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
             },
@@ -243,7 +266,9 @@ class TestPipelineCombinations:
 
         # Build and execute pipeline
         pipeline = builder.to_pipeline()
-        report = pipeline.run_initial_load(bronze_sources={"events": simple_events_data})
+        report = pipeline.run_initial_load(
+            bronze_sources={"events": simple_events_data}
+        )
 
         # Verify pipeline execution
         assert report.success is True
@@ -270,7 +295,9 @@ class TestPipelineCombinations:
         builder.add_silver_transform(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.select("id", "name", "timestamp", "value"),
+            transform=lambda spark, df, silvers: df.select(
+                "id", "name", "timestamp", "value"
+            ),
             rules={
                 "id": [F.col("id").isNotNull()],
             },
@@ -300,7 +327,9 @@ class TestPipelineCombinations:
 
         # Build and execute pipeline
         pipeline = builder.to_pipeline()
-        report = pipeline.run_initial_load(bronze_sources={"events": simple_events_data})
+        report = pipeline.run_initial_load(
+            bronze_sources={"events": simple_events_data}
+        )
 
         # Verify pipeline execution
         assert report.success is True

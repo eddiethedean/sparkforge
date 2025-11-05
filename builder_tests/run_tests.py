@@ -22,7 +22,9 @@ def main():
 
     # Build the pytest command
     cmd = [
-        sys.executable, "-m", "pytest",
+        sys.executable,
+        "-m",
+        "pytest",
         "builder_tests/",
         "-v",
         "--tb=short",
@@ -32,11 +34,13 @@ def main():
 
     # Add coverage if requested
     if "--coverage" in sys.argv:
-        cmd.extend([
-            "--cov=pipeline_builder",
-            "--cov-report=term-missing",
-            "--cov-report=html:htmlcov_builder",
-        ])
+        cmd.extend(
+            [
+                "--cov=pipeline_builder",
+                "--cov-report=term-missing",
+                "--cov-report=html:htmlcov_builder",
+            ]
+        )
         sys.argv.remove("--coverage")
 
     # Add any additional arguments
