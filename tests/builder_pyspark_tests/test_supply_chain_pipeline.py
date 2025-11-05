@@ -6,6 +6,9 @@ Bronze → Silver → Gold medallion architecture with orders, shipments, invent
 and logistics performance metrics.
 """
 
+import os
+
+import pytest
 from pyspark.sql import functions as F
 
 from pipeline_builder.pipeline import PipelineBuilder
@@ -478,10 +481,14 @@ class TestSupplyChainPipeline:
         test_assertions.assert_pipeline_success(result2)
         assert result2.mode.value == "incremental"
 
+    @pytest.mark.pyspark
     def test_supply_chain_logging(
         self, spark_session, data_generator, test_assertions
     ):
         """Test comprehensive logging for supply chain pipeline."""
+        # Skip if in mock mode (requires real PySpark with Delta Lake)
+        if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+            pytest.skip("Requires real PySpark with Delta Lake")
         from pipeline_builder.writer import LogWriter
 
         # Create test data

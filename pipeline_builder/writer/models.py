@@ -103,6 +103,7 @@ class LogRow(TypedDict):
     output_rows: int | None
     rows_written: int | None
     rows_processed: int
+    table_total_rows: int | None  # Total rows in table after this write
 
     # Validation metrics
     valid_rows: int
@@ -334,6 +335,7 @@ def create_log_schema() -> types.StructType:
             StructField("output_rows", IntegerType(), True),
             StructField("rows_written", IntegerType(), True),
             StructField("rows_processed", IntegerType(), False),
+            StructField("table_total_rows", IntegerType(), True),
             # Validation metrics
             StructField("valid_rows", IntegerType(), False),
             StructField("invalid_rows", IntegerType(), False),

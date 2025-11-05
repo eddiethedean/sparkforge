@@ -151,11 +151,11 @@ class TestMultiSourcePipeline:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="bronze",
+            functions=F,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
             min_gold_rate=99.0,
             verbose=True,
-            functions=F,
         )
 
         # Bronze Layer: Multiple source validation
@@ -642,7 +642,7 @@ class TestMultiSourcePipeline:
         mock_spark_session.storage.create_schema("gold")
 
         # Create pipeline with complex dependencies
-        builder = PipelineBuilder(spark=mock_spark_session, schema="bronze")
+        builder = PipelineBuilder(spark=mock_spark_session, schema="bronze", functions=F)
 
         # Multiple bronze sources
         builder.with_bronze_rules(name="customers", rules={"customer_id": ["not_null"]})

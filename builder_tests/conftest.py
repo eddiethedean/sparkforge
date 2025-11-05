@@ -65,6 +65,16 @@ def pipeline_config(test_schema):
 @pytest.fixture
 def log_writer(spark_session, test_schema):
     """Create a LogWriter instance for testing."""
+    # Ensure schema exists before creating writer
+    try:
+        spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {test_schema}")
+    except Exception:
+        # Try storage API if SQL fails
+        if hasattr(spark_session, "storage") and hasattr(spark_session.storage, "create_schema"):
+            try:
+                spark_session.storage.create_schema(test_schema)
+            except Exception:
+                pass  # Schema might already exist
     return LogWriter(
         spark=spark_session,
         schema=test_schema,
@@ -81,6 +91,16 @@ def pipeline_runner(spark_session, pipeline_config):
 @pytest.fixture
 def pipeline_builder(spark_session, test_schema):
     """Create a PipelineBuilder instance for testing."""
+    # Ensure schema exists before creating builder
+    try:
+        spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {test_schema}")
+    except Exception:
+        # Try storage API if SQL fails
+        if hasattr(spark_session, "storage") and hasattr(spark_session.storage, "create_schema"):
+            try:
+                spark_session.storage.create_schema(test_schema)
+            except Exception:
+                pass  # Schema might already exist
     return PipelineBuilder(spark=spark_session, schema=test_schema)
 
 

@@ -205,6 +205,116 @@ class ExecutionEngine:
         else:
             self.functions = functions
 
+    def _ensure_schema_exists(self, schema: str) -> None:
+        """
+        Ensure a schema exists, creating it if necessary.
+
+        Args:
+            schema: Schema name to create
+
+        Raises:
+            ExecutionError: If schema creation fails
+        """
+        # Check if schema already exists
+        try:
+            databases = [db.name for db in self.spark.catalog.listDatabases()]
+            if schema in databases:
+                return  # Schema already exists, nothing to do
+        except Exception:
+            pass  # If we can't check, try to create anyway
+        
+        try:
+            # Try using mock-spark storage API if available (for mock-spark compatibility)
+            if hasattr(self.spark, "storage") and hasattr(self.spark.storage, "create_schema"):
+                try:
+                    self.spark.storage.create_schema(schema)
+                    # Verify it was created
+                    databases = [db.name for db in self.spark.catalog.listDatabases()]
+                    if schema in databases:
+                        return  # Success
+                    else:
+                        raise ExecutionError(
+                            f"Schema '{schema}' creation via storage API failed - schema not in catalog. "
+                            f"Available databases: {databases}"
+                        )
+                except Exception as storage_error:
+                    # If storage API fails, fall through to SQL approach
+                    self.logger.debug(f"Storage API schema creation failed: {storage_error}, trying SQL")
+            
+            # Fall back to SQL for real Spark or if storage API not available
+            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+            # Verify it was created
+            databases = [db.name for db in self.spark.catalog.listDatabases()]
+            if schema not in databases:
+                raise ExecutionError(
+                    f"Schema '{schema}' creation via SQL failed - schema not in catalog. "
+                    f"Available databases: {databases}"
+                )
+        except ExecutionError:
+            raise  # Re-raise ExecutionError
+        except Exception as e:
+            # Wrap other exceptions
+            raise ExecutionError(
+                f"Failed to create schema '{schema}': {str(e)}"
+            ) from e
+
+    def _ensure_materialized_for_validation(
+        self, df: DataFrame, rules: Dict[str, Any]
+    ) -> DataFrame:
+        """
+        Force DataFrame materialization before validation to avoid CTE optimization issues.
+
+        Mock-spark's CTE optimization can fail when validation rules reference columns
+        created by transforms (via withColumn). By materializing the DataFrame first,
+        we ensure all columns are available in the validation context.
+
+        Args:
+            df: DataFrame to potentially materialize
+            rules: Validation rules dictionary
+
+        Returns:
+            Materialized DataFrame (or original if materialization not needed/available)
+        """
+        # Check if rules reference columns that might be new (not in original input)
+        # For now, we'll materialize if rules exist and we're in mock-spark mode
+        # This is a conservative approach to avoid CTE issues
+        try:
+            # Check if we're using mock-spark
+            from ..compat import is_mock_spark
+
+            if is_mock_spark() and rules:
+                # Force full materialization by collecting and recreating DataFrame
+                # This bypasses CTE optimization entirely
+                try:
+                    # Get schema and columns first
+                    columns = df.columns
+                    schema = df.schema
+                    
+                    # Collect data to force full materialization
+                    # This bypasses CTE optimization in mock-spark
+                    collected_data = df.collect()
+                    
+                    # Recreate DataFrame from collected data
+                    # This ensures all columns are fully materialized
+                    df = self.spark.createDataFrame(collected_data, schema)
+                except Exception as e:
+                    # If materialization fails, try alternative: just cache and count
+                    try:
+                        if hasattr(df, "cache"):
+                            df = df.cache()
+                        _ = df.count()  # Force evaluation
+                    except Exception:
+                        # If all materialization attempts fail, return original
+                        # Validation will still be attempted
+                        self.logger.debug(f"Could not materialize DataFrame: {e}")
+                        pass
+        except Exception:
+            # If we can't determine mock-spark status or materialization fails,
+            # return original DataFrame
+            pass
+
+        return df
+
     def execute_step(
         self,
         step: BronzeStep | SilverStep | GoldStep,
@@ -258,6 +368,13 @@ class ExecutionEngine:
             if mode != ExecutionMode.VALIDATION_ONLY:
                 # All step types (Bronze, Silver, Gold) have rules attribute
                 if step.rules:
+                    # CRITICAL: Force materialization before validation to avoid CTE optimization issues
+                    # When transforms create new columns with withColumn(), mock-spark's CTE optimization
+                    # can fail because those columns aren't visible in CTE context during validation.
+                    # Materializing ensures all columns are available.
+                    output_df = self._ensure_materialized_for_validation(
+                        output_df, step.rules
+                    )
                     output_df, _, validation_stats = apply_column_rules(
                         output_df,
                         step.rules,
@@ -290,6 +407,30 @@ class ExecutionEngine:
                     )
 
                 output_table = fqn(schema, table_name)
+
+                # CRITICAL FIX for mock-spark 2.16.2 threading issue:
+                # DuckDB connections in worker threads don't see schemas created in other threads.
+                # We MUST create schema in THIS thread's connection right before saveAsTable.
+                # Try multiple methods to ensure schema is visible to this DuckDB connection.
+                try:
+                    # Method 1: Try SQL (most reliable for DuckDB in mock-spark)
+                    self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+                    # Method 2: Also try storage API if available (redundancy for mock-spark)
+                    if hasattr(self.spark, "storage") and hasattr(self.spark.storage, "create_schema"):
+                        try:
+                            self.spark.storage.create_schema(schema)
+                        except Exception:
+                            pass  # SQL might be enough, continue
+                    # Method 3: Try catalog API as well
+                    try:
+                        self.spark.catalog.createDatabase(schema, ignoreIfExists=True)
+                    except Exception:
+                        pass  # SQL might be enough, continue
+                except Exception as e:
+                    # If all methods fail, raise error - schema creation is critical
+                    raise ExecutionError(
+                        f"Failed to create schema '{schema}' before table creation: {e}"
+                    ) from e
 
                 # Determine write mode based on execution mode
                 # INCREMENTAL mode uses "append" to preserve existing data
@@ -402,6 +543,29 @@ class ExecutionEngine:
 
         try:
             # Logging is handled by the runner to avoid duplicate messages
+            # Ensure all required schemas exist before parallel execution (required in mock-spark 2.16.2+)
+            # This MUST happen in the main thread before any worker threads start
+            # Collect unique schemas from all steps
+            required_schemas = set()
+            for step in steps:
+                if hasattr(step, "schema") and step.schema:
+                    schema_value = step.schema
+                    # Handle both string schemas and Mock objects (for tests)
+                    if isinstance(schema_value, str):
+                        required_schemas.add(schema_value)
+            # Create all required schemas upfront - always try to create, don't rely on catalog checks
+            # This is critical for mock-spark 2.16.2+ where DuckDB connections in worker threads
+            # don't see schemas created via catalog API, so we must create them in main thread first
+            for schema in required_schemas:
+                try:
+                    # Always try to create schema - CREATE SCHEMA IF NOT EXISTS is idempotent
+                    self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+                    # Also use _ensure_schema_exists as backup (tries multiple methods)
+                    self._ensure_schema_exists(schema)
+                except Exception as e:
+                    # Log but don't fail - schema might already exist or creation might work later
+                    self.logger.debug(f"Schema '{schema}' pre-creation attempt: {e}")
+            
             # Validate context parameter
             if context is None:
                 context = {}
@@ -673,6 +837,22 @@ class ExecutionEngine:
         Returns:
             StepExecutionResult with execution details
         """
+        # CRITICAL: Ensure schema exists in THIS worker thread before execution
+        # mock-spark 2.16.1+ has DuckDB threading issues where schemas created in one thread
+        # are not visible to DuckDB connections in other threads. We serialize schema creation
+        # with a lock, but the real fix is in execute_step() where we CREATE SCHEMA right before saveAsTable.
+        # This is just a safety check.
+        if hasattr(step, "schema") and step.schema:
+            with context_lock:
+                # Try to ensure schema exists (serialized to avoid race conditions)
+                try:
+                    # Use SQL to ensure schema exists (more reliable than storage API in threads)
+                    self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {step.schema}")
+                except Exception as e:
+                    self.logger.debug(
+                        f"Schema '{step.schema}' creation in worker thread (non-critical): {e}"
+                    )
+        
         # Read from context with lock to get a snapshot
         with context_lock:
             local_context = dict(context)

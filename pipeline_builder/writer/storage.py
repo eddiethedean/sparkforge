@@ -142,9 +142,35 @@ class StorageManager:
         try:
             self.logger.info(f"Creating table if not exists: {self.table_fqn}")
 
+            # Extract schema name from table_fqn (format: "schema.table")
+            schema_name = self.table_fqn.split(".")[0] if "." in self.table_fqn else None
+            
+            # CRITICAL: Ensure schema exists before creating table (required in mock-spark 2.16.1+)
+            # This is especially important for LogWriter which creates tables in different schemas
+            if schema_name:
+                try:
+                    # Use SQL to ensure schema exists (more reliable than storage API in some contexts)
+                    self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+                except Exception as e:
+                    # If SQL fails, try storage API
+                    try:
+                        if hasattr(self.spark, "storage") and hasattr(self.spark.storage, "create_schema"):
+                            self.spark.storage.create_schema(schema_name)
+                    except Exception:
+                        # If both fail, log warning but continue (schema might already exist)
+                        self.logger.debug(f"Could not create schema '{schema_name}': {e}")
+
             if not table_exists(self.spark, self.table_fqn):
                 # Create empty DataFrame with schema
                 empty_df = self.spark.createDataFrame([], schema)
+
+                # CRITICAL: Ensure schema exists RIGHT BEFORE saveAsTable (mock-spark 2.16.1+ threading fix)
+                # DuckDB connections in worker threads don't see schemas created earlier
+                if schema_name:
+                    try:
+                        self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+                    except Exception:
+                        pass  # Schema might already exist
 
                 # Write to Delta table
                 (
@@ -209,6 +235,9 @@ class StorageManager:
             # Add table-specific options
             if write_mode == WriteMode.OVERWRITE:
                 writer = writer.option("overwriteSchema", "true")
+            elif write_mode == WriteMode.APPEND:
+                # Enable schema evolution for append mode to handle new columns
+                writer = writer.option("mergeSchema", "true")
 
             # Execute write operation
             writer.saveAsTable(self.table_fqn)
@@ -557,6 +586,7 @@ class StorageManager:
                     "output_rows": row["output_rows"],
                     "rows_written": row["rows_written"],
                     "rows_processed": row["rows_processed"],
+                    "table_total_rows": row.get("table_total_rows"),  # Include table_total_rows metric
                     "valid_rows": row["valid_rows"],
                     "invalid_rows": row["invalid_rows"],
                     "validation_rate": row["validation_rate"],

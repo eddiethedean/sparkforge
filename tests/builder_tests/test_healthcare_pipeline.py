@@ -500,8 +500,7 @@ class TestHealthcarePipeline:
         # Create pipeline builder
         builder = PipelineBuilder(
             spark=mock_spark_session,
-            schema="bronze",
-            functions=F,
+            schema="bronze", functions=F,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
             min_gold_rate=99.0,
@@ -594,7 +593,7 @@ class TestHealthcarePipeline:
         )
 
         # Create pipeline
-        builder = PipelineBuilder(spark=spark_session, schema="bronze", verbose=False)
+        builder = PipelineBuilder(spark=spark_session, schema="bronze", functions=F, verbose=False)
 
         builder.with_bronze_rules(
             name="raw_patients", rules={"patient_id": ["not_null"]}

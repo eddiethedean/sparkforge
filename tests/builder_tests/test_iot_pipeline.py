@@ -35,11 +35,11 @@ class TestIotPipeline:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="bronze",
+            functions=F,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
             min_gold_rate=99.0,
             verbose=True,
-            functions=F,
         )
 
         # Bronze Layer: Raw sensor data validation
