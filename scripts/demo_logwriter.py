@@ -8,7 +8,7 @@ import time
 from datetime import datetime
 
 from mock_spark import (
-    MockSparkSession,
+    SparkSession,
 )
 
 from pipeline_builder.models.execution import (
@@ -28,11 +28,11 @@ print("\nThis demo shows how LogWriter creates and maintains execution history."
 print("=" * 80 + "\n")
 
 # Create mock Spark session
-builder = MockSparkSession.builder
+builder = SparkSession.builder
 if builder is not None:
     spark = builder.getOrCreate()
 else:
-    raise RuntimeError("Failed to create MockSparkSession builder")
+    raise RuntimeError("Failed to create SparkSession builder")
 
 # Create LogWriter
 print("📝 Creating LogWriter for 'analytics.pipeline_logs' table...")

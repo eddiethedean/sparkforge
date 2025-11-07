@@ -23,11 +23,11 @@ import sys
 
 from mock_spark import (
     DoubleType,
+    Functions,
     IntegerType,
-    MockFunctions,
-    MockSparkSession,
-    MockStructField,
-    MockStructType,
+    SparkSession,
+    StructField,
+    StructType,
     StringType,
 )
 
@@ -72,12 +72,12 @@ class TestGetDataframeInfo:
 
     def test_basic_info(self):
         """Test basic DataFrame info."""
-        mock_spark = MockSparkSession("TestApp")
-        schema = MockStructType(
+        mock_spark = SparkSession("TestApp")
+        schema = StructType(
             [
-                MockStructField("user_id", StringType(), True),
-                MockStructField("age", IntegerType(), True),
-                MockStructField("score", DoubleType(), True),
+                StructField("user_id", StringType(), True),
+                StructField("age", IntegerType(), True),
+                StructField("score", DoubleType(), True),
             ]
         )
         data = [
@@ -96,8 +96,8 @@ class TestGetDataframeInfo:
 
     def test_empty_dataframe(self):
         """Test empty DataFrame info."""
-        mock_spark = MockSparkSession("TestApp")
-        schema = MockStructType([MockStructField("col1", StringType(), True)])
+        mock_spark = SparkSession("TestApp")
+        schema = StructType([StructField("col1", StringType(), True)])
         empty_df = mock_spark.createDataFrame([], schema)
         info = get_dataframe_info(empty_df)
         assert info["row_count"] == 0
@@ -105,7 +105,7 @@ class TestGetDataframeInfo:
 
     def test_error_handling(self):
         """Test error handling with invalid input."""
-        # MockDataFrame should handle None gracefully
+        # DataFrame should handle None gracefully
         info = get_dataframe_info(None)
         assert "error" in info
 
@@ -115,32 +115,32 @@ class TestConvertRuleToExpression:
 
     def test_not_null_rule(self):
         """Test not_null rule conversion."""
-        mock_functions = MockFunctions()
+        mock_functions = Functions()
         expr = _convert_rule_to_expression("not_null", "user_id", mock_functions)
         assert expr is not None
         assert hasattr(expr, "isNotNull") or hasattr(expr, "operation")
 
     def test_positive_rule(self):
         """Test positive rule conversion."""
-        mock_functions = MockFunctions()
+        mock_functions = Functions()
         expr = _convert_rule_to_expression("positive", "age", mock_functions)
         assert expr is not None
 
     def test_non_negative_rule(self):
         """Test non_negative rule conversion."""
-        mock_functions = MockFunctions()
+        mock_functions = Functions()
         expr = _convert_rule_to_expression("non_negative", "score", mock_functions)
         assert expr is not None
 
     def test_non_zero_rule(self):
         """Test non_zero rule conversion."""
-        mock_functions = MockFunctions()
+        mock_functions = Functions()
         expr = _convert_rule_to_expression("non_zero", "age", mock_functions)
         assert expr is not None
 
     def test_custom_expression(self):
         """Test custom expression rule."""
-        mock_functions = MockFunctions()
+        mock_functions = Functions()
         expr = _convert_rule_to_expression(
             "col('user_id').isNotNull()", "user_id", mock_functions
         )
@@ -152,7 +152,7 @@ class TestConvertRulesToExpressions:
 
     def test_single_rule(self):
         """Test single rule conversion."""
-        mock_functions = MockFunctions()
+        mock_functions = Functions()
         rules = {"user_id": ["not_null"]}
         expressions = _convert_rules_to_expressions(rules, mock_functions)
         assert len(expressions) == 1
@@ -160,7 +160,7 @@ class TestConvertRulesToExpressions:
 
     def test_multiple_rules(self):
         """Test multiple rules conversion."""
-        mock_functions = MockFunctions()
+        mock_functions = Functions()
         rules = {"user_id": ["not_null"], "age": ["positive", "non_zero"]}
         expressions = _convert_rules_to_expressions(rules, mock_functions)
         assert len(expressions) == 2
@@ -169,7 +169,7 @@ class TestConvertRulesToExpressions:
 
     def test_empty_rules(self):
         """Test empty rules."""
-        mock_functions = MockFunctions()
+        mock_functions = Functions()
         expressions = _convert_rules_to_expressions({}, mock_functions)
         assert len(expressions) == 0
 
@@ -179,20 +179,20 @@ class TestAndAllRules:
 
     def test_empty_rules(self):
         """Test empty rules."""
-        mock_functions = MockFunctions()
+        mock_functions = Functions()
         result = and_all_rules([], mock_functions)
         assert result is not None
 
     def test_single_rule(self):
         """Test single rule."""
-        mock_functions = MockFunctions()
+        mock_functions = Functions()
         rules = {"user_id": ["not_null"]}
         result = and_all_rules(rules, mock_functions)
         assert result is not None
 
     def test_multiple_rules(self):
         """Test multiple rules."""
-        mock_functions = MockFunctions()
+        mock_functions = Functions()
         rules = {"user_id": ["not_null"], "age": ["positive"]}
         result = and_all_rules(rules, mock_functions)
         assert result is not None
@@ -203,14 +203,14 @@ class TestApplyColumnRules:
 
     def test_basic_validation(self):
         """Test basic column validation."""
-        mock_spark = MockSparkSession("TestApp")
-        mock_functions = MockFunctions()
+        mock_spark = SparkSession("TestApp")
+        mock_functions = Functions()
 
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("user_id", StringType(), True),
-                MockStructField("age", IntegerType(), True),
-                MockStructField("score", DoubleType(), True),
+                StructField("user_id", StringType(), True),
+                StructField("age", IntegerType(), True),
+                StructField("score", DoubleType(), True),
             ]
         )
         data = [
@@ -232,14 +232,14 @@ class TestApplyColumnRules:
 
     def test_multiple_columns(self):
         """Test multiple column validation."""
-        mock_spark = MockSparkSession("TestApp")
-        mock_functions = MockFunctions()
+        mock_spark = SparkSession("TestApp")
+        mock_functions = Functions()
 
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("user_id", StringType(), True),
-                MockStructField("age", IntegerType(), True),
-                MockStructField("score", DoubleType(), True),
+                StructField("user_id", StringType(), True),
+                StructField("age", IntegerType(), True),
+                StructField("score", DoubleType(), True),
             ]
         )
         data = [
@@ -261,12 +261,12 @@ class TestApplyColumnRules:
 
     def test_empty_rules(self):
         """Test empty rules."""
-        mock_spark = MockSparkSession("TestApp")
-        mock_functions = MockFunctions()
+        mock_spark = SparkSession("TestApp")
+        mock_functions = Functions()
 
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("user_id", StringType(), True),
+                StructField("user_id", StringType(), True),
             ]
         )
         data = [("user1",)]
@@ -281,14 +281,14 @@ class TestAssessDataQuality:
 
     def test_basic_quality_assessment(self):
         """Test basic data quality assessment."""
-        mock_spark = MockSparkSession("TestApp")
-        mock_functions = MockFunctions()
+        mock_spark = SparkSession("TestApp")
+        mock_functions = Functions()
 
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("user_id", StringType(), True),
-                MockStructField("age", IntegerType(), True),
-                MockStructField("score", DoubleType(), True),
+                StructField("user_id", StringType(), True),
+                StructField("age", IntegerType(), True),
+                StructField("score", DoubleType(), True),
             ]
         )
         data = [
@@ -308,14 +308,14 @@ class TestAssessDataQuality:
 
     def test_multiple_quality_rules(self):
         """Test multiple quality rules."""
-        mock_spark = MockSparkSession("TestApp")
-        mock_functions = MockFunctions()
+        mock_spark = SparkSession("TestApp")
+        mock_functions = Functions()
 
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("user_id", StringType(), True),
-                MockStructField("age", IntegerType(), True),
-                MockStructField("score", DoubleType(), True),
+                StructField("user_id", StringType(), True),
+                StructField("age", IntegerType(), True),
+                StructField("score", DoubleType(), True),
             ]
         )
         data = [
@@ -337,12 +337,12 @@ class TestAssessDataQuality:
 
     def test_empty_rules(self):
         """Test empty quality rules."""
-        mock_spark = MockSparkSession("TestApp")
-        mock_functions = MockFunctions()
+        mock_spark = SparkSession("TestApp")
+        mock_functions = Functions()
 
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("user_id", StringType(), True),
+                StructField("user_id", StringType(), True),
             ]
         )
         data = [("user1",)]
@@ -357,13 +357,13 @@ class TestValidateDataframeSchema:
 
     def test_valid_schema(self):
         """Test valid schema validation."""
-        mock_spark = MockSparkSession("TestApp")
+        mock_spark = SparkSession("TestApp")
 
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("user_id", StringType(), True),
-                MockStructField("age", IntegerType(), True),
-                MockStructField("score", DoubleType(), True),
+                StructField("user_id", StringType(), True),
+                StructField("age", IntegerType(), True),
+                StructField("score", DoubleType(), True),
             ]
         )
         data = [
@@ -378,13 +378,13 @@ class TestValidateDataframeSchema:
 
     def test_missing_columns(self):
         """Test missing columns validation."""
-        mock_spark = MockSparkSession("TestApp")
+        mock_spark = SparkSession("TestApp")
 
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("user_id", StringType(), True),
-                MockStructField("age", IntegerType(), True),
-                MockStructField("score", DoubleType(), True),
+                StructField("user_id", StringType(), True),
+                StructField("age", IntegerType(), True),
+                StructField("score", DoubleType(), True),
             ]
         )
         data = [("user1", 25, 85.5)]
@@ -396,13 +396,13 @@ class TestValidateDataframeSchema:
 
     def test_extra_columns(self):
         """Test extra columns validation."""
-        mock_spark = MockSparkSession("TestApp")
+        mock_spark = SparkSession("TestApp")
 
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("user_id", StringType(), True),
-                MockStructField("age", IntegerType(), True),
-                MockStructField("score", DoubleType(), True),
+                StructField("user_id", StringType(), True),
+                StructField("age", IntegerType(), True),
+                StructField("score", DoubleType(), True),
             ]
         )
         data = [("user1", 25, 85.5)]
@@ -414,11 +414,11 @@ class TestValidateDataframeSchema:
 
     def test_empty_expected_columns(self):
         """Test empty expected columns."""
-        mock_spark = MockSparkSession("TestApp")
+        mock_spark = SparkSession("TestApp")
 
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("user_id", StringType(), True),
+                StructField("user_id", StringType(), True),
             ]
         )
         data = [("user1",)]
@@ -434,11 +434,11 @@ class TestValidateDataframeSchema:
 
     def test_none_expected_columns(self):
         """Test None expected columns."""
-        mock_spark = MockSparkSession("TestApp")
+        mock_spark = SparkSession("TestApp")
 
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("user_id", StringType(), True),
+                StructField("user_id", StringType(), True),
             ]
         )
         data = [("user1",)]

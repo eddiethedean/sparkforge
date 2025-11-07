@@ -14,7 +14,7 @@ from pyspark.sql import DataFrame, SparkSession
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import MockDataFrame as DataFrame
+    from mock_spark import DataFrame as DataFrame
     from mock_spark import functions as F
 else:
     from pyspark.sql import DataFrame
@@ -141,7 +141,7 @@ class TestPipelineBuilder:
         # Silver layer
         def silver_transform(spark, bronze_df):
             return (
-                bronze_df.withColumn("event_date", F.to_date("timestamp"))
+                bronze_df.withColumn("event_date", F.to_date(F.to_timestamp("timestamp", "yyyy-MM-dd HH:mm:ss")))
                 .withColumn("hour", F.hour("timestamp"))
                 .select("user_id", "action", "event_date", "hour")
             )

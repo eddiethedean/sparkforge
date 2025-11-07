@@ -46,7 +46,7 @@ pyspark = [
     "delta-spark>=2.4.0,<3.0.0",
 ]
 mock = [
-    "mock-spark>=2.16.1",  # Updated: 2.16.1 fixes critical regressions from 2.15.0/2.16.0
+    "mock-spark==3.1.0",
 ]
 dev = [
     "black>=23.0.0",
@@ -70,7 +70,7 @@ docs = [
     "myst-parser>=0.17.0",
 ]
 test = [
-    "mock-spark>=2.16.1",  # Updated: 2.16.1 fixes critical regressions from 2.15.0/2.16.0
+    "mock-spark==3.1.0",
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "pytest-xdist>=3.0.0",

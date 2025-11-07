@@ -73,7 +73,10 @@ class TestEcommercePipeline:
                     F.col("status").isin(["shipped", "delivered"])
                 )  # Only successful orders
                 .withColumn("total_amount", F.col("quantity") * F.col("unit_price"))
-                .withColumn("order_date_parsed", F.to_date("order_date"))
+                .withColumn(
+                    "order_date_parsed",
+                    F.to_date(F.substring("order_date", 1, 10), "yyyy-MM-dd"),
+                )
                 .select(
                     "order_id",
                     "customer_id",
@@ -102,7 +105,10 @@ class TestEcommercePipeline:
             """Enrich customer data with order statistics."""
             return (
                 df.withColumn(
-                    "registration_date_parsed", F.to_date("registration_date")
+                    "registration_date_parsed",
+                    F.to_date(
+                        F.substring("registration_date", 1, 10), "yyyy-MM-dd"
+                    ),
                 )
                 .withColumn("is_premium", F.col("segment") == "premium")
                 .select(

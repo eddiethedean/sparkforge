@@ -11,7 +11,7 @@ import pytest
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import MockDataFrame as DataFrame
+    from mock_spark import DataFrame as DataFrame
     from mock_spark import functions as F
 else:
     from pyspark.sql import DataFrame

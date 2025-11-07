@@ -42,15 +42,9 @@ def _try_import_mockspark() -> (
 ):
     """Try to import mock-spark modules."""
     try:
-        from mock_spark import (  # type: ignore
-            MockColumn as _Column,
-        )
-        from mock_spark import (  # type: ignore
-            MockDataFrame as _DataFrame,
-        )
-        from mock_spark import (  # type: ignore
-            MockSparkSession as _SparkSession,
-        )
+        from mock_spark import Column as _Column  # type: ignore
+        from mock_spark import DataFrame as _DataFrame  # type: ignore
+        from mock_spark import SparkSession as _SparkSession  # type: ignore
         from mock_spark import spark_types as _types  # type: ignore
         from mock_spark.errors import (  # type: ignore
             AnalysisException as _AnalysisException,

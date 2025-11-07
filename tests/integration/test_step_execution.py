@@ -13,7 +13,7 @@ from pyspark.sql import DataFrame
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import MockDataFrame as DataFrame
+    from mock_spark import DataFrame as DataFrame
     from mock_spark import functions as F
 else:
     from pyspark.sql import DataFrame
@@ -194,12 +194,12 @@ class TestStepExecutionFlow:
         ExecutionEngine(spark=spark_session, config=config)
 
         # Create test data with explicit schema
-        from mock_spark import IntegerType, MockStructField, MockStructType, StringType
+        from mock_spark import IntegerType, StructField, StructType, StringType
 
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType(), True),
-                MockStructField("name", StringType(), True),
+                StructField("id", IntegerType(), True),
+                StructField("name", StringType(), True),
             ]
         )
         test_data = [

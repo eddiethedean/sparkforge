@@ -9,6 +9,11 @@ import os
 
 import pytest
 
+try:
+    from mock_spark.session.core.session import SparkSession as MockSparkSession
+except Exception:  # pragma: no cover - mock_spark not available
+    MockSparkSession = None
+
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
     pass

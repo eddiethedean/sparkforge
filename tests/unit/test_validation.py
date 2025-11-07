@@ -52,15 +52,15 @@ def reset_test_environment():
 @pytest.fixture(scope="function")
 def sample_dataframe(spark_session):
     """Create sample DataFrame for testing - validation test specific (4 rows, no category)."""
-    from mock_spark import MockStructField, MockStructType
+    from mock_spark import StructField, StructType
     from pyspark.sql.types import StringType
 
-    # Force using MockStructType for consistency
-    schema = MockStructType(
+    # Force using StructType for consistency
+    schema = StructType(
         [
-            MockStructField("user_id", StringType(), True),
-            MockStructField("age", IntegerType(), True),
-            MockStructField("score", DoubleType(), True),
+            StructField("user_id", StringType(), True),
+            StructField("age", IntegerType(), True),
+            StructField("score", DoubleType(), True),
         ]
     )
     # Use dict format explicitly for mock-spark

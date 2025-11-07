@@ -13,6 +13,14 @@ import shutil
 import sys
 import time
 
+# Ensure project root is on sys.path before loading compatibility shims
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+# Load interpreter compatibility tweaks (e.g., typing.TypeAlias patch for Python 3.8)
+import sitecustomize  # type: ignore  # noqa: E402
+
 import pytest
 
 # Add the project root to the Python path
@@ -96,12 +104,12 @@ def get_unique_test_schema():
 
 def _create_mock_spark_session():
     """Create a mock Spark session."""
-    from mock_spark import MockSparkSession
+    from mock_spark import SparkSession
 
     print("🔧 Creating Mock Spark session for all tests")
 
     # Create mock Spark session
-    spark = MockSparkSession(f"SparkForgeTests-{os.getpid()}")
+    spark = SparkSession(f"SparkForgeTests-{os.getpid()}")
 
     # Monkey-patch createDataFrame to handle tuples when schema is provided
     original_createDataFrame = spark.createDataFrame
@@ -384,9 +392,9 @@ def isolated_spark_session():
 
         print(f"🔧 Creating isolated Mock Spark session for {schema_name}")
 
-        from mock_spark import MockSparkSession
+        from mock_spark import SparkSession
 
-        spark = MockSparkSession(f"SparkForgeTests-{os.getpid()}-{unique_id}")
+        spark = SparkSession(f"SparkForgeTests-{os.getpid()}-{unique_id}")
 
         # Monkey-patch createDataFrame to handle tuples when schema is provided
         original_createDataFrame = spark.createDataFrame
@@ -449,9 +457,9 @@ def mock_spark_session():
         # For real Spark, return None or skip this fixture
         pytest.skip("Mock Spark session not available in real Spark mode")
 
-    from mock_spark import MockSparkSession
+    from mock_spark import SparkSession
 
-    spark = MockSparkSession(f"TestApp-{os.getpid()}")
+    spark = SparkSession(f"TestApp-{os.getpid()}")
 
     # Monkey-patch createDataFrame to handle tuples when schema is provided
     original_createDataFrame = spark.createDataFrame
@@ -553,9 +561,9 @@ def mock_functions():
         # For real Spark, return None or skip this fixture
         pytest.skip("Mock functions not available in real Spark mode")
 
-    from mock_spark import MockFunctions
+    from mock_spark import Functions
 
-    return MockFunctions()
+    return Functions()
 
 
 @pytest.fixture(scope="function")
@@ -639,17 +647,17 @@ def sample_dataframe(spark_session):
         from mock_spark import (
             DoubleType,
             IntegerType,
-            MockStructField,
-            MockStructType,
+            StructField,
+            StructType,
             StringType,
         )
 
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("user_id", StringType(), True),
-                MockStructField("age", IntegerType(), True),
-                MockStructField("score", DoubleType(), True),
-                MockStructField("category", StringType(), True),
+                StructField("user_id", StringType(), True),
+                StructField("age", IntegerType(), True),
+                StructField("score", DoubleType(), True),
+                StructField("category", StringType(), True),
             ]
         )
 
@@ -686,12 +694,12 @@ def empty_dataframe(spark_session):
 
         return spark_session.createDataFrame([], schema)
     else:
-        from mock_spark import MockStructField, MockStructType, StringType
+        from mock_spark import StructField, StructType, StringType
 
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("col1", StringType(), True),
-                MockStructField("col2", StringType(), True),
+                StructField("col1", StringType(), True),
+                StructField("col2", StringType(), True),
             ]
         )
 

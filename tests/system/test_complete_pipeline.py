@@ -316,15 +316,20 @@ class TestCompletePipeline:
         engine = ExecutionEngine(spark=mock_spark_session, config=config)
 
         # Create tables
-        from mock_spark import MockStructField, MockStructType
-        from pyspark.sql.types import DoubleType, IntegerType, StringType
+        from mock_spark import (
+            DoubleType,
+            IntegerType,
+            StringType,
+            StructField,
+            StructType,
+        )
 
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
-                MockStructField("value", DoubleType()),
-                MockStructField("category", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
+                StructField("value", DoubleType()),
+                StructField("category", StringType()),
             ]
         )
 

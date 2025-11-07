@@ -6,8 +6,8 @@ from datetime import datetime
 
 from mock_spark import (
     IntegerType,
-    MockStructField,
-    MockStructType,
+    StructField,
+    StructType,
     StringType,
 )
 
@@ -74,10 +74,10 @@ class TestValidationUtils:
 
     def test_get_dataframe_info(self, mock_spark_session):
         """Test get_dataframe_info function."""
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType(), False),
-                MockStructField("name", StringType(), True),
+                StructField("id", IntegerType(), False),
+                StructField("name", StringType(), True),
             ]
         )
         data = [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
@@ -97,7 +97,7 @@ class TestValidationUtils:
 
     def test_get_dataframe_info_empty(self, mock_spark_session):
         """Test get_dataframe_info with empty DataFrame."""
-        schema = MockStructType([MockStructField("id", IntegerType(), False)])
+        schema = StructType([StructField("id", IntegerType(), False)])
         data = []
         df = mock_spark_session.createDataFrame(data, schema)
 
@@ -325,11 +325,11 @@ class TestValidationIntegration:
     def test_validation_workflow_with_mock_data(self, mock_spark_session):
         """Test validation workflow with mock data."""
         # Create test data
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType(), False),
-                MockStructField("name", StringType(), True),
-                MockStructField("age", IntegerType(), True),
+                StructField("id", IntegerType(), False),
+                StructField("name", StringType(), True),
+                StructField("age", IntegerType(), True),
             ]
         )
         data = [

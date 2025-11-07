@@ -2,7 +2,7 @@
 Monkey patch for mock-spark 0.3.1 DataFrame.select method to fix tuple row access issues.
 """
 
-from mock_spark import MockDataFrame, MockStructType
+from mock_spark import DataFrame, StructType
 
 
 def _patched_select(self, *columns):
@@ -58,10 +58,10 @@ def _patched_select(self, *columns):
                     selected_fields.append(field)
                     break
 
-    new_schema = MockStructType(selected_fields)
-    return MockDataFrame(filtered_data, new_schema, self.storage)
+    new_schema = StructType(selected_fields)
+    return DataFrame(filtered_data, new_schema, self.storage)
 
 
 def apply_mock_spark_patches():
     """Apply all necessary patches to mock-spark 0.3.1."""
-    MockDataFrame.select = _patched_select
+    DataFrame.select = _patched_select

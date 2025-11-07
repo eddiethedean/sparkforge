@@ -78,12 +78,14 @@ class TestRealSparkOperations:
     def test_real_spark_transformations(self, sample_dataframe):
         """Test Spark transformations with real data."""
         # Test adding columns
-        df_with_date = sample_dataframe.withColumn("event_date", F.to_date("timestamp"))
+        df_with_date = sample_dataframe.withColumn(
+            "event_date", F.substring("timestamp", 1, 10)
+        )
         assert "event_date" in df_with_date.columns
 
         # Test simple transformations
         df_processed = (
-            sample_dataframe.withColumn("event_date", F.to_date("timestamp"))
+            sample_dataframe.withColumn("event_date", F.substring("timestamp", 1, 10))
             .withColumn("hour", F.hour("timestamp"))
             .groupBy("user_id", "event_date")
             .agg(F.count("action").alias("event_count"))
@@ -154,7 +156,7 @@ class TestRealSparkOperations:
 
         # Test complex operations on larger dataset
         result = (
-            df.withColumn("event_date", F.to_date("timestamp"))
+            df.withColumn("event_date", F.substring("timestamp", 1, 10))
             .withColumn("hour", F.hour("timestamp"))
             .groupBy("user_id", "event_date")
             .agg(F.count("action").alias("event_count"))

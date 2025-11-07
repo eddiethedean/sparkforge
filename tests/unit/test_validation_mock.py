@@ -12,11 +12,11 @@ This module tests all data validation and quality assessment functions.
 import pytest
 from mock_spark import (
     DoubleType,
+    Functions,
     IntegerType,
-    MockFunctions,
-    MockSparkSession,
-    MockStructField,
-    MockStructType,
+    SparkSession,
+    StructField,
+    StructType,
     StringType,
 )
 
@@ -35,23 +35,23 @@ from pipeline_builder.validation import (
 @pytest.fixture
 def mock_spark_session():
     """Create mock Spark session for testing."""
-    return MockSparkSession("TestApp")
+    return SparkSession("TestApp")
 
 
 @pytest.fixture
 def mock_functions():
     """Create mock functions for testing."""
-    return MockFunctions()
+    return Functions()
 
 
 @pytest.fixture
 def sample_dataframe(mock_spark_session):
     """Create sample DataFrame for testing."""
-    schema = MockStructType(
+    schema = StructType(
         [
-            MockStructField("user_id", StringType(), True),
-            MockStructField("age", IntegerType(), True),
-            MockStructField("score", DoubleType(), True),
+            StructField("user_id", StringType(), True),
+            StructField("age", IntegerType(), True),
+            StructField("score", DoubleType(), True),
         ]
     )
     data = [
@@ -105,7 +105,7 @@ class TestGetDataframeInfo:
 
     def test_empty_dataframe(self, mock_spark_session):
         """Test empty DataFrame info."""
-        schema = MockStructType([MockStructField("col1", StringType(), True)])
+        schema = StructType([StructField("col1", StringType(), True)])
         empty_df = mock_spark_session.createDataFrame([], schema)
         info = get_dataframe_info(empty_df)
         assert info["row_count"] == 0

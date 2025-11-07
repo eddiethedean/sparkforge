@@ -6,7 +6,7 @@ Bronze → Silver → Gold medallion architecture with sensor readings, anomaly 
 and device health analytics.
 """
 
-from mock_spark import MockWindow as Window
+from mock_spark import Window as Window
 from mock_spark import functions as F
 
 from pipeline_builder.pipeline import PipelineBuilder

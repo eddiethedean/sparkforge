@@ -20,7 +20,7 @@ class TestSupplyChainPipeline:
 
     @pytest.mark.skipif(
         os.environ.get("SPARK_MODE", "mock").lower() == "mock",
-        reason="regexp_replace SQL syntax not supported in DuckDB backend",
+        reason="Polars backend still fails complex datetime validation in this pipeline (mock-spark follow-up).",
     )
     def test_complete_supply_chain_pipeline_execution(
         self, mock_spark_session, data_generator, test_assertions

@@ -205,7 +205,7 @@ class TestPipelineBuilder(unittest.TestCase):
         self.assertIn("id", bronze_step.rules)
         self.assertEqual(len(bronze_step.rules["id"]), 1)
         # Check that it's a Column-like object (not a string)
-        # Works with both PySpark Column and mock-spark MockColumnOperation
+        # Works with both PySpark Column and mock-spark ColumnOperation
         self.assertFalse(isinstance(bronze_step.rules["id"][0], str))
         self.assertTrue(hasattr(bronze_step.rules["id"][0], "__and__"))
         self.assertEqual(bronze_step.incremental_col, "created_at")
@@ -232,7 +232,7 @@ class TestPipelineBuilder(unittest.TestCase):
         self.assertIn("id", silver_step.rules)
         self.assertEqual(len(silver_step.rules["id"]), 1)
         # Check that it's a Column-like object (not a string)
-        # Works with both PySpark Column and mock-spark MockColumnOperation
+        # Works with both PySpark Column and mock-spark ColumnOperation
         self.assertFalse(isinstance(silver_step.rules["id"][0], str))
         self.assertTrue(hasattr(silver_step.rules["id"][0], "__and__"))
         self.assertEqual(silver_step.watermark_col, "updated_at")

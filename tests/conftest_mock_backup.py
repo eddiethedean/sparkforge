@@ -16,7 +16,7 @@ import pytest
 # Add the project root to the Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from mock_spark import MockFunctions, MockSparkSession
+from mock_spark import Functions, SparkSession
 
 # Add the tests directory to the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -67,7 +67,7 @@ def spark_session():
     print("🔧 Creating Mock Spark session for all tests")
 
     # Create mock Spark session
-    spark = MockSparkSession(f"SparkForgeTests-{os.getpid()}")
+    spark = SparkSession(f"SparkForgeTests-{os.getpid()}")
 
     # Create test database
     try:
@@ -96,7 +96,7 @@ def isolated_spark_session():
     print(f"🔧 Creating isolated Mock Spark session for {schema_name}")
 
     # Create mock Spark session
-    spark = MockSparkSession(f"SparkForgeTests-{os.getpid()}-{unique_id}")
+    spark = SparkSession(f"SparkForgeTests-{os.getpid()}-{unique_id}")
 
     # Create isolated test database
     try:
@@ -118,7 +118,7 @@ def mock_functions():
 
     This fixture provides mock PySpark functions for testing.
     """
-    return MockFunctions()
+    return Functions()
 
 
 @pytest.fixture(scope="function")
@@ -171,17 +171,17 @@ def sample_dataframe(spark_session):
     from mock_spark import (
         DoubleType,
         IntegerType,
-        MockStructField,
-        MockStructType,
+        StructField,
+        StructType,
         StringType,
     )
 
-    schema = MockStructType(
+    schema = StructType(
         [
-            MockStructField("user_id", StringType(), True),
-            MockStructField("age", IntegerType(), True),
-            MockStructField("score", DoubleType(), True),
-            MockStructField("category", StringType(), True),
+            StructField("user_id", StringType(), True),
+            StructField("age", IntegerType(), True),
+            StructField("score", DoubleType(), True),
+            StructField("category", StringType(), True),
         ]
     )
 
@@ -203,12 +203,12 @@ def empty_dataframe(spark_session):
 
     This fixture creates an empty DataFrame with a defined schema.
     """
-    from mock_spark import MockStructField, MockStructType, StringType
+    from mock_spark import StructField, StructType, StringType
 
-    schema = MockStructType(
+    schema = StructType(
         [
-            MockStructField("col1", StringType(), True),
-            MockStructField("col2", StringType(), True),
+            StructField("col1", StringType(), True),
+            StructField("col2", StringType(), True),
         ]
     )
 

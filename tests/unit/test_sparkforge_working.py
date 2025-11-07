@@ -10,8 +10,8 @@ import pytest
 from mock_spark import (
     DoubleType,
     IntegerType,
-    MockStructField,
-    MockStructType,
+    StructField,
+    StructType,
     StringType,
 )
 
@@ -213,10 +213,10 @@ class TestSparkForgeWorking:
 
         # Test table_exists function with correct signature
         mock_spark_session.storage.create_schema("test_schema")
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
         mock_spark_session.storage.create_table(
@@ -309,10 +309,10 @@ class TestSparkForgeWorking:
         mock_spark_session.storage.create_schema("test_schema")
 
         # Create table with proper schema
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
         mock_spark_session.storage.create_table(
@@ -374,10 +374,10 @@ class TestSparkForgeWorking:
         assert result_default == 1.0
 
         # Test get_dataframe_info function
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
 
@@ -410,7 +410,7 @@ class TestSparkForgeWorking:
     def test_edge_cases_working(self, mock_spark_session):
         """Test edge cases using actual API."""
         # Test with empty DataFrame
-        empty_schema = MockStructType([])
+        empty_schema = StructType([])
         empty_df = mock_spark_session.createDataFrame([{}], empty_schema)
         assert empty_df.count() == 1
         assert len(empty_df.columns) == 0
@@ -422,10 +422,10 @@ class TestSparkForgeWorking:
             {"id": None, "name": "Charlie"},
         ]
 
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
 
@@ -437,11 +437,11 @@ class TestSparkForgeWorking:
         for i in range(1000):
             large_data.append({"id": i, "name": f"Person_{i}", "age": 20 + (i % 50)})
 
-        large_schema = MockStructType(
+        large_schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
-                MockStructField("age", IntegerType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
+                StructField("age", IntegerType()),
             ]
         )
 
@@ -454,10 +454,10 @@ class TestSparkForgeWorking:
             {"id": -2147483648, "value": 2.2250738585072014e-308},  # Min values
         ]
 
-        boundary_schema = MockStructType(
+        boundary_schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("value", DoubleType()),
+                StructField("id", IntegerType()),
+                StructField("value", DoubleType()),
             ]
         )
 
@@ -581,10 +581,10 @@ class TestSparkForgeWorking:
 
         # 8. Table Operations
         mock_spark_session.storage.create_schema("test_schema")
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
         mock_spark_session.storage.create_table(
@@ -599,6 +599,6 @@ class TestSparkForgeWorking:
         assert result == 5.0
 
         # 10. Edge Cases
-        empty_schema = MockStructType([])
+        empty_schema = StructType([])
         empty_df = mock_spark_session.createDataFrame([{}], empty_schema)
         assert empty_df.count() == 1

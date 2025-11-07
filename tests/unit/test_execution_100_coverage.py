@@ -10,8 +10,8 @@ from unittest.mock import patch
 import pytest
 from mock_spark import (
     IntegerType,
-    MockStructField,
-    MockStructType,
+    StructField,
+    StructType,
     StringType,
 )
 
@@ -64,10 +64,10 @@ class TestExecuteStepComplete:
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
         test_data = [{"id": 1, "name": "test1"}, {"id": 2, "name": "test2"}]
@@ -109,10 +109,10 @@ class TestExecuteStepComplete:
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
         test_data = [{"id": 1, "name": "test1"}, {"id": 2, "name": "test2"}]
@@ -154,10 +154,10 @@ class TestExecuteStepComplete:
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
         test_data = [{"id": 1, "name": "test1"}, {"id": 2, "name": "test2"}]
@@ -196,10 +196,10 @@ class TestExecuteStepComplete:
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
         test_data = [{"id": 1, "name": "test1"}, {"id": 2, "name": "test2"}]
@@ -239,10 +239,10 @@ class TestExecuteStepComplete:
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
         test_data = [{"id": 1, "name": "test1"}, {"id": 2, "name": "test2"}]
@@ -278,10 +278,10 @@ class TestExecuteStepComplete:
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
         test_data = [{"id": 1, "name": "test1"}, {"id": 2, "name": "test2"}]
@@ -371,10 +371,10 @@ class TestExecuteStepComplete:
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
         test_data = [{"id": 1, "name": "test1"}, {"id": 2, "name": "test2"}]
@@ -414,10 +414,10 @@ class TestExecutePipelineComplete:
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
         test_data = [{"id": 1, "name": "test1"}, {"id": 2, "name": "test2"}]
@@ -469,10 +469,10 @@ class TestExecutePipelineComplete:
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
         test_data = [{"id": 1, "name": "test1"}, {"id": 2, "name": "test2"}]
@@ -588,10 +588,10 @@ class TestExecutePipelineComplete:
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
         test_data = [{"id": 1, "name": "test1"}, {"id": 2, "name": "test2"}]
@@ -630,10 +630,10 @@ class TestExecutePipelineComplete:
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
         test_data = [{"id": 1, "name": "test1"}, {"id": 2, "name": "test2"}]
@@ -676,10 +676,10 @@ class TestPrivateMethodsComplete:
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
         test_data = [{"id": 1, "name": "test1"}, {"id": 2, "name": "test2"}]
@@ -738,10 +738,10 @@ class TestPrivateMethodsComplete:
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
         test_data = [{"id": 1, "name": "test1"}, {"id": 2, "name": "test2"}]
@@ -802,7 +802,7 @@ class TestPrivateMethodsComplete:
         # Transform that works with empty silvers dict
         def transform_func(spark, silvers):
             # Create a simple DataFrame when no source silvers
-            schema = MockStructType([MockStructField("id", IntegerType())])
+            schema = StructType([StructField("id", IntegerType())])
             data = [{"id": 1}, {"id": 2}]
             return spark.createDataFrame(data, schema)
 

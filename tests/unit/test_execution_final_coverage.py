@@ -7,7 +7,7 @@ This module covers the remaining uncovered lines.
 from datetime import datetime
 from unittest.mock import patch
 
-from mock_spark import IntegerType, MockStructField, MockStructType, StringType
+from mock_spark import IntegerType, StructField, StructType, StringType
 
 from pipeline_builder.execution import (
     ExecutionEngine,
@@ -64,10 +64,10 @@ class TestExecutionFinalCoverage:
         engine = ExecutionEngine(spark=spark_session, config=config)
 
         # Create test data
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
         test_data = [{"id": 1, "name": "test1"}]
@@ -117,10 +117,10 @@ class TestExecutionFinalCoverage:
         engine = ExecutionEngine(spark=spark_session, config=config)
 
         # Create test data
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
         test_data = [{"id": 1, "name": "test1"}]

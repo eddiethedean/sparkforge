@@ -17,10 +17,10 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
         StringType,
     )
     from mock_spark import (
-        MockStructField as StructField,
+        StructField as StructField,
     )
     from mock_spark import (
-        MockStructType as StructType,
+        StructType as StructType,
     )
     from mock_spark import functions as F
 

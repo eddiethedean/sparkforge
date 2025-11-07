@@ -16,10 +16,10 @@ from mock_spark import (
     BooleanType,
     DoubleType,
     IntegerType,
-    MockFunctions,
-    MockSparkSession,
-    MockStructField,
-    MockStructType,
+    Functions,
+    SparkSession,
+    StructField,
+    StructType,
     StringType,
 )
 
@@ -34,13 +34,13 @@ from pipeline_builder.validation.data_validation import (
 )
 
 
-class TestValidationWithMockFunctions:
+class TestValidationWithFunctions:
     """Test validation functions using injectable mock functions."""
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.mock_spark = MockSparkSession("TestApp")
-        self.mock_functions = MockFunctions()
+        self.mock_spark = SparkSession("TestApp")
+        self.mock_functions = Functions()
 
         # Create sample data
         self.sample_data = [
@@ -51,13 +51,13 @@ class TestValidationWithMockFunctions:
         ]
 
         # Create sample schema
-        self.sample_schema = MockStructType(
+        self.sample_schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
-                MockStructField("age", IntegerType()),
-                MockStructField("salary", DoubleType()),
-                MockStructField("active", BooleanType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
+                StructField("age", IntegerType()),
+                StructField("salary", DoubleType()),
+                StructField("active", BooleanType()),
             ]
         )
 
@@ -177,13 +177,13 @@ class TestValidationWithMockFunctions:
             pass
 
     def test_mock_functions_protocol_compliance(self):
-        """Test that MockFunctions implements FunctionsProtocol correctly."""
-        # Test that MockFunctions has all required methods
+        """Test that Functions implements FunctionsProtocol correctly."""
+        # Test that Functions has all required methods
         assert hasattr(self.mock_functions, "col")
         assert hasattr(self.mock_functions, "expr")
         assert hasattr(self.mock_functions, "lit")
         assert hasattr(self.mock_functions, "current_timestamp")
-        assert hasattr(self.mock_functions, "dayofweek")  # MockFunctions has dayofweek
+        assert hasattr(self.mock_functions, "dayofweek")  # Functions has dayofweek
         assert hasattr(self.mock_functions, "count")
         assert hasattr(self.mock_functions, "countDistinct")
         assert hasattr(self.mock_functions, "max")
@@ -254,13 +254,13 @@ class TestValidationWithMockFunctions:
         ) < 10.0  # Should complete within 10s with mock functions
 
 
-class TestPipelineBuilderWithMockFunctions:
+class TestPipelineBuilderWithFunctions:
     """Test PipelineBuilder with injectable mock functions."""
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.mock_spark = MockSparkSession("TestApp")
-        self.mock_functions = MockFunctions()
+        self.mock_spark = SparkSession("TestApp")
+        self.mock_functions = Functions()
 
     def test_pipeline_builder_with_mock_functions(self):
         """Test PipelineBuilder initialization with mock functions."""
@@ -342,16 +342,16 @@ class TestPipelineBuilderWithMockFunctions:
         assert builder.functions == self.mock_functions
 
 
-class TestMockFunctionsIntegration:
-    """Test integration between MockFunctions and SparkForge validation."""
+class TestFunctionsIntegration:
+    """Test integration between Functions and SparkForge validation."""
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.mock_spark = MockSparkSession("TestApp")
-        self.mock_functions = MockFunctions()
+        self.mock_spark = SparkSession("TestApp")
+        self.mock_functions = Functions()
 
     def test_mock_functions_behavior(self):
-        """Test that MockFunctions behaves correctly with validation."""
+        """Test that Functions behaves correctly with validation."""
         # Test col function
         col_expr = self.mock_functions.col("test_column")
         assert col_expr is not None
@@ -375,12 +375,12 @@ class TestMockFunctionsIntegration:
             {"id": 2, "name": "Bob", "age": 30, "salary": 60000.0},
         ]
 
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
-                MockStructField("age", IntegerType()),
-                MockStructField("salary", DoubleType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
+                StructField("age", IntegerType()),
+                StructField("salary", DoubleType()),
             ]
         )
 
@@ -404,7 +404,7 @@ class TestMockFunctionsIntegration:
         assert "quality_rate" in result
 
     def test_mock_functions_performance(self):
-        """Test MockFunctions performance characteristics."""
+        """Test Functions performance characteristics."""
         import time
 
         # Test function call performance
@@ -421,19 +421,19 @@ class TestMockFunctionsIntegration:
         assert (end_time - start_time) < 0.1  # Less than 100ms for 1000 calls
 
     def test_mock_functions_error_handling(self):
-        """Test MockFunctions error handling."""
+        """Test Functions error handling."""
         # Test with invalid inputs
         try:
             self.mock_functions.col(None)
-            # MockFunctions should handle this gracefully
+            # Functions should handle this gracefully
         except Exception as e:
             # If it raises an exception, that's also acceptable
             assert isinstance(e, (TypeError, ValueError, AttributeError))
 
     def test_functions_protocol_type_checking(self):
-        """Test that MockFunctions properly implements FunctionsProtocol."""
+        """Test that Functions properly implements FunctionsProtocol."""
 
-        # MockFunctions should be compatible with FunctionsProtocol
+        # Functions should be compatible with FunctionsProtocol
         # Since FunctionsProtocol is not runtime checkable, we'll test method availability instead
         required_methods = [
             "col",
@@ -446,7 +446,7 @@ class TestMockFunctionsIntegration:
         ]
         for method in required_methods:
             assert hasattr(self.mock_functions, method), (
-                f"MockFunctions missing required method: {method}"
+                f"Functions missing required method: {method}"
             )
 
         # Test that all protocol methods exist and are callable

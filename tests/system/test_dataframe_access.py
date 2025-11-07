@@ -99,7 +99,7 @@ class TestDataFrameAccess:
 
         # Add silver step
         def silver_transform(spark, df, silvers):
-            return df.withColumn("event_date", F.to_date("timestamp")).select(
+            return df.withColumn("event_date", F.to_date(F.to_timestamp("timestamp", "yyyy-MM-dd HH:mm:ss"))).select(
                 "user_id", "action", "event_date"
             )
 
@@ -131,7 +131,7 @@ class TestDataFrameAccess:
 
         # Add silver step
         def silver_transform(spark, df, silvers):
-            return df.withColumn("event_date", F.to_date("timestamp")).select(
+            return df.withColumn("event_date", F.to_date(F.to_timestamp("timestamp", "yyyy-MM-dd HH:mm:ss"))).select(
                 "user_id", "action", "event_date"
             )
 
@@ -183,7 +183,7 @@ class TestDataFrameAccess:
 
         # Add silver step
         def silver_transform(spark, df, silvers):
-            return df.withColumn("event_date", F.to_date("timestamp")).select(
+            return df.withColumn("event_date", F.to_date(F.to_timestamp("timestamp", "yyyy-MM-dd HH:mm:ss"))).select(
                 "user_id", "action", "event_date"
             )
 
@@ -233,7 +233,7 @@ class TestDataFrameAccess:
 
         # Add silver step
         def silver_transform(spark, df, silvers):
-            return df.withColumn("event_date", F.to_date("timestamp")).select(
+            return df.withColumn("event_date", F.to_date(F.to_timestamp("timestamp", "yyyy-MM-dd HH:mm:ss"))).select(
                 "user_id", "action", "event_date"
             )
 
@@ -287,7 +287,7 @@ class TestDataFrameAccess:
 
         # Test column operations
         df_with_date = sample_bronze_data.withColumn(
-            "event_date", F.to_date("timestamp")
+            "event_date", F.to_date(F.to_timestamp("timestamp", "yyyy-MM-dd HH:mm:ss"))
         )
         assert "event_date" in df_with_date.columns
 
@@ -323,7 +323,7 @@ class TestDataFrameAccess:
 
         # Test SilverStep
         def silver_transform(spark, df, silvers):
-            return df.withColumn("event_date", F.to_date("timestamp"))
+            return df.withColumn("event_date", F.to_date(F.to_timestamp("timestamp", "yyyy-MM-dd HH:mm:ss")))
 
         silver_step = SilverStep(
             name="silver_events",

@@ -113,12 +113,12 @@ class TestTrap1SilentExceptionHandling:
     def test_empty_dataframe_returns_correct_metrics(self, spark_session):
         """Test that empty DataFrame returns correct metrics without fallback."""
         # Create empty DataFrame using StructType instead of DDL string
-        from mock_spark import MockStructField, MockStructType, StringType
+        from mock_spark import StructField, StructType, StringType
 
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("user_id", StringType(), True),
-                MockStructField("action", StringType(), True),
+                StructField("user_id", StringType(), True),
+                StructField("action", StringType(), True),
             ]
         )
         df = spark_session.createDataFrame([], schema)

@@ -9,9 +9,9 @@ from datetime import datetime
 from mock_spark import (
     F,
     IntegerType,
-    MockSparkSession,
-    MockStructField,
-    MockStructType,
+    SparkSession,
+    StructField,
+    StructType,
     StringType,
 )
 
@@ -26,26 +26,26 @@ print("Watch for interleaved log messages from different steps!")
 print("=" * 80 + "\n")
 
 # Create mock Spark session
-builder = MockSparkSession.builder
+builder = SparkSession.builder
 if builder is not None:
     spark = builder.getOrCreate()
 else:
-    raise RuntimeError("Failed to create MockSparkSession builder")
+    raise RuntimeError("Failed to create SparkSession builder")
 
 # Create sample data for bronze steps
-schema1 = MockStructType(
+schema1 = StructType(
     [
-        MockStructField("event_id", IntegerType(), True),
-        MockStructField("user_id", IntegerType(), True),
-        MockStructField("event_type", StringType(), True),
+        StructField("event_id", IntegerType(), True),
+        StructField("user_id", IntegerType(), True),
+        StructField("event_type", StringType(), True),
     ]
 )
 
-schema2 = MockStructType(
+schema2 = StructType(
     [
-        MockStructField("profile_id", IntegerType(), True),
-        MockStructField("user_id", IntegerType(), True),
-        MockStructField("name", StringType(), True),
+        StructField("profile_id", IntegerType(), True),
+        StructField("user_id", IntegerType(), True),
+        StructField("name", StringType(), True),
     ]
 )
 
@@ -84,7 +84,7 @@ silver_purchases = SilverStep(
     source_bronze="bronze_events",
     transform=lambda spark, df, silvers: df.filter(F.col("event_type") == "purchase")
     if df is not None
-    else spark.createDataFrame([], MockStructType([])),
+    else spark.createDataFrame([], StructType([])),
     rules={"user_id": ["not_null"]},
     table_name="silver_purchases",
     schema="analytics",

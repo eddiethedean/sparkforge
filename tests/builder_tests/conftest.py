@@ -31,9 +31,9 @@ from pipeline_builder.writer.models import LogLevel
 @pytest.fixture
 def mock_spark_session():
     """Mock Spark session for testing."""
-    from mock_spark import MockSparkSession
+    from mock_spark import SparkSession
 
-    return MockSparkSession()
+    return SparkSession()
 
 
 @pytest.fixture

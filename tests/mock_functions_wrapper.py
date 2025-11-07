@@ -1,7 +1,7 @@
 """
 Mock Functions wrapper to ensure compatibility with FunctionsProtocol.
 
-This module provides a wrapper around mock_spark's MockFunctions to ensure
+This module provides a wrapper around mock_spark's Functions to ensure
 it implements all methods required by the FunctionsProtocol.
 """
 
@@ -10,7 +10,7 @@ from typing import Any
 from mock_spark.functions import F as _F
 
 
-class MockFunctions:
+class Functions:
     """
     Wrapper around mock_spark's F to ensure FunctionsProtocol compatibility.
 
@@ -18,7 +18,7 @@ class MockFunctions:
     """
 
     def __init__(self) -> None:
-        """Initialize the MockFunctions wrapper."""
+        """Initialize the Functions wrapper."""
         self._f = _F
 
     def __getattr__(self, name: str) -> Any:

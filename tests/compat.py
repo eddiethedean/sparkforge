@@ -33,10 +33,10 @@ def _try_import_mockspark():
             Column as _Column,  # type: ignore
         )
         from mock_spark import (
-            MockDataFrame as _DataFrame,  # type: ignore
+            DataFrame as _DataFrame,  # type: ignore
         )
         from mock_spark import (
-            MockSparkSession as _SparkSession,  # type: ignore
+            SparkSession as _SparkSession,  # type: ignore
         )
         from mock_spark import spark_types as _types  # type: ignore
         from mock_spark.functions import F as _F  # type: ignore

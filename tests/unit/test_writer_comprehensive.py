@@ -7,8 +7,8 @@ from datetime import datetime
 import pytest
 from mock_spark import (
     IntegerType,
-    MockStructField,
-    MockStructType,
+    StructField,
+    StructType,
 )
 
 from pipeline_builder.logging import PipelineLogger
@@ -80,7 +80,7 @@ class TestWriterComprehensive:
 
         # Test with existing table
         mock_spark_session.catalog.createDatabase("test_schema")
-        schema = MockStructType([MockStructField("id", IntegerType())])
+        schema = StructType([StructField("id", IntegerType())])
         data = [{"id": 1}, {"id": 2}]
         df = mock_spark_session.createDataFrame(data, schema)
         df.write.mode("overwrite").saveAsTable("test_schema.existing_table")
@@ -641,7 +641,7 @@ class TestWriterComprehensive:
         assert writer.schema is not None
 
         # Check that schema has the expected structure
-        # The schema is a PySpark StructType, not MockStructType
+        # The schema is a PySpark StructType, not StructType
         assert hasattr(writer.schema, "fields")
         assert len(writer.schema.fields) > 0
 

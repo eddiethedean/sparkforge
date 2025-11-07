@@ -9,9 +9,9 @@ from mock_spark import (
     DoubleType,
     IntegerType,
     MapType,
-    MockSparkSession,
-    MockStructField,
-    MockStructType,
+    SparkSession,
+    StructField,
+    StructType,
     StringType,
 )
 from mock_spark.errors import (
@@ -20,10 +20,10 @@ from mock_spark.errors import (
 )
 from mock_spark.functions import (
     F,
-    MockAggregateFunction,
-    MockColumn,
-    MockLiteral,
-    MockWindowFunction,
+    AggregateFunction,
+    Column,
+    Literal,
+    WindowFunction,
 )
 
 from pipeline_builder.execution import ExecutionEngine
@@ -43,10 +43,10 @@ class TestEdgeCases:
     def test_empty_dataframe_operations(self, mock_spark_session):
         """Test operations on empty DataFrames."""
         # Create empty DataFrame
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
 
@@ -76,11 +76,11 @@ class TestEdgeCases:
             {"id": 4, "name": "Diana", "age": 35},
         ]
 
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
-                MockStructField("age", IntegerType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
+                StructField("age", IntegerType()),
             ]
         )
 
@@ -108,13 +108,13 @@ class TestEdgeCases:
         ]
 
         # Create DataFrame with large dataset
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
-                MockStructField("age", IntegerType()),
-                MockStructField("salary", DoubleType()),
-                MockStructField("department", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
+                StructField("age", IntegerType()),
+                StructField("salary", DoubleType()),
+                StructField("department", StringType()),
             ]
         )
 
@@ -134,12 +134,12 @@ class TestEdgeCases:
     def test_complex_schema_operations(self, mock_spark_session):
         """Test operations with complex schemas."""
         # Create complex schema with arrays and maps
-        array_schema = MockStructType(
+        array_schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("tags", ArrayType(StringType())),
-                MockStructField("metadata", MapType(StringType(), StringType())),
-                MockStructField("is_active", BooleanType()),
+                StructField("id", IntegerType()),
+                StructField("tags", ArrayType(StringType())),
+                StructField("metadata", MapType(StringType(), StringType())),
+                StructField("is_active", BooleanType()),
             ]
         )
 
@@ -188,7 +188,7 @@ class TestEdgeCases:
             mock_spark_session.table("nonexistent.table")
 
         # Test invalid column references
-        schema = MockStructType([MockStructField("id", IntegerType())])
+        schema = StructType([StructField("id", IntegerType())])
         df = mock_spark_session.createDataFrame([{"id": 1}], schema)
 
         with pytest.raises(
@@ -204,10 +204,10 @@ class TestEdgeCases:
             {"id": -2147483648, "value": 2.2250738585072014e-308},  # Min int and double
         ]
 
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("value", DoubleType()),
+                StructField("id", IntegerType()),
+                StructField("value", DoubleType()),
             ]
         )
 
@@ -221,10 +221,10 @@ class TestEdgeCases:
             {"id": 3, "name": "normal"},
         ]
 
-        string_schema = MockStructType(
+        string_schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
 
@@ -234,7 +234,7 @@ class TestEdgeCases:
     def test_concurrent_operations(self, mock_spark_session):
         """Test concurrent-like operations."""
         # Create multiple DataFrames simultaneously
-        schema = MockStructType([MockStructField("id", IntegerType())])
+        schema = StructType([StructField("id", IntegerType())])
 
         df1 = mock_spark_session.createDataFrame([{"id": 1}], schema)
         df2 = mock_spark_session.createDataFrame([{"id": 2}], schema)
@@ -268,12 +268,12 @@ class TestEdgeCases:
                 }
             )
 
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
-                MockStructField("age", IntegerType()),
-                MockStructField("salary", DoubleType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
+                StructField("age", IntegerType()),
+                StructField("salary", DoubleType()),
             ]
         )
 
@@ -294,10 +294,10 @@ class TestEdgeCases:
     def test_schema_evolution(self, mock_spark_session):
         """Test schema evolution scenarios."""
         # Create initial schema
-        initial_schema = MockStructType(
+        initial_schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
 
@@ -305,11 +305,11 @@ class TestEdgeCases:
         df1 = mock_spark_session.createDataFrame(initial_data, initial_schema)
 
         # Create evolved schema with additional column
-        evolved_schema = MockStructType(
+        evolved_schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
-                MockStructField("age", IntegerType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
+                StructField("age", IntegerType()),
             ]
         )
 
@@ -412,7 +412,7 @@ class TestEdgeCases:
         """Test storage edge cases."""
         # Test with long table names (DuckDB limit is 63 characters)
         long_table_name = "a" * 50
-        schema = MockStructType([MockStructField("id", IntegerType())])
+        schema = StructType([StructField("id", IntegerType())])
 
         mock_spark_session.storage.create_schema("test")
         mock_spark_session.storage.create_table("test", long_table_name, schema.fields)
@@ -434,38 +434,38 @@ class TestEdgeCases:
         col2 = F.col("name")
 
         # Test column operations
-        assert isinstance(col1, MockColumn)
-        assert isinstance(col2, MockColumn)
+        assert isinstance(col1, Column)
+        assert isinstance(col2, Column)
 
         # Test literal values
         lit1 = F.lit(42)
         lit2 = F.lit("hello")
 
-        assert isinstance(lit1, MockLiteral)
-        assert isinstance(lit2, MockLiteral)
+        assert isinstance(lit1, Literal)
+        assert isinstance(lit2, Literal)
 
         # Test aggregate functions
         agg_func = F.count("id")
-        assert isinstance(agg_func, MockAggregateFunction)
+        assert isinstance(agg_func, AggregateFunction)
 
         # Test window functions - mock-spark 0.3.1 requires window_spec argument
         window_func = F.row_number().over("dummy_window_spec")
-        assert isinstance(window_func, MockWindowFunction)
+        assert isinstance(window_func, WindowFunction)
 
     def test_dataframe_edge_cases(self, mock_spark_session):
         """Test DataFrame edge cases."""
         # Test DataFrame with no columns
-        empty_schema = MockStructType([])
+        empty_schema = StructType([])
         empty_df = mock_spark_session.createDataFrame([{}], empty_schema)
 
         assert empty_df.count() == 1
         assert len(empty_df.columns) == 0
 
         # Test DataFrame with duplicate column names
-        duplicate_schema = MockStructType(
+        duplicate_schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("id", StringType()),  # Duplicate name
+                StructField("id", IntegerType()),
+                StructField("id", StringType()),  # Duplicate name
             ]
         )
 
@@ -476,14 +476,14 @@ class TestEdgeCases:
     def test_session_edge_cases(self, mock_spark_session):
         """Test SparkSession edge cases."""
         # Test creating multiple sessions
-        session2 = MockSparkSession("TestApp2")
-        session3 = MockSparkSession("TestApp3")
+        session2 = SparkSession("TestApp2")
+        session3 = SparkSession("TestApp3")
 
         assert session2.appName == "TestApp2"
         assert session3.appName == "TestApp3"
 
         # Test session with different configurations
-        session4 = MockSparkSession("TestApp4")
+        session4 = SparkSession("TestApp4")
         assert session4.appName == "TestApp4"
 
         # Test catalog operations
@@ -493,7 +493,7 @@ class TestEdgeCases:
 
         # Test table operations
         # Create a table using DataFrame write
-        schema = MockStructType([MockStructField("id", IntegerType())])
+        schema = StructType([StructField("id", IntegerType())])
         df = mock_spark_session.createDataFrame([{"id": 1}], schema)
         df.write.mode("overwrite").saveAsTable("test_schema.test_table")
 

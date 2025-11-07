@@ -30,7 +30,7 @@ StringType = types.StringType
 # Use the appropriate StructField based on the engine
 
 if os.environ.get("SPARKFORGE_ENGINE") == "mock":
-    StructField = types.MockStructField
+    StructField = types.StructField
 else:
     StructField = types.StructField
 StructType = types.StructType

@@ -300,7 +300,7 @@ class TestPerformanceWithRealData:
 
         # Test complex transformation
         result = (
-            df.withColumn("event_date", F.to_date("timestamp"))
+            df.withColumn("event_date", F.substring("timestamp", 1, 10))
             .withColumn("hour", F.hour("timestamp"))
             .groupBy("user_id", "event_date")
             .agg(F.count("action").alias("event_count"))

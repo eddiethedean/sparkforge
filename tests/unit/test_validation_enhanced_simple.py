@@ -16,10 +16,10 @@ from mock_spark import (
     BooleanType,
     DoubleType,
     IntegerType,
-    MockFunctions,
-    MockSparkSession,
-    MockStructField,
-    MockStructType,
+    Functions,
+    SparkSession,
+    StructField,
+    StructType,
     StringType,
 )
 
@@ -34,13 +34,13 @@ from pipeline_builder.validation.data_validation import (
 )
 
 
-class TestValidationWithMockFunctionsSimple:
+class TestValidationWithFunctionsSimple:
     """Test validation functions using injectable mock functions - simplified version."""
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.mock_spark = MockSparkSession("TestApp")
-        self.mock_functions = MockFunctions()
+        self.mock_spark = SparkSession("TestApp")
+        self.mock_functions = Functions()
 
         # Create sample data
         self.sample_data = [
@@ -51,13 +51,13 @@ class TestValidationWithMockFunctionsSimple:
         ]
 
         # Create sample schema
-        self.sample_schema = MockStructType(
+        self.sample_schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
-                MockStructField("age", IntegerType()),
-                MockStructField("salary", DoubleType()),
-                MockStructField("active", BooleanType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
+                StructField("age", IntegerType()),
+                StructField("salary", DoubleType()),
+                StructField("active", BooleanType()),
             ]
         )
 
@@ -71,7 +71,7 @@ class TestValidationWithMockFunctionsSimple:
         # Test not_null rule
         expr = _convert_rule_to_expression("not_null", "name", self.mock_functions)
         assert expr is not None
-        # MockColumnOperation should have operation attribute
+        # ColumnOperation should have operation attribute
         assert hasattr(expr, "operation")
 
         # Test positive rule
@@ -140,7 +140,7 @@ class TestValidationWithMockFunctionsSimple:
 
     def test_validate_dataframe_schema_with_mock_functions(self):
         """Test validate_dataframe_schema with mock functions."""
-        # Test with valid schema - convert MockStructField to string names
+        # Test with valid schema - convert StructField to string names
         expected_columns = [field.name for field in self.sample_schema.fields]
         result = validate_dataframe_schema(self.mock_df, expected_columns)
         assert result is not None
@@ -165,7 +165,7 @@ class TestValidationWithMockFunctionsSimple:
             pass
 
     def test_mock_functions_basic_operations(self):
-        """Test basic MockFunctions operations."""
+        """Test basic Functions operations."""
         # Test col function
         col_expr = self.mock_functions.col("test_column")
         assert col_expr is not None
@@ -239,13 +239,13 @@ class TestValidationWithMockFunctionsSimple:
         ) < 10.0  # Should complete within 10s with mock functions
 
 
-class TestPipelineBuilderWithMockFunctionsSimple:
+class TestPipelineBuilderWithFunctionsSimple:
     """Test PipelineBuilder with injectable mock functions - simplified version."""
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.mock_spark = MockSparkSession("TestApp")
-        self.mock_functions = MockFunctions()
+        self.mock_spark = SparkSession("TestApp")
+        self.mock_functions = Functions()
 
     def test_pipeline_builder_with_mock_functions(self):
         """Test PipelineBuilder initialization with mock functions."""
@@ -327,16 +327,16 @@ class TestPipelineBuilderWithMockFunctionsSimple:
         assert builder.functions == self.mock_functions
 
 
-class TestMockFunctionsIntegrationSimple:
-    """Test integration between MockFunctions and SparkForge validation - simplified version."""
+class TestFunctionsIntegrationSimple:
+    """Test integration between Functions and SparkForge validation - simplified version."""
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.mock_spark = MockSparkSession("TestApp")
-        self.mock_functions = MockFunctions()
+        self.mock_spark = SparkSession("TestApp")
+        self.mock_functions = Functions()
 
     def test_mock_functions_behavior(self):
-        """Test that MockFunctions behaves correctly with validation."""
+        """Test that Functions behaves correctly with validation."""
         # Test col function
         col_expr = self.mock_functions.col("test_column")
         assert col_expr is not None
@@ -360,12 +360,12 @@ class TestMockFunctionsIntegrationSimple:
             {"id": 2, "name": "Bob", "age": 30, "salary": 60000.0},
         ]
 
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
-                MockStructField("age", IntegerType()),
-                MockStructField("salary", DoubleType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
+                StructField("age", IntegerType()),
+                StructField("salary", DoubleType()),
             ]
         )
 
@@ -386,7 +386,7 @@ class TestMockFunctionsIntegrationSimple:
         assert "quality_rate" in result
 
     def test_mock_functions_performance(self):
-        """Test MockFunctions performance characteristics."""
+        """Test Functions performance characteristics."""
         import time
 
         # Test function call performance
@@ -403,17 +403,17 @@ class TestMockFunctionsIntegrationSimple:
         assert (end_time - start_time) < 0.1  # Less than 100ms for 1000 calls
 
     def test_mock_functions_error_handling(self):
-        """Test MockFunctions error handling."""
+        """Test Functions error handling."""
         # Test with invalid inputs
         try:
             self.mock_functions.col(None)
-            # MockFunctions should handle this gracefully
+            # Functions should handle this gracefully
         except Exception as e:
             # If it raises an exception, that's also acceptable
             assert isinstance(e, (TypeError, ValueError, AttributeError))
 
     def test_functions_protocol_compatibility(self):
-        """Test that MockFunctions is compatible with FunctionsProtocol."""
+        """Test that Functions is compatible with FunctionsProtocol."""
         # Test that all protocol methods exist and are callable
         protocol_methods = [
             "col",
@@ -432,10 +432,10 @@ class TestMockFunctionsIntegrationSimple:
             method = getattr(self.mock_functions, method_name)
             assert callable(method)
 
-        # Test that MockFunctions can be used where FunctionsProtocol is expected
+        # Test that Functions can be used where FunctionsProtocol is expected
         try:
-            # This should work if MockFunctions implements the protocol correctly
+            # This should work if Functions implements the protocol correctly
             col_expr = self.mock_functions.col("test")
             assert col_expr is not None
         except Exception as e:
-            pytest.fail(f"MockFunctions failed protocol compatibility test: {e}")
+            pytest.fail(f"Functions failed protocol compatibility test: {e}")

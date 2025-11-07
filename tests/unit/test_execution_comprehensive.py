@@ -12,8 +12,8 @@ from unittest.mock import patch
 import pytest
 from mock_spark import (
     IntegerType,
-    MockStructField,
-    MockStructType,
+    StructField,
+    StructType,
     StringType,
 )
 
@@ -292,10 +292,10 @@ class TestExecuteStep:
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
         test_data = [{"id": 1, "name": "test1"}, {"id": 2, "name": "test2"}]
@@ -433,10 +433,10 @@ class TestPrivateMethods:
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create empty DataFrame
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
         empty_df = spark_session.createDataFrame([], schema)
@@ -480,10 +480,10 @@ class TestExecutionIntegration:
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
         test_data = [{"id": 1, "name": "test1"}]
@@ -508,10 +508,10 @@ class TestExecutionIntegration:
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
         # Create test data
-        schema = MockStructType(
+        schema = StructType(
             [
-                MockStructField("id", IntegerType()),
-                MockStructField("name", StringType()),
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
             ]
         )
         test_data = [{"id": 1, "name": "test1"}]
