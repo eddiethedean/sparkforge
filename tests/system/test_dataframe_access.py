@@ -99,9 +99,10 @@ class TestDataFrameAccess:
 
         # Add silver step
         def silver_transform(spark, df, silvers):
-            return df.withColumn("event_date", F.to_date(F.to_timestamp("timestamp", "yyyy-MM-dd HH:mm:ss"))).select(
-                "user_id", "action", "event_date"
-            )
+            return df.withColumn(
+                "event_date",
+                F.to_date(F.to_timestamp("timestamp", "yyyy-MM-dd HH:mm:ss")),
+            ).select("user_id", "action", "event_date")
 
         builder.add_silver_transform(
             name="silver_events",
@@ -131,9 +132,10 @@ class TestDataFrameAccess:
 
         # Add silver step
         def silver_transform(spark, df, silvers):
-            return df.withColumn("event_date", F.to_date(F.to_timestamp("timestamp", "yyyy-MM-dd HH:mm:ss"))).select(
-                "user_id", "action", "event_date"
-            )
+            return df.withColumn(
+                "event_date",
+                F.to_date(F.to_timestamp("timestamp", "yyyy-MM-dd HH:mm:ss")),
+            ).select("user_id", "action", "event_date")
 
         builder.add_silver_transform(
             name="silver_events",
@@ -183,9 +185,10 @@ class TestDataFrameAccess:
 
         # Add silver step
         def silver_transform(spark, df, silvers):
-            return df.withColumn("event_date", F.to_date(F.to_timestamp("timestamp", "yyyy-MM-dd HH:mm:ss"))).select(
-                "user_id", "action", "event_date"
-            )
+            return df.withColumn(
+                "event_date",
+                F.to_date(F.to_timestamp("timestamp", "yyyy-MM-dd HH:mm:ss")),
+            ).select("user_id", "action", "event_date")
 
         builder.add_silver_transform(
             name="silver_events",
@@ -233,9 +236,10 @@ class TestDataFrameAccess:
 
         # Add silver step
         def silver_transform(spark, df, silvers):
-            return df.withColumn("event_date", F.to_date(F.to_timestamp("timestamp", "yyyy-MM-dd HH:mm:ss"))).select(
-                "user_id", "action", "event_date"
-            )
+            return df.withColumn(
+                "event_date",
+                F.to_date(F.to_timestamp("timestamp", "yyyy-MM-dd HH:mm:ss")),
+            ).select("user_id", "action", "event_date")
 
         builder.add_silver_transform(
             name="silver_events",
@@ -323,7 +327,10 @@ class TestDataFrameAccess:
 
         # Test SilverStep
         def silver_transform(spark, df, silvers):
-            return df.withColumn("event_date", F.to_date(F.to_timestamp("timestamp", "yyyy-MM-dd HH:mm:ss")))
+            return df.withColumn(
+                "event_date",
+                F.to_date(F.to_timestamp("timestamp", "yyyy-MM-dd HH:mm:ss")),
+            )
 
         silver_step = SilverStep(
             name="silver_events",

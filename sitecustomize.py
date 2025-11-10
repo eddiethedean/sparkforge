@@ -12,6 +12,7 @@ import sys
 import typing
 from collections import abc as collections_abc
 
+
 class _CompatTypeAlias:
     """Minimal stand-in that supports subscription in type annotations."""
 
@@ -82,5 +83,3 @@ if "mock_spark.backend.duckdb" not in sys.modules:
     duckdb_stub = types.ModuleType("mock_spark.backend.duckdb")
     duckdb_stub.__path__ = []  # type: ignore[attr-defined]
     sys.modules["mock_spark.backend.duckdb"] = duckdb_stub
-
-

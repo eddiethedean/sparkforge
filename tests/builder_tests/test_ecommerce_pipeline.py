@@ -106,9 +106,7 @@ class TestEcommercePipeline:
             return (
                 df.withColumn(
                     "registration_date_parsed",
-                    F.to_date(
-                        F.substring("registration_date", 1, 10), "yyyy-MM-dd"
-                    ),
+                    F.to_date(F.substring("registration_date", 1, 10), "yyyy-MM-dd"),
                 )
                 .withColumn("is_premium", F.col("segment") == "premium")
                 .select(

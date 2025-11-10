@@ -6,6 +6,8 @@ Bronze → Silver → Gold medallion architecture with sensor readings, anomaly 
 and device health analytics.
 """
 
+from uuid import uuid4
+
 from pyspark.sql import Window
 from pyspark.sql import functions as F
 
@@ -27,9 +29,11 @@ class TestIotPipeline:
         )
 
         # Create pipeline builder
+        unique_schema = f"bronze_{uuid4().hex[:8]}"
+
         builder = PipelineBuilder(
             spark=spark_session,
-            schema="bronze",
+            schema=unique_schema,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
             min_gold_rate=99.0,
@@ -232,7 +236,9 @@ class TestIotPipeline:
         )
 
         # Create pipeline
-        builder = PipelineBuilder(spark=spark_session, schema="bronze")
+        unique_schema = f"bronze_{uuid4().hex[:8]}"
+
+        builder = PipelineBuilder(spark=spark_session, schema=unique_schema)
 
         # Bronze layer
         builder.with_bronze_rules(
@@ -338,7 +344,9 @@ class TestIotPipeline:
         all_data = normal_data.union(anomaly_data)
 
         # Create pipeline with anomaly detection
-        builder = PipelineBuilder(spark=spark_session, schema="bronze")
+        unique_schema = f"bronze_{uuid4().hex[:8]}"
+
+        builder = PipelineBuilder(spark=spark_session, schema=unique_schema)
 
         builder.with_bronze_rules(
             name="sensor_readings",
@@ -428,7 +436,9 @@ class TestIotPipeline:
         )
 
         # Create pipeline
-        builder = PipelineBuilder(spark=spark_session, schema="bronze")
+        unique_schema = f"bronze_{uuid4().hex[:8]}"
+
+        builder = PipelineBuilder(spark=spark_session, schema=unique_schema)
 
         builder.with_bronze_rules(
             name="sensor_readings", rules={"sensor_id": ["not_null"]}

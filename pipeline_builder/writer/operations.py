@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import Dict, TypedDict, Union, cast
+from typing import Callable, Dict, TypedDict, Union, cast
 
 from ..compat import DataFrame, SparkSession
 from ..functions import FunctionsProtocol, get_default_functions
@@ -69,6 +69,7 @@ class DataProcessor:
         run_id: str,
         run_mode: str = "initial",
         metadata: Union[Dict[str, Union[str, int, float, bool]], None] = None,
+        table_total_rows_provider: Callable[[str | None], int | None] | None = None,
     ) -> list[LogRow]:
         """
         Process execution result into log rows.
@@ -78,6 +79,7 @@ class DataProcessor:
             run_id: Unique run identifier
             run_mode: Mode of the run
             metadata: Additional metadata
+            table_total_rows_provider: Optional callback to supply table row counts
 
         Returns:
             List of processed log rows
@@ -106,6 +108,14 @@ class DataProcessor:
                         "Ensure data types are correct",
                     ],
                 )
+
+            # Populate table_total_rows when possible
+            if table_total_rows_provider is not None:
+                for row in log_rows:
+                    if row.get("table_total_rows") is None:
+                        row["table_total_rows"] = table_total_rows_provider(
+                            row.get("table_fqn")
+                        )
 
             self.logger.info(f"Successfully processed {len(log_rows)} log rows")
             return log_rows

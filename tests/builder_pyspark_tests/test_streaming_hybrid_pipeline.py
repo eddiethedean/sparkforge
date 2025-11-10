@@ -6,8 +6,12 @@ Bronze → Silver → Gold medallion architecture with incremental streaming upd
 and batch backfill capabilities.
 """
 
+import tempfile
+from uuid import uuid4
+
 from pyspark.sql import functions as F
 
+from pipeline_builder.models import ParallelConfig
 from pipeline_builder.pipeline import PipelineBuilder
 
 
@@ -26,16 +30,24 @@ class TestStreamingHybridPipeline:
         streaming_events_df = data_generator.create_streaming_batch_events(
             spark_session, num_events=80
         )
+        warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
 
         # Create pipeline builder
+        unique_schema = f"bronze_{uuid4().hex[:16]}"
+        escaped_dir = warehouse_dir.replace("'", "''")
+        spark_session.sql(
+            f"CREATE DATABASE IF NOT EXISTS {unique_schema} LOCATION '{escaped_dir}'"
+        )
+
         builder = PipelineBuilder(
             spark=spark_session,
-            schema="bronze",
+            schema=unique_schema,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
             min_gold_rate=99.0,
             verbose=True,
         )
+        builder.config.parallel = ParallelConfig.create_sequential()
 
         # Bronze Layer: Raw batch and streaming data validation
         builder.with_bronze_rules(
@@ -500,16 +512,24 @@ class TestStreamingHybridPipeline:
         batch_initial = data_generator.create_streaming_batch_history(
             spark_session, num_records=50
         )
+        warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
 
         # Create pipeline builder
+        unique_schema = f"bronze_{uuid4().hex[:16]}"
+        escaped_dir = warehouse_dir.replace("'", "''")
+        spark_session.sql(
+            f"CREATE DATABASE IF NOT EXISTS {unique_schema} LOCATION '{escaped_dir}'"
+        )
+
         builder = PipelineBuilder(
             spark=spark_session,
-            schema="bronze",
+            schema=unique_schema,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
             min_gold_rate=99.0,
             verbose=False,
         )
+        builder.config.parallel = ParallelConfig.create_sequential()
 
         builder.with_bronze_rules(
             name="raw_batch_history",

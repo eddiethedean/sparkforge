@@ -29,7 +29,7 @@ This guide provides comprehensive instructions for deploying SparkForge in vario
 
 ```bash
 # Core dependencies
-pip install pyspark>=3.4.0
+pip install pyspark>=3.5.0,<3.6.0
 pip install pipeline_builder
 
 # Optional dependencies for enhanced functionality

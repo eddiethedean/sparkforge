@@ -6,6 +6,9 @@ Bronze → Silver → Gold medallion architecture with data quality scoring, ano
 and source reconciliation.
 """
 
+import tempfile
+from uuid import uuid4
+
 from pyspark.sql import functions as F
 
 from pipeline_builder.pipeline import PipelineBuilder
@@ -26,11 +29,16 @@ class TestDataQualityPipeline:
         source_b_df = data_generator.create_data_quality_source_b(
             spark_session, num_records=100
         )
+        warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
+        unique_schema = f"bronze_{uuid4().hex[:16]}"
+        escaped_dir = warehouse_dir.replace("'", "''")
+        spark_session.sql(
+            f"CREATE DATABASE IF NOT EXISTS {unique_schema} LOCATION '{escaped_dir}'"
+        )
 
-        # Create pipeline builder
         builder = PipelineBuilder(
             spark=spark_session,
-            schema="bronze",
+            schema=unique_schema,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
             min_gold_rate=99.0,
@@ -422,9 +430,11 @@ class TestDataQualityPipeline:
         )
 
         # Create pipeline builder
+        unique_schema = f"bronze_{uuid4().hex[:8]}"
+
         builder = PipelineBuilder(
             spark=spark_session,
-            schema="bronze",
+            schema=unique_schema,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
             min_gold_rate=99.0,

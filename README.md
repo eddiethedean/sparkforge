@@ -405,9 +405,9 @@ See **[examples/specialized/logwriter_simple_example.py](https://github.com/eddi
 
 ### Prerequisites
 - **Python 3.8+** (tested with 3.8, 3.9, 3.10, 3.11)
-- **Java 8+** (for PySpark)
-- **PySpark 3.4+**
-- **Delta Lake 1.2.0+**
+- **Java 11** (for PySpark 3.5)
+- **PySpark 3.5+**
+- **Delta Lake 3.0.0+**
 
 ### Quick Install
 ```bash
@@ -428,7 +428,7 @@ python -c "import pipeline_builder; print(f'PipelineBuilder {pipeline_builder.__
 git clone https://github.com/eddiethedean/sparkforge.git
 cd sparkforge
 
-# Setup Python 3.8 environment with PySpark 3.4
+# Setup Python 3.8 environment with PySpark 3.5
 python3.8 -m venv venv38
 source venv38/bin/activate
 pip install --upgrade pip
@@ -480,7 +480,7 @@ pytest tests/system/ -v            # System tests
 pytest tests/ --cov=pipeline_builder --cov-report=html
 
 # Activate environment
-source activate_env.sh             # Loads Python 3.8 + PySpark 3.4
+source activate_env.sh             # Loads Python 3.8 + PySpark 3.5
 
 # Verify environment
 python scripts/test_python38_environment.py  # Comprehensive environment check
@@ -559,25 +559,19 @@ Total: 16s                  Group 3: 1s
                             Total: 6s (2.7x faster!)
 ```
 
-## 🚀 What's New in v1.4.0
+## 🚀 What's New in v2.1.1
 
-### 🎯 **Type Safety & Code Quality Improvements**
-- ✅ **Full type checker compliance** - All type errors resolved with pyright/ty
-- ✅ **Timezone-aware datetime** - Replaced deprecated `datetime.utcnow()` with `datetime.now(timezone.utc)`
-- ✅ **Enhanced TypedDict support** - Complete LogRow type safety across all writer operations
-- ✅ **Improved type annotations** - Better type inference and validation throughout codebase
-- ✅ **Comprehensive test coverage** - 1,545 tests passing with 11 intentionally skipped
+### 📈 Logging & Observability
+- ✅ **Accurate table totals** – `table_total_rows` now auto-populates from Spark counts with caching safeguards
+- ✅ **Additional regression tests** – Coverage added to ensure totals are always written when table data exists
 
-### ⚡ **Performance & Reliability**
-- ✅ **Parallel test execution** - Optimized test runs with 10 workers (35% faster)
-- ✅ **Mock-spark 2.17.0 compatibility** - Upgraded to latest version fixing threading issues
-- ✅ **Robust error handling** - Fixed all type-related errors and edge cases
-- ✅ **Better iteration safety** - Improved type checks for iterable objects
+### 🛠 Environment & Runtime Support
+- ✅ **PySpark 3.5 + Java 11 by default** – Configuration, docs, and tooling aligned to the new runtime baseline
+- ✅ **Updated dependency ranges** – `pyspark` and `delta-spark` optional extras track the latest stable 3.5/3.0 lines
 
-### 🔧 **Code Quality**
-- ✅ **Ruff formatting** - Consistent code formatting across entire codebase
-- ✅ **Type ignore annotations** - Strategic use of type ignores for dynamic imports
-- ✅ **Enhanced validation** - Improved type checking in dependencies and validation modules
+### 🧪 Reliability & Tooling
+- ✅ **Parallel test stability** – Warehouse schemas are randomized per test to eliminate Delta collisions under `pytest -n`
+- ✅ **Continuous quality gates** – `ruff check pipeline_builder` and `mypy pipeline_builder` pass cleanly as part of CI guardrails
 
 ## 🚀 What's New in v1.2.0
 

@@ -140,7 +140,11 @@ class TestLogRowFieldCalculations:
     @pytest.fixture
     def mock_spark(self):
         """Create a mock SparkSession."""
-        return Mock()
+        spark = Mock()
+        table_mock = Mock()
+        table_mock.count.return_value = 0
+        spark.table.return_value = table_mock
+        return spark
 
     @pytest.fixture
     def writer(self, mock_spark):

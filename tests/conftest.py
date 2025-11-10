@@ -19,7 +19,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 # Load interpreter compatibility tweaks (e.g., typing.TypeAlias patch for Python 3.8)
-import sitecustomize  # type: ignore  # noqa: E402
+import sitecustomize  # type: ignore  # noqa: E402,F401
 
 import pytest
 

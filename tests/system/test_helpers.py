@@ -141,7 +141,10 @@ class TestPipelineBuilder:
         # Silver layer
         def silver_transform(spark, bronze_df):
             return (
-                bronze_df.withColumn("event_date", F.to_date(F.to_timestamp("timestamp", "yyyy-MM-dd HH:mm:ss")))
+                bronze_df.withColumn(
+                    "event_date",
+                    F.to_date(F.to_timestamp("timestamp", "yyyy-MM-dd HH:mm:ss")),
+                )
                 .withColumn("hour", F.hour("timestamp"))
                 .select("user_id", "action", "event_date", "hour")
             )

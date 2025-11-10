@@ -2,7 +2,7 @@
 
 ## ✅ Environment Setup Complete!
 
-Your Python 3.8 and PySpark 3.4 environment is ready to use.
+Your Python 3.8 and PySpark 3.5 environment is ready to use.
 
 ## 🚀 Getting Started
 
@@ -45,8 +45,8 @@ python -m pytest tests/ --cov=pipeline_builder --cov-report=html
 ## 📦 What's Installed
 
 - ✅ **Python 3.8.18**
-- ✅ **PySpark 3.4**
-- ✅ **Delta Lake 1.2.1**
+- ✅ **PySpark 3.5**
+- ✅ **Delta Lake 3.0.0**
 - ✅ **PipelineBuilder 0.8.0**
 - ✅ **pytest, hypothesis, mock-spark** (testing)
 - ✅ **black, mypy, isort, flake8, ruff** (dev tools)
@@ -148,7 +148,7 @@ python -c "from pyspark.sql import SparkSession; spark = SparkSession.builder.ap
 ## 📝 Notes
 
 - The warnings about "loopback address" and "native-hadoop library" are normal and can be ignored
-- Java 8, 11, or later versions all work with PySpark 3.4
+- Java 11 or later is required for PySpark 3.5
 - The virtual environment must be activated in each new terminal session
 - Tests use both real Spark and mock-spark for different test scenarios
 

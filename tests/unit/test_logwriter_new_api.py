@@ -25,7 +25,9 @@ class TestLogWriterSimplifiedInit:
     @pytest.fixture
     def mock_spark(self):
         """Create a mock SparkSession."""
-        return Mock()
+        spark = Mock()
+        spark.table.return_value.count.return_value = 0
+        return spark
 
     def test_init_with_schema_and_table_name(self, mock_spark):
         """Test initialization with schema and table_name (new API)."""
@@ -74,7 +76,9 @@ class TestConvertReportToLogRows:
     @pytest.fixture
     def mock_spark(self):
         """Create a mock SparkSession."""
-        return Mock()
+        spark = Mock()
+        spark.table.return_value.count.return_value = 0
+        return spark
 
     @pytest.fixture
     def writer(self, mock_spark):
@@ -186,7 +190,10 @@ class TestConvertReportToLogRows:
 
     def test_convert_report_creates_log_row(self, writer, sample_report):
         """Test that converting a report creates log rows per step."""
-        log_rows = writer._convert_report_to_log_rows(sample_report, run_id="run_123")
+        with patch("pipeline_builder.writer.core.table_exists", return_value=True):
+            log_rows = writer._convert_report_to_log_rows(
+                sample_report, run_id="run_123"
+            )
 
         # Should have 5 rows: 2 bronze + 2 silver + 1 gold
         assert len(log_rows) == 5
@@ -242,6 +249,35 @@ class TestConvertReportToLogRows:
         assert gold_row["valid_rows"] == 1000
         assert gold_row["invalid_rows"] == 0
 
+    def test_convert_report_populates_table_total_rows(
+        self, writer, sample_report, mock_spark
+    ):
+        """table_total_rows should be sourced from Spark counts when missing."""
+        table_counts = {
+            "bronze.table1": 3000,
+            "bronze.table2": 2000,
+            "silver.table1": 2500,
+            "silver.table2": 1500,
+            "gold.table1": 1000,
+        }
+
+        def table_side_effect(name):
+            table_mock = Mock()
+            table_mock.count.return_value = table_counts.get(name, 0)
+            return table_mock
+
+        mock_spark.table.side_effect = table_side_effect
+
+        with patch("pipeline_builder.writer.core.table_exists", return_value=True):
+            log_rows = writer._convert_report_to_log_rows(
+                sample_report, run_id="run_123"
+            )
+
+        for row in log_rows:
+            table_fqn = row.get("table_fqn")
+            if table_fqn:
+                assert row["table_total_rows"] == table_counts[table_fqn]
+
     def test_convert_report_with_errors(self, writer):
         """Test converting a report with errors."""
         report = PipelineReport(
@@ -290,7 +326,8 @@ class TestConvertReportToLogRows:
             errors=["Step failed", "Connection timeout"],
         )
 
-        log_rows = writer._convert_report_to_log_rows(report)
+        with patch("pipeline_builder.writer.core.table_exists", return_value=True):
+            log_rows = writer._convert_report_to_log_rows(report)
 
         # Should have 2 rows: 1 bronze + 1 silver
         assert len(log_rows) == 2
@@ -309,7 +346,8 @@ class TestConvertReportToLogRows:
         self, writer, sample_report
     ):
         """Test that run_id is generated if not provided."""
-        log_rows = writer._convert_report_to_log_rows(sample_report)
+        with patch("pipeline_builder.writer.core.table_exists", return_value=True):
+            log_rows = writer._convert_report_to_log_rows(sample_report)
 
         # Check that all rows have the same generated run_id
         assert len(log_rows) > 0
@@ -321,7 +359,8 @@ class TestConvertReportToLogRows:
 
     def test_convert_report_includes_metadata(self, writer, sample_report):
         """Test that step-level rows are created (metadata moved to step-level)."""
-        log_rows = writer._convert_report_to_log_rows(sample_report)
+        with patch("pipeline_builder.writer.core.table_exists", return_value=True):
+            log_rows = writer._convert_report_to_log_rows(sample_report)
 
         # Should have 5 step rows
         assert len(log_rows) == 5

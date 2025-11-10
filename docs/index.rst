@@ -169,7 +169,7 @@ Installation
 Prerequisites:
 - Python 3.8+
 - Java 8+ (for PySpark)
-- PySpark 3.4+
+- PySpark 3.5+
 - Delta Lake 1.2.0+
 
 Examples

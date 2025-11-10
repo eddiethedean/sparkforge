@@ -213,6 +213,7 @@ class TestPipelineLoggerComprehensive:
 
         with patch("pipeline_builder.logging.datetime") as mock_datetime:
             from datetime import timezone
+
             mock_now = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
             # Mock datetime.now to return mock_now when called with timezone.utc
             mock_datetime.now = lambda tz=None: mock_now
@@ -230,12 +231,15 @@ class TestPipelineLoggerComprehensive:
             logger, "performance_metric"
         ) as mock_perf:
             from datetime import timezone
+
             start_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
             end_time = datetime(2024, 1, 15, 10, 32, 30, tzinfo=timezone.utc)
             call_count = [0]
+
             def mock_now(tz=None):
                 call_count[0] += 1
                 return [start_time, end_time][call_count[0] - 1]
+
             mock_datetime.now = mock_now
 
             logger.start_timer("test_timer")
@@ -260,12 +264,15 @@ class TestPipelineLoggerComprehensive:
             logger, "performance_metric"
         ) as mock_perf:
             from datetime import timezone
+
             start_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
             end_time = datetime(2024, 1, 15, 10, 30, 5, tzinfo=timezone.utc)
             call_count = [0]
+
             def mock_now(tz=None):
                 call_count[0] += 1
                 return [start_time, end_time][call_count[0] - 1]
+
             mock_datetime.now = mock_now
 
             with logger.timer("context_timer"):
@@ -281,12 +288,15 @@ class TestPipelineLoggerComprehensive:
             logger, "performance_metric"
         ) as mock_perf:
             from datetime import timezone
+
             start_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
             end_time = datetime(2024, 1, 15, 10, 30, 5, tzinfo=timezone.utc)
             call_count = [0]
+
             def mock_now(tz=None):
                 call_count[0] += 1
                 return [start_time, end_time][call_count[0] - 1]
+
             mock_datetime.now = mock_now
 
             with pytest.raises(ValueError):
@@ -473,12 +483,15 @@ class TestTimerContextManager:
             logger, "performance_metric"
         ) as mock_perf:
             from datetime import timezone
+
             start_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
             end_time = datetime(2024, 1, 15, 10, 30, 3, tzinfo=timezone.utc)
             call_count = [0]
+
             def mock_now(tz=None):
                 call_count[0] += 1
                 return [start_time, end_time][call_count[0] - 1]
+
             mock_datetime.now = mock_now
 
             with logger.timer("test_timer"):
@@ -495,12 +508,15 @@ class TestTimerContextManager:
             logger, "performance_metric"
         ) as mock_perf:
             from datetime import timezone
+
             start_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
             end_time = datetime(2024, 1, 15, 10, 30, 3, tzinfo=timezone.utc)
             call_count = [0]
+
             def mock_now(tz=None):
                 call_count[0] += 1
                 return [start_time, end_time][call_count[0] - 1]
+
             mock_datetime.now = mock_now
 
             with pytest.raises(ValueError):

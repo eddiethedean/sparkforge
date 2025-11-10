@@ -83,14 +83,14 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict
 
-from .compat import DataFrame, SparkSession  # type: ignore[invalid-type-form]
-from .dependencies import DependencyAnalyzer
-from .errors import ExecutionError
-from .functions import FunctionsProtocol
-from .logging import PipelineLogger
-from .models import BronzeStep, GoldStep, PipelineConfig, SilverStep
-from .table_operations import fqn
-from .validation import apply_column_rules
+from pipeline_builder.compat import DataFrame, SparkSession
+from pipeline_builder.dependencies import DependencyAnalyzer
+from pipeline_builder.errors import ExecutionError
+from pipeline_builder.functions import FunctionsProtocol
+from pipeline_builder.logging import PipelineLogger
+from pipeline_builder.models import BronzeStep, GoldStep, PipelineConfig, SilverStep
+from pipeline_builder.table_operations import fqn
+from pipeline_builder.validation import apply_column_rules
 
 
 class ExecutionMode(Enum):
@@ -282,7 +282,7 @@ class ExecutionEngine:
         # This is a conservative approach to avoid CTE issues
         try:
             # Check if we're using mock-spark
-            from ..compat import is_mock_spark
+            from pipeline_builder.compat import is_mock_spark
 
             if is_mock_spark() and rules:
                 # Force full materialization by collecting and recreating DataFrame

@@ -31,6 +31,7 @@ class TestNowDt:
     def test_now_dt_returns_utc(self):
         """Test that now_dt returns UTC datetime."""
         from datetime import timezone
+
         result = now_dt()
         # UTC datetime should have UTC timezone info
         assert result.tzinfo == timezone.utc
@@ -38,6 +39,7 @@ class TestNowDt:
     def test_now_dt_recent_time(self):
         """Test that now_dt returns a recent time."""
         from datetime import timezone
+
         before = datetime.now(timezone.utc)
         result = now_dt()
         after = datetime.now(timezone.utc)

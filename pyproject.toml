@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pipeline_builder"
-version = "1.4.0"
+version = "2.1.1"
 description = "A simplified, production-ready data pipeline builder for Apache Spark and Delta Lake"
 readme = "README.md"
 license = {text = "MIT"}
@@ -42,8 +42,8 @@ dependencies = [
 
 [project.optional-dependencies]
 pyspark = [
-    "pyspark>=3.4.0,<3.5.0",
-    "delta-spark>=2.4.0,<3.0.0",
+    "pyspark>=3.5.0,<3.6.0",
+    "delta-spark>=3.0.0,<3.1.0",
 ]
 mock = [
     "mock-spark==3.1.0",
@@ -75,12 +75,12 @@ test = [
     "pytest-cov>=4.0.0",
     "pytest-xdist>=3.0.0",
     "hypothesis>=6.0.0",
-    "pyspark>=3.4.0,<3.5.0",
-    "delta-spark>=2.4.0,<3.0.0",
+    "pyspark>=3.5.0,<3.6.0",
+    "delta-spark>=3.0.0,<3.1.0",
 ]
 compat-test = [
-    "pyspark>=3.4.0,<3.5.0",
-    "delta-spark>=2.4.0,<3.0.0",
+    "pyspark>=3.5.0,<3.6.0",
+    "delta-spark>=3.0.0,<3.1.0",
 ]
 
 [project.urls]
@@ -228,7 +228,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "S106", "S108"]  # Allow assert, hardcoded passwords, temp files in tests
+"tests/*" = ["S101", "S106", "S108", "I001", "E402"]  # Allow assert, inline imports in tests
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -7,10 +7,13 @@ and logistics performance metrics.
 """
 
 import os
+import tempfile
+from uuid import uuid4
 
 import pytest
 from pyspark.sql import functions as F
 
+from pipeline_builder.models import ParallelConfig
 from pipeline_builder.pipeline import PipelineBuilder
 
 
@@ -32,16 +35,23 @@ class TestSupplyChainPipeline:
         inventory_df = data_generator.create_supply_chain_inventory(
             spark_session, num_items=150
         )
+        warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
+        unique_schema = f"bronze_{uuid4().hex[:16]}"
+        escaped_dir = warehouse_dir.replace("'", "''")
+        spark_session.sql(
+            f"CREATE DATABASE IF NOT EXISTS {unique_schema} LOCATION '{escaped_dir}'"
+        )
 
         # Create pipeline builder
         builder = PipelineBuilder(
             spark=spark_session,
-            schema="bronze",
+            schema=unique_schema,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
             min_gold_rate=99.0,
             verbose=True,
         )
+        builder.config.parallel = ParallelConfig.create_sequential()
 
         # Bronze Layer: Raw supply chain data validation
         builder.with_bronze_rules(
@@ -432,16 +442,23 @@ class TestSupplyChainPipeline:
         orders_initial = data_generator.create_supply_chain_orders(
             spark_session, num_orders=30
         )
+        warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
+        unique_schema = f"bronze_{uuid4().hex[:16]}"
+        escaped_dir = warehouse_dir.replace("'", "''")
+        spark_session.sql(
+            f"CREATE DATABASE IF NOT EXISTS {unique_schema} LOCATION '{escaped_dir}'"
+        )
 
         # Create pipeline builder
         builder = PipelineBuilder(
             spark=spark_session,
-            schema="bronze",
+            schema=unique_schema,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
             min_gold_rate=99.0,
             verbose=False,
         )
+        builder.config.parallel = ParallelConfig.create_sequential()
 
         builder.with_bronze_rules(
             name="raw_orders",
@@ -499,6 +516,12 @@ class TestSupplyChainPipeline:
         orders_df = data_generator.create_supply_chain_orders(
             spark_session, num_orders=25
         )
+        warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
+        unique_schema = f"bronze_{uuid4().hex[:16]}"
+        escaped_dir = warehouse_dir.replace("'", "''")
+        spark_session.sql(
+            f"CREATE DATABASE IF NOT EXISTS {unique_schema} LOCATION '{escaped_dir}'"
+        )
 
         # Create analytics schema for logging
         spark_session.sql("CREATE DATABASE IF NOT EXISTS analytics")
@@ -511,7 +534,10 @@ class TestSupplyChainPipeline:
         )
 
         # Create pipeline
-        builder = PipelineBuilder(spark=spark_session, schema="bronze", verbose=False)
+        builder = PipelineBuilder(
+            spark=spark_session, schema=unique_schema, verbose=False
+        )
+        builder.config.parallel = ParallelConfig.create_sequential()
 
         builder.with_bronze_rules(
             name="raw_orders",

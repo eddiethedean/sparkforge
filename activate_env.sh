@@ -2,7 +2,7 @@
 # PipelineBuilder Environment Activation Script
 # Run this to activate the environment in new terminal sessions
 
-# Set Java environment (Java 8 or Java 11 both work with PySpark 3.4)
+# Set Java environment (Java 11 is required for PySpark 3.5)
 if [ -d "/opt/homebrew/opt/openjdk@11" ]; then
     export JAVA_HOME=/opt/homebrew/opt/openjdk@11
     export PATH=$JAVA_HOME/bin:$PATH

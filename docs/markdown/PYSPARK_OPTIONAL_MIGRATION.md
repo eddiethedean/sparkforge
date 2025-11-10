@@ -11,7 +11,7 @@ Starting with version 0.9.0, SparkForge has been refactored to make PySpark an *
 PySpark was a hard dependency:
 ```bash
 pip install pipeline_builder
-# Automatically installed pyspark==3.2.4 and delta-spark
+# Automatically installed pyspark==3.5.0 and delta-spark==3.0.0
 ```
 
 ### After (v0.9.0+)

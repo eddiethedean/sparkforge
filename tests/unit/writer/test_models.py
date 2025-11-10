@@ -3,6 +3,7 @@ Unit tests for writer models.
 """
 
 from datetime import datetime
+from unittest.mock import Mock
 
 import pytest
 
@@ -23,6 +24,7 @@ from pipeline_builder.writer.models import (
     validate_log_data,
     validate_log_row,
 )
+from pipeline_builder.writer.operations import DataProcessor
 
 
 class TestWriterConfig:
@@ -198,6 +200,52 @@ class TestLogRowCreation:
         assert row2["step_name"] == "step2"
         assert row2["phase"] == "silver"
         assert row2["rows_processed"] == 500
+
+    def test_process_execution_result_populates_table_total_rows(self):
+        """DataProcessor should enrich table_total_rows via provider callback."""
+        context = ExecutionContext(
+            mode=ExecutionMode.INITIAL,
+            start_time=datetime.now(),
+            execution_id="test-exec-999",
+            pipeline_id="test-pipeline",
+            schema="analytics",
+            run_mode="initial",
+        )
+
+        step_results = [
+            StepResult(
+                step_name="step_with_table",
+                phase=PipelinePhase.GOLD,
+                success=True,
+                start_time=datetime.now(),
+                end_time=datetime.now(),
+                duration_secs=4.0,
+                rows_processed=200,
+                rows_written=200,
+                validation_rate=100.0,
+                table_fqn="analytics.final_table",
+            )
+        ]
+
+        execution_result = ExecutionResult.from_context_and_results(
+            context, step_results
+        )
+
+        spark_mock = Mock()
+        spark_mock.table.return_value.count.return_value = 0
+        processor = DataProcessor(spark_mock)
+
+        def provider(table_fqn):
+            return 4242 if table_fqn == "analytics.final_table" else None
+
+        log_rows = processor.process_execution_result(
+            execution_result,
+            run_id="test-run-999",
+            run_mode="initial",
+            table_total_rows_provider=provider,
+        )
+
+        assert log_rows[0]["table_total_rows"] == 4242
 
 
 class TestLogRowValidation:

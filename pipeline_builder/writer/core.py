@@ -29,6 +29,7 @@ from ..functions import FunctionsProtocol, get_default_functions
 from ..logging import PipelineLogger
 from ..models import ExecutionResult, StepResult
 from ..pipeline.models import PipelineReport
+from ..table_operations import table_exists
 from .analytics import (
     DataQualityAnalyzer,
     ExecutionTrends,
@@ -324,6 +325,9 @@ class LogWriter:
         # Set table FQN for compatibility
         self.table_fqn = f"{self.config.table_schema}.{self.config.table_name}"
 
+        # Cache table row counts to avoid repeated counts within a single write operation
+        self._table_total_rows_cache: dict[str, int | None] = {}
+
         self.logger.info(f"LogWriter initialized for table: {self.table_fqn}")
 
     def _initialize_components(self) -> None:
@@ -373,6 +377,9 @@ class LogWriter:
             run_id = str(uuid.uuid4())
 
         try:
+            # Reset per-operation cache
+            self._table_total_rows_cache.clear()
+
             # Start performance monitoring
             self.performance_monitor.start_operation(
                 operation_id, "write_execution_result"
@@ -383,7 +390,11 @@ class LogWriter:
 
             # Process execution result
             log_rows = self.data_processor.process_execution_result(
-                execution_result, run_id, run_mode, metadata
+                execution_result,
+                run_id,
+                run_mode,
+                metadata,
+                table_total_rows_provider=self._get_table_total_rows,
             )
 
             # Create table if not exists
@@ -627,10 +638,15 @@ class LogWriter:
 
             # Process all execution results
             all_log_rows = []
+            self._table_total_rows_cache.clear()
             for i, execution_result in enumerate(execution_results):
                 run_id = run_ids[i] if i < len(run_ids) else str(uuid.uuid4())
                 log_rows = self.data_processor.process_execution_result(
-                    execution_result, run_id, run_mode, metadata
+                    execution_result,
+                    run_id,
+                    run_mode,
+                    metadata,
+                    table_total_rows_provider=self._get_table_total_rows,
                 )
                 all_log_rows.extend(log_rows)
 
@@ -721,6 +737,43 @@ class LogWriter:
         except Exception as e:
             self.logger.error(f"Failed to get table info: {e}")
             raise WriterError(f"Failed to get table info: {e}") from e
+
+    def _get_table_total_rows(self, table_fqn: str | None) -> int | None:
+        """
+        Determine the total number of rows for a given table.
+
+        Args:
+            table_fqn: Fully qualified table name.
+
+        Returns:
+            Row count if available, otherwise None.
+        """
+        if not table_fqn:
+            return None
+
+        if table_fqn in self._table_total_rows_cache:
+            return self._table_total_rows_cache[table_fqn]
+
+        try:
+            if not table_exists(self.spark, table_fqn):
+                self.logger.debug(
+                    f"table_total_rows: table {table_fqn} does not exist; leaving value as None"
+                )
+                self._table_total_rows_cache[table_fqn] = None
+                return None
+
+            raw_count = self.spark.table(table_fqn).count()
+            row_count = raw_count if isinstance(raw_count, (int, float)) else None
+            if row_count is not None:
+                row_count = int(row_count)
+            self._table_total_rows_cache[table_fqn] = row_count
+            return row_count
+        except Exception as exc:  # pragma: no cover - defensive logging path
+            self.logger.warning(
+                f"table_total_rows: unable to compute row count for {table_fqn}: {exc}"
+            )
+            self._table_total_rows_cache[table_fqn] = None
+            return None
 
     def optimize_table(self) -> OptimizeResult:
         """
@@ -1105,6 +1158,11 @@ class LogWriter:
             valid_rows = int(rows_processed * validation_rate / 100.0)
             invalid_rows = rows_processed - valid_rows
 
+            table_fqn = step_info.get("output_table")
+            table_total_rows = step_info.get("table_total_rows")
+            if table_total_rows is None:
+                table_total_rows = self._get_table_total_rows(table_fqn)
+
             bronze_log_row: LogRow = {
                 # Run-level information
                 "run_id": run_id,
@@ -1131,7 +1189,7 @@ class LogWriter:
                 "rows_written": int(step_info.get("rows_written") or rows_processed),
                 "input_rows": int(step_info.get("input_rows") or rows_processed),
                 "output_rows": int(step_info.get("rows_written") or rows_processed),
-                "table_total_rows": step_info.get("table_total_rows"),
+                "table_total_rows": table_total_rows,
                 # Validation metrics
                 "valid_rows": valid_rows,
                 "invalid_rows": invalid_rows,
@@ -1157,6 +1215,11 @@ class LogWriter:
             )
             valid_rows = int(rows_processed * validation_rate / 100.0)
             invalid_rows = rows_processed - valid_rows
+
+            table_fqn = step_info.get("output_table")
+            table_total_rows = step_info.get("table_total_rows")
+            if table_total_rows is None:
+                table_total_rows = self._get_table_total_rows(table_fqn)
 
             silver_log_row: LogRow = {
                 # Run-level information
@@ -1184,7 +1247,7 @@ class LogWriter:
                 "rows_written": int(step_info.get("rows_written") or rows_processed),
                 "input_rows": int(step_info.get("input_rows") or rows_processed),
                 "output_rows": int(step_info.get("rows_written") or rows_processed),
-                "table_total_rows": step_info.get("table_total_rows"),
+                "table_total_rows": table_total_rows,
                 # Validation metrics
                 "valid_rows": valid_rows,
                 "invalid_rows": invalid_rows,
@@ -1210,6 +1273,11 @@ class LogWriter:
             )
             valid_rows = int(rows_processed * validation_rate / 100.0)
             invalid_rows = rows_processed - valid_rows
+
+            table_fqn = step_info.get("output_table")
+            table_total_rows = step_info.get("table_total_rows")
+            if table_total_rows is None:
+                table_total_rows = self._get_table_total_rows(table_fqn)
 
             gold_log_row: LogRow = {
                 # Run-level information
@@ -1237,7 +1305,7 @@ class LogWriter:
                 "rows_written": int(step_info.get("rows_written") or rows_processed),
                 "input_rows": int(step_info.get("input_rows") or rows_processed),
                 "output_rows": int(step_info.get("rows_written") or rows_processed),
-                "table_total_rows": step_info.get("table_total_rows"),
+                "table_total_rows": table_total_rows,
                 # Validation metrics
                 "valid_rows": valid_rows,
                 "invalid_rows": invalid_rows,

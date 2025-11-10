@@ -115,7 +115,7 @@ pip list | grep -E "(pyspark|pandas|numpy)"
 
 3. **Install Specific Versions**:
 ```bash
-pip install pyspark>=3.4.0 pandas>=1.3.0 numpy>=1.21.0
+pip install pyspark>=3.5.0,<3.6.0 pandas>=1.3.0 numpy>=1.21.0
 ```
 
 ## Configuration Problems

@@ -1,12 +1,12 @@
-# SparkForge Python 3.8 & PySpark 3.2 Environment
+# SparkForge Python 3.8 & PySpark 3.5 Environment
 
 ## ✅ Environment Setup Complete
 
 ### Installed Versions
 - **Python**: 3.8.18
-- **PySpark**: 3.2.4
-- **Delta Lake**: 1.2.1
-- **Java**: 1.8.0_461
+- **PySpark**: 3.5.0
+- **Delta Lake**: 3.0.0
+- **Java**: 11.0.28
 - **SparkForge**: 0.8.0
 
 ### Virtual Environment Location
@@ -75,14 +75,14 @@ bandit -r sparkforge/
 ## Environment Details
 
 ### Key Dependencies
-- **Core**: pyspark==3.2.4, delta-spark>=1.2.0, pandas>=1.3.0, psutil>=5.8.0
+- **Core**: pyspark==3.5.0, delta-spark>=3.0.0,<3.1.0, pandas>=1.3.0, psutil>=5.8.0
 - **Testing**: pytest>=7.0.0, pytest-cov>=4.0.0, hypothesis>=6.0.0, mock-spark==1.0.0
 - **Development**: black>=23.0.0, mypy>=1.3.0, isort>=5.12.0, ruff>=0.0.270
 - **Documentation**: sphinx>=4.0.0, sphinx-rtd-theme>=1.0.0, myst-parser>=0.17.0
 
 ### Test Environment Status
 ✅ Python 3.8.18 installed and working
-✅ PySpark 3.2.4 installed and working
+✅ PySpark 3.5.0 installed and working
 ✅ Delta Lake available
 ✅ Mock Spark available for unit testing
 ✅ Spark session creation successful
@@ -90,9 +90,9 @@ bandit -r sparkforge/
 ✅ Test suite running successfully
 
 ### Java Configuration
-- Current Java version: 1.8.0_461 (Java 8)
-- Status: Working correctly with PySpark 3.2.4
-- Note: Java 11 is recommended but Java 8 is fully compatible
+- Current Java version: 11.0.28 (Java 11)
+- Status: Working correctly with PySpark 3.5.0
+- Note: Java 11 is the validated baseline
 
 ## Troubleshooting
 
