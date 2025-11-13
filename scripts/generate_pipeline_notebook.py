@@ -46,12 +46,19 @@ from typing import Any, Dict, List, Optional
 
 def extract_version() -> str:
     """Extract version from pipeline_builder/__init__.py"""
-    init_file = Path("sparkforge/__init__.py")
-    with open(init_file) as f:
-        content = f.read()
-    match = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', content)
-    if match:
-        return match.group(1)
+    candidate_paths = [
+        Path("sparkforge/__init__.py"),
+        Path("pipeline_builder/__init__.py"),
+    ]
+
+    for init_file in candidate_paths:
+        if init_file.exists():
+            with open(init_file) as f:
+                content = f.read()
+            match = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', content)
+            if match:
+                return match.group(1)
+
     return "0.9.0"
 
 
@@ -180,6 +187,10 @@ def remove_sparkforge_imports(code: str) -> str:
     Returns:
         Modified code with sparkforge imports removed and references cleaned
     """
+    # Normalize absolute imports so we can treat them uniformly in the line pass
+    code = re.sub(r"(?m)^\s*from\s+pipeline_builder\.", "from .", code)
+    code = re.sub(r"(?m)^\s*from\s+sparkforge\.", "from .", code)
+
     lines = code.split("\n")
     new_lines = []
     in_multiline_import = False
@@ -211,6 +222,12 @@ def remove_sparkforge_imports(code: str) -> str:
             # Check if this starts a multi-line import
             if "(" in line and ")" not in line:
                 in_multiline_import = True
+        elif re.match(r"^\s*import\s+pipeline_builder\b", line):
+            indent = len(line) - len(line.lstrip())
+            comment = (
+                "# " + line.strip() + "  # Removed: defined in notebook cells above"
+            )
+            new_lines.append(" " * indent + comment)
         elif in_multiline_import:
             # Comment out continuation lines of multi-line imports
             indent = len(line) - len(line.lstrip())
@@ -249,15 +266,6 @@ def remove_sparkforge_imports(code: str) -> str:
 
     # Remove references to "sparkforge" in various contexts
     # Replace in import statements
-    code = re.sub(r"from pipeline_builder\.", "from .", code)
-    code = re.sub(
-        r"import pipeline_builder",
-        "# import pipeline_builder  # Not needed in notebook",
-        code,
-    )
-
-    # Replace import aliases that were removed
-    # UnifiedValidator as PipelineValidator -> use UnifiedValidator directly
     code = re.sub(r"\bPipelineValidator\b", "UnifiedValidator", code)
 
     # Replace in docstrings and comments (but preserve technical meaning)
@@ -566,6 +574,13 @@ def main() -> int:
 
     # Get all module information
     sparkforge_root = Path("sparkforge")
+    if not sparkforge_root.exists():
+        sparkforge_root = Path("pipeline_builder")
+    if not sparkforge_root.exists():
+        raise FileNotFoundError(
+            "Could not locate source package directory. "
+            "Expected 'sparkforge/' or 'pipeline_builder/'."
+        )
     modules = get_module_info(sparkforge_root)
 
     print(f"Found {len(modules)} modules")
