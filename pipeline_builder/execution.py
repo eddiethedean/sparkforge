@@ -435,10 +435,13 @@ class ExecutionEngine:
                         f"Failed to create schema '{schema}' before table creation: {e}"
                     ) from e
 
-                # Determine write mode based on execution mode
-                # INCREMENTAL mode uses "append" to preserve existing data
-                # INITIAL and FULL_REFRESH modes use "overwrite"
-                if mode == ExecutionMode.INCREMENTAL:
+                # Determine write mode
+                # - Gold steps always use overwrite to prevent duplicate aggregates
+                # - Silver steps append during incremental runs to preserve history
+                # - All other modes overwrite
+                if isinstance(step, GoldStep):
+                    write_mode_str = "overwrite"
+                elif mode == ExecutionMode.INCREMENTAL:
                     write_mode_str = "append"
                 else:  # INITIAL or FULL_REFRESH
                     write_mode_str = "overwrite"

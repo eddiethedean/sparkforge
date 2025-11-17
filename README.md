@@ -559,11 +559,12 @@ Total: 16s                  Group 3: 1s
                             Total: 6s (2.7x faster!)
 ```
 
-## 🚀 What's New in v2.1.1
+## 🚀 What's New in v2.1.2
 
 ### 📈 Logging & Observability
-- ✅ **Accurate table totals** – `table_total_rows` now auto-populates from Spark counts with caching safeguards
-- ✅ **Additional regression tests** – Coverage added to ensure totals are always written when table data exists
+- ✅ **Accurate table totals** – `table_total_rows` now refreshes after every write, keeping incremental append/overwrite runs in sync with the latest Spark counts
+- ✅ **Additional regression tests** – Coverage added to ensure totals are recalculated whenever log rows are written
+- ✅ **Gold overwrite guarantees** – Gold-layer steps always perform `overwrite` writes (and log them accordingly), even during incremental runs, preventing duplicate aggregates
 
 ### 🛠 Environment & Runtime Support
 - ✅ **PySpark 3.5 + Java 11 by default** – Configuration, docs, and tooling aligned to the new runtime baseline

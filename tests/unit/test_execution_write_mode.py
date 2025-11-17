@@ -112,18 +112,18 @@ class TestExecutionEngineWriteMode:
             f"but got '{result.write_mode}'"
         )
 
-    def test_incremental_mode_uses_append_for_gold_step(
+    def test_incremental_mode_uses_overwrite_for_gold_step(
         self, execution_engine, gold_step, context
     ):
-        """Test that incremental mode uses append write_mode for Gold steps."""
+        """Gold steps should always overwrite, even during incremental runs."""
         # Execute step in incremental mode
         result = execution_engine.execute_step(
             gold_step, context, ExecutionMode.INCREMENTAL
         )
 
-        # Verify write_mode is set to append
-        assert result.write_mode == "append", (
-            f"Expected write_mode='append' for incremental mode, "
+        # Verify write_mode is set to overwrite
+        assert result.write_mode == "overwrite", (
+            f"Expected write_mode='overwrite' for gold incremental mode, "
             f"but got '{result.write_mode}'"
         )
 
@@ -236,7 +236,7 @@ class TestExecutionEngineWriteMode:
         result_inc_gold = execution_engine.execute_step(
             gold_step, context, ExecutionMode.INCREMENTAL
         )
-        assert result_inc_gold.write_mode == "append"
+        assert result_inc_gold.write_mode == "overwrite"
 
         result_init_gold = execution_engine.execute_step(
             gold_step, context, ExecutionMode.INITIAL
@@ -267,22 +267,27 @@ class TestExecutionEngineWriteMode:
     ):
         """Test that write_mode behavior is consistent across step types."""
         # Test all modes with both step types
-        modes_to_test = [
-            (ExecutionMode.INITIAL, "overwrite"),
-            (ExecutionMode.INCREMENTAL, "append"),
-            (ExecutionMode.FULL_REFRESH, "overwrite"),
-            (ExecutionMode.VALIDATION_ONLY, None),
-        ]
+        silver_expectations = {
+            ExecutionMode.INITIAL: "overwrite",
+            ExecutionMode.INCREMENTAL: "append",
+            ExecutionMode.FULL_REFRESH: "overwrite",
+            ExecutionMode.VALIDATION_ONLY: None,
+        }
+        gold_expectations = {
+            ExecutionMode.INITIAL: "overwrite",
+            ExecutionMode.INCREMENTAL: "overwrite",
+            ExecutionMode.FULL_REFRESH: "overwrite",
+            ExecutionMode.VALIDATION_ONLY: None,
+        }
 
-        for mode, expected_write_mode in modes_to_test:
-            # Test Silver step
+        for mode, expected_write_mode in silver_expectations.items():
             silver_result = execution_engine.execute_step(silver_step, context, mode)
             assert silver_result.write_mode == expected_write_mode, (
                 f"Silver step in {mode.value} mode: expected write_mode={expected_write_mode}, "
                 f"got {silver_result.write_mode}"
             )
 
-            # Test Gold step
+        for mode, expected_write_mode in gold_expectations.items():
             gold_result = execution_engine.execute_step(gold_step, context, mode)
             assert gold_result.write_mode == expected_write_mode, (
                 f"Gold step in {mode.value} mode: expected write_mode={expected_write_mode}, "
@@ -311,8 +316,8 @@ class TestExecutionEngineWriteMode:
 class TestWriteModeRegression:
     """Test cases to prevent regression of the write_mode bug."""
 
-    def test_incremental_mode_never_uses_overwrite(self, spark_session):
-        """Test that incremental mode never uses overwrite to prevent data loss."""
+    def test_incremental_mode_uses_append_for_silver_steps(self, spark_session):
+        """Incremental silver writes must append to prevent data loss."""
         from pipeline_builder.models import (
             ParallelConfig,
             PipelineConfig,
@@ -345,18 +350,43 @@ class TestWriteModeRegression:
             "test_bronze": spark_session.createDataFrame([(1, "test")], ["id", "name"])
         }
 
-        # This test specifically prevents the regression where incremental mode
-        # was incorrectly using overwrite, causing data loss
         result = execution_engine.execute_step(
             silver_step, context, ExecutionMode.INCREMENTAL
         )
 
-        # This assertion will fail if the bug is reintroduced
-        assert result.write_mode != "overwrite", (
-            "CRITICAL BUG: Incremental mode is using overwrite! "
-            "This will cause data loss. Incremental mode must use append."
-        )
-
         assert result.write_mode == "append", (
             "Incremental mode must use append write_mode to preserve existing data"
+        )
+
+    def test_gold_incremental_mode_uses_overwrite(self, spark_session):
+        """Regression test ensuring gold steps keep overwrite semantics."""
+        config = PipelineConfig(
+            schema="test_schema",
+            thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
+            parallel=ParallelConfig(max_workers=4, enabled=True),
+        )
+        logger = PipelineLogger("test")
+        execution_engine = ExecutionEngine(spark_session, config, logger)
+
+        def simple_transform(_spark, silvers):
+            return silvers["test_silver"]
+
+        gold_step = GoldStep(
+            name="test_gold",
+            transform=simple_transform,
+            rules={"id": [F.col("id").isNotNull()]},
+            table_name="test_gold_table",
+            source_silvers=["test_silver"],
+            schema="test_schema",
+        )
+
+        context = {
+            "test_silver": spark_session.createDataFrame([(1, "test")], ["id", "name"])
+        }
+
+        result = execution_engine.execute_step(
+            gold_step, context, ExecutionMode.INCREMENTAL
+        )
+        assert result.write_mode == "overwrite", (
+            "Gold steps must overwrite during incremental runs to avoid double counting"
         )

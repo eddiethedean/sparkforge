@@ -619,6 +619,47 @@ class TestAppendMethod:
         # Verify write_batch was called 3 times
         assert writer.storage_manager.write_batch.call_count == 3
 
+    def test_append_refreshes_table_totals_between_runs(
+        self, writer, sample_report, mock_spark
+    ):
+        """table_total_rows should reflect fresh counts after each append run."""
+        table_counts = {
+            "silver.incremental": [500, 750],
+            "gold.incremental": [450, 900],
+        }
+        table_call_indices: dict[str, int] = {}
+
+        def table_side_effect(table_name: str):
+            idx = table_call_indices.get(table_name, 0)
+            table_call_indices[table_name] = idx + 1
+            values = table_counts.get(table_name, [0])
+            value = values[idx] if idx < len(values) else values[-1]
+            table_mock = Mock()
+            table_mock.count.return_value = value
+            return table_mock
+
+        mock_spark.table.side_effect = table_side_effect
+
+        with patch("pipeline_builder.writer.core.table_exists", return_value=True):
+            writer.append(sample_report, run_id="run_initial")
+
+        first_rows = writer.storage_manager.write_batch.call_args_list[-1][0][0]
+        first_silver = next(
+            row for row in first_rows if row["table_fqn"] == "silver.incremental"
+        )
+        assert first_silver["table_total_rows"] == 500
+
+        writer.storage_manager.write_batch.reset_mock()
+
+        with patch("pipeline_builder.writer.core.table_exists", return_value=True):
+            writer.append(sample_report, run_id="run_incremental")
+
+        second_rows = writer.storage_manager.write_batch.call_args_list[-1][0][0]
+        second_silver = next(
+            row for row in second_rows if row["table_fqn"] == "silver.incremental"
+        )
+        assert second_silver["table_total_rows"] == 750
+
 
 class TestLogWriterNewAPIIntegration:
     """Integration tests for the new API."""

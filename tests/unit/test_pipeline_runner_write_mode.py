@@ -119,7 +119,7 @@ class TestPipelineRunnerWriteMode:
             )
         }
 
-    def test_run_incremental_uses_append_mode(
+    def test_run_incremental_sets_expected_write_modes(
         self,
         spark_session,
         config,
@@ -129,7 +129,7 @@ class TestPipelineRunnerWriteMode:
         gold_step,
         bronze_sources,
     ):
-        """Test that run_incremental uses append mode for all steps."""
+        """Incremental runs append silver data but overwrite gold aggregates."""
         # Create pipeline runner with steps
         runner = SimplePipelineRunner(
             spark=spark_session,
@@ -143,11 +143,15 @@ class TestPipelineRunnerWriteMode:
         # Run incremental pipeline
         report = runner.run_incremental(bronze_sources=bronze_sources)
 
-        # Verify all step results have append write_mode (only silver/gold write to tables)
-        silver_gold_results = {**report.silver_results, **report.gold_results}
-        for step_name, step_result in silver_gold_results.items():
+        for step_name, step_result in report.silver_results.items():
             assert step_result.get("write_mode") == "append", (
-                f"Step {step_name} in incremental run should have write_mode='append', "
+                f"Silver step {step_name} in incremental run should append, "
+                f"but got '{step_result.get('write_mode')}'"
+            )
+
+        for step_name, step_result in report.gold_results.items():
+            assert step_result.get("write_mode") == "overwrite", (
+                f"Gold step {step_name} in incremental run should overwrite, "
                 f"but got '{step_result.get('write_mode')}'"
             )
 
@@ -215,7 +219,7 @@ class TestPipelineRunnerWriteMode:
                 f"but got '{step_result.get('write_mode')}'"
             )
 
-    def test_run_pipeline_with_incremental_mode_uses_append(
+    def test_run_pipeline_with_incremental_mode_sets_expected_write_modes(
         self,
         spark_session,
         config,
@@ -225,7 +229,7 @@ class TestPipelineRunnerWriteMode:
         gold_step,
         bronze_sources,
     ):
-        """Test that run_pipeline with INCREMENTAL mode uses append for all steps."""
+        """run_pipeline(INCREMENTAL) should append silver data and overwrite gold."""
         # Create pipeline runner with steps
         runner = SimplePipelineRunner(
             spark=spark_session,
@@ -240,11 +244,15 @@ class TestPipelineRunnerWriteMode:
         steps = [bronze_step, silver_step, gold_step]
         report = runner.run_pipeline(steps, PipelineMode.INCREMENTAL, bronze_sources)
 
-        # Verify all step results have append write_mode (only silver/gold write to tables)
-        silver_gold_results = {**report.silver_results, **report.gold_results}
-        for step_name, step_result in silver_gold_results.items():
+        for step_name, step_result in report.silver_results.items():
             assert step_result.get("write_mode") == "append", (
-                f"Step {step_name} in incremental pipeline should have write_mode='append', "
+                f"Silver step {step_name} in incremental pipeline should append, "
+                f"but got '{step_result.get('write_mode')}'"
+            )
+
+        for step_name, step_result in report.gold_results.items():
+            assert step_result.get("write_mode") == "overwrite", (
+                f"Gold step {step_name} in incremental pipeline should overwrite, "
                 f"but got '{step_result.get('write_mode')}'"
             )
 
@@ -310,7 +318,7 @@ class TestPipelineRunnerWriteMode:
         gold_step,
         bronze_sources,
     ):
-        """Test that incremental and initial modes produce different write_modes."""
+        """Silver incremental runs differ from initial; gold always overwrites."""
         # Create pipeline runner with steps
         runner = SimplePipelineRunner(
             spark=spark_session,
@@ -327,38 +335,31 @@ class TestPipelineRunnerWriteMode:
         # Run initial pipeline
         initial_report = runner.run_initial_load(bronze_sources=bronze_sources)
 
-        # Verify that write_modes are different between the two runs (only silver/gold write to tables)
-        incremental_silver_gold = {
-            **incremental_report.silver_results,
-            **incremental_report.gold_results,
-        }
-        initial_silver_gold = {
-            **initial_report.silver_results,
-            **initial_report.gold_results,
-        }
-        for step_name in incremental_silver_gold.keys():
-            incremental_write_mode = incremental_silver_gold[step_name].get(
+        for step_name in incremental_report.silver_results.keys():
+            incremental_mode = incremental_report.silver_results[step_name].get(
                 "write_mode"
             )
-            initial_write_mode = initial_silver_gold[step_name].get("write_mode")
-
-            assert incremental_write_mode != initial_write_mode, (
-                f"Step {step_name}: incremental and initial modes should have different write_modes, "
-                f"but both had '{incremental_write_mode}'"
+            initial_mode = initial_report.silver_results[step_name].get("write_mode")
+            assert incremental_mode == "append", (
+                f"Silver step {step_name}: incremental mode should append, got '{incremental_mode}'"
+            )
+            assert initial_mode == "overwrite", (
+                f"Silver step {step_name}: initial mode should overwrite, got '{initial_mode}'"
             )
 
-            # Specific assertions
-            assert incremental_write_mode == "append", (
-                f"Step {step_name}: incremental mode should use append, "
-                f"but got '{incremental_write_mode}'"
+        for step_name in incremental_report.gold_results.keys():
+            incremental_mode = incremental_report.gold_results[step_name].get(
+                "write_mode"
+            )
+            initial_mode = initial_report.gold_results[step_name].get("write_mode")
+            assert incremental_mode == "overwrite", (
+                f"Gold step {step_name}: incremental mode should overwrite, got '{incremental_mode}'"
+            )
+            assert initial_mode == "overwrite", (
+                f"Gold step {step_name}: initial mode should overwrite, got '{initial_mode}'"
             )
 
-            assert initial_write_mode == "overwrite", (
-                f"Step {step_name}: initial mode should use overwrite, "
-                f"but got '{initial_write_mode}'"
-            )
-
-    def test_no_data_loss_in_incremental_mode(
+    def test_no_data_loss_in_incremental_mode_for_silver_steps(
         self,
         spark_session,
         config,
@@ -368,7 +369,7 @@ class TestPipelineRunnerWriteMode:
         gold_step,
         bronze_sources,
     ):
-        """Test that incremental mode preserves existing data (uses append)."""
+        """Incremental mode must append silver tables to preserve existing data."""
         # Create pipeline runner with steps
         runner = SimplePipelineRunner(
             spark=spark_session,
@@ -383,22 +384,15 @@ class TestPipelineRunnerWriteMode:
         report1 = runner.run_incremental(bronze_sources=bronze_sources)
         report2 = runner.run_incremental(bronze_sources=bronze_sources)
 
-        # Both runs should use append mode (preserving data) - only silver/gold write to tables
-        # Note: In mock-spark, tables don't persist between runs, so second run may fail
-        silver_gold_results1 = {**report1.silver_results, **report1.gold_results}
-        silver_gold_results2 = {**report2.silver_results, **report2.gold_results}
-        for step_name in silver_gold_results1.keys():
-            write_mode1 = silver_gold_results1[step_name].get("write_mode")
-
-            assert write_mode1 == "append", (
-                f"First incremental run for step {step_name} should use append mode"
+        silver_results1 = report1.silver_results
+        silver_results2 = report2.silver_results
+        for step_name, step_result in silver_results1.items():
+            assert step_result.get("write_mode") == "append", (
+                f"First incremental run for silver step {step_name} should append"
             )
-
-            # Only check second run if it succeeded (mock-spark limitation)
-            if silver_gold_results2.get(step_name, {}).get("status") == "completed":
-                write_mode2 = silver_gold_results2[step_name].get("write_mode")
-                assert write_mode2 == "append", (
-                    f"Second incremental run for step {step_name} should use append mode"
+            if silver_results2.get(step_name, {}).get("status") == "completed":
+                assert silver_results2[step_name].get("write_mode") == "append", (
+                    f"Second incremental run for silver step {step_name} should append"
                 )
 
     @patch("pipeline_builder.execution.ExecutionEngine.execute_step")

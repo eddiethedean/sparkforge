@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from numbers import Number
 from typing import Any, Dict
 
 from ..compat import SparkSession
@@ -378,7 +379,7 @@ class LogWriter:
 
         try:
             # Reset per-operation cache
-            self._table_total_rows_cache.clear()
+            self._reset_table_total_rows_cache()
 
             # Start performance monitoring
             self.performance_monitor.start_operation(
@@ -638,7 +639,7 @@ class LogWriter:
 
             # Process all execution results
             all_log_rows = []
-            self._table_total_rows_cache.clear()
+            self._reset_table_total_rows_cache()
             for i, execution_result in enumerate(execution_results):
                 run_id = run_ids[i] if i < len(run_ids) else str(uuid.uuid4())
                 log_rows = self.data_processor.process_execution_result(
@@ -738,6 +739,10 @@ class LogWriter:
             self.logger.error(f"Failed to get table info: {e}")
             raise WriterError(f"Failed to get table info: {e}") from e
 
+    def _reset_table_total_rows_cache(self) -> None:
+        """Clear cached table counts so subsequent operations refresh totals."""
+        self._table_total_rows_cache.clear()
+
     def _get_table_total_rows(self, table_fqn: str | None) -> int | None:
         """
         Determine the total number of rows for a given table.
@@ -755,6 +760,14 @@ class LogWriter:
             return self._table_total_rows_cache[table_fqn]
 
         try:
+            table_accessor = getattr(self.spark, "table", None)
+            if not callable(table_accessor):
+                self.logger.debug(
+                    "table_total_rows: spark session does not expose table(); skipping count"
+                )
+                self._table_total_rows_cache[table_fqn] = None
+                return None
+
             if not table_exists(self.spark, table_fqn):
                 self.logger.debug(
                     f"table_total_rows: table {table_fqn} does not exist; leaving value as None"
@@ -762,10 +775,21 @@ class LogWriter:
                 self._table_total_rows_cache[table_fqn] = None
                 return None
 
-            raw_count = self.spark.table(table_fqn).count()
-            row_count = raw_count if isinstance(raw_count, (int, float)) else None
-            if row_count is not None:
-                row_count = int(row_count)
+            table_df = table_accessor(table_fqn)
+            count_method = getattr(table_df, "count", None)
+            if not callable(count_method):
+                self.logger.debug(
+                    f"table_total_rows: object for {table_fqn} lacks count(); skipping"
+                )
+                self._table_total_rows_cache[table_fqn] = None
+                return None
+
+            raw_count = count_method()
+            if isinstance(raw_count, (int, float)):
+                row_count = int(raw_count)
+            else:
+                row_count = None
+
             self._table_total_rows_cache[table_fqn] = row_count
             return row_count
         except Exception as exc:  # pragma: no cover - defensive logging path
@@ -1353,6 +1377,9 @@ class LogWriter:
             run_id = str(uuid.uuid4())
 
         try:
+            # Reset per-operation cache
+            self._reset_table_total_rows_cache()
+
             # Start performance monitoring
             self.performance_monitor.start_operation(operation_id, "create_table")
 
@@ -1440,6 +1467,9 @@ class LogWriter:
             run_id = str(uuid.uuid4())
 
         try:
+            # Reset per-operation cache
+            self._reset_table_total_rows_cache()
+
             # Start performance monitoring
             self.performance_monitor.start_operation(operation_id, "append")
 

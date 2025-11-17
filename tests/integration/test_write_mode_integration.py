@@ -130,7 +130,7 @@ class TestWriteModeIntegration:
         gold_step,
         bronze_sources,
     ):
-        """Test that incremental pipeline preserves existing data by using append mode."""
+        """Incremental pipeline preserves silver data via append while overwriting gold aggregates."""
         # Mock fqn to return test table names
         mock_fqn.side_effect = lambda schema, table: f"{schema}.{table}"
 
@@ -147,11 +147,14 @@ class TestWriteModeIntegration:
         # Run incremental pipeline
         report = runner.run_incremental(bronze_sources=bronze_sources)
 
-        # Verify report shows append mode (only silver/gold write to tables)
-        silver_gold_results = {**report.silver_results, **report.gold_results}
-        for step_name, step_result in silver_gold_results.items():
+        # Verify report shows correct mode per layer
+        for step_name, step_result in report.silver_results.items():
             assert step_result.get("write_mode") == "append", (
-                f"Step {step_name} should have write_mode='append' in incremental pipeline"
+                f"Silver step {step_name} should append in incremental pipeline"
+            )
+        for step_name, step_result in report.gold_results.items():
+            assert step_result.get("write_mode") == "overwrite", (
+                f"Gold step {step_name} should overwrite in incremental pipeline"
             )
 
     @patch("pipeline_builder.execution.fqn")
@@ -217,16 +220,17 @@ class TestWriteModeIntegration:
             report = runner.run_incremental(bronze_sources=bronze_sources)
             reports.append(report)
 
-        # All incremental runs should consistently use append mode (only silver/gold write to tables)
-        # Note: In mock-spark, tables don't persist between runs, so later runs may fail
-        # We only check write_mode for successful steps
+        # All incremental runs should consistently use layer-specific write modes
         for i, report in enumerate(reports):
-            silver_gold_results = {**report.silver_results, **report.gold_results}
-            for step_name, step_result in silver_gold_results.items():
-                # Only check write_mode if step succeeded (mock-spark tables don't persist)
+            for step_name, step_result in report.silver_results.items():
                 if step_result.get("status") == "completed":
                     assert step_result.get("write_mode") == "append", (
-                        f"Incremental run {i + 1}, step {step_name}: should consistently use append mode"
+                        f"Incremental run {i + 1}, silver step {step_name}: should append"
+                    )
+            for step_name, step_result in report.gold_results.items():
+                if step_result.get("status") == "completed":
+                    assert step_result.get("write_mode") == "overwrite", (
+                        f"Incremental run {i + 1}, gold step {step_name}: should overwrite"
                     )
 
         # Run multiple initial pipelines
@@ -271,28 +275,40 @@ class TestWriteModeIntegration:
 
         # Verify write_modes are correct for each mode (only silver/gold write to tables)
         # Note: In mock-spark, tables don't persist between runs, so incremental after initial may fail
-        initial_silver_gold = {
-            **initial_report.silver_results,
-            **initial_report.gold_results,
-        }
-        incremental_silver_gold = {
-            **incremental_report.silver_results,
-            **incremental_report.gold_results,
-        }
-        full_refresh_silver_gold = {
-            **full_refresh_report.silver_results,
-            **full_refresh_report.gold_results,
-        }
-        for step_name in initial_silver_gold.keys():
-            # Initial should use overwrite
-            assert initial_silver_gold[step_name].get("write_mode") == "overwrite"
+        for step_name in initial_report.silver_results.keys():
+            assert (
+                initial_report.silver_results[step_name].get("write_mode")
+                == "overwrite"
+            )
+            if (
+                incremental_report.silver_results.get(step_name, {}).get("status")
+                == "completed"
+            ):
+                assert (
+                    incremental_report.silver_results[step_name].get("write_mode")
+                    == "append"
+                )
+            assert (
+                full_refresh_report.silver_results[step_name].get("write_mode")
+                == "overwrite"
+            )
 
-            # Incremental should use append (only check if step succeeded - mock-spark limitation)
-            if incremental_silver_gold.get(step_name, {}).get("status") == "completed":
-                assert incremental_silver_gold[step_name].get("write_mode") == "append"
-
-            # Full refresh should use overwrite
-            assert full_refresh_silver_gold[step_name].get("write_mode") == "overwrite"
+        for step_name in initial_report.gold_results.keys():
+            assert (
+                initial_report.gold_results[step_name].get("write_mode") == "overwrite"
+            )
+            if (
+                incremental_report.gold_results.get(step_name, {}).get("status")
+                == "completed"
+            ):
+                assert (
+                    incremental_report.gold_results[step_name].get("write_mode")
+                    == "overwrite"
+                )
+            assert (
+                full_refresh_report.gold_results[step_name].get("write_mode")
+                == "overwrite"
+            )
 
     def test_write_mode_regression_prevention(
         self,
@@ -320,16 +336,14 @@ class TestWriteModeIntegration:
         report = runner.run_incremental(bronze_sources=bronze_sources)
 
         # Critical assertion: incremental mode must NEVER use overwrite (only silver/gold write to tables)
-        silver_gold_results = {**report.silver_results, **report.gold_results}
-        for step_name, step_result in silver_gold_results.items():
-            assert step_result.get("write_mode") != "overwrite", (
-                f"CRITICAL BUG DETECTED: Step {step_name} in incremental mode "
-                f"is using overwrite! This will cause data loss. "
-                f"Bug fix may have been reverted."
+        for step_name, step_result in report.silver_results.items():
+            assert step_result.get("write_mode") == "append", (
+                f"Silver step {step_name} in incremental mode must append to preserve data"
             )
 
-            assert step_result.get("write_mode") == "append", (
-                f"Step {step_name} in incremental mode must use append to preserve data"
+        for step_name, step_result in report.gold_results.items():
+            assert step_result.get("write_mode") == "overwrite", (
+                f"Gold step {step_name} must overwrite in incremental mode to avoid duplicate aggregates"
             )
 
     def test_log_writer_receives_correct_write_mode(
@@ -361,25 +375,30 @@ class TestWriteModeIntegration:
 
         # Verify that the step results have the correct write_mode
         # that would be passed to LogWriter (only silver/gold write to tables)
-        incremental_silver_gold = {
-            **incremental_report.silver_results,
-            **incremental_report.gold_results,
-        }
-        initial_silver_gold = {
-            **initial_report.silver_results,
-            **initial_report.gold_results,
-        }
-        for step_name in incremental_silver_gold.keys():
-            incremental_step_result = incremental_silver_gold[step_name]
-            initial_step_result = initial_silver_gold[step_name]
-
-            # These write_modes should be passed to LogWriter and logged correctly
+        for (
+            step_name,
+            incremental_step_result,
+        ) in incremental_report.silver_results.items():
+            initial_step_result = initial_report.silver_results.get(step_name, {})
             assert incremental_step_result.get("write_mode") == "append", (
-                f"LogWriter should receive write_mode='append' for step {step_name} "
+                f"LogWriter should receive write_mode='append' for silver step {step_name} "
                 f"in incremental pipeline"
             )
-
             assert initial_step_result.get("write_mode") == "overwrite", (
-                f"LogWriter should receive write_mode='overwrite' for step {step_name} "
+                f"LogWriter should receive write_mode='overwrite' for silver step {step_name} "
+                f"in initial pipeline"
+            )
+
+        for (
+            step_name,
+            incremental_step_result,
+        ) in incremental_report.gold_results.items():
+            initial_step_result = initial_report.gold_results.get(step_name, {})
+            assert incremental_step_result.get("write_mode") == "overwrite", (
+                f"LogWriter should receive write_mode='overwrite' for gold step {step_name} "
+                f"in incremental pipeline"
+            )
+            assert initial_step_result.get("write_mode") == "overwrite", (
+                f"LogWriter should receive write_mode='overwrite' for gold step {step_name} "
                 f"in initial pipeline"
             )

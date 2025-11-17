@@ -5,6 +5,9 @@ This module provides common fixtures, data generators, and utility functions
 for testing realistic bronze-silver-gold pipeline scenarios.
 """
 
+import os
+import shutil
+import tempfile
 from datetime import datetime, timedelta
 from typing import Any, List
 
@@ -28,10 +31,13 @@ def spark_session():
     """Real Spark session for testing."""
     from pyspark.sql import SparkSession
 
+    warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
+    os.makedirs(warehouse_dir, exist_ok=True)
+
     spark = (
         SparkSession.builder.appName("builder_pyspark_tests")
         .master("local[*]")
-        .config("spark.sql.warehouse.dir", "/tmp/spark-warehouse")
+        .config("spark.sql.warehouse.dir", warehouse_dir)
         .config("spark.driver.memory", "2g")
         .config("spark.driver.bindAddress", "127.0.0.1")
         .config("spark.driver.host", "127.0.0.1")
@@ -39,6 +45,7 @@ def spark_session():
         .config("spark.sql.adaptive.coalescePartitions.enabled", "false")
         .getOrCreate()
     )
+    spark._warehouse_dir = warehouse_dir  # type: ignore[attr-defined]
 
     # Create required databases for PySpark tests
     spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
@@ -67,6 +74,9 @@ def spark_session():
 
     spark.stop()
 
+    if os.path.exists(warehouse_dir):
+        shutil.rmtree(warehouse_dir, ignore_errors=True)
+
 
 @pytest.fixture(autouse=True)
 def cleanup_tables(spark_session):
@@ -87,12 +97,10 @@ def cleanup_tables(spark_session):
         spark_session.sql("DROP TABLE IF EXISTS integration.multi_source_logs")
 
         # Also clean up physical warehouse files
-        import os
-        import shutil
-
-        warehouse_dir = "/tmp/spark-warehouse"
-        if os.path.exists(warehouse_dir):
-            shutil.rmtree(warehouse_dir)
+        warehouse_dir = getattr(spark_session, "_warehouse_dir", None)
+        if warehouse_dir and os.path.exists(warehouse_dir):
+            shutil.rmtree(warehouse_dir, ignore_errors=True)
+            os.makedirs(warehouse_dir, exist_ok=True)
     except Exception:
         pass  # Ignore cleanup errors
 
