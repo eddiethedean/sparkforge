@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from numbers import Number
 from typing import Any, Dict
 
 from ..compat import SparkSession

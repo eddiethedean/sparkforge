@@ -172,6 +172,7 @@ class SilverStep(BaseModel):
     watermark_col: str | None = None
     existing: bool = False
     schema: str | None = None
+    source_incremental_col: str | None = None
 
     def __post_init__(self) -> None:
         """Validate required fields after initialization."""
@@ -185,6 +186,10 @@ class SilverStep(BaseModel):
             raise ValidationError("Transform function is required and must be callable")
         if not self.table_name or not isinstance(self.table_name, str):
             raise ValidationError("Table name must be a non-empty string")
+        if self.source_incremental_col is not None and not isinstance(
+            self.source_incremental_col, str
+        ):
+            raise ValidationError("source_incremental_col must be a string")
 
     def validate(self) -> None:
         """Validate silver step configuration."""
@@ -200,6 +205,12 @@ class SilverStep(BaseModel):
             raise PipelineValidationError("Rules must be a dictionary")
         if not self.table_name or not isinstance(self.table_name, str):
             raise PipelineValidationError("Table name must be a non-empty string")
+        if self.source_incremental_col is not None and not isinstance(
+            self.source_incremental_col, str
+        ):
+            raise PipelineValidationError(
+                "source_incremental_col must be a string when provided"
+            )
 
 
 @dataclass

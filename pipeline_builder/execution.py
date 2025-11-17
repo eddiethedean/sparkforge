@@ -83,7 +83,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict
 
-from pipeline_builder.compat import DataFrame, SparkSession
+from pipeline_builder.compat import DataFrame, F, SparkSession, is_mock_spark
 from pipeline_builder.dependencies import DependencyAnalyzer
 from pipeline_builder.errors import ExecutionError
 from pipeline_builder.functions import FunctionsProtocol
@@ -359,7 +359,7 @@ class ExecutionEngine:
             if isinstance(step, BronzeStep):
                 output_df = self._execute_bronze_step(step, context)
             elif isinstance(step, SilverStep):
-                output_df = self._execute_silver_step(step, context)
+                output_df = self._execute_silver_step(step, context, mode)
             elif isinstance(step, GoldStep):
                 output_df = self._execute_gold_step(step, context)
 
@@ -910,7 +910,10 @@ class ExecutionEngine:
         return df
 
     def _execute_silver_step(
-        self, step: SilverStep, context: Dict[str, DataFrame]
+        self,
+        step: SilverStep,
+        context: Dict[str, DataFrame],
+        mode: ExecutionMode,
     ) -> DataFrame:
         """Execute a silver step."""
 
@@ -920,8 +923,208 @@ class ExecutionEngine:
                 f"Source bronze step {step.source_bronze} not found in context"
             )
 
+        bronze_df = context[step.source_bronze]
+
+        if mode == ExecutionMode.INCREMENTAL:
+            bronze_df = self._filter_incremental_bronze_input(step, bronze_df)
+
         # Apply transform with source bronze data and empty silvers dict
-        return step.transform(self.spark, context[step.source_bronze], {})
+        return step.transform(self.spark, bronze_df, {})
+
+    def _filter_incremental_bronze_input(
+        self, step: SilverStep, bronze_df: DataFrame
+    ) -> DataFrame:
+        """
+        Filter bronze input rows that were already processed in previous incremental runs.
+
+        Uses the source bronze step's incremental column and the silver step's watermark
+        column to eliminate rows whose incremental value is less than or equal to the
+        last processed watermark.
+        """
+
+        incremental_col = getattr(step, "source_incremental_col", None)
+        watermark_col = getattr(step, "watermark_col", None)
+        schema = getattr(step, "schema", None)
+        table_name = getattr(step, "table_name", step.name)
+
+        if not incremental_col or not watermark_col or schema is None:
+            return bronze_df
+
+        if incremental_col not in getattr(bronze_df, "columns", []):
+            self.logger.debug(
+                f"Silver step {step.name}: incremental column '{incremental_col}' "
+                f"not present in bronze DataFrame; skipping incremental filter"
+            )
+            return bronze_df
+
+        output_table = fqn(schema, table_name)
+
+        try:
+            existing_table = self.spark.table(output_table)
+        except Exception as exc:
+            self.logger.debug(
+                f"Silver step {step.name}: unable to read existing table {output_table} "
+                f"for incremental filter: {exc}"
+            )
+            return bronze_df
+
+        if watermark_col not in getattr(existing_table, "columns", []):
+            self.logger.debug(
+                f"Silver step {step.name}: watermark column '{watermark_col}' "
+                f"not present in existing table {output_table}; skipping incremental filter"
+            )
+            return bronze_df
+
+        try:
+            watermark_rows = existing_table.select(watermark_col).collect()
+        except Exception as exc:
+            self.logger.warning(
+                f"Silver step {step.name}: failed to collect watermark values "
+                f"from {output_table}: {exc}"
+            )
+            return bronze_df
+
+        if not watermark_rows:
+            return bronze_df
+
+        cutoff_value = None
+        for row in watermark_rows:
+            value = None
+            if hasattr(row, "__getitem__"):
+                try:
+                    value = row[watermark_col]
+                except Exception:
+                    try:
+                        value = row[0]
+                    except Exception:
+                        value = None
+            if value is None and hasattr(row, "asDict"):
+                value = row.asDict().get(watermark_col)
+            if value is None:
+                continue
+            cutoff_value = value if cutoff_value is None else max(cutoff_value, value)
+
+        if cutoff_value is None:
+            return bronze_df
+
+        try:
+            filtered_df = bronze_df.filter(
+                F.col(incremental_col) > F.lit(cutoff_value)
+            )
+        except Exception as exc:
+            if self._using_mock_spark():
+                mock_df = self._filter_bronze_rows_mock(
+                    bronze_df, incremental_col, cutoff_value
+                )
+                if mock_df is not None:
+                    self.logger.debug(
+                        f"Silver step {step.name}: applied mock fallback filter "
+                        f"for {incremental_col} > {cutoff_value}"
+                    )
+                    filtered_df = mock_df
+                else:
+                    self.logger.warning(
+                        f"Silver step {step.name}: failed to filter bronze rows using "
+                        f"{incremental_col} > {cutoff_value}: {exc!r}"
+                    )
+                    return bronze_df
+            else:
+                self.logger.warning(
+                    f"Silver step {step.name}: failed to filter bronze rows using "
+                    f"{incremental_col} > {cutoff_value}: {exc!r}"
+                )
+                return bronze_df
+
+        self.logger.info(
+            f"Silver step {step.name}: filtering bronze rows where "
+            f"{incremental_col} <= {cutoff_value}"
+        )
+        return filtered_df
+
+    def _using_mock_spark(self) -> bool:
+        """Determine if current spark session is backed by mock-spark."""
+
+        try:
+            spark_module = type(self.spark).__module__
+        except Exception:
+            spark_module = ""
+        return is_mock_spark() or "mock_spark" in spark_module
+
+    def _filter_bronze_rows_mock(
+        self, bronze_df: DataFrame, incremental_col: str, cutoff_value: object
+    ) -> DataFrame | None:
+        """
+        Mock-spark fallback: collect rows and filter in-memory when column operations fail.
+        """
+
+        try:
+            rows = bronze_df.collect()
+            schema = bronze_df.schema
+        except Exception:
+            return None
+
+        filtered_rows = []
+        for row in rows:
+            value = self._extract_row_value(row, incremental_col)
+            if value is None:
+                continue
+            try:
+                if value > cutoff_value:
+                    filtered_rows.append(row)
+            except Exception:
+                continue
+
+        if not filtered_rows:
+            try:
+                return bronze_df.limit(0)
+            except Exception:
+                pass
+            return self.spark.createDataFrame([], schema)
+
+        try:
+            column_order: list[str] = []
+            if hasattr(schema, "__iter__"):
+                column_order = [
+                    getattr(field, "name", field) for field in schema
+                ]
+            if not column_order and hasattr(schema, "fieldNames"):
+                column_order = list(schema.fieldNames())
+            if not column_order and hasattr(schema, "names"):
+                column_order = list(schema.names)
+            if not column_order:
+                column_order = list(getattr(bronze_df, "columns", []))
+            structured_rows = []
+            for row in filtered_rows:
+                if hasattr(row, "asDict"):
+                    row_dict = row.asDict()
+                    structured_rows.append(
+                        tuple(row_dict.get(col) for col in column_order)
+                    )
+                else:
+                    structured_rows.append(tuple(row))
+            return self.spark.createDataFrame(
+                structured_rows, schema, verifySchema=False
+            )
+        except Exception:
+            return None
+
+    @staticmethod
+    def _extract_row_value(row: Any, column: str) -> object | None:
+        """Safely extract a column value from a Row-like object."""
+        if hasattr(row, "__getitem__"):
+            try:
+                return row[column]
+            except Exception:
+                try:
+                    return row[0]
+                except Exception:
+                    pass
+        if hasattr(row, "asDict"):
+            try:
+                return row.asDict().get(column)
+            except Exception:
+                return None
+        return None
 
     def _execute_gold_step(
         self, step: GoldStep, context: Dict[str, DataFrame]

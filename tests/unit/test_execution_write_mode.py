@@ -7,6 +7,8 @@ execution mode to prevent data overwriting issues in incremental pipelines.
 """
 
 import os
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -201,6 +203,98 @@ class TestExecutionEngineWriteMode:
             f"Expected write_mode=None for validation_only mode, "
             f"but got '{result.write_mode}'"
         )
+
+    def test_incremental_filter_excludes_existing_rows(self, config):
+        """Ensure silver incremental filtering drops already processed rows."""
+        mock_spark = MagicMock()
+        engine = ExecutionEngine(mock_spark, config, PipelineLogger("test"))
+
+        silver_step = SilverStep(
+            name="silver_step",
+            source_bronze="bronze_step",
+            transform=lambda spark, df, silvers: df,
+            rules={"id": ["not_null"]},
+            table_name="silver_table",
+            schema="analytics",
+            watermark_col="id",
+            source_incremental_col="id",
+        )
+
+        bronze_df = MagicMock()
+        bronze_df.columns = ["id", "company"]
+        filtered_df = MagicMock(name="filtered_df")
+        bronze_df.filter.return_value = filtered_df
+
+        # Mock F.col() and F.lit() to return mock column expressions
+        mock_col_expr = MagicMock()
+        mock_lit_expr = MagicMock()
+        mock_comparison = MagicMock()
+        mock_col_expr.__gt__.return_value = mock_comparison
+
+        existing_row = SimpleNamespace(asDict=lambda: {"id": 2})
+        mock_table = MagicMock()
+        mock_table.columns = ["id"]
+        mock_table.select.return_value.collect.return_value = [existing_row]
+        mock_spark.table.return_value = mock_table
+        bronze_df.schema = [
+            SimpleNamespace(name="id"),
+            SimpleNamespace(name="company"),
+        ]
+
+        with patch("pipeline_builder.execution.F") as mock_F:
+            mock_F.col.return_value = mock_col_expr
+            mock_F.lit.return_value = mock_lit_expr
+
+            result_df = engine._filter_incremental_bronze_input(silver_step, bronze_df)
+
+        bronze_df.filter.assert_called_once()
+        assert result_df is filtered_df
+
+    def test_incremental_filter_uses_mock_fallback_when_needed(self, config):
+        """Fallback to collect-and-filter for mock spark when filter raises."""
+        mock_spark = MagicMock()
+        engine = ExecutionEngine(mock_spark, config, PipelineLogger("test"))
+
+        silver_step = SilverStep(
+            name="silver_step",
+            source_bronze="bronze_step",
+            transform=lambda spark, df, silvers: df,
+            rules={"id": ["not_null"]},
+            table_name="silver_table",
+            schema="analytics",
+            watermark_col="id",
+            source_incremental_col="id",
+        )
+
+        bronze_df = MagicMock()
+        bronze_df.columns = ["id", "company"]
+        bronze_df.filter.side_effect = AssertionError("mock filter failure")
+        bronze_df.collect.return_value = [
+            SimpleNamespace(asDict=lambda: {"id": 1, "company": "old"}),
+            SimpleNamespace(asDict=lambda: {"id": 3, "company": "new"}),
+        ]
+        filtered_df = MagicMock(name="fallback_df")
+        mock_spark.createDataFrame.return_value = filtered_df
+
+        existing_row = SimpleNamespace(asDict=lambda: {"id": 2})
+        mock_table = MagicMock()
+        mock_table.columns = ["id"]
+        mock_table.select.return_value.collect.return_value = [existing_row]
+        mock_spark.table.return_value = mock_table
+        bronze_df.schema = [
+            SimpleNamespace(name="id"),
+            SimpleNamespace(name="company"),
+        ]
+
+        def mock_using_mock():
+            return True
+
+        engine._using_mock_spark = mock_using_mock  # type: ignore[method-assign]
+
+        result_df = engine._filter_incremental_bronze_input(silver_step, bronze_df)
+
+        mock_spark.createDataFrame.assert_called_once()
+        assert result_df is filtered_df
 
     def test_validation_only_mode_has_no_write_mode_for_gold_step(
         self, execution_engine, gold_step, context

@@ -697,7 +697,9 @@ class TestPrivateMethodsComplete:
         )
 
         context = {"test_bronze": test_df}
-        result = engine._execute_silver_step(silver_step, context)
+        result = engine._execute_silver_step(
+            silver_step, context, ExecutionMode.INITIAL
+        )
 
         assert result.count() == 2
 
@@ -726,7 +728,7 @@ class TestPrivateMethodsComplete:
         with pytest.raises(
             ExecutionError, match="Source bronze step missing_bronze not found"
         ):
-            engine._execute_silver_step(silver_step, context)
+            engine._execute_silver_step(silver_step, context, ExecutionMode.INITIAL)
 
     def test_execute_gold_step_success(self, spark_session):
         """Test gold step execution success."""

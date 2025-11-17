@@ -82,6 +82,8 @@ class TestWriteModeIntegration:
             rules={"id": [F.col("id").isNotNull()]},
             table_name="test_silver_table",
             schema="test_schema",
+            watermark_col="id",
+            source_incremental_col="id",
         )
 
     @pytest.fixture

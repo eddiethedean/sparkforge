@@ -430,6 +430,7 @@ class PipelineBuilder:
             watermark_col=watermark_col,
             existing=True,
             schema=schema,
+            source_incremental_col=None,
         )
 
         self.silver_steps[name] = silver_step
@@ -614,6 +615,9 @@ class PipelineBuilder:
         # Convert string rules to PySpark Column objects
         converted_rules = _convert_rules_to_expressions(rules, self.functions)
 
+        # Capture the incremental column from the source bronze step (if any)
+        source_incremental_col = self.bronze_steps[source_bronze].incremental_col
+
         # Create silver step
         silver_step = SilverStep(
             name=name,
@@ -623,6 +627,7 @@ class PipelineBuilder:
             table_name=table_name,
             watermark_col=watermark_col,
             schema=schema,
+            source_incremental_col=source_incremental_col,
         )
 
         self.silver_steps[name] = silver_step
