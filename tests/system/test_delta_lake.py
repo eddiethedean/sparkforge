@@ -55,6 +55,11 @@ class TestDeltaLakeComprehensive:
         # Clean up
         spark_session.sql(f"DROP TABLE IF EXISTS {table_name}")
 
+    @pytest.mark.skipif(
+        os.environ.get("SPARKFORGE_ENGINE", "mock").lower() == "mock"
+        or os.environ.get("SPARK_MODE", "mock").lower() == "mock",
+        reason="Delta Lake schema evolution not fully supported in mock-spark",
+    )
     def test_delta_lake_schema_evolution(self, spark_session):
         """Test schema evolution capabilities."""
         # Create initial schema

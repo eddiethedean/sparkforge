@@ -527,7 +527,7 @@ class TestExecutionIntegration:
             # Verify logging calls
             assert mock_info.call_count >= 2  # Start and completion
             # Check for new logging format with emojis and uppercase
-            mock_info.assert_any_call("🚀 Starting BRONZE step: test_bronze")
+            mock_info.assert_any_call("▶️ Starting BRONZE step: test_bronze")
             # Note: Completed message includes timing and metrics, just check it was called
             assert any(
                 "Completed BRONZE step: test_bronze" in str(call)

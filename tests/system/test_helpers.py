@@ -10,7 +10,8 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Tuple
 
 import pytest
-from pyspark.sql import DataFrame, SparkSession
+# Use compatibility layer
+from pipeline_builder.compat import DataFrame, SparkSession
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":

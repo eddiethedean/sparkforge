@@ -22,8 +22,8 @@ from typing import Callable, Dict, TypedDict, Union, cast
 
 from ..compat import DataFrame, SparkSession
 from ..functions import FunctionsProtocol, get_default_functions
-from ..logging import PipelineLogger
-from ..models import ExecutionResult, StepResult
+from pipeline_builder_base.logging import PipelineLogger
+from pipeline_builder_base.models import ExecutionResult, StepResult
 from ..validation import get_dataframe_info
 from .exceptions import WriterValidationError
 from .models import (

@@ -7,16 +7,31 @@ with actual Spark DataFrames and Delta Lake operations.
 """
 
 import os
+from dataclasses import dataclass
 from datetime import datetime
 
 import pytest
+
+# TypedDict is available in typing for Python 3.8+
+try:
+    from typing import TypedDict
+except ImportError:
+    from typing_extensions import TypedDict
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
     from mock_spark import functions as F
 else:
     from pyspark.sql import functions as F
-from pyspark.sql.types import StringType, StructField, StructType
+# Import types based on engine
+_ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
+if _ENGINE in ("pyspark", "spark", "real"):
+    try:
+        from pyspark.sql.types import StringType, StructField, StructType
+    except ImportError:
+        from mock_spark.spark_types import StringType, StructField, StructType
+else:
+    from mock_spark.spark_types import StringType, StructField, StructType
 
 # add_metadata_columns and remove_metadata_columns functions removed - not needed for simplified system
 from pipeline_builder.models import StageStats

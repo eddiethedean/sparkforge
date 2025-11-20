@@ -12,6 +12,8 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from ..compat import DataFrame
+# Re-export safe_divide from base for backward compatibility
+from pipeline_builder_base.validation import safe_divide
 
 
 def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> float:

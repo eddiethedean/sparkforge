@@ -83,23 +83,21 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict
 
-from pipeline_builder.compat import DataFrame, F, SparkSession, is_mock_spark
-from pipeline_builder.dependencies import DependencyAnalyzer
-from pipeline_builder.errors import ExecutionError
-from pipeline_builder.functions import FunctionsProtocol
-from pipeline_builder.logging import PipelineLogger
-from pipeline_builder.models import BronzeStep, GoldStep, PipelineConfig, SilverStep
-from pipeline_builder.table_operations import fqn
-from pipeline_builder.validation import apply_column_rules
-
-
-class ExecutionMode(Enum):
-    """Pipeline execution modes."""
-
-    INITIAL = "initial"
-    INCREMENTAL = "incremental"
-    FULL_REFRESH = "full_refresh"
-    VALIDATION_ONLY = "validation_only"
+from .compat import DataFrame, F, SparkSession, is_mock_spark
+from .functions import FunctionsProtocol
+from .models import BronzeStep, GoldStep, SilverStep
+from .table_operations import fqn
+from .validation import apply_column_rules
+from pipeline_builder_base.dependencies import DependencyAnalyzer
+from pipeline_builder_base.errors import ExecutionError
+from pipeline_builder_base.logging import PipelineLogger
+from pipeline_builder_base.models import (
+    ExecutionContext,
+    ExecutionMode,
+    PipelineConfig,
+    PipelineMetrics,
+    StepResult,
+)
 
 
 class StepStatus(Enum):
@@ -295,9 +293,25 @@ class ExecutionEngine:
                     # This bypasses CTE optimization in mock-spark
                     collected_data = df.collect()
 
-                    # Recreate DataFrame from collected data
-                    # This ensures all columns are fully materialized
-                    df = self.spark.createDataFrame(collected_data, schema)
+                    # Convert Row objects to dictionaries to preserve column names
+                    # This fixes a bug in mock-spark's Polars backend where Row objects
+                    # lose column names during materialization after filter operations
+                    if collected_data and hasattr(collected_data[0], "asDict"):
+                        # Convert Row objects to dictionaries
+                        dict_data = [row.asDict() for row in collected_data]
+                    elif collected_data:
+                        # Fallback: try to convert to dict if possible
+                        try:
+                            dict_data = [dict(row) for row in collected_data]
+                        except (TypeError, ValueError):
+                            # If conversion fails, use original data
+                            dict_data = collected_data
+                    else:
+                        dict_data = collected_data
+
+                    # Recreate DataFrame from dictionary data
+                    # This ensures all columns are fully materialized with correct names
+                    df = self.spark.createDataFrame(dict_data, schema)
                 except Exception as e:
                     # If materialization fails, try alternative: just cache and count
                     try:
@@ -495,8 +509,10 @@ class ExecutionEngine:
             result.end_time = datetime.now()
             result.duration = (result.end_time - result.start_time).total_seconds()
 
-            # Use logger's step_failed method for consistent formatting with emoji and uppercase
-            self.logger.step_failed(step_type.value, step.name, str(e), result.duration)
+            # Log step failure
+            self.logger.error(
+                f"❌ Failed {step_type.value.upper()} step: {step.name} ({result.duration:.2f}s) - {str(e)}"
+            )
             raise ExecutionError(f"Step execution failed: {e}") from e
 
         return result

@@ -12,6 +12,8 @@ echo ""
 if [ -f "venv38/bin/activate" ]; then
     source venv38/bin/activate
     echo "✅ Virtual environment activated"
+    # Set mock-spark as default engine for tests
+    export SPARKFORGE_ENGINE=mock
 else
     echo "❌ Virtual environment not found. Run: python3.8 -m venv venv38"
     exit 1

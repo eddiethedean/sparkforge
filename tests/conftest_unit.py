@@ -9,15 +9,9 @@ import os
 from unittest.mock import Mock
 
 import pytest
-from pyspark.sql import DataFrame, SparkSession
 
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import DataFrame as DataFrame
-    from mock_spark import functions as F
-else:
-    from pyspark.sql import DataFrame
-    from pyspark.sql import functions as F
+# Use compatibility layer
+from pipeline_builder.compat import DataFrame, F, SparkSession
 
 
 @pytest.fixture

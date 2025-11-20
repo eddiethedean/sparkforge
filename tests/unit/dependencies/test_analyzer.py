@@ -2,6 +2,8 @@
 Tests for the dependencies/analyzer.py module.
 """
 
+from dataclasses import dataclass
+from enum import Enum
 from unittest.mock import Mock, patch
 
 import pytest
@@ -12,7 +14,13 @@ from pipeline_builder.dependencies.analyzer import (
     DependencyAnalyzer,
 )
 from pipeline_builder.dependencies.exceptions import DependencyError
-from pipeline_builder.dependencies.graph import DependencyGraph, StepNode, StepType
+from pipeline_builder_base.dependencies.graph import DependencyGraph, StepNode, StepType
+# Import from base for isinstance checks and enum comparisons to work correctly
+from pipeline_builder_base.dependencies.graph import (
+    DependencyGraph as BaseDependencyGraph,
+    StepType as BaseStepType,
+)
+from pipeline_builder_base.dependencies.exceptions import DependencyError as BaseDependencyError
 from pipeline_builder.logging import PipelineLogger
 from pipeline_builder.models import BronzeStep, GoldStep, SilverStep
 
@@ -76,7 +84,8 @@ class TestDependencyAnalyzer:
         analyzer = DependencyAnalyzer()
         result = analyzer.analyze_dependencies()
         assert isinstance(result, DependencyAnalysisResult)
-        assert isinstance(result.graph, DependencyGraph)
+        # Use BaseDependencyGraph for isinstance check since result.graph is from base package
+        assert isinstance(result.graph, BaseDependencyGraph)
         assert result.execution_groups == []
         assert result.cycles == []
         assert result.conflicts == []
@@ -268,8 +277,9 @@ class TestDependencyAnalyzer:
         with patch.object(
             analyzer, "_build_dependency_graph", side_effect=Exception("Test error")
         ):
+            # Use BaseDependencyError for exception matching since the actual exception is from base package
             with pytest.raises(
-                DependencyError, match="Dependency analysis failed: Test error"
+                BaseDependencyError, match="Dependency analysis failed: Test error"
             ):
                 analyzer.analyze_dependencies()
 
@@ -291,8 +301,9 @@ class TestDependencyAnalyzer:
         assert len(graph.nodes) == 2
         assert "bronze1" in graph.nodes
         assert "bronze2" in graph.nodes
-        assert graph.nodes["bronze1"].step_type == StepType.BRONZE
-        assert graph.nodes["bronze2"].step_type == StepType.BRONZE
+        # Compare enum values since StepType might be from different modules
+        assert graph.nodes["bronze1"].step_type.value == BaseStepType.BRONZE.value
+        assert graph.nodes["bronze2"].step_type.value == BaseStepType.BRONZE.value
 
     def test_build_dependency_graph_silver_steps(self):
         """Test _build_dependency_graph with silver steps."""
@@ -309,7 +320,8 @@ class TestDependencyAnalyzer:
         graph = analyzer._build_dependency_graph(None, silver_steps, None)
         assert len(graph.nodes) == 1
         assert "silver1" in graph.nodes
-        assert graph.nodes["silver1"].step_type == StepType.SILVER
+        # Compare enum values since StepType might be from different modules
+        assert graph.nodes["silver1"].step_type.value == BaseStepType.SILVER.value
 
     def test_build_dependency_graph_gold_steps(self):
         """Test _build_dependency_graph with gold steps."""
@@ -326,7 +338,8 @@ class TestDependencyAnalyzer:
         graph = analyzer._build_dependency_graph(None, None, gold_steps)
         assert len(graph.nodes) == 1
         assert "gold1" in graph.nodes
-        assert graph.nodes["gold1"].step_type == StepType.GOLD
+        # Compare enum values since StepType might be from different modules
+        assert graph.nodes["gold1"].step_type.value == BaseStepType.GOLD.value
 
     def test_resolve_cycles(self):
         """Test _resolve_cycles method."""

@@ -26,9 +26,11 @@ from pipeline_builder.models import (
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
     from mock_spark import SparkSession
     from mock_spark import functions as F
+    from mock_spark import IntegerType, StringType, StructField, StructType
 else:
     from pyspark.sql import SparkSession
     from pyspark.sql import functions as F
+    from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
 
 class TestExecutionEngineWriteMode:
@@ -93,7 +95,12 @@ class TestExecutionEngineWriteMode:
     @pytest.fixture
     def context(self, spark_session):
         """Create test execution context."""
-        test_df = spark_session.createDataFrame([(1, "test")], ["id", "name"])
+        # Use StructType schema for mock-spark compatibility
+        schema = StructType([
+            StructField("id", IntegerType(), True),
+            StructField("name", StringType(), True),
+        ])
+        test_df = spark_session.createDataFrame([{"id": 1, "name": "test"}], schema)
         return {
             "test_bronze": test_df,
             "test_silver": test_df,  # For gold step tests

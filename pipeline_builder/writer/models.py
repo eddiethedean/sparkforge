@@ -19,8 +19,8 @@ from enum import Enum
 from typing import Any, Dict, Literal, TypedDict
 
 from ..compat import types
-from ..models import ExecutionContext, ExecutionResult, StepResult
 from ..pipeline.models import PipelineReport
+from pipeline_builder_base.models import ExecutionContext, ExecutionResult, StepResult
 
 # Import specific types for convenience
 BooleanType = types.BooleanType

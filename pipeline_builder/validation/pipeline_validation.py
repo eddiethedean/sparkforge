@@ -16,8 +16,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict
 
-from ..logging import PipelineLogger
-from ..models import BronzeStep, ExecutionContext, GoldStep, PipelineConfig, SilverStep
+from ..models import BronzeStep, GoldStep, SilverStep
+from pipeline_builder_base.logging import PipelineLogger
+from pipeline_builder_base.models import ExecutionContext, PipelineConfig
 
 # Type alias for step names
 StepName = str

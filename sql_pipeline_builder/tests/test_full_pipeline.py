@@ -1,0 +1,388 @@
+"""
+Full pipeline integration tests for sql_pipeline_builder.
+
+These tests verify complete pipeline execution from Bronze → Silver → Gold
+with real SQLAlchemy operations.
+"""
+
+import pytest
+from sqlalchemy import Column, Integer, String, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import Session
+
+from sql_pipeline_builder import SqlPipelineBuilder
+from pipeline_builder_base.models import ExecutionMode
+
+Base = declarative_base()
+
+
+class UserEvent(Base):
+    """Sample bronze table model."""
+    __tablename__ = "user_events"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(String)
+    event_type = Column(String)
+    value = Column(Integer)
+    timestamp = Column(String)  # Using string for simplicity in SQLite
+
+
+class CleanEvent(Base):
+    """Sample silver table model."""
+    __tablename__ = "clean_events"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(String)
+    event_type = Column(String)
+    value = Column(Integer)
+    event_date = Column(String)
+
+
+class DailyMetric(Base):
+    """Sample gold table model."""
+    __tablename__ = "daily_metrics"
+    event_date = Column(String, primary_key=True)
+    total_events = Column(Integer)
+    unique_users = Column(Integer)
+
+
+@pytest.fixture
+def sqlite_session():
+    """Create a SQLite in-memory session with sample data."""
+    engine = create_engine("sqlite:///:memory:", echo=False)
+    Base.metadata.create_all(engine)
+    session = Session(engine)
+    
+    # Insert sample bronze data
+    events = [
+        UserEvent(user_id="user1", event_type="click", value=100, timestamp="2024-01-01"),
+        UserEvent(user_id="user2", event_type="purchase", value=200, timestamp="2024-01-01"),
+        UserEvent(user_id="user1", event_type="click", value=150, timestamp="2024-01-02"),
+        UserEvent(user_id="user3", event_type="purchase", value=300, timestamp="2024-01-02"),
+    ]
+    session.add_all(events)
+    session.commit()
+    
+    yield session
+    session.close()
+
+
+def test_full_pipeline_initial_load(sqlite_session):
+    """Test complete pipeline execution with initial load."""
+    # Build pipeline
+    builder = SqlPipelineBuilder(session=sqlite_session, schema="analytics")
+    
+    # Bronze: Validate raw events
+    builder.with_bronze_rules(
+        name="events",
+        rules={
+            "user_id": [UserEvent.user_id.is_not(None)],
+            "value": [UserEvent.value > 0],
+        },
+        incremental_col="timestamp",
+        model_class=UserEvent,
+    )
+    
+    # Silver: Clean and transform events
+    def clean_events(session, bronze_query, silvers):
+        from sqlalchemy import func, literal
+        return (
+            bronze_query
+            .filter(UserEvent.value > 50)  # Filter low-value events
+            .with_entities(
+                UserEvent.id,
+                UserEvent.user_id,
+                UserEvent.event_type,
+                UserEvent.value,
+                # SQLite doesn't have date() function, use substring for simplicity
+                func.substr(UserEvent.timestamp, 1, 10).label("event_date"),
+            )
+        )
+    
+    builder.add_silver_transform(
+        name="clean_events",
+        source_bronze="events",
+        transform=clean_events,
+        rules={
+            "user_id": [UserEvent.user_id.is_not(None)],
+            "value": [UserEvent.value > 50],
+        },
+        table_name="clean_events",
+        model_class=CleanEvent,
+    )
+    
+    # Gold: Aggregate daily metrics
+    def daily_metrics(session, silvers):
+        from sqlalchemy import func
+        # Read from the clean_events table (silver step output)
+        clean_events_query = silvers["clean_events"]
+        # Query the table and aggregate
+        return (
+            clean_events_query
+            .with_entities(
+                CleanEvent.event_date,
+                func.count(CleanEvent.id).label("total_events"),
+                func.count(func.distinct(CleanEvent.user_id)).label("unique_users"),
+            )
+            .group_by(CleanEvent.event_date)
+        )
+    
+    builder.add_gold_transform(
+        name="daily_metrics",
+        transform=daily_metrics,
+        rules={"event_date": []},  # Empty list means no validation
+        table_name="daily_metrics",
+        source_silvers=["clean_events"],
+        model_class=DailyMetric,
+    )
+    
+    # Execute pipeline
+    pipeline = builder.to_pipeline()
+    bronze_source = sqlite_session.query(UserEvent)
+    
+    result = pipeline.run_initial_load(bronze_sources={"events": bronze_source})
+    
+    # Verify execution succeeded
+    assert result.success, f"Pipeline failed: {result.step_results}"
+    assert len(result.step_results) == 3  # Bronze, Silver, Gold
+    
+    # Verify bronze step
+    bronze_result = next(r for r in result.step_results if r.step_name == "events")
+    assert bronze_result.success
+    assert bronze_result.rows_processed > 0
+    
+    # Verify silver step
+    silver_result = next(r for r in result.step_results if r.step_name == "clean_events")
+    assert silver_result.success
+    assert silver_result.rows_written > 0
+    assert silver_result.table_fqn == "analytics.clean_events"
+    
+    # Verify gold step
+    gold_result = next(r for r in result.step_results if r.step_name == "daily_metrics")
+    assert gold_result.success
+    assert gold_result.rows_written > 0
+    assert gold_result.table_fqn == "analytics.daily_metrics"
+    
+    # Verify data was written to tables
+    clean_events_count = sqlite_session.query(CleanEvent).count()
+    assert clean_events_count > 0
+    
+    daily_metrics_count = sqlite_session.query(DailyMetric).count()
+    assert daily_metrics_count > 0
+
+
+def test_pipeline_with_validation_failure(sqlite_session):
+    """Test pipeline behavior when validation fails."""
+    # Insert data that will fail validation
+    bad_event = UserEvent(user_id=None, event_type="click", value=0, timestamp="2024-01-01")
+    sqlite_session.add(bad_event)
+    sqlite_session.commit()
+    
+    builder = SqlPipelineBuilder(session=sqlite_session, schema="analytics")
+    
+    # Bronze with strict validation
+    builder.with_bronze_rules(
+        name="events",
+        rules={
+            "user_id": [UserEvent.user_id.is_not(None)],
+            "value": [UserEvent.value > 0],
+        },
+        model_class=UserEvent,
+    )
+    
+    # Simple silver transform
+    def clean_events(session, bronze_query, silvers):
+        return bronze_query.filter(UserEvent.user_id.is_not(None))
+    
+    builder.add_silver_transform(
+        name="clean_events",
+        source_bronze="events",
+        transform=clean_events,
+        rules={"user_id": [UserEvent.user_id.is_not(None)]},
+        table_name="clean_events",
+        model_class=CleanEvent,
+    )
+    
+    pipeline = builder.to_pipeline()
+    bronze_source = sqlite_session.query(UserEvent)
+    
+    result = pipeline.run_initial_load(bronze_sources={"events": bronze_source})
+    
+    # Pipeline should still succeed, but validation should filter out invalid rows
+    assert result.success
+    
+    # Check that invalid rows were filtered
+    bronze_result = next(r for r in result.step_results if r.step_name == "events")
+    # Validation rate should be less than 100% due to invalid row
+    assert bronze_result.validation_rate < 100.0
+
+
+def test_pipeline_with_multiple_silver_steps(sqlite_session):
+    """Test pipeline with multiple silver steps feeding into gold."""
+    builder = SqlPipelineBuilder(session=sqlite_session, schema="analytics")
+    
+    # Bronze
+    builder.with_bronze_rules(
+        name="events",
+        rules={"user_id": [UserEvent.user_id.is_not(None)]},
+        model_class=UserEvent,
+    )
+    
+    # Silver 1: Click events
+    def click_events(session, bronze_query, silvers):
+        return bronze_query.filter(UserEvent.event_type == "click")
+    
+    builder.add_silver_transform(
+        name="click_events",
+        source_bronze="events",
+        transform=click_events,
+        rules={"event_type": [UserEvent.event_type == "click"]},
+        table_name="click_events",
+        model_class=CleanEvent,
+    )
+    
+    # Silver 2: Purchase events
+    def purchase_events(session, bronze_query, silvers):
+        return bronze_query.filter(UserEvent.event_type == "purchase")
+    
+    builder.add_silver_transform(
+        name="purchase_events",
+        source_bronze="events",
+        transform=purchase_events,
+        rules={"event_type": [UserEvent.event_type == "purchase"]},
+        table_name="purchase_events",
+        model_class=CleanEvent,
+    )
+    
+    # Gold: Combine both silver sources
+    def combined_metrics(session, silvers):
+        from sqlalchemy import func, select, literal
+        clicks = silvers["click_events"]
+        purchases = silvers["purchase_events"]
+        
+        # Count events by type
+        click_count = clicks.count()
+        purchase_count = purchases.count()
+        
+        # Return a simple query with both counts using proper select syntax
+        # SQLAlchemy select() requires columns as separate arguments, not a list
+        return (
+            select(
+                literal("click").label("event_type"),
+                literal(click_count).label("count"),
+            ).union_all(
+                select(
+                    literal("purchase").label("event_type"),
+                    literal(purchase_count).label("count"),
+                )
+            )
+        )
+    
+    builder.add_gold_transform(
+        name="event_type_metrics",
+        transform=combined_metrics,
+        rules={"event_type": []},
+        table_name="event_type_metrics",
+        source_silvers=["click_events", "purchase_events"],
+    )
+    
+    # Execute
+    pipeline = builder.to_pipeline()
+    bronze_source = sqlite_session.query(UserEvent)
+    
+    result = pipeline.run_initial_load(bronze_sources={"events": bronze_source})
+    
+    assert result.success
+    assert len(result.step_results) == 4  # 1 bronze + 2 silver + 1 gold
+    
+    # Verify both silver steps executed
+    click_result = next(r for r in result.step_results if r.step_name == "click_events")
+    purchase_result = next(r for r in result.step_results if r.step_name == "purchase_events")
+    assert click_result.success
+    assert purchase_result.success
+
+
+def test_pipeline_incremental_mode(sqlite_session):
+    """Test pipeline execution in incremental mode."""
+    builder = SqlPipelineBuilder(session=sqlite_session, schema="analytics")
+    
+    # Bronze with incremental column
+    builder.with_bronze_rules(
+        name="events",
+        rules={"user_id": [UserEvent.user_id.is_not(None)]},
+        incremental_col="timestamp",
+        model_class=UserEvent,
+    )
+    
+    # Silver with watermark
+    def clean_events(session, bronze_query, silvers):
+        return bronze_query.filter(UserEvent.value > 0)
+    
+    builder.add_silver_transform(
+        name="clean_events",
+        source_bronze="events",
+        transform=clean_events,
+        rules={"value": [UserEvent.value > 0]},
+        table_name="clean_events",
+        watermark_col="timestamp",
+        model_class=CleanEvent,
+    )
+    
+    pipeline = builder.to_pipeline()
+    bronze_source = sqlite_session.query(UserEvent)
+    
+    # Run initial load
+    result1 = pipeline.run_initial_load(bronze_sources={"events": bronze_source})
+    assert result1.success
+    
+    # Add new data
+    new_event = UserEvent(user_id="user4", event_type="click", value=250, timestamp="2024-01-03")
+    sqlite_session.add(new_event)
+    sqlite_session.commit()
+    
+    # Run incremental load - filter to only new events
+    # In a real scenario, we'd use the incremental_col to filter, but for this test
+    # we'll just query the new event
+    new_event_query = sqlite_session.query(UserEvent).filter(UserEvent.timestamp == "2024-01-03")
+    result2 = pipeline.run_incremental(bronze_sources={"events": new_event_query})
+    assert result2.success
+    
+    # Verify incremental execution
+    assert result2.context.mode == ExecutionMode.INCREMENTAL
+
+
+def test_pipeline_error_handling(sqlite_session):
+    """Test pipeline error handling when transform fails."""
+    builder = SqlPipelineBuilder(session=sqlite_session, schema="analytics")
+    
+    builder.with_bronze_rules(
+        name="events",
+        rules={"user_id": [UserEvent.user_id.is_not(None)]},
+        model_class=UserEvent,
+    )
+    
+    # Transform that will fail
+    def failing_transform(session, bronze_query, silvers):
+        # This will fail because we're trying to access a non-existent column
+        return bronze_query.with_entities(bronze_query.c.non_existent_column)
+    
+    builder.add_silver_transform(
+        name="failing_step",
+        source_bronze="events",
+        transform=failing_transform,
+        rules={"user_id": []},
+        table_name="failing_step",
+        model_class=CleanEvent,
+    )
+    
+    pipeline = builder.to_pipeline()
+    bronze_source = sqlite_session.query(UserEvent)
+    
+    result = pipeline.run_initial_load(bronze_sources={"events": bronze_source})
+    
+    # Pipeline should report failure
+    assert not result.success
+    
+    # Find the failing step
+    failing_result = next(r for r in result.step_results if r.step_name == "failing_step")
+    assert not failing_result.success
+    assert failing_result.error_message is not None
+

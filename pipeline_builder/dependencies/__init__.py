@@ -37,17 +37,21 @@ Key Features:
 - Performance analysis
 """
 
-# StepComplexity removed - was not used in dependencies module
-from ..models import ExecutionMode
-from .analyzer import AnalysisStrategy, DependencyAnalysisResult, DependencyAnalyzer
-from .exceptions import (
+# Import shared dependencies from pipeline_builder_base
+from pipeline_builder_base.dependencies import (
+    AnalysisStrategy,
     CircularDependencyError,
     DependencyAnalysisError,
+    DependencyAnalysisResult,
+    DependencyAnalyzer,
     DependencyConflictError,
     DependencyError,
+    DependencyGraph,
     InvalidDependencyError,
+    StepNode,
+    StepType,
 )
-from .graph import DependencyGraph, StepNode, StepType
+from pipeline_builder_base.models import ExecutionMode
 
 __all__ = [
     "DependencyAnalyzer",

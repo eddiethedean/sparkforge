@@ -9,18 +9,36 @@ import os
 
 import pytest
 
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F
+# Use compatibility layer
+from pipeline_builder.compat import F
+
+# Import types based on engine
+_ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
+if _ENGINE in ("pyspark", "spark", "real"):
+    try:
+        from pyspark.sql.types import (
+            DoubleType,
+            IntegerType,
+            StringType,
+            StructField,
+            StructType,
+        )
+    except ImportError:
+        from mock_spark.spark_types import (
+            DoubleType,
+            IntegerType,
+            StringType,
+            StructField,
+            StructType,
+        )
 else:
-    from pyspark.sql import functions as F
-from pyspark.sql.types import (
-    DoubleType,
-    IntegerType,
-    StringType,
-    StructField,
-    StructType,
-)
+    from mock_spark.spark_types import (
+        DoubleType,
+        IntegerType,
+        StringType,
+        StructField,
+        StructType,
+    )
 
 from pipeline_builder.errors import ValidationError
 from pipeline_builder.validation import (
@@ -53,7 +71,15 @@ def reset_test_environment():
 def sample_dataframe(spark_session):
     """Create sample DataFrame for testing - validation test specific (4 rows, no category)."""
     from mock_spark import StructField, StructType
-    from pyspark.sql.types import StringType
+    # Import types based on engine
+    _ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
+    if _ENGINE in ("pyspark", "spark", "real"):
+        try:
+            from pyspark.sql.types import StringType
+        except ImportError:
+            from mock_spark.spark_types import StringType
+    else:
+        from mock_spark.spark_types import StringType
 
     # Force using StructType for consistency
     schema = StructType(

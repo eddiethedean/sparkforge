@@ -1,23 +1,26 @@
 """
 Reporting utilities for the pipeline framework.
 
-This module contains functions for creating reports, statistics, and summaries
-for pipeline execution.
-
-# Depends on:
-#   models.execution
-#   performance
-#   validation.utils
+This module re-exports reporting utilities from pipeline_builder_base
+and adds Spark-specific reporting functions if needed.
 """
 
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TypedDict
 
-from .models import StageStats
-from .performance import format_duration
-from .validation import safe_divide
+# TypedDict is available in typing for Python 3.8+
+try:
+    from typing import TypedDict
+except ImportError:
+    from typing_extensions import TypedDict
+
+# Re-export from base
+from pipeline_builder_base.reporting import (
+    format_duration,
+    safe_divide,
+)
+from pipeline_builder_base.models import StageStats
 
 # ============================================================================
 # TypedDict Definitions

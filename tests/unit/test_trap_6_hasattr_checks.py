@@ -6,15 +6,14 @@ and explicit validation where appropriate.
 """
 
 import os
+from dataclasses import dataclass
+from enum import Enum
 from unittest.mock import Mock, patch
 
 import pytest
 
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F
-else:
-    from pyspark.sql import functions as F
+# Use compatibility layer
+from pipeline_builder.compat import F
 
 from pipeline_builder.dependencies.analyzer import DependencyAnalyzer
 from pipeline_builder.execution import ExecutionEngine, ExecutionMode

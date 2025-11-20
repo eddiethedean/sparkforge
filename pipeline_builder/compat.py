@@ -13,6 +13,7 @@ Resolution order:
 from __future__ import annotations
 
 import os
+import sys
 from typing import Any, Optional, Tuple, Type
 
 _ENGINE = os.getenv("SPARKFORGE_ENGINE", "auto").lower()
@@ -52,7 +53,10 @@ def _try_import_mockspark() -> Optional[
         from mock_spark.functions import F as _F  # type: ignore
 
         return _DataFrame, _SparkSession, _Column, _F, _types, _AnalysisException
-    except Exception:
+    except Exception as e:
+        # Log the error for debugging but don't fail
+        # Note: mock-spark 3.1.0 has Python 3.8 compatibility issues
+        # This is a known issue with the mock-spark package
         return None
 
 

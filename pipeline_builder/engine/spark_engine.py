@@ -19,8 +19,8 @@ from abstracts.step import Step
 from ..compat import DataFrame, SparkSession
 from ..execution import ExecutionEngine
 from ..functions import FunctionsProtocol
-from ..logging import PipelineLogger
 from ..models import BronzeStep, GoldStep, SilverStep
+from pipeline_builder_base.logging import PipelineLogger
 from ..table_operations import fqn
 from ..validation import apply_column_rules
 

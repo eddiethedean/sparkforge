@@ -9,12 +9,22 @@ This script tests:
 4. Parallel efficiency metrics
 """
 
+import os
 import time
 from datetime import datetime
 
-from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
-from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+# Use compatibility layer
+from pipeline_builder.compat import F, SparkSession
+
+# Import types based on engine
+_ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
+if _ENGINE in ("pyspark", "spark", "real"):
+    try:
+        from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+    except ImportError:
+        from mock_spark.spark_types import IntegerType, StringType, StructField, StructType
+else:
+    from mock_spark.spark_types import IntegerType, StringType, StructField, StructType
 
 from pipeline_builder import PipelineBuilder
 from pipeline_builder.models import PipelineConfig

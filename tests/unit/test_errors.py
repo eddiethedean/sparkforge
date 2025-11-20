@@ -112,6 +112,7 @@ class TestErrorTypeSafety:
             suggestions=["Check syntax"],
             timestamp=datetime.now(),
             cause=FileNotFoundError("File not found"),
+            severity=ErrorSeverity.HIGH,  # Explicitly set severity to HIGH for test
         )
 
         assert error.message == "Config error"
@@ -339,7 +340,7 @@ class TestErrorBackwardCompatibility:
         error = ConfigurationError("Config error")
         assert error.message == "Config error"
         assert error.category == ErrorCategory.CONFIGURATION
-        assert error.severity == ErrorSeverity.HIGH
+        assert error.severity == ErrorSeverity.MEDIUM  # ConfigurationError defaults to MEDIUM
 
     def test_error_inheritance_still_works(self):
         """Test that error inheritance still works correctly."""

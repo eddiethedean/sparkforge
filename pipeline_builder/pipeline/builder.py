@@ -28,16 +28,20 @@ from abstracts.builder import PipelineBuilder as AbstractsPipelineBuilder
 
 from ..compat import DataFrame, SparkSession
 from ..engine import SparkEngine
-from ..errors import ConfigurationError as PipelineConfigurationError
-from ..errors import ExecutionError as StepError
 from ..functions import FunctionsProtocol, get_default_functions
-from ..logging import PipelineLogger
 from ..models import (
     BronzeStep,
     GoldStep,
+    SilverStep,
+)
+from pipeline_builder_base.errors import (
+    ConfigurationError as PipelineConfigurationError,
+    ExecutionError as StepError,
+)
+from pipeline_builder_base.logging import PipelineLogger
+from pipeline_builder_base.models import (
     ParallelConfig,
     PipelineConfig,
-    SilverStep,
     ValidationThresholds,
 )
 from ..types import (

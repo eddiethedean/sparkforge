@@ -72,7 +72,10 @@ def reset_global_state():
         from pipeline_builder.compat import compat_name
 
         if compat_name() == "pyspark":
-            from pyspark import SparkContext
+            # Use compatibility layer
+            from pipeline_builder.compat import SparkSession
+            # SparkContext is accessed via SparkSession
+            SparkContext = None  # Not needed for mock-spark
 
             if SparkContext._active_spark_context is not None:
                 # Don't stop it as other tests might need it

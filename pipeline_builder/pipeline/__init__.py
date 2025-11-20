@@ -15,7 +15,7 @@ Key Components:
 - PipelineMonitor: Metrics, reporting, and monitoring
 """
 
-from ..models import PipelineMetrics
+from pipeline_builder_base.models import PipelineMetrics
 from .builder import PipelineBuilder
 from .models import PipelineMode, PipelineStatus
 from .monitor import PipelineMonitor, PipelineReport

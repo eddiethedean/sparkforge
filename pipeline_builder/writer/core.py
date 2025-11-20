@@ -26,8 +26,8 @@ from typing import Any, Dict
 
 from ..compat import SparkSession
 from ..functions import FunctionsProtocol, get_default_functions
-from ..logging import PipelineLogger
-from ..models import ExecutionResult, StepResult
+from pipeline_builder_base.logging import PipelineLogger
+from pipeline_builder_base.models import ExecutionResult, StepResult
 from ..pipeline.models import PipelineReport
 from ..table_operations import table_exists
 from .analytics import (

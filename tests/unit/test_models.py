@@ -11,15 +11,9 @@ from datetime import datetime
 from unittest.mock import Mock
 
 import pytest
-from pyspark.sql import DataFrame
 
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import DataFrame as DataFrame
-    from mock_spark import functions as F
-else:
-    from pyspark.sql import DataFrame
-    from pyspark.sql import functions as F
+# Use compatibility layer
+from pipeline_builder.compat import DataFrame, F
 
 from pipeline_builder.errors import ValidationError
 from pipeline_builder.models import (  # Exceptions; Enums; Type definitions; Base classes; Step classes; Result classes; Dependency classes; Utility classes
@@ -82,9 +76,11 @@ class TestEnums:
         """Test ExecutionMode enum."""
         assert ExecutionMode.INITIAL.value == "initial"
         assert ExecutionMode.INCREMENTAL.value == "incremental"
+        assert ExecutionMode.FULL_REFRESH.value == "full_refresh"
+        assert ExecutionMode.VALIDATION_ONLY.value == "validation_only"
 
         modes = list(ExecutionMode)
-        assert len(modes) == 2
+        assert len(modes) == 4
 
     def test_write_mode_enum(self):
         """Test WriteMode enum."""

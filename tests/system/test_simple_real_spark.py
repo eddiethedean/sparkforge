@@ -20,7 +20,15 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
     from mock_spark import functions as F
 else:
     from pyspark.sql import functions as F
-from pyspark.sql.types import StringType, StructField, StructType
+# Import types based on engine
+_ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
+if _ENGINE in ("pyspark", "spark", "real"):
+    try:
+        from pyspark.sql.types import StringType, StructField, StructType
+    except ImportError:
+        from mock_spark.spark_types import StringType, StructField, StructType
+else:
+    from mock_spark.spark_types import StringType, StructField, StructType
 
 # Import the actual functions we're testing
 from pipeline_builder.validation import (

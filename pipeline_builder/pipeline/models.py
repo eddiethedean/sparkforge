@@ -15,7 +15,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict
 
-from ..models import PipelineMetrics
+from pipeline_builder_base.models import PipelineMetrics
 
 
 class PipelineMode(Enum):

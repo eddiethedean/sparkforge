@@ -18,11 +18,12 @@ Usage:
 
 How it works:
     1. Extracts version from pipeline_builder/__init__.py
-    2. Reads dependency information from module docstrings
-    3. Performs topological sort to order modules by dependencies
-    4. Creates notebook cells with module code
-    5. Removes all relative sparkforge imports (comments them out)
-    6. Generates a runnable Jupyter notebook
+    2. Reads modules from both pipeline_builder_base and pipeline_builder packages
+    3. Reads dependency information from module docstrings
+    4. Performs topological sort to order modules by dependencies (handles cross-package deps)
+    5. Creates notebook cells with module code
+    6. Removes all relative imports from pipeline_builder and pipeline_builder_base (comments them out)
+    7. Generates a runnable Jupyter notebook
 
 Output:
     A Jupyter notebook file containing:
@@ -81,38 +82,122 @@ def extract_dependencies(file_path: Path) -> List[str]:
         return []
 
 
-def get_module_info(sparkforge_root: Path) -> Dict[str, Dict]:
+def get_module_info(base_root: Path, spark_root: Path) -> Dict[str, Dict]:
     """
-    Get information about all modules including their dependencies.
+    Get information about all modules including their dependencies from both
+    pipeline_builder_base and pipeline_builder packages.
+
+    Args:
+        base_root: Path to pipeline_builder_base directory
+        spark_root: Path to pipeline_builder directory
 
     Returns:
-        Dict mapping module_path to {file_path, dependencies, code}
+        Dict mapping module_path to {file_path, dependencies, code, package}
     """
     modules = {}
 
-    for py_file in sparkforge_root.rglob("*.py"):
-        if "__pycache__" in str(py_file):
-            continue
-        if py_file.name == "__init__.py":
-            continue
+    # Process pipeline_builder_base first (base package)
+    if base_root.exists():
+        for py_file in base_root.rglob("*.py"):
+            if "__pycache__" in str(py_file):
+                continue
+            if py_file.name == "__init__.py":
+                continue
 
-        # Get module path
-        rel_path = py_file.relative_to(sparkforge_root)
-        module_path = str(rel_path).replace(".py", "").replace("/", ".")
+            # Get module path with package prefix
+            rel_path = py_file.relative_to(base_root.parent)
+            module_path = str(rel_path).replace(".py", "").replace("/", ".")
 
-        # Read file content
-        with open(py_file) as f:
-            code = f.read()
+            # Read file content
+            with open(py_file) as f:
+                code = f.read()
 
-        # Extract dependencies
-        deps = extract_dependencies(py_file)
+            # Extract dependencies and normalize them
+            deps = extract_dependencies(py_file)
+            # Normalize dependencies to use module paths
+            normalized_deps = []
+            for dep in deps:
+                # If dependency is a module name, check if it exists in base or spark
+                if dep in modules:
+                    normalized_deps.append(dep)
+                else:
+                    # Try to find the module
+                    # Dependencies might be relative like "errors" or "models.base"
+                    # Convert to full module path
+                    if "." in dep:
+                        # Already a full path, check if it exists
+                        if dep in modules:
+                            normalized_deps.append(dep)
+                    else:
+                        # Simple name, try both packages
+                        base_path = f"pipeline_builder_base.{dep}"
+                        spark_path = f"pipeline_builder.{dep}"
+                        if base_path in modules:
+                            normalized_deps.append(base_path)
+                        elif spark_path in modules:
+                            normalized_deps.append(spark_path)
+                        else:
+                            # Keep original for now, will be resolved during sort
+                            normalized_deps.append(dep)
 
-        modules[module_path] = {
-            "file_path": py_file,
-            "dependencies": deps,
-            "code": code,
-            "name": py_file.stem,
-        }
+            modules[module_path] = {
+                "file_path": py_file,
+                "dependencies": normalized_deps,
+                "code": code,
+                "name": py_file.stem,
+                "package": "pipeline_builder_base",
+            }
+
+    # Process pipeline_builder (Spark-specific package)
+    if spark_root.exists():
+        for py_file in spark_root.rglob("*.py"):
+            if "__pycache__" in str(py_file):
+                continue
+            if py_file.name == "__init__.py":
+                continue
+
+            # Get module path with package prefix
+            rel_path = py_file.relative_to(spark_root.parent)
+            module_path = str(rel_path).replace(".py", "").replace("/", ".")
+
+            # Read file content
+            with open(py_file) as f:
+                code = f.read()
+
+            # Extract dependencies and normalize them
+            deps = extract_dependencies(py_file)
+            # Normalize dependencies - convert pipeline_builder_base references
+            normalized_deps = []
+            for dep in deps:
+                # Check if dependency refers to pipeline_builder_base
+                if dep.startswith("pipeline_builder_base."):
+                    # Keep as is - it's an absolute reference
+                    normalized_deps.append(dep)
+                elif "." in dep:
+                    # Relative path within pipeline_builder, convert to full path
+                    full_path = f"pipeline_builder.{dep}"
+                    if full_path in modules:
+                        normalized_deps.append(full_path)
+                    else:
+                        normalized_deps.append(dep)
+                else:
+                    # Simple name, try to resolve
+                    base_path = f"pipeline_builder_base.{dep}"
+                    spark_path = f"pipeline_builder.{dep}"
+                    if base_path in modules:
+                        normalized_deps.append(base_path)
+                    elif spark_path in modules:
+                        normalized_deps.append(spark_path)
+                    else:
+                        normalized_deps.append(dep)
+
+            modules[module_path] = {
+                "file_path": py_file,
+                "dependencies": normalized_deps,
+                "code": code,
+                "name": py_file.stem,
+                "package": "pipeline_builder",
+            }
 
     return modules
 
@@ -135,10 +220,30 @@ def topological_sort(modules: Dict[str, Dict]) -> List[str]:
 
     for module, info in modules.items():
         for dep in info["dependencies"]:
+            # Check if dependency exists in modules (exact match)
             if dep in modules:
                 adjacency[dep].append(module)
                 in_degree[module] += 1
                 edges.append((dep, module))
+            else:
+                # Try to find partial matches (e.g., "errors" might refer to "pipeline_builder_base.errors")
+                # or "models.base" might refer to "pipeline_builder_base.models.base"
+                found = False
+                for mod_key in modules:
+                    # Check if dependency is a suffix of module path
+                    if mod_key.endswith(f".{dep}") or mod_key == dep:
+                        adjacency[mod_key].append(module)
+                        in_degree[module] += 1
+                        edges.append((mod_key, module))
+                        found = True
+                        break
+                    # Check if dependency matches a module name
+                    if modules[mod_key]["name"] == dep:
+                        adjacency[mod_key].append(module)
+                        in_degree[module] += 1
+                        edges.append((mod_key, module))
+                        found = True
+                        break
 
     # Find nodes with no incoming edges
     queue = deque([module for module, degree in in_degree.items() if degree == 0])
@@ -189,6 +294,7 @@ def remove_sparkforge_imports(code: str) -> str:
     """
     # Normalize absolute imports so we can treat them uniformly in the line pass
     code = re.sub(r"(?m)^\s*from\s+pipeline_builder\.", "from .", code)
+    code = re.sub(r"(?m)^\s*from\s+pipeline_builder_base\.", "from .", code)
     code = re.sub(r"(?m)^\s*from\s+sparkforge\.", "from .", code)
 
     lines = code.split("\n")
@@ -223,6 +329,22 @@ def remove_sparkforge_imports(code: str) -> str:
             if "(" in line and ")" not in line:
                 in_multiline_import = True
         elif re.match(r"^\s*import\s+pipeline_builder\b", line):
+            indent = len(line) - len(line.lstrip())
+            comment = (
+                "# " + line.strip() + "  # Removed: defined in notebook cells above"
+            )
+            new_lines.append(" " * indent + comment)
+        elif re.match(r"^\s*from\s+pipeline_builder_base\b", line):
+            # Comment out pipeline_builder_base imports
+            indent = len(line) - len(line.lstrip())
+            comment = (
+                "# " + line.strip() + "  # Removed: defined in notebook cells above"
+            )
+            new_lines.append(" " * indent + comment)
+            # Check if this starts a multi-line import
+            if "(" in line and ")" not in line:
+                in_multiline_import = True
+        elif re.match(r"^\s*import\s+pipeline_builder_base\b", line):
             indent = len(line) - len(line.lstrip())
             comment = (
                 "# " + line.strip() + "  # Removed: defined in notebook cells above"
@@ -472,7 +594,8 @@ except ImportError:
         info = modules[module_path]
 
         # Create comment header for the module
-        module_header = f"# Module: {module_path}\n#\n"
+        package_name = info.get("package", "unknown")
+        module_header = f"# Module: {module_path} ({package_name})\n#\n"
         if info["dependencies"]:
             module_header += (
                 f"# Dependencies: {', '.join(sorted(info['dependencies']))}\n\n"
@@ -572,16 +695,25 @@ def main() -> int:
     print(f"📝 Output: {output_path}")
     print("🔍 Analyzing modules...\n")
 
-    # Get all module information
-    sparkforge_root = Path("sparkforge")
-    if not sparkforge_root.exists():
-        sparkforge_root = Path("pipeline_builder")
-    if not sparkforge_root.exists():
-        raise FileNotFoundError(
-            "Could not locate source package directory. "
-            "Expected 'sparkforge/' or 'pipeline_builder/'."
-        )
-    modules = get_module_info(sparkforge_root)
+    # Get all module information from both packages
+    base_root = Path("pipeline_builder_base")
+    spark_root = Path("pipeline_builder")
+    
+    # Fallback to old structure if new structure doesn't exist
+    if not base_root.exists() and not spark_root.exists():
+        sparkforge_root = Path("sparkforge")
+        if not sparkforge_root.exists():
+            sparkforge_root = Path("pipeline_builder")
+        if not sparkforge_root.exists():
+            raise FileNotFoundError(
+                "Could not locate source package directory. "
+                "Expected 'pipeline_builder_base/' and 'pipeline_builder/' or 'sparkforge/' or 'pipeline_builder/'."
+            )
+        # Use old single-package structure
+        modules = get_module_info(Path("."), sparkforge_root)
+    else:
+        # Use new two-package structure
+        modules = get_module_info(base_root, spark_root)
 
     print(f"Found {len(modules)} modules")
 

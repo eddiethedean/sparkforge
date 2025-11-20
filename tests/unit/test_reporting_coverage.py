@@ -7,6 +7,12 @@ import sys
 from typing import Any
 from unittest.mock import Mock, patch
 
+# TypedDict is available in typing for Python 3.8+
+try:
+    from typing import TypedDict
+except ImportError:
+    from typing_extensions import TypedDict
+
 # Add the project root to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 

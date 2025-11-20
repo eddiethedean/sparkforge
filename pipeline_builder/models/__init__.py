@@ -15,20 +15,34 @@ Key Features:
 - Factory methods for common object creation
 """
 
-# Import validation error from main errors module
-from ..errors import PipelineValidationError
-from .base import BaseModel, ParallelConfig, ValidationThresholds
+# Import shared models from pipeline_builder_base
+from pipeline_builder_base.errors import PipelineValidationError
+from pipeline_builder_base.models import (
+    BaseModel,
+    ExecutionContext,
+    ExecutionMode,
+    ExecutionResult,
+    ParallelConfig,
+    PipelineConfig,
+    PipelineMetrics,
+    PipelinePhase,
+    StageStats,
+    StepResult,
+    ValidationThresholds,
+)
+from pipeline_builder_base.models.exceptions import (
+    PipelineConfigurationError,
+    PipelineExecutionError,
+)
+
+# Import Spark-specific models
 from .dependencies import (
     CrossLayerDependency,
     SilverDependencyInfo,
     UnifiedExecutionPlan,
     UnifiedStepConfig,
 )
-from .enums import ExecutionMode, PipelinePhase, ValidationResult, WriteMode
-
-# Import all models for easy access
-from .exceptions import PipelineConfigurationError, PipelineExecutionError
-from .execution import ExecutionContext, ExecutionResult, StageStats, StepResult
+from .enums import ValidationResult, WriteMode
 from .factory import (
     create_execution_context,
     create_pipeline_config,
@@ -37,7 +51,6 @@ from .factory import (
     validate_pipeline_config,
     validate_step_config,
 )
-from .pipeline import PipelineConfig, PipelineMetrics
 from .steps import BronzeStep, GoldStep, SilverStep
 from .types import (
     ColumnRule,

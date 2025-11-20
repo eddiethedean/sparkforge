@@ -37,7 +37,7 @@ from pipeline_builder.models import (
     StepResult,
     ValidationThresholds,
 )
-from pipeline_builder.models.exceptions import PipelineConfigurationError
+from pipeline_builder_base.models.exceptions import PipelineConfigurationError
 from pipeline_builder.pipeline.models import (
     PipelineMode,
     PipelineReport,

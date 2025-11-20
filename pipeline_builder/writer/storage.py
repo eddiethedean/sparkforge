@@ -30,7 +30,7 @@ except ImportError:
     HAS_DELTA = False
 
 from ..functions import FunctionsProtocol, get_default_functions
-from ..logging import PipelineLogger
+from pipeline_builder_base.logging import PipelineLogger
 from ..table_operations import table_exists
 from .exceptions import WriterTableError
 from .models import LogRow, WriteMode, WriterConfig, create_log_schema

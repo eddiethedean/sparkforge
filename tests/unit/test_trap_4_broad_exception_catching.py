@@ -104,7 +104,12 @@ class TestTrap4BroadExceptionCatching:
         )
 
         # Create a real DataFrame that will cause an exception
-        from pyspark.sql.types import StringType, StructField, StructType
+        # Use compatibility layer for mock-spark support
+        import os
+        if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+            from mock_spark import StringType, StructField, StructType
+        else:
+            from pyspark.sql.types import StringType, StructField, StructType
 
         schema = StructType([StructField("test_col", StringType(), True)])
         mock_df = spark_session.createDataFrame([], schema)

@@ -14,7 +14,16 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
     from mock_spark import functions as F
 else:
     from pyspark.sql import functions as F
-from pyspark.sql.window import Window
+# Import Window based on engine
+import os
+_ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
+if _ENGINE in ("pyspark", "spark", "real"):
+    try:
+        from pyspark.sql.window import Window
+    except ImportError:
+        from mock_spark import Window
+else:
+    from mock_spark import Window
 
 from pipeline_builder import PipelineBuilder
 from pipeline_builder.execution import ExecutionEngine

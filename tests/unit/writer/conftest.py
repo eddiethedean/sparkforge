@@ -14,7 +14,8 @@ from typing import Any
 from unittest.mock import Mock
 
 import pytest
-from pyspark.sql import SparkSession
+# Use compatibility layer
+from pipeline_builder.compat import SparkSession
 
 from pipeline_builder.logging import PipelineLogger
 from pipeline_builder.models import (

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..errors import PipelineValidationError, ValidationError
+from pipeline_builder_base.errors import PipelineValidationError, ValidationError
 from .base import BaseModel
 from .types import ColumnRules, GoldTransformFunction, SilverTransformFunction
 

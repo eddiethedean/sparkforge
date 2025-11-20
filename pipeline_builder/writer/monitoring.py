@@ -27,7 +27,7 @@ except ImportError:
     psutil = None  # type: ignore[assignment, unused-ignore]
 
 from ..compat import DataFrame, SparkSession
-from ..logging import PipelineLogger
+from pipeline_builder_base.logging import PipelineLogger
 from .exceptions import WriterError
 from .models import WriterMetrics
 from .query_builder import QueryBuilder

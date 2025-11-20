@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict
 
-from ..errors import PipelineValidationError
+from pipeline_builder_base.errors import PipelineValidationError
 from .base import BaseModel
 
 

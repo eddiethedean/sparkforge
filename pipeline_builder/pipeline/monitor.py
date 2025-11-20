@@ -14,8 +14,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict
 
-from ..logging import PipelineLogger
-from ..models import PipelineMetrics
+from pipeline_builder_base.logging import PipelineLogger
+from pipeline_builder_base.models import PipelineMetrics
 from .models import PipelineMode, PipelineReport, PipelineStatus
 
 
