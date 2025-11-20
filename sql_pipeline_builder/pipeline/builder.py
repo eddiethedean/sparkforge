@@ -11,6 +11,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict
 
+from sqlalchemy.orm import class_mapper
+from sqlalchemy.orm.exc import UnmappedClassError
+
 from pipeline_builder_base.errors import ConfigurationError, ValidationError
 from pipeline_builder_base.models.exceptions import PipelineConfigurationError
 from pipeline_builder_base.logging import PipelineLogger
@@ -257,6 +260,10 @@ class SqlPipelineBuilder:
             raise ValidationError(f"Silver step '{name}' already exists")
         if source_bronze not in self.bronze_steps:
             raise ValidationError(f"Bronze step '{source_bronze}' not found")
+        if model_class is None or not hasattr(model_class, "__table__"):
+            raise ValidationError(
+                f"Silver step '{name}' requires a SQLAlchemy model_class to create tables"
+            )
 
         step = SqlSilverStep(
             name=name,
@@ -306,6 +313,10 @@ class SqlPipelineBuilder:
             for silver_name in source_silvers:
                 if silver_name not in self.silver_steps:
                     raise ValidationError(f"Silver step '{silver_name}' not found")
+        if model_class is None or not hasattr(model_class, "__table__"):
+            raise ValidationError(
+                f"Gold step '{name}' requires a SQLAlchemy model_class to create tables"
+            )
 
         step = SqlGoldStep(
             name=name,
@@ -334,6 +345,8 @@ class SqlPipelineBuilder:
         if not self.bronze_steps and not self.silver_steps and not self.gold_steps:
             raise ValidationError("Pipeline must have at least one step (Bronze, Silver, or Gold)")
 
+        self._validate_model_primary_keys()
+
         return SqlPipelineRunner(
             session=self.session,
             config=self.config,
@@ -342,4 +355,47 @@ class SqlPipelineBuilder:
             gold_steps=self.gold_steps,
             logger=self.logger,
         )
+
+    def _validate_model_primary_keys(self) -> None:
+        """
+        Ensure every silver/gold model declares at least one primary key.
+
+        Bronze tables are excluded since they may reference existing raw tables
+        outside our control.
+        """
+
+        missing: list[str] = []
+
+        def _has_primary_key(model: Any) -> bool:
+            if model is None:
+                return False
+
+            table = getattr(model, "__table__", None)
+            if table is not None:
+                pk_cols = [col for col in getattr(table, "columns", []) if getattr(col, "primary_key", False)]
+                if pk_cols:
+                    return True
+
+            try:
+                mapper = class_mapper(model)
+            except UnmappedClassError:
+                return False
+            return bool(mapper.primary_key)
+
+        for step in self.silver_steps.values():
+            if not _has_primary_key(step.model_class):
+                model_name = getattr(step.model_class, "__name__", str(step.model_class))
+                missing.append(f"Silver step '{step.name}' (model: {model_name})")
+
+        for step in self.gold_steps.values():
+            if not _has_primary_key(step.model_class):
+                model_name = getattr(step.model_class, "__name__", str(step.model_class))
+                missing.append(f"Gold step '{step.name}' (model: {model_name})")
+
+        if missing:
+            detail = "; ".join(missing)
+            raise ValidationError(
+                "All Silver and Gold models must declare at least one primary key "
+                f"(use primary_key=True on a Column). Missing primary keys for: {detail}"
+            )
 

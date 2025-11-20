@@ -179,6 +179,10 @@ class SqlExecutionEngine:
         mode: ExecutionMode,
     ) -> Dict[str, Any]:
         """Execute a silver step."""
+        if step.model_class is None:
+            raise ValueError(
+                f"Silver step '{step.name}' requires a model_class to create its table"
+            )
         # Get bronze source
         bronze_key = f"{step.source_bronze}_validated"
         if bronze_key not in context:
@@ -203,6 +207,7 @@ class SqlExecutionEngine:
         write_mode = "overwrite" if mode == ExecutionMode.INITIAL else "append"
         
         from sql_pipeline_builder.table_operations import write_table
+        drop_existing = mode == ExecutionMode.INITIAL
         rows_written = write_table(
             self.session,
             valid_query,
@@ -210,6 +215,7 @@ class SqlExecutionEngine:
             step.table_name,
             write_mode,
             step.model_class,
+            drop_existing_table=drop_existing,
         )
 
         # Store in context for gold steps - read from the table that was just written
@@ -238,6 +244,10 @@ class SqlExecutionEngine:
         mode: ExecutionMode,
     ) -> Dict[str, Any]:
         """Execute a gold step."""
+        if step.model_class is None:
+            raise ValueError(
+                f"Gold step '{step.name}' requires a model_class to create its table"
+            )
         # Get silver sources
         if step.source_silvers:
             silvers_dict = {
@@ -276,6 +286,7 @@ class SqlExecutionEngine:
             step.table_name,
             "overwrite",  # Gold always overwrites
             step.model_class,
+            drop_existing_table=True,
         )
 
         return {

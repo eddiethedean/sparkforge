@@ -184,6 +184,10 @@ class SqlSilverStep(BaseModel):
             raise ValidationError("Transform function is required and must be callable")
         if not self.table_name or not isinstance(self.table_name, str):
             raise ValidationError("Table name must be a non-empty string")
+        if self.model_class is None or not hasattr(self.model_class, "__table__"):
+            raise ValidationError(
+                "Silver steps require a SQLAlchemy model_class with __table__ metadata"
+            )
 
     def validate(self) -> None:
         """Validate silver step configuration."""
@@ -199,6 +203,10 @@ class SqlSilverStep(BaseModel):
             raise PipelineValidationError("Rules must be a dictionary")
         if not self.table_name or not isinstance(self.table_name, str):
             raise PipelineValidationError("Table name must be a non-empty string")
+        if self.model_class is None or not hasattr(self.model_class, "__table__"):
+            raise PipelineValidationError(
+                "Silver step model_class is required to create destination tables"
+            )
 
 
 @dataclass
@@ -281,6 +289,10 @@ class SqlGoldStep(BaseModel):
             raise ValidationError("Table name must be a non-empty string")
         if self.source_silvers is not None and not isinstance(self.source_silvers, list):
             raise ValidationError("source_silvers must be a list or None")
+        if self.model_class is None or not hasattr(self.model_class, "__table__"):
+            raise ValidationError(
+                "Gold steps require a SQLAlchemy model_class with __table__ metadata"
+            )
 
     def validate(self) -> None:
         """Validate gold step configuration."""
@@ -294,4 +306,8 @@ class SqlGoldStep(BaseModel):
             raise PipelineValidationError("Table name must be a non-empty string")
         if self.source_silvers is not None and not isinstance(self.source_silvers, list):
             raise PipelineValidationError("source_silvers must be a list or None")
+        if self.model_class is None or not hasattr(self.model_class, "__table__"):
+            raise PipelineValidationError(
+                "Gold step model_class is required to create destination tables"
+            )
 

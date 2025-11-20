@@ -49,6 +49,19 @@ class User(Base):
     email = Column(String)
     age = Column(Integer)
 
+
+class CleanUser(Base):
+    __tablename__ = "clean_users"
+    id = Column(Integer, primary_key=True)
+    email = Column(String)
+    age = Column(Integer)
+
+
+class UserMetric(Base):
+    __tablename__ = "user_metrics"
+    id = Column(Integer, primary_key=True)
+    total_users = Column(Integer)
+
 # Create session
 engine = create_engine("sqlite:///:memory:")
 Base.metadata.create_all(engine)
@@ -77,7 +90,7 @@ builder.add_silver_transform(
     transform=clean_users,
     rules={"email": [User.email.is_not(None)]},
     table_name="clean_users",
-    model_class=User
+    model_class=CleanUser  # Required so the pipeline can create/drop the table
 )
 
 # Gold: Business analytics
@@ -93,8 +106,14 @@ builder.add_gold_transform(
     transform=user_metrics,
     rules={},
     table_name="user_metrics",
-    source_silvers=["clean_users"]
+    source_silvers=["clean_users"],
+    model_class=UserMetric  # Required so the pipeline can create/drop the table
 )
+
+# Table management
+# - Provide SQLAlchemy models for every Silver/Gold step so the pipeline can build the schema.
+# - Silver tables are dropped and recreated on initial (full-refresh) runs before data is written.
+# - Gold tables are dropped and recreated on every run to guarantee schema parity with the model.
 
 # Execute
 pipeline = builder.to_pipeline()

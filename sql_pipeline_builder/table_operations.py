@@ -34,7 +34,7 @@ def fqn(schema: str, table: str) -> str:
     return f"{schema}.{table}"
 
 
-def create_schema_if_not_exists(session: Any, schema: str) -> None:
+def create_schema_if_not_exists(session: Any, schema: str | None) -> None:
     """
     Create a database schema if it does not exist.
 
@@ -45,19 +45,31 @@ def create_schema_if_not_exists(session: Any, schema: str) -> None:
     Raises:
         TableOperationError: If schema creation fails
     """
-    try:
-        from sqlalchemy import text
+    if not schema:
+        # Some databases (like SQLite) don't support schemas
+        return
 
-        # Check if schema exists
+    try:
+        from sqlalchemy import inspect, text
+
+        engine = getattr(session, "bind", None) or getattr(session, "get_bind", lambda: None)()
+        if engine is None:
+            raise DataError("Session has no bound engine for schema creation")
+
+        dialect_name = getattr(engine.dialect, "name", "")
+        if dialect_name == "sqlite":
+            logger.debug("SQLite dialect detected — skipping schema creation")
+            return
+
+        inspector = inspect(engine)
+        if schema in inspector.get_schema_names():
+            return
+
         if hasattr(session, "execute"):
-            # Sync session
-            result = session.execute(text(f"SELECT 1 FROM information_schema.schemata WHERE schema_name = '{schema}'"))
-            if result.scalar() is None:
-                session.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
-                session.commit()
-                logger.info(f"Created schema: {schema}")
+            session.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
+            session.commit()
+            logger.info(f"Created schema: {schema}")
         else:
-            # Async session - would need await
             logger.warning("Async schema creation not yet implemented")
     except Exception as e:
         raise DataError(f"Failed to create schema '{schema}': {e}") from e
@@ -93,6 +105,72 @@ def read_table(session: Any, schema: str, table: str, model_class: Any | None = 
         raise DataError(f"Failed to read table {schema}.{table}: {e}") from e
 
 
+def _drop_table(session: Any, schema: str | None, table: str) -> None:
+    """Drop a table if it exists."""
+    from sqlalchemy import MetaData, Table
+
+    metadata = MetaData()
+    table_obj = Table(table, metadata, schema=schema, autoload_with=session.bind)
+    table_obj.drop(bind=session.bind, checkfirst=True)
+    if schema:
+        logger.info(f"Dropped existing table '{schema}.{table}'")
+    else:
+        logger.info(f"Dropped existing table '{table}'")
+
+
+def _ensure_table_from_model(
+    session: Any,
+    schema: str | None,
+    table: str,
+    model_class: Any | None,
+    drop_existing: bool = False,
+) -> None:
+    """
+    Ensure a SQL table exists by creating it from the provided SQLAlchemy model.
+
+    Args:
+        session: SQLAlchemy session (sync or async)
+        schema: Schema name
+        table: Table name
+        model_class: SQLAlchemy ORM model class
+
+    Raises:
+        DataError: If model_class is missing or table creation fails
+    """
+    from sqlalchemy import MetaData
+
+    if model_class is None or not hasattr(model_class, "__table__"):
+        raise DataError(
+            f"model_class with __table__ metadata is required to create table '{table}'"
+        )
+
+    engine = getattr(session, "bind", None)
+    dialect_name = getattr(engine.dialect, "name", "") if engine else ""
+
+    target_schema = schema or getattr(model_class.__table__, "schema", None)
+    supports_schema = target_schema is not None and dialect_name not in {"sqlite"}
+    ddl_schema = target_schema if supports_schema else None
+
+    if table_exists(session, ddl_schema, table):
+        if drop_existing:
+            _drop_table(session, ddl_schema, table)
+        else:
+            return
+
+    create_schema_if_not_exists(session, ddl_schema)
+
+    metadata = MetaData()
+    table_copy = model_class.__table__.tometadata(metadata, schema=ddl_schema)
+    try:
+        table_copy.create(bind=session.bind, checkfirst=True)
+        if target_schema:
+            logger.info(f"Created table '{target_schema}.{table}' from model")
+        else:
+            logger.info(f"Created table '{table}' from model")
+    except Exception as exc:
+        raise DataError(f"Failed to create table '{table}': {exc}") from exc
+
+
 def write_table(
     session: Any,
     query: Any,
@@ -100,6 +178,8 @@ def write_table(
     table: str,
     mode: str = "overwrite",
     model_class: Any | None = None,
+    *,
+    drop_existing_table: bool = False,
 ) -> int:
     """
     Write query results to a SQL table.
@@ -110,7 +190,7 @@ def write_table(
         schema: Schema name
         table: Table name
         mode: Write mode ("overwrite" or "append")
-        model_class: Optional SQLAlchemy ORM model class
+        model_class: SQLAlchemy ORM model class
 
     Returns:
         Number of rows written
@@ -119,94 +199,129 @@ def write_table(
         TableOperationError: If write operation fails
     """
     try:
-        from sqlalchemy import text, Table, MetaData, select
-        from sqlalchemy.dialects import postgresql, mysql, sqlite
+        if model_class is None:
+            raise DataError(
+                f"model_class is required to write table '{table}'. "
+                "Provide a SQLAlchemy ORM model when defining the step."
+            )
 
-        table_fqn = fqn(schema, table)
+        effective_schema = schema or getattr(model_class.__table__, "schema", None)
+        _ensure_table_from_model(
+            session,
+            effective_schema,
+            table,
+            model_class,
+            drop_existing=drop_existing_table,
+        )
+
+        if effective_schema:
+            table_identifier = f"{effective_schema}.{table}"
+        else:
+            table_identifier = table
+
+        table_fqn = fqn(effective_schema, table) if effective_schema else table_identifier
 
         # Get data from query
         if hasattr(query, "all"):
-            # Sync query
             rows = query.all()
         else:
-            # Async query - would need await
             logger.warning("Async query execution not yet implemented")
             rows = []
 
-        if not rows:
-            logger.warning(f"No rows to write to {table_fqn}")
-            return 0
-
         # Determine write mode
         if mode == "overwrite":
-            # Delete existing data
-            if model_class is not None:
-                session.query(model_class).delete()
-            else:
-                table_obj = Table(table, MetaData(), schema=schema, autoload_with=session.bind)
-                session.execute(table_obj.delete())
+            session.query(model_class).delete()
             session.commit()
 
+        if not rows:
+            logger.warning(f"No rows to write to {table_identifier}")
+            return 0
+
         # Convert rows to dictionaries for insertion
-        # Handle both ORM objects and query result tuples/Row objects
         row_dicts = []
-        for row in rows:
-            if hasattr(row, "__dict__") and not hasattr(row, "_fields"):
-                # ORM object - use __dict__ but filter out SQLAlchemy internal attributes
-                row_dict = {k: v for k, v in row.__dict__.items() if not k.startswith("_")}
-            elif hasattr(row, "_asdict"):
-                # Named tuple or Row object
-                row_dict = row._asdict()
-            elif hasattr(row, "_mapping"):
-                # SQLAlchemy Row object (2.0 style)
-                row_dict = dict(row._mapping)
-            elif isinstance(row, (tuple, list)):
-                # Tuple/list - need column names from query
-                # This is tricky - we'd need to get column names from the query
-                # For now, try to infer from model_class if available
-                if model_class is not None:
-                    # Get column names from model
-                    column_names = [col.key for col in model_class.__table__.columns]
-                    row_dict = dict(zip(column_names, row))
+        columns = [col.key for col in model_class.__table__.columns]
+        table_name = getattr(getattr(model_class, "__table__", None), "name", None)
+
+        def _normalize_mapping(mapping: dict[Any, Any]) -> dict[str, Any]:
+            cleaned: dict[str, Any] = {}
+            for key, value in mapping.items():
+                if isinstance(key, str):
+                    cleaned[key] = value
+                elif hasattr(key, "key"):
+                    cleaned[key.key] = value
+                elif hasattr(key, "name"):
+                    cleaned[key.name] = value
                 else:
-                    # Fallback: try to get from query column_descriptions
-                    if hasattr(query, "column_descriptions"):
-                        column_names = [desc["name"] for desc in query.column_descriptions]
-                        row_dict = dict(zip(column_names, row))
-                    else:
-                        # Last resort: use positional keys
-                        row_dict = {f"col_{i}": val for i, val in enumerate(row)}
+                    cleaned[str(key)] = value
+            normalized: dict[str, Any] = {}
+            for col in columns:
+                if col in cleaned:
+                    normalized[col] = cleaned[col]
+                    continue
+                candidates = []
+                if table_name:
+                    candidates.extend(
+                        [
+                            f"{table_name}_{col}",
+                            f"{table_name}.{col}",
+                        ]
+                    )
+                for key in cleaned.keys():
+                    if key.endswith(f".{col}") or key.endswith(f"_{col}"):
+                        candidates.append(key)
+                value = None
+                for candidate in candidates:
+                    if candidate in cleaned:
+                        value = cleaned[candidate]
+                        break
+                normalized[col] = value
+            return normalized
+
+        for row in rows:
+            if hasattr(row, "_mapping"):
+                mapping = dict(row._mapping)
+                row_dict = _normalize_mapping(mapping)
+                if any(row_dict[col] is None for col in columns):
+                    try:
+                        fallback_values = list(row)
+                        fallback_dict = dict(zip(columns, fallback_values))
+                        for col in columns:
+                            if row_dict[col] is None and col in fallback_dict:
+                                row_dict[col] = fallback_dict[col]
+                    except TypeError:
+                        pass
+            elif hasattr(row, "__class__") and hasattr(row.__class__, "__mapper__"):
+                mapper = row.__class__.__mapper__
+                row_dict = {
+                    column.key: getattr(row, column.key, None)
+                    for column in mapper.columns
+                }
+            elif hasattr(row, "_asdict"):
+                row_dict = row._asdict()
+            elif isinstance(row, (tuple, list)):
+                row_dict = dict(zip(columns, row))
             else:
-                # Try dict() conversion
                 try:
                     row_dict = dict(row)
                 except (TypeError, ValueError):
-                    # If all else fails, try to convert to dict using attributes
                     row_dict = {k: getattr(row, k) for k in dir(row) if not k.startswith("_")}
-            row_dicts.append(row_dict)
+            normalized_row = {col: row_dict.get(col) for col in columns}
+            row_dicts.append(normalized_row)
 
-        # Insert new data
-        if model_class is not None:
-            # Use ORM bulk insert
-            session.bulk_insert_mappings(model_class, row_dicts)
-        else:
-            # Use raw insert - need to get table object first
-            from sqlalchemy import Table, MetaData
-            metadata = MetaData()
-            table_obj = Table(table, metadata, schema=schema, autoload_with=session.bind)
-            session.execute(table_obj.insert(), row_dicts)
 
+        session.bulk_insert_mappings(model_class, row_dicts)
         session.commit()
         rows_written = len(rows)
-        logger.info(f"Successfully wrote {rows_written} rows to {table_fqn} in {mode} mode")
+        logger.info(f"Successfully wrote {rows_written} rows to {table_identifier} in {mode} mode")
         return rows_written
 
     except Exception as e:
         session.rollback()
-        raise DataError(f"Failed to write table {table_fqn}: {e}") from e
+        identifier = f"{schema}.{table}" if schema else table
+        raise DataError(f"Failed to write table {identifier}: {e}") from e
 
 
-def table_exists(session: Any, schema: str, table: str) -> bool:
+def table_exists(session: Any, schema: str | None, table: str) -> bool:
     """
     Check if a table exists.
 
@@ -222,15 +337,32 @@ def table_exists(session: Any, schema: str, table: str) -> bool:
         from sqlalchemy import inspect, text
 
         inspector = inspect(session.bind)
-        return inspector.has_table(table, schema=schema)
+        if schema:
+            return inspector.has_table(table, schema=schema)
+        return inspector.has_table(table)
     except Exception:
-        # Fallback: try querying information_schema
+        # Fallback: try querying database metadata manually
         try:
             from sqlalchemy import text
-            result = session.execute(
-                text(f"SELECT 1 FROM information_schema.tables WHERE table_schema = '{schema}' AND table_name = '{table}'")
-            )
-            return result.scalar() is not None
+
+            if schema:
+                result = session.execute(
+                    text(
+                        "SELECT 1 FROM information_schema.tables "
+                        "WHERE table_schema = :schema AND table_name = :table"
+                    ),
+                    {"schema": schema, "table": table},
+                )
+                return result.scalar() is not None
+            else:
+                # SQLite fallback
+                result = session.execute(
+                    text(
+                        "SELECT name FROM sqlite_master WHERE type='table' AND name = :table"
+                    ),
+                    {"table": table},
+                )
+                return result.scalar() is not None
         except Exception:
             return False
 

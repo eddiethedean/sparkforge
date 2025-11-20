@@ -67,7 +67,11 @@ def apply_sql_validation_rules(
 
         # Create invalid query (rows that don't match any rule)
         # This is a simplified approach - in practice, you'd need to negate the rules
-        invalid_query = query.filter(~valid_query.whereclause) if hasattr(query, "whereclause") else query.filter(False)
+        if hasattr(valid_query, "whereclause") and valid_query.whereclause is not None:
+            invalid_query = query.filter(~valid_query.whereclause)
+        else:
+            # No filters were applied; treat invalid set as empty
+            invalid_query = query.filter(False)
 
         end_time = datetime.now()
         duration_secs = (end_time - start_time).total_seconds()

@@ -201,9 +201,13 @@ class SqlEngine(Engine):
             )
 
         # Determine write mode
-        write_mode = getattr(step, "write_mode", "overwrite")
-        if write_mode is None:
-            write_mode = "overwrite"
+        write_mode = getattr(step, "write_mode", "overwrite") or "overwrite"
+
+        drop_existing = False
+        if isinstance(step, SqlGoldStep):
+            drop_existing = True
+        elif isinstance(step, SqlSilverStep) and write_mode == "overwrite":
+            drop_existing = True
 
         # Create schema if needed
         try:
@@ -223,6 +227,7 @@ class SqlEngine(Engine):
                 table_name,
                 write_mode,
                 model_class,
+                drop_existing_table=drop_existing,
             )
             return WriteReport(
                 source=query,
