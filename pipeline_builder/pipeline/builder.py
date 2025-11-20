@@ -24,7 +24,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict
 
+from abstracts.builder import PipelineBuilder as AbstractsPipelineBuilder
+
 from ..compat import DataFrame, SparkSession
+from ..engine import SparkEngine
 from ..errors import ConfigurationError as PipelineConfigurationError
 from ..errors import ExecutionError as StepError
 from ..functions import FunctionsProtocol, get_default_functions
@@ -240,6 +243,21 @@ class PipelineBuilder:
         self.bronze_steps: Dict[str, BronzeStep] = {}
         self.silver_steps: Dict[str, SilverStep] = {}
         self.gold_steps: Dict[str, GoldStep] = {}
+
+        # Create SparkEngine for abstracts layer
+        self.spark_engine = SparkEngine(
+            spark=self.spark,
+            config=self.config,
+            logger=self.logger,
+            functions=self.functions,
+        )
+
+        # Create abstracts.PipelineBuilder with SparkEngine injection
+        # We'll use PipelineRunner as the runner class
+        self._abstracts_builder = AbstractsPipelineBuilder(
+            runner_cls=PipelineRunner,
+            engine=self.spark_engine,
+        )
 
         self.logger.info(f"🔧 PipelineBuilder initialized (schema: {schema})")
 
@@ -1171,7 +1189,7 @@ class PipelineBuilder:
         Build and return a PipelineRunner for executing this pipeline.
 
         Returns:
-            PipelineRunner instance ready for execution
+            PipelineRunner instance ready for execution (implements abstracts.Runner)
 
         Raises:
             ValueError: If pipeline validation fails
@@ -1183,7 +1201,27 @@ class PipelineBuilder:
                 f"Pipeline validation failed with {len(validation_errors)} errors: {', '.join(validation_errors)}"
             )
 
-        # Create pipeline runner
+        # Build steps list for abstracts.PipelineBuilder validation
+        all_steps = (
+            list(self.bronze_steps.values())
+            + list(self.silver_steps.values())
+            + list(self.gold_steps.values())
+        )
+
+        # Use abstracts.PipelineBuilder to validate steps
+        # This ensures step validation follows the abstracts interface
+        # Type cast needed because BronzeStep/SilverStep/GoldStep satisfy Step Protocol
+        try:
+            from abstracts.step import Step as AbstractsStep
+            steps_for_validation: list[AbstractsStep] = all_steps  # type: ignore[assignment]
+            self._abstracts_builder.validate_steps(steps_for_validation)
+        except ValueError as e:
+            raise ValueError(f"Step validation failed: {e}") from e
+
+        # Create PipelineRunner with proper configuration
+        # PipelineRunner implements abstracts.Runner, so this satisfies the interface
+        # Note: steps and engine are optional parameters for abstracts compatibility
+        # but we pass them to ensure the runner is properly initialized
         runner = PipelineRunner(
             spark=self.spark,
             config=self.config,
@@ -1192,6 +1230,10 @@ class PipelineBuilder:
             gold_steps=self.gold_steps,
             logger=self.logger,
             functions=self.functions,
+            steps=all_steps
+            if all_steps
+            else None,  # Pass steps for abstracts.Runner compatibility
+            engine=self.spark_engine,  # Pass engine for abstracts.Runner compatibility
         )
 
         self.logger.info(

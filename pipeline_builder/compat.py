@@ -13,14 +13,14 @@ Resolution order:
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import Any, Optional, Tuple, Type
 
 _ENGINE = os.getenv("SPARKFORGE_ENGINE", "auto").lower()
 
 
-def _try_import_pyspark() -> (
-    tuple[type[Any], type[Any], type[Any], Any, Any, type[Exception]] | None
-):
+def _try_import_pyspark() -> Optional[
+    Tuple[Type[Any], Type[Any], Type[Any], Any, Any, Type[Exception]]
+]:
     """Try to import PySpark modules."""
     try:
         from pyspark.sql import Column as _Column
@@ -37,9 +37,9 @@ def _try_import_pyspark() -> (
         return None
 
 
-def _try_import_mockspark() -> (
-    tuple[type[Any], type[Any], type[Any], Any, Any, type[Exception]] | None
-):
+def _try_import_mockspark() -> Optional[
+    Tuple[Type[Any], Type[Any], Type[Any], Any, Any, Type[Exception]]
+]:
     """Try to import mock-spark modules."""
     try:
         from mock_spark import Column as _Column  # type: ignore
@@ -56,8 +56,8 @@ def _try_import_mockspark() -> (
         return None
 
 
-def _select_engine() -> tuple[
-    str, tuple[type[Any], type[Any], type[Any], Any, Any, type[Exception]]
+def _select_engine() -> Tuple[
+    str, Tuple[Type[Any], Type[Any], Type[Any], Any, Any, Type[Exception]]
 ]:
     """Select the appropriate engine based on environment and availability."""
     if _ENGINE in ("pyspark", "spark", "real"):

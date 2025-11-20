@@ -225,6 +225,7 @@ ignore = [
     "C901",  # too complex
     "UP006",  # Use dict instead of Dict - disabled for Python 3.8 compatibility
     "UP007",  # Use X | Y instead of Union[X, Y] - disabled for Python 3.8 compatibility
+    "UP045",  # Use X | None instead of Optional[X] - disabled for Python 3.8 compatibility
 ]
 
 [tool.ruff.lint.per-file-ignores]

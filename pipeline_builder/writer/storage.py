@@ -147,7 +147,7 @@ class StorageManager:
                 self.table_fqn.split(".")[0] if "." in self.table_fqn else None
             )
 
-            # CRITICAL: Ensure schema exists before creating table (required in mock-spark 2.16.1+)
+            # CRITICAL: Ensure schema exists before creating table (required in mock-spark due to DuckDB threading)
             # This is especially important for LogWriter which creates tables in different schemas
             if schema_name:
                 try:
@@ -170,7 +170,7 @@ class StorageManager:
                 # Create empty DataFrame with schema
                 empty_df = self.spark.createDataFrame([], schema)
 
-                # CRITICAL: Ensure schema exists RIGHT BEFORE saveAsTable (mock-spark 2.16.1+ threading fix)
+                # CRITICAL: Ensure schema exists RIGHT BEFORE saveAsTable (mock-spark DuckDB threading fix)
                 # DuckDB connections in worker threads don't see schemas created earlier
                 if schema_name:
                     try:

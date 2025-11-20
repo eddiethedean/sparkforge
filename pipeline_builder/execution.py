@@ -409,8 +409,9 @@ class ExecutionEngine:
 
                 output_table = fqn(schema, table_name)
 
-                # CRITICAL FIX for mock-spark 2.16.2 threading issue:
+                # CRITICAL FIX for mock-spark threading issue:
                 # DuckDB connections in worker threads don't see schemas created in other threads.
+                # This issue persists in mock-spark 3.1.0 and earlier versions.
                 # We MUST create schema in THIS thread's connection right before saveAsTable.
                 # Try multiple methods to ensure schema is visible to this DuckDB connection.
                 try:
@@ -549,7 +550,7 @@ class ExecutionEngine:
 
         try:
             # Logging is handled by the runner to avoid duplicate messages
-            # Ensure all required schemas exist before parallel execution (required in mock-spark 2.16.2+)
+            # Ensure all required schemas exist before parallel execution (required in mock-spark due to DuckDB threading)
             # This MUST happen in the main thread before any worker threads start
             # Collect unique schemas from all steps
             required_schemas = set()
@@ -560,7 +561,7 @@ class ExecutionEngine:
                     if isinstance(schema_value, str):
                         required_schemas.add(schema_value)
             # Create all required schemas upfront - always try to create, don't rely on catalog checks
-            # This is critical for mock-spark 2.16.2+ where DuckDB connections in worker threads
+            # This is critical for mock-spark where DuckDB connections in worker threads
             # don't see schemas created via catalog API, so we must create them in main thread first
             for schema in required_schemas:
                 try:
@@ -844,7 +845,7 @@ class ExecutionEngine:
             StepExecutionResult with execution details
         """
         # CRITICAL: Ensure schema exists in THIS worker thread before execution
-        # mock-spark 2.16.1+ has DuckDB threading issues where schemas created in one thread
+        # mock-spark has DuckDB threading issues where schemas created in one thread
         # are not visible to DuckDB connections in other threads. We serialize schema creation
         # with a lock, but the real fix is in execute_step() where we CREATE SCHEMA right before saveAsTable.
         # This is just a safety check.
@@ -1008,9 +1009,7 @@ class ExecutionEngine:
             return bronze_df
 
         try:
-            filtered_df = bronze_df.filter(
-                F.col(incremental_col) > F.lit(cutoff_value)
-            )
+            filtered_df = bronze_df.filter(F.col(incremental_col) > F.lit(cutoff_value))
         except Exception as exc:
             if self._using_mock_spark():
                 mock_df = self._filter_bronze_rows_mock(
@@ -1084,9 +1083,7 @@ class ExecutionEngine:
         try:
             column_order: list[str] = []
             if hasattr(schema, "__iter__"):
-                column_order = [
-                    getattr(field, "name", field) for field in schema
-                ]
+                column_order = [getattr(field, "name", field) for field in schema]
             if not column_order and hasattr(schema, "fieldNames"):
                 column_order = list(schema.fieldNames())
             if not column_order and hasattr(schema, "names"):

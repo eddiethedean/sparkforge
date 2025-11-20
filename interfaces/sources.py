@@ -1,5 +1,4 @@
 from typing import Protocol
 
 
-class Sources(Protocol):
-    ...
+class Sources(Protocol): ...

@@ -1,28 +1,24 @@
-from abc import ABC, abstractmethod
-from typing import Literal, Optional
+from __future__ import annotations
 
-from rules import Rules
-from transformer import Transformer
+from typing import Literal, Optional, Protocol
+
+from abstracts.rules import Rules
+from abstracts.transformer import Transformer
 
 
-class Step(ABC):
+class Step(Protocol):
+    """
+    Protocol for pipeline steps that BronzeStep, SilverStep, and GoldStep naturally satisfy.
 
-    def __init__(
-        self,
-        name: str,
-        type: Literal["bronze", "silver", "gold"],
-        rules: Rules,
-        write_mode: Optional[Literal["overwrite", "append"]] = None,
-        source: Optional[str] = None,
-        target: Optional[str] = None,
-        transform: Optional[Transformer] = None,
-        write_schema: Optional[str] = None
-    ) -> None:
-        self.name = name
-        self.type = type
-        self.source = source
-        self.target = target
-        self.rules = rules
-        self.transform = transform
-        self.write_mode = write_mode
-        self.write_schema = write_schema
+    This Protocol defines the interface that all step types must implement,
+    allowing duck typing compatibility between abstracts and pipeline_builder.
+    """
+
+    name: str
+    type: Literal["bronze", "silver", "gold"]
+    rules: Rules
+    source: Optional[str]
+    target: Optional[str]
+    transform: Optional[Transformer]
+    write_mode: Optional[Literal["overwrite", "append"]]
+    write_schema: Optional[str]

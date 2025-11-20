@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from source import Source
+from abstracts.source import Source
 
 
 @dataclass

@@ -10,9 +10,9 @@ from mock_spark import (
     F,
     IntegerType,
     SparkSession,
+    StringType,
     StructField,
     StructType,
-    StringType,
 )
 
 from pipeline_builder.execution import ExecutionEngine, ExecutionMode

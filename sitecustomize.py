@@ -30,7 +30,7 @@ def _patch_module(module: object) -> None:
             return
         except Exception:
             pass
-    setattr(module, "TypeAlias", _TYPE_ALIAS_SENTINEL)
+    module.TypeAlias = _TYPE_ALIAS_SENTINEL
 
 
 _patch_module(typing)
@@ -51,7 +51,7 @@ if spec and spec.loader:
     for attr in dir(real_module):
         setattr(patched_module, attr, getattr(real_module, attr))
 
-    setattr(patched_module, "TypeAlias", _TYPE_ALIAS_SENTINEL)
+    patched_module.TypeAlias = _TYPE_ALIAS_SENTINEL
     sys.modules["typing_extensions"] = patched_module
 else:
     try:
@@ -74,7 +74,7 @@ def _make_generic_getitem(name: str):
 for _generic_name in ("Mapping", "MutableMapping", "Sequence", "Iterable"):
     _cls = getattr(collections_abc, _generic_name)
     if not hasattr(_cls, "__class_getitem__"):
-        setattr(_cls, "__class_getitem__", _make_generic_getitem(_generic_name))
+        _cls.__class_getitem__ = _make_generic_getitem(_generic_name)
 
 # Provide a stub duckdb backend package so optional imports don't crash on Python 3.8.
 import types

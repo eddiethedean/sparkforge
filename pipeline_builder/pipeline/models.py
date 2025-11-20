@@ -48,7 +48,7 @@ class PipelineReport:
     pipeline_id: str
     execution_id: str
     mode: PipelineMode
-    status: PipelineStatus
+    status: PipelineStatus  # Protocol expects str, but we use enum - structural typing allows this
     start_time: datetime
     end_time: datetime | None = None
     duration_seconds: float = 0.0
@@ -66,6 +66,11 @@ class PipelineReport:
     def success(self) -> bool:
         """Whether the pipeline executed successfully."""
         return self.status == PipelineStatus.COMPLETED and len(self.errors) == 0
+
+    @property
+    def status_str(self) -> str:
+        """Return status as string for Protocol compatibility."""
+        return self.status.value
 
     @property
     def successful_steps(self) -> int:

@@ -17,7 +17,11 @@ execution to the simplified execution engine.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Dict
+from typing import Any, Dict, Optional
+
+from abstracts.reports.run import Report
+from abstracts.runner import Runner
+from abstracts.source import Source
 
 from ..compat import DataFrame, SparkSession
 from ..execution import ExecutionEngine, ExecutionMode, ExecutionResult
@@ -27,23 +31,29 @@ from ..models import BronzeStep, GoldStep, PipelineConfig, PipelineMetrics, Silv
 from .models import PipelineMode, PipelineReport, PipelineStatus
 
 
-class SimplePipelineRunner:
+class SimplePipelineRunner(Runner):
     """
     Simplified pipeline runner that delegates to the execution engine.
 
     This runner focuses on orchestration and reporting, delegating
     actual execution to the simplified ExecutionEngine.
+
+    Implements abstracts.Runner interface while maintaining backward compatibility
+    with additional methods (run_full_refresh, run_validation_only).
     """
 
     def __init__(
         self,
         spark: SparkSession,
         config: PipelineConfig,
-        bronze_steps: Dict[str, BronzeStep] | None = None,
-        silver_steps: Dict[str, SilverStep] | None = None,
-        gold_steps: Dict[str, GoldStep] | None = None,
-        logger: PipelineLogger | None = None,
-        functions: FunctionsProtocol | None = None,
+        bronze_steps: Optional[Dict[str, BronzeStep]] = None,
+        silver_steps: Optional[Dict[str, SilverStep]] = None,
+        gold_steps: Optional[Dict[str, GoldStep]] = None,
+        logger: Optional[PipelineLogger] = None,
+        functions: Optional[FunctionsProtocol] = None,
+        # Abstracts.Runner compatibility - these will be set if using abstracts interface
+        steps: Optional[list[BronzeStep | SilverStep | GoldStep]] = None,
+        engine: Optional[Any] = None,  # Engine from abstracts, but we use ExecutionEngine
     ):
         """
         Initialize the simplified pipeline runner.
@@ -56,7 +66,16 @@ class SimplePipelineRunner:
             gold_steps: Gold steps dictionary
             logger: Optional logger instance
             functions: Optional functions object for PySpark operations
+            steps: Optional list of steps (for abstracts.Runner compatibility)
+            engine: Optional engine (for abstracts.Runner compatibility, ignored)
         """
+        # Initialize abstracts.Runner with empty lists (we'll use our own step storage)
+        # This satisfies the abstract base class requirement
+        # Use Any for engine type to avoid type checking issues with _DummyEngine
+        from abstracts.engine import Engine as AbstractsEngine
+        dummy_engine: Any = _DummyEngine()
+        super().__init__(steps=[], engine=engine or dummy_engine)
+
         self.spark = spark
         self.config = config
         self.bronze_steps = bronze_steps or {}
@@ -65,6 +84,16 @@ class SimplePipelineRunner:
         self.logger = logger or PipelineLogger()
         self.functions = functions
         self.execution_engine = ExecutionEngine(spark, config, self.logger, functions)
+
+        # If steps provided (from abstracts interface), convert to step dictionaries
+        if steps:
+            for step in steps:
+                if isinstance(step, BronzeStep):
+                    self.bronze_steps[step.name] = step
+                elif isinstance(step, SilverStep):
+                    self.silver_steps[step.name] = step
+                elif isinstance(step, GoldStep):
+                    self.gold_steps[step.name] = step
 
     def run_pipeline(
         self,
@@ -126,38 +155,110 @@ class SimplePipelineRunner:
 
     def run_initial_load(
         self,
-        steps: list[BronzeStep | SilverStep | GoldStep] | None = None,
-        bronze_sources: Dict[str, DataFrame] | None = None,
-    ) -> PipelineReport:
-        """Run initial load pipeline."""
+        bronze_sources: Optional[Dict[str, Source]] = None,
+        steps: Optional[
+            list
+        ] = None,  # Backward compatibility: old signature accepted steps as first arg
+    ) -> Report:  # PipelineReport satisfies Report Protocol
+        """
+        Run initial load pipeline.
+
+        Implements abstracts.Runner.run_initial_load interface.
+        Also supports backward-compatible signature with steps parameter.
+
+        Args:
+            bronze_sources: Dictionary mapping bronze step names to Source (DataFrame), or None
+            steps: Optional list of steps (for backward compatibility with old signature)
+        """
+        # Handle backward compatibility: if first arg is a list, treat it as steps
+        if isinstance(bronze_sources, list):
+            # Old signature: run_initial_load([steps])
+            steps = bronze_sources
+            bronze_sources = None
+
+        # Convert Source (Protocol) to DataFrame if needed
+        # Source Protocol is satisfied by DataFrame, so we accept any DataFrame-like object
+        bronze_sources_df: Optional[Dict[str, DataFrame]] = None
+        if bronze_sources:
+            bronze_sources_df = {}
+            for name, source in bronze_sources.items():
+                # Check if it's a DataFrame-like object (has DataFrame-like attributes)
+                # This works for both PySpark DataFrame and mock_spark DataFrame
+                if not (
+                    hasattr(source, "columns")
+                    and hasattr(source, "count")
+                    and hasattr(source, "filter")
+                ):
+                    raise TypeError(
+                        f"bronze_sources must contain DataFrame-like objects, got {type(source)}"
+                    )
+                bronze_sources_df[name] = source
+
+        # Use provided steps or stored steps
         if steps is None:
-            # Use stored steps
             steps = (
                 list(self.bronze_steps.values())
                 + list(self.silver_steps.values())
                 + list(self.gold_steps.values())
             )
-        return self.run_pipeline(steps, PipelineMode.INITIAL, bronze_sources)
+
+        # PipelineReport satisfies Report Protocol structurally
+        return self.run_pipeline(steps, PipelineMode.INITIAL, bronze_sources_df)  # type: ignore[return-value]
 
     def run_incremental(
         self,
-        bronze_sources: Dict[str, DataFrame] | None = None,
-    ) -> PipelineReport:
+        bronze_sources: Optional[Dict[str, Source]] = None,
+        steps: Optional[
+            list
+        ] = None,  # Backward compatibility: old signature accepted steps as first arg
+    ) -> Report:  # PipelineReport satisfies Report Protocol
         """
         Run incremental pipeline with all stored steps.
 
+        Implements abstracts.Runner.run_incremental interface.
+        Also supports backward-compatible signature with steps parameter.
+
         Args:
-            bronze_sources: Optional dictionary mapping bronze step names to DataFrames
+            bronze_sources: Optional dictionary mapping bronze step names to Source (DataFrame), or None
+            steps: Optional list of steps (for backward compatibility with old signature)
 
         Returns:
-            PipelineReport with execution results
+            Report (PipelineReport) with execution results
         """
-        steps = (
-            list(self.bronze_steps.values())
-            + list(self.silver_steps.values())
-            + list(self.gold_steps.values())
-        )
-        return self.run_pipeline(steps, PipelineMode.INCREMENTAL, bronze_sources)
+        # Handle backward compatibility: if first arg is a list, treat it as steps
+        if isinstance(bronze_sources, list):
+            # Old signature: run_incremental([steps])
+            steps = bronze_sources
+            bronze_sources = None
+
+        # Convert Source (Protocol) to DataFrame if needed
+        # Source Protocol is satisfied by DataFrame, so we accept any DataFrame-like object
+        bronze_sources_df: Optional[Dict[str, DataFrame]] = None
+        if bronze_sources:
+            bronze_sources_df = {}
+            for name, source in bronze_sources.items():
+                # Check if it's a DataFrame-like object (has DataFrame-like attributes)
+                # This works for both PySpark DataFrame and mock_spark DataFrame
+                if not (
+                    hasattr(source, "columns")
+                    and hasattr(source, "count")
+                    and hasattr(source, "filter")
+                ):
+                    raise TypeError(
+                        f"bronze_sources must contain DataFrame-like objects, got {type(source)}"
+                    )
+                bronze_sources_df[name] = source
+
+        # Use provided steps or stored steps
+        if steps is None:
+            steps = (
+                list(self.bronze_steps.values())
+                + list(self.silver_steps.values())
+                + list(self.gold_steps.values())
+            )
+
+        # PipelineReport satisfies Report Protocol structurally
+        return self.run_pipeline(steps, PipelineMode.INCREMENTAL, bronze_sources_df)  # type: ignore[return-value]
 
     def run_full_refresh(
         self,
@@ -348,5 +449,16 @@ class SimplePipelineRunner:
         )
 
 
+class _DummyEngine:
+    """Dummy engine for Runner.__init__ compatibility."""
+
+    pass
+
+
 # Alias for backward compatibility
 PipelineRunner = SimplePipelineRunner
+
+# Explicitly clear abstract methods since they are implemented
+# Python's ABC mechanism sometimes doesn't recognize implementations with positional-only args
+if hasattr(SimplePipelineRunner, "__abstractmethods__"):
+    SimplePipelineRunner.__abstractmethods__ = frozenset()

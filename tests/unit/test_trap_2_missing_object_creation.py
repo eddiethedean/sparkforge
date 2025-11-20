@@ -50,15 +50,16 @@ class TestTrap2MissingObjectCreation:
             runner = builder.to_pipeline()
 
             # Verify PipelineRunner was created with correct parameters
-            mock_pipeline_runner.assert_called_once_with(
-                spark=spark_session,
-                config=builder.config,
-                bronze_steps=builder.bronze_steps,
-                silver_steps=builder.silver_steps,
-                gold_steps=builder.gold_steps,
-                logger=builder.logger,
-                functions=builder.functions,
-            )
+            # Note: steps and engine are now also passed for abstracts compatibility
+            call_kwargs = mock_pipeline_runner.call_args[1]
+            assert call_kwargs["spark"] == spark_session
+            assert call_kwargs["config"] == builder.config
+            assert call_kwargs["bronze_steps"] == builder.bronze_steps
+            assert call_kwargs["silver_steps"] == builder.silver_steps
+            assert call_kwargs["gold_steps"] == builder.gold_steps
+            assert call_kwargs["logger"] == builder.logger
+            assert call_kwargs["functions"] == builder.functions
+            # steps and engine are optional but may be present for abstracts compatibility
 
             # Verify runner was created
             assert runner is not None

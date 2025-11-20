@@ -1,5 +1,4 @@
 from typing import Protocol
 
 
-class Transformer(Protocol):
-    ...
+class Transformer(Protocol): ...
