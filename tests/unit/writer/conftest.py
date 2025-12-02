@@ -14,6 +14,7 @@ from typing import Any
 from unittest.mock import Mock
 
 import pytest
+
 # Use compatibility layer
 from pipeline_builder.compat import SparkSession
 

@@ -5,14 +5,13 @@ Tests for pipeline runner functionality.
 This module tests the SimplePipelineRunner class and its methods.
 """
 
-import os
 from datetime import datetime
 from unittest.mock import Mock, patch
 
 import pytest
 
 # Use compatibility layer
-from pipeline_builder.compat import DataFrame, F, SparkSession
+from pipeline_builder.compat import DataFrame, SparkSession
 
 from pipeline_builder.execution import (
     ExecutionMode,
@@ -48,33 +47,36 @@ class TestSimplePipelineRunner:
         return logger
 
     @pytest.fixture
-    def sample_bronze_step(self):
+    def sample_bronze_step(self, spark_session):
         """Create a sample BronzeStep."""
+        # Use string rules to avoid SparkContext dependency in fixture
         return BronzeStep(
             name="test_bronze",
-            rules={"id": [F.col("id").isNotNull()]},
+            rules={"id": ["not_null"]},
             schema="test_schema",
         )
 
     @pytest.fixture
-    def sample_silver_step(self):
+    def sample_silver_step(self, spark_session):
         """Create a sample SilverStep."""
+        # Use string rules to avoid SparkContext dependency in fixture
         return SilverStep(
             name="test_silver",
             source_bronze="test_bronze",
             transform=lambda spark, dfs: dfs,
-            rules={"id": [F.col("id").isNotNull()]},
+            rules={"id": ["not_null"]},
             table_name="test_table",
             schema="test_schema",
         )
 
     @pytest.fixture
-    def sample_gold_step(self):
+    def sample_gold_step(self, spark_session):
         """Create a sample GoldStep."""
+        # Use string rules to avoid SparkContext dependency in fixture
         return GoldStep(
             name="test_gold",
             transform=lambda spark, dfs: dfs,
-            rules={"id": [F.col("id").isNotNull()]},
+            rules={"id": ["not_null"]},
             table_name="test_table",
             source_silvers=["test_silver"],
             schema="test_schema",
@@ -416,7 +418,7 @@ class TestSimplePipelineRunner:
             ],
         )
 
-        report = runner._create_pipeline_report(
+        report = runner._create_spark_pipeline_report(
             pipeline_id="test_pipeline",
             mode=PipelineMode.INITIAL,
             start_time=start_time,
@@ -449,7 +451,7 @@ class TestSimplePipelineRunner:
             steps=[],
         )
 
-        report = runner._create_pipeline_report(
+        report = runner._create_spark_pipeline_report(
             pipeline_id="test_pipeline",
             mode=PipelineMode.INITIAL,
             start_time=start_time,
@@ -476,7 +478,7 @@ class TestSimplePipelineRunner:
         with patch("pipeline_builder.pipeline.runner.datetime") as mock_datetime:
             mock_datetime.now.return_value = datetime(2024, 1, 15, 10, 35, 0)
 
-            report = runner._create_pipeline_report(
+            report = runner._create_spark_pipeline_report(
                 pipeline_id="test_pipeline",
                 mode=PipelineMode.INITIAL,
                 start_time=start_time,
@@ -540,7 +542,7 @@ class TestSimplePipelineRunner:
             steps=[],
         )
 
-        report = runner._create_pipeline_report(
+        report = runner._create_spark_pipeline_report(
             pipeline_id="test_pipeline",
             mode=PipelineMode.INITIAL,
             start_time=start_time,
@@ -600,7 +602,7 @@ class TestSimplePipelineRunner:
             ],
         )
 
-        report = runner._create_pipeline_report(
+        report = runner._create_spark_pipeline_report(
             pipeline_id="test_pipeline",
             mode=PipelineMode.INITIAL,
             start_time=start_time,
@@ -692,7 +694,7 @@ class TestSimplePipelineRunner:
             ],
         )
 
-        report = runner._create_pipeline_report(
+        report = runner._create_spark_pipeline_report(
             pipeline_id="test_pipeline",
             mode=PipelineMode.INITIAL,
             start_time=start_time,
@@ -752,7 +754,7 @@ class TestSimplePipelineRunner:
             ],
         )
 
-        report = runner._create_pipeline_report(
+        report = runner._create_spark_pipeline_report(
             pipeline_id="test_pipeline",
             mode=PipelineMode.INITIAL,
             start_time=start_time,
@@ -801,7 +803,7 @@ class TestSimplePipelineRunner:
             ],
         )
 
-        report = runner._create_pipeline_report(
+        report = runner._create_spark_pipeline_report(
             pipeline_id="test_pipeline",
             mode=PipelineMode.INITIAL,
             start_time=start_time,
@@ -891,7 +893,7 @@ class TestSimplePipelineRunner:
             ],
         )
 
-        report = runner._create_pipeline_report(
+        report = runner._create_spark_pipeline_report(
             pipeline_id="test_pipeline",
             mode=PipelineMode.INITIAL,
             start_time=start_time,

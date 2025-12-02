@@ -5,15 +5,12 @@ This module tests that hasattr checks are replaced with proper type checking
 and explicit validation where appropriate.
 """
 
-import os
 from dataclasses import dataclass
-from enum import Enum
 from unittest.mock import Mock, patch
 
 import pytest
 
 # Use compatibility layer
-from pipeline_builder.compat import F
 
 from pipeline_builder.dependencies.analyzer import DependencyAnalyzer
 from pipeline_builder.execution import ExecutionEngine, ExecutionMode
@@ -28,10 +25,8 @@ class TestTrap6HasattrChecks:
         self, spark_session, test_config
     ):
         """Test that execution engine checks rules without hasattr."""
-        # Create a bronze step with rules
-        bronze_step = BronzeStep(
-            name="test_bronze", rules={"user_id": [F.col("user_id").isNotNull()]}
-        )
+        # Create a bronze step with rules (use string rules to avoid SparkContext requirement)
+        bronze_step = BronzeStep(name="test_bronze", rules={"user_id": ["not_null"]})
 
         # Create execution engine
         engine = ExecutionEngine(spark=spark_session, config=test_config, logger=Mock())
@@ -58,12 +53,12 @@ class TestTrap6HasattrChecks:
 
     def test_dependency_analyzer_source_bronze_without_hasattr(self):
         """Test that dependency analyzer checks source_bronze without hasattr."""
-        # Create a silver step
+        # Create a silver step (use string rules to avoid SparkContext requirement)
         silver_step = SilverStep(
             name="test_silver",
             source_bronze="test_bronze",
             transform=lambda spark, bronze_df, prior_silvers: bronze_df,
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": ["not_null"]},
             table_name="test_table",
         )
 
@@ -93,7 +88,7 @@ class TestTrap6HasattrChecks:
         gold_step = GoldStep(
             name="test_gold",
             transform=lambda spark, silvers: list(silvers.values())[0],
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": ["not_null"]},
             table_name="test_table",
             source_silvers=["test_silver"],
         )
@@ -163,7 +158,6 @@ class TestTrap6HasattrChecks:
 
     def test_base_model_to_dict_keeps_appropriate_hasattr(self):
         """Test that base model to_dict keeps appropriate hasattr for duck typing."""
-        from dataclasses import dataclass
 
         from pipeline_builder.models.base import BaseModel
 

@@ -4,7 +4,9 @@ Demo showing concurrent execution with interleaved logging.
 This simulates a real pipeline with parallel execution enabled.
 """
 
+import sys
 from datetime import datetime
+from pathlib import Path
 
 from mock_spark import (
     F,
@@ -15,8 +17,18 @@ from mock_spark import (
     StructType,
 )
 
-from pipeline_builder.execution import ExecutionEngine, ExecutionMode
-from pipeline_builder.models import BronzeStep, GoldStep, PipelineConfig, SilverStep
+# Add src to path
+project_root = Path(__file__).parent.parent
+src_dir = project_root / "src"
+sys.path.insert(0, str(src_dir))
+
+from pipeline_builder.execution import ExecutionEngine, ExecutionMode  # noqa: E402
+from pipeline_builder.models import (  # noqa: E402
+    BronzeStep,
+    GoldStep,
+    PipelineConfig,
+    SilverStep,
+)
 
 print("\n" + "=" * 80)
 print("DEMO: CONCURRENT PIPELINE EXECUTION WITH PARALLEL LOGGING")

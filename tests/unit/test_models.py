@@ -6,14 +6,13 @@ This module tests all the data models, validation methods, and utility functions
 in the models.py file to achieve high test coverage.
 """
 
-import os
 from datetime import datetime
 from unittest.mock import Mock
 
 import pytest
 
 # Use compatibility layer
-from pipeline_builder.compat import DataFrame, F
+from pipeline_builder.compat import DataFrame
 
 from pipeline_builder.errors import ValidationError
 from pipeline_builder.models import (  # Exceptions; Enums; Type definitions; Base classes; Step classes; Result classes; Dependency classes; Utility classes
@@ -174,9 +173,10 @@ class TestBaseModel:
 class TestBronzeStep:
     """Test BronzeStep class."""
 
-    def test_bronze_step_creation(self):
+    def test_bronze_step_creation(self, spark_session):
         """Test BronzeStep creation with valid parameters."""
-        rules = {"id": [F.col("id").isNotNull()]}
+        # Use string rules to avoid SparkContext dependency
+        rules = {"id": ["not_null"]}
         step = BronzeStep(
             name="test_bronze",
             rules=rules,
@@ -189,10 +189,11 @@ class TestBronzeStep:
         assert step.schema == "test_schema"
         assert step.rules is rules  # Check reference equality instead of value equality
 
-    def test_bronze_step_creation_minimal(self):
+    def test_bronze_step_creation_minimal(self, spark_session):
         """Test BronzeStep creation with minimal valid parameters."""
         # A BronzeStep must have non-empty rules - this is the core purpose
-        rules = {"id": [F.col("id").isNotNull()]}
+        # Use string rules to avoid SparkContext dependency
+        rules = {"id": ["not_null"]}
         step = BronzeStep(name="minimal_bronze", rules=rules)
 
         assert step.name == "minimal_bronze"
@@ -204,7 +205,7 @@ class TestBronzeStep:
         """Test BronzeStep validation with valid data."""
         step = BronzeStep(
             name="valid_bronze",
-            rules={"id": [F.col("id").isNotNull()]},
+            rules={"id": ["not_null"]},
             incremental_col="timestamp",
             schema="test_schema",
         )
@@ -214,7 +215,7 @@ class TestBronzeStep:
 
     def test_bronze_step_validation_empty_name(self):
         """Test BronzeStep creation with empty name should fail."""
-        rules = {"id": [F.col("id").isNotNull()]}
+        rules = {"id": ["not_null"]}
 
         with pytest.raises(
             ValidationError, match="Step name must be a non-empty string"
@@ -223,7 +224,7 @@ class TestBronzeStep:
 
     def test_bronze_step_validation_none_name(self):
         """Test BronzeStep creation with None name should fail."""
-        rules = {"id": [F.col("id").isNotNull()]}
+        rules = {"id": ["not_null"]}
 
         with pytest.raises(
             ValidationError, match="Step name must be a non-empty string"
@@ -239,7 +240,7 @@ class TestBronzeStep:
 
     def test_bronze_step_has_incremental_capability(self):
         """Test has_incremental_capability property."""
-        rules = {"id": [F.col("id").isNotNull()]}
+        rules = {"id": ["not_null"]}
 
         # With incremental column
         step_with_incremental = BronzeStep(
@@ -261,7 +262,7 @@ class TestSilverStep:
             name="test_silver",
             source_bronze="bronze_step",
             transform=lambda spark, df, silvers: df,
-            rules={"id": [F.col("id").isNotNull()]},
+            rules={"id": ["not_null"]},
             table_name="silver_table",
             schema="test_schema",
         )
@@ -304,7 +305,7 @@ class TestSilverStep:
 
     def test_silver_step_validation_empty_name(self):
         """Test SilverStep creation with empty name should fail."""
-        rules = {"id": [F.col("id").isNotNull()]}
+        rules = {"id": ["not_null"]}
 
         with pytest.raises(
             ValidationError, match="Step name must be a non-empty string"
@@ -319,7 +320,7 @@ class TestSilverStep:
 
     def test_silver_step_validation_empty_source_bronze(self):
         """Test SilverStep creation with empty source_bronze should fail."""
-        rules = {"id": [F.col("id").isNotNull()]}
+        rules = {"id": ["not_null"]}
 
         with pytest.raises(
             ValidationError, match="Source bronze step name must be a non-empty string"
@@ -334,7 +335,7 @@ class TestSilverStep:
 
     def test_silver_step_validation_none_transform(self):
         """Test SilverStep creation with None transform should fail."""
-        rules = {"id": [F.col("id").isNotNull()]}
+        rules = {"id": ["not_null"]}
 
         with pytest.raises(
             ValidationError, match="Transform function is required and must be callable"
@@ -362,7 +363,7 @@ class TestSilverStep:
 
     def test_silver_step_validation_empty_table_name(self):
         """Test SilverStep creation with empty table_name should fail."""
-        rules = {"id": [F.col("id").isNotNull()]}
+        rules = {"id": ["not_null"]}
 
         with pytest.raises(
             ValidationError, match="Table name must be a non-empty string"
@@ -384,7 +385,7 @@ class TestGoldStep:
         step = GoldStep(
             name="test_gold",
             transform=lambda spark, silvers: silvers["silver_step"],
-            rules={"id": [F.col("id").isNotNull()]},
+            rules={"id": ["not_null"]},
             table_name="gold_table",
             source_silvers=["silver_step"],
             schema="test_schema",
@@ -398,7 +399,7 @@ class TestGoldStep:
 
     def test_gold_step_creation_minimal(self):
         """Test GoldStep creation with minimal parameters."""
-        rules = {"id": [F.col("id").isNotNull()]}
+        rules = {"id": ["not_null"]}
         step = GoldStep(
             name="minimal_gold",
             transform=lambda spark, silvers: silvers["silver_step"],
@@ -413,7 +414,7 @@ class TestGoldStep:
 
     def test_gold_step_validation_success(self):
         """Test GoldStep validation with valid data."""
-        rules = {"id": [F.col("id").isNotNull()]}
+        rules = {"id": ["not_null"]}
         step = GoldStep(
             name="valid_gold",
             transform=lambda spark, silvers: silvers["silver_step"],
@@ -426,7 +427,7 @@ class TestGoldStep:
 
     def test_gold_step_validation_empty_name(self):
         """Test GoldStep creation with empty name should fail."""
-        rules = {"id": [F.col("id").isNotNull()]}
+        rules = {"id": ["not_null"]}
 
         with pytest.raises(
             ValidationError, match="Step name must be a non-empty string"
@@ -440,7 +441,7 @@ class TestGoldStep:
 
     def test_gold_step_validation_none_transform(self):
         """Test GoldStep creation with None transform should fail."""
-        rules = {"id": [F.col("id").isNotNull()]}
+        rules = {"id": ["not_null"]}
 
         with pytest.raises(
             ValidationError, match="Transform function is required and must be callable"
@@ -461,7 +462,7 @@ class TestGoldStep:
 
     def test_gold_step_validation_empty_table_name(self):
         """Test GoldStep creation with empty table_name should fail."""
-        rules = {"id": [F.col("id").isNotNull()]}
+        rules = {"id": ["not_null"]}
 
         with pytest.raises(
             ValidationError, match="Table name must be a non-empty string"

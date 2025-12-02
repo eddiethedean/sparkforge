@@ -53,9 +53,7 @@ class TestPipelineRunnerWriteMode:
     @pytest.fixture
     def config(self):
         """Create a test pipeline config."""
-        # NOTE: Parallel execution disabled due to mock-spark 2.16.1 threading issue
-        # where DuckDB connections in worker threads don't see schemas created in main thread.
-        # This is a known limitation of mock-spark 2.16.1 with parallel execution.
+        # NOTE: Parallel execution disabled for this test to ensure deterministic behavior
         return PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),

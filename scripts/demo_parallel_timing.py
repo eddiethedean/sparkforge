@@ -4,11 +4,18 @@ Demo showing concurrent execution timing with simulated processing.
 This shows how parallel execution saves time compared to sequential.
 """
 
+import sys
 import threading
 import time
+from pathlib import Path
 from typing import List
 
-from pipeline_builder.logging import PipelineLogger
+# Add src to path
+project_root = Path(__file__).parent.parent
+src_dir = project_root / "src"
+sys.path.insert(0, str(src_dir))
+
+from pipeline_builder.logging import PipelineLogger  # noqa: E402
 
 print("\n" + "=" * 80)
 print("DEMO: CONCURRENT VS SEQUENTIAL EXECUTION TIMING")

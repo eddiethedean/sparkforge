@@ -2,14 +2,19 @@
 Simplified tests for pipeline_builder.validation modules that work with mock_spark.
 """
 
+import os
 from datetime import datetime
 
-from mock_spark import (
-    IntegerType,
-    StructField,
-    StructType,
-    StringType,
-)
+# Import types based on SPARK_MODE
+if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+    from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+else:
+    from mock_spark import (
+        IntegerType,
+        StructField,
+        StructType,
+        StringType,
+    )
 
 from pipeline_builder.errors import ValidationError
 from pipeline_builder.logging import PipelineLogger

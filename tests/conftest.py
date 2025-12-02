@@ -13,18 +13,18 @@ import shutil
 import sys
 import time
 
-# Ensure project root is on sys.path before loading compatibility shims
+# Ensure project root and src directory are on sys.path before loading compatibility shims
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SRC_DIR = os.path.join(PROJECT_ROOT, "src")
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
+if SRC_DIR not in sys.path:
+    sys.path.insert(0, SRC_DIR)
 
 # Load interpreter compatibility tweaks (e.g., typing.TypeAlias patch for Python 3.8)
 import sitecustomize  # type: ignore  # noqa: E402,F401
 
 import pytest
-
-# Add the project root to the Python path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Add the tests directory to the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -73,7 +73,7 @@ def reset_global_state():
 
         if compat_name() == "pyspark":
             # Use compatibility layer
-            from pipeline_builder.compat import SparkSession
+
             # SparkContext is accessed via SparkSession
             SparkContext = None  # Not needed for mock-spark
 
@@ -114,44 +114,6 @@ def _create_mock_spark_session():
     # Create mock Spark session
     spark = SparkSession(f"SparkForgeTests-{os.getpid()}")
 
-    # Monkey-patch createDataFrame to handle tuples when schema is provided
-    original_createDataFrame = spark.createDataFrame
-
-    def createDataFrame_wrapper(data, schema=None, **kwargs):
-        """Wrapper to convert tuples to dicts when schema is provided."""
-        if schema is not None and data and isinstance(data, list) and len(data) > 0:
-            # Check if data contains tuples
-            if isinstance(data[0], tuple):
-                # Get column names from schema
-                if hasattr(schema, "fieldNames"):
-                    # Real PySpark StructType
-                    column_names = schema.fieldNames()
-                elif hasattr(schema, "names"):
-                    # Mock StructType might have names attribute
-                    column_names = schema.names
-                elif hasattr(schema, "fields"):
-                    # Extract names from fields
-                    column_names = [field.name for field in schema.fields]
-                elif isinstance(schema, list):
-                    # Schema is a list of column names (string schema)
-                    column_names = schema
-                else:
-                    # Can't determine column names, pass through
-                    if schema is None:
-                        return original_createDataFrame(data)
-                    else:
-                        return original_createDataFrame(data, schema)
-
-                # Convert tuples to dictionaries
-                data = [dict(zip(column_names, row)) for row in data]
-
-        if schema is None:
-            return original_createDataFrame(data)
-        else:
-            return original_createDataFrame(data, schema)
-
-    spark.createDataFrame = createDataFrame_wrapper
-
     # Create test database
     try:
         spark.catalog.createDatabase("test_schema")
@@ -189,7 +151,13 @@ def _create_real_spark_session():
     # Configure Spark with Delta Lake support
     spark = None
     try:
-        from delta import configure_spark_with_delta_pip
+        # Import delta-spark module - handle namespace package issues
+        try:
+            from delta import configure_spark_with_delta_pip
+        except ImportError:
+            # Try alternative import path
+            import delta.pip_utils as pip_utils
+            configure_spark_with_delta_pip = pip_utils.configure_spark_with_delta_pip
 
         print("🔧 Configuring real Spark with Delta Lake support for all tests")
 
@@ -399,39 +367,6 @@ def isolated_spark_session():
 
         spark = SparkSession(f"SparkForgeTests-{os.getpid()}-{unique_id}")
 
-        # Monkey-patch createDataFrame to handle tuples when schema is provided
-        original_createDataFrame = spark.createDataFrame
-
-        def createDataFrame_wrapper(data, schema=None, **kwargs):
-            """Wrapper to convert tuples to dicts when schema is provided."""
-            if schema is not None and data and isinstance(data, list) and len(data) > 0:
-                # Check if data contains tuples
-                if isinstance(data[0], tuple):
-                    # Get column names from schema
-                    if hasattr(schema, "fieldNames"):
-                        column_names = schema.fieldNames()
-                    elif hasattr(schema, "names"):
-                        column_names = schema.names
-                    elif hasattr(schema, "fields"):
-                        column_names = [field.name for field in schema.fields]
-                    elif isinstance(schema, list):
-                        column_names = schema
-                    else:
-                        if schema is None:
-                            return original_createDataFrame(data)
-                        else:
-                            return original_createDataFrame(data, schema)
-
-                    # Convert tuples to dictionaries
-                    data = [dict(zip(column_names, row)) for row in data]
-
-            if schema is None:
-                return original_createDataFrame(data)
-            else:
-                return original_createDataFrame(data, schema)
-
-        spark.createDataFrame = createDataFrame_wrapper
-
         # Create isolated test database
         try:
             spark.catalog.createDatabase(schema_name)
@@ -463,39 +398,6 @@ def mock_spark_session():
     from mock_spark import SparkSession
 
     spark = SparkSession(f"TestApp-{os.getpid()}")
-
-    # Monkey-patch createDataFrame to handle tuples when schema is provided
-    original_createDataFrame = spark.createDataFrame
-
-    def createDataFrame_wrapper(data, schema=None, **kwargs):
-        """Wrapper to convert tuples to dicts when schema is provided."""
-        if schema is not None and data and isinstance(data, list) and len(data) > 0:
-            # Check if data contains tuples
-            if isinstance(data[0], tuple):
-                # Get column names from schema
-                if hasattr(schema, "fieldNames"):
-                    column_names = schema.fieldNames()
-                elif hasattr(schema, "names"):
-                    column_names = schema.names
-                elif hasattr(schema, "fields"):
-                    column_names = [field.name for field in schema.fields]
-                elif isinstance(schema, list):
-                    column_names = schema
-                else:
-                    if schema is None:
-                        return original_createDataFrame(data)
-                    else:
-                        return original_createDataFrame(data, schema)
-
-                # Convert tuples to dictionaries
-                data = [dict(zip(column_names, row)) for row in data]
-
-        if schema is None:
-            return original_createDataFrame(data)
-        else:
-            return original_createDataFrame(data, schema)
-
-    spark.createDataFrame = createDataFrame_wrapper
 
     yield spark
 

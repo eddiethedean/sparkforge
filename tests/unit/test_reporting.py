@@ -7,10 +7,11 @@ This module tests all reporting utilities and functions.
 from datetime import datetime
 
 # TypedDict is available in typing for Python 3.8+
+# Note: TypedDict is not used in this file, but kept for reference
 try:
-    from typing import TypedDict
+    pass  # from typing import TypedDict
 except ImportError:
-    from typing_extensions import TypedDict
+    pass
 
 from pipeline_builder.models import StageStats
 from pipeline_builder.reporting import (

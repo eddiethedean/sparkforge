@@ -2,8 +2,15 @@
 Simple unit tests for execution engine using Mock Spark.
 """
 
+import os
+
 import pytest
-from mock_spark.errors import AnalysisException
+
+# Import AnalysisException based on SPARK_MODE
+if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+    from pyspark.sql.utils import AnalysisException
+else:
+    from mock_spark.errors import AnalysisException
 
 from pipeline_builder.execution import (
     ExecutionEngine,
@@ -152,8 +159,12 @@ class TestExecutionEngineSimple:
         config = self._create_test_config()
         ExecutionEngine(spark=spark_session, config=config)
 
-        # Create empty DataFrame
-        from mock_spark import IntegerType, StructField, StructType, StringType
+        # Create empty DataFrame - use types that match SPARK_MODE
+        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+        if spark_mode == "real":
+            from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+        else:
+            from mock_spark import IntegerType, StructField, StructType, StringType
 
         schema = StructType(
             [

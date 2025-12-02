@@ -2,29 +2,53 @@
 Edge case tests for Mock Spark components.
 """
 
+import os
+
 import pytest
-from mock_spark import (
-    ArrayType,
-    BooleanType,
-    DoubleType,
-    IntegerType,
-    MapType,
-    SparkSession,
-    StructField,
-    StructType,
-    StringType,
-)
-from mock_spark.errors import (
-    AnalysisException,
-    PySparkValueError,
-)
-from mock_spark.functions import (
-    F,
-    AggregateFunction,
-    Column,
-    Literal,
-    WindowFunction,
-)
+
+# Import types and errors based on SPARK_MODE
+if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+    from pyspark.sql.types import (
+        ArrayType,
+        BooleanType,
+        DoubleType,
+        IntegerType,
+        MapType,
+        StringType,
+        StructField,
+        StructType,
+    )
+    from pyspark.sql import SparkSession, functions as F
+    from pyspark.sql.utils import AnalysisException
+    # PySpark doesn't have PySparkValueError - use standard ValueError
+    PySparkValueError = ValueError
+    # PySpark function imports - these are accessed differently
+    from pyspark.sql.functions import Column, lit as Literal, window as WindowFunction
+    # AggregateFunction is a class, not a function import
+    from pyspark.sql.functions import sum as AggregateFunction  # Using sum as example
+else:
+    from mock_spark import (
+        ArrayType,
+        BooleanType,
+        DoubleType,
+        IntegerType,
+        MapType,
+        SparkSession,
+        StructField,
+        StructType,
+        StringType,
+    )
+    from mock_spark.errors import (
+        AnalysisException,
+        PySparkValueError,
+    )
+    from mock_spark.functions import (
+        F,
+        AggregateFunction,
+        Column,
+        Literal,
+        WindowFunction,
+    )
 
 from pipeline_builder.execution import ExecutionEngine
 from pipeline_builder.models import ParallelConfig, PipelineConfig, ValidationThresholds

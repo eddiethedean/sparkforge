@@ -5,7 +5,6 @@ This module provides fixtures and configuration specifically for unit tests,
 which should use mocked dependencies and run quickly.
 """
 
-import os
 from unittest.mock import Mock
 
 import pytest

@@ -43,7 +43,11 @@ include LICENSE
 include requirements.txt
 include docs/markdown/CHANGELOG.md
 include docs/markdown/CONTRIBUTING.md
-recursive-include pipeline_builder *.py
+recursive-include src/pipeline_builder *.py
+recursive-include src/pipeline_builder_base *.py
+recursive-include src/abstracts *.py
+recursive-include src/interfaces *.py
+recursive-include src/sql_pipeline_builder *.py
 recursive-include tests *.py
 recursive-include docs *.rst *.md
 global-exclude *.pyc

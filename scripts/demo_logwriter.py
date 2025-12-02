@@ -4,14 +4,21 @@ Demo showing LogWriter creating and appending to a log table.
 This shows how execution results are persisted across multiple pipeline runs.
 """
 
+import sys
 import time
 from datetime import datetime
+from pathlib import Path
 
 from mock_spark import (
     SparkSession,
 )
 
-from pipeline_builder.models.execution import (
+# Add src to path
+project_root = Path(__file__).parent.parent
+src_dir = project_root / "src"
+sys.path.insert(0, str(src_dir))
+
+from pipeline_builder.models.execution import (  # noqa: E402
     ExecutionContext,
     ExecutionMode,
     ExecutionResult,
@@ -19,7 +26,7 @@ from pipeline_builder.models.execution import (
     StepStatus,
     StepType,
 )
-from pipeline_builder.writer import LogWriter
+from pipeline_builder.writer import LogWriter  # noqa: E402
 
 print("\n" + "=" * 80)
 print("DEMO: LOGWRITER - PERSISTING PIPELINE EXECUTION LOGS")

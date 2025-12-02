@@ -39,7 +39,7 @@ python -m pytest tests/unit/test_constants_coverage.py -v
 python -m pytest tests/ -v
 
 # With coverage
-python -m pytest tests/ --cov=pipeline_builder --cov-report=html
+python -m pytest tests/ --cov=src/pipeline_builder --cov-report=html
 ```
 
 ## 📦 What's Installed
@@ -63,11 +63,11 @@ python -m pytest -k "test_name" -v           # Specific test
 
 ### Code Quality
 ```bash
-black pipeline_builder/                            # Format code
-isort pipeline_builder/                            # Sort imports
-mypy pipeline_builder/                             # Type checking
-flake8 pipeline_builder/                           # Linting
-ruff check pipeline_builder/                       # Fast linting
+black src/                                         # Format code
+isort src/                                         # Sort imports
+mypy src/                                          # Type checking
+flake8 src/                                        # Linting
+ruff check src/                                    # Fast linting
 ```
 
 ### Development

@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Tuple
 
 import pytest
+
 # Use compatibility layer
 from pipeline_builder.compat import DataFrame, SparkSession
 

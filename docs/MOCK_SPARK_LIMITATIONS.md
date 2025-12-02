@@ -1,10 +1,12 @@
 # Mock-Spark Limitations
 
-This document describes known limitations when using SparkForge with mock-spark (DuckDB backend) instead of real PySpark.
+> **Note**: With mock-spark 3.7+, most limitations described in this document have been fixed. Mock-spark 3.7+ uses a Polars backend instead of DuckDB, which resolved threading issues and improved compatibility. This document is kept for historical reference.
+
+This document describes known limitations when using SparkForge with mock-spark instead of real PySpark.
 
 ## Overview
 
-SparkForge supports running with either PySpark or mock-spark. While mock-spark provides excellent compatibility for most operations, there are some limitations due to differences in the underlying DuckDB backend compared to Apache Spark.
+SparkForge supports running with either PySpark or mock-spark. While mock-spark provides excellent compatibility for most operations, there are some limitations due to differences in the underlying backend compared to Apache Spark. Most of these limitations have been resolved in mock-spark 3.7+.
 
 ## Known Limitations
 
@@ -29,27 +31,23 @@ SparkForge supports running with either PySpark or mock-spark. While mock-spark 
 
 ### 2. AnalysisException Constructor
 
-**Issue**: mock-spark's `AnalysisException` requires a `stackTrace` parameter, unlike PySpark's optional parameter.
+> **Status**: Fixed in mock-spark 3.7+
 
-**PySpark Usage**:
-```python
-from pyspark.sql.utils import AnalysisException
-exc = AnalysisException("Table not found")  # stackTrace is optional
-```
+**Issue**: In older versions of mock-spark, `AnalysisException` required a `stackTrace` parameter, unlike PySpark's optional parameter. This has been fixed in mock-spark 3.7+.
 
-**mock-spark Usage**:
+**Historical Usage** (mock-spark < 3.7):
 ```python
 from mock_spark.errors import AnalysisException
 exc = AnalysisException("Table not found", None)  # stackTrace required (can be None)
 ```
 
-**Solution**: When creating `AnalysisException` instances, always pass `None` as the second argument for compatibility:
+**Current Usage** (mock-spark 3.7+):
 ```python
 from pipeline_builder.compat import AnalysisException
-exc = AnalysisException("Table not found", None)
+exc = AnalysisException("Table not found")  # stackTrace is now optional, matching PySpark
 ```
 
-**Note**: The `pipeline_builder.compat` module provides a compatibility layer that handles this automatically in most cases.
+**Note**: The `pipeline_builder.compat` module provides a compatibility layer that handles this automatically.
 
 ## Checking Current Engine
 

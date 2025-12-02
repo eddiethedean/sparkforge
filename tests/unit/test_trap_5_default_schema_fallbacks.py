@@ -163,12 +163,17 @@ class TestTrap5DefaultSchemaFallbacks:
         def dummy_gold_transform(spark, silver_dfs):
             # Import types based on engine
             import os
+
             _ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
             if _ENGINE in ("pyspark", "spark", "real"):
                 try:
                     from pyspark.sql.types import StringType, StructField, StructType
                 except ImportError:
-                    from mock_spark.spark_types import StringType, StructField, StructType
+                    from mock_spark.spark_types import (
+                        StringType,
+                        StructField,
+                        StructType,
+                    )
             else:
                 from mock_spark.spark_types import StringType, StructField, StructType
 
@@ -254,7 +259,7 @@ class TestTrap5DefaultSchemaFallbacks:
             log_calls = [str(call) for call in mock_logger.call_args_list]
             # Check for error message format (emoji + uppercase or just error message)
             assert any(
-                "Failed SILVER step: test_silver" in call 
+                "Failed SILVER step: test_silver" in call
                 or "❌ Failed SILVER step: test_silver" in call
                 or "test_silver" in str(call)
                 for call in log_calls

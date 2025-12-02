@@ -19,17 +19,23 @@ import os
 # Apply mock-spark 0.3.1 patches
 # NOTE: mock-spark patches removed - now using mock-spark 1.3.0 which doesn't need patches
 # The apply_mock_spark_patches() call was causing test pollution
+import os
 import sys
 
-from mock_spark import (
-    DoubleType,
-    Functions,
-    IntegerType,
-    SparkSession,
-    StructField,
-    StructType,
-    StringType,
-)
+# Import types based on SPARK_MODE
+if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+    from pyspark.sql.types import DoubleType, IntegerType, StringType, StructField, StructType
+    from pyspark.sql import SparkSession, functions as Functions
+else:
+    from mock_spark import (
+        DoubleType,
+        Functions,
+        IntegerType,
+        SparkSession,
+        StructField,
+        StructType,
+        StringType,
+    )
 
 from pipeline_builder.validation import (
     _convert_rule_to_expression,
@@ -115,7 +121,12 @@ class TestConvertRuleToExpression:
 
     def test_not_null_rule(self):
         """Test not_null rule conversion."""
-        mock_functions = Functions()
+        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+        if spark_mode == "real":
+            from pyspark.sql import functions
+            mock_functions = functions
+        else:
+            mock_functions = Functions()
         expr = _convert_rule_to_expression("not_null", "user_id", mock_functions)
         assert expr is not None
         assert hasattr(expr, "isNotNull") or hasattr(expr, "operation")

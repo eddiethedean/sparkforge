@@ -106,6 +106,7 @@ class TestTrap4BroadExceptionCatching:
         # Create a real DataFrame that will cause an exception
         # Use compatibility layer for mock-spark support
         import os
+
         if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
             from mock_spark import StringType, StructField, StructType
         else:

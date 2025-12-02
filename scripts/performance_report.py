@@ -12,9 +12,11 @@ import sys
 from pathlib import Path
 from typing import Dict, List
 
-# Add the project root to the path
+# Add the project root and src to the path
 project_root = Path(__file__).parent.parent
+src_dir = project_root / "src"
 sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(src_dir))
 
 from tests.performance.performance_monitor import performance_monitor  # noqa: E402
 

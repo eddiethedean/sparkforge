@@ -12,9 +12,6 @@ import unittest
 
 from pipeline_builder.logging import PipelineLogger
 
-# These functions were removed in the refactoring - tests updated to use PipelineLogger directly
-# get_global_logger, reset_global_logger, set_global_logger
-
 
 class TestPipelineLogger(unittest.TestCase):
     """Test PipelineLogger class."""
@@ -84,54 +81,6 @@ class TestPipelineLogger(unittest.TestCase):
         logger.close()
 
 
-class TestGlobalLogger(unittest.TestCase):
-    """Test global logger management."""
-
-    def tearDown(self):
-        """Clean up global logger."""
-        # Global logger functions were removed, so nothing to clean up
-        pass
-
-    @unittest.skip("get_global_logger function was removed in refactoring")
-    def test_get_global_logger(self):
-        """Test getting global logger."""
-        logger = get_global_logger()
-        self.assertIsInstance(logger, PipelineLogger)
-
-        # Should return same instance
-        logger2 = get_global_logger()
-        self.assertIs(logger, logger2)
-
-    @unittest.skip("set_global_logger function was removed in refactoring")
-    def test_set_global_logger(self):
-        """Test setting global logger."""
-        custom_logger = PipelineLogger(verbose=False, name="CustomLogger")
-        set_global_logger(custom_logger)
-
-        logger = get_global_logger()
-        self.assertIs(logger, custom_logger)
-        self.assertEqual(logger.name, "CustomLogger")
-
-        custom_logger.close()
-
-    @unittest.skip("reset_global_logger function was removed in refactoring")
-    def test_reset_global_logger(self):
-        """Test resetting global logger."""
-        # Get initial logger
-        logger1 = get_global_logger()
-
-        # Reset
-        reset_global_logger()
-
-        # Get new logger
-        logger2 = get_global_logger()
-
-        # Should be different instances
-        self.assertIsNot(logger1, logger2)
-
-        logger2.close()
-
-
 def run_logger_tests():
     """Run all logger tests."""
     print("🧪 Running Logger Tests")
@@ -143,7 +92,6 @@ def run_logger_tests():
     # Add test cases
     test_classes = [
         TestPipelineLogger,
-        TestGlobalLogger,
     ]
 
     for test_class in test_classes:

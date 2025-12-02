@@ -4,7 +4,15 @@ Demo showing the improved uniform logging format.
 This shows what the log messages look like during pipeline execution.
 """
 
-from pipeline_builder.logging import PipelineLogger
+import sys
+from pathlib import Path
+
+# Add src to path
+project_root = Path(__file__).parent.parent
+src_dir = project_root / "src"
+sys.path.insert(0, str(src_dir))
+
+from pipeline_builder.logging import PipelineLogger  # noqa: E402
 
 # Create logger
 logger = PipelineLogger("PipelineRunner")

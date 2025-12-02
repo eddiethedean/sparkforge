@@ -47,12 +47,18 @@ class TestRealSparkOperations:
     @pytest.fixture
     def sample_dataframe(self, spark_session):
         """Create a sample DataFrame for testing."""
+        from pipeline_builder.compat_helpers import create_test_dataframe
+
         data = [
-            ("user1", "click", "2024-01-01 10:00:00"),
-            ("user2", "view", "2024-01-01 11:00:00"),
-            ("user3", "purchase", "2024-01-01 12:00:00"),
-            ("user4", "click", "2024-01-01 13:00:00"),
-            ("user5", "view", "2024-01-01 14:00:00"),
+            {"user_id": "user1", "action": "click", "timestamp": "2024-01-01 10:00:00"},
+            {"user_id": "user2", "action": "view", "timestamp": "2024-01-01 11:00:00"},
+            {
+                "user_id": "user3",
+                "action": "purchase",
+                "timestamp": "2024-01-01 12:00:00",
+            },
+            {"user_id": "user4", "action": "click", "timestamp": "2024-01-01 13:00:00"},
+            {"user_id": "user5", "action": "view", "timestamp": "2024-01-01 14:00:00"},
         ]
         schema = StructType(
             [
@@ -61,7 +67,7 @@ class TestRealSparkOperations:
                 StructField("timestamp", StringType(), True),
             ]
         )
-        return spark_session.createDataFrame(data, schema)
+        return create_test_dataframe(spark_session, data, schema)
 
     @pytest.mark.spark
     def test_real_spark_dataframe_operations(self, sample_dataframe):

@@ -7,16 +7,16 @@ with actual Spark DataFrames and Delta Lake operations.
 """
 
 import os
-from dataclasses import dataclass
 from datetime import datetime
 
 import pytest
 
 # TypedDict is available in typing for Python 3.8+
+# Note: TypedDict is not used in this file, but kept for reference
 try:
-    from typing import TypedDict
+    pass  # from typing import TypedDict
 except ImportError:
-    from typing_extensions import TypedDict
+    pass
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
@@ -53,12 +53,18 @@ class TestDataValidation:
     @pytest.fixture
     def sample_dataframe(self, spark_session):
         """Create a sample DataFrame for testing."""
+        from pipeline_builder.compat_helpers import create_test_dataframe
+
         data = [
-            ("user1", "click", "2024-01-01 10:00:00"),
-            ("user2", "view", "2024-01-01 11:00:00"),
-            ("user3", "purchase", "2024-01-01 12:00:00"),
-            ("user4", "click", "2024-01-01 13:00:00"),
-            ("user5", "view", "2024-01-01 14:00:00"),
+            {"user_id": "user1", "action": "click", "timestamp": "2024-01-01 10:00:00"},
+            {"user_id": "user2", "action": "view", "timestamp": "2024-01-01 11:00:00"},
+            {
+                "user_id": "user3",
+                "action": "purchase",
+                "timestamp": "2024-01-01 12:00:00",
+            },
+            {"user_id": "user4", "action": "click", "timestamp": "2024-01-01 13:00:00"},
+            {"user_id": "user5", "action": "view", "timestamp": "2024-01-01 14:00:00"},
         ]
         schema = StructType(
             [
@@ -67,7 +73,7 @@ class TestDataValidation:
                 StructField("timestamp", StringType(), True),
             ]
         )
-        return spark_session.createDataFrame(data, schema)
+        return create_test_dataframe(spark_session, data, schema)
 
     @pytest.mark.spark
     def test_and_all_rules(self, sample_dataframe):
@@ -173,10 +179,16 @@ class TestDataTransformationUtilities:
     @pytest.fixture
     def sample_dataframe(self, spark_session):
         """Create a sample DataFrame for testing."""
+        from pipeline_builder.compat_helpers import create_test_dataframe
+
         data = [
-            ("user1", "click", "2024-01-01 10:00:00"),
-            ("user2", "view", "2024-01-01 11:00:00"),
-            ("user3", "purchase", "2024-01-01 12:00:00"),
+            {"user_id": "user1", "action": "click", "timestamp": "2024-01-01 10:00:00"},
+            {"user_id": "user2", "action": "view", "timestamp": "2024-01-01 11:00:00"},
+            {
+                "user_id": "user3",
+                "action": "purchase",
+                "timestamp": "2024-01-01 12:00:00",
+            },
         ]
         schema = StructType(
             [
@@ -185,7 +197,7 @@ class TestDataTransformationUtilities:
                 StructField("timestamp", StringType(), True),
             ]
         )
-        return spark_session.createDataFrame(data, schema)
+        return create_test_dataframe(spark_session, data, schema)
 
     @pytest.mark.spark
     def test_basic_dataframe_operations(self, sample_dataframe):
@@ -200,13 +212,23 @@ class TestDataTransformationUtilities:
         assert "action" in columns
         assert "timestamp" in columns
 
-        # Verify the data is still there
-        assert result.count() == 3
+        # Verify the data is still there - should match original count
+        original_count = sample_dataframe.count()
+        assert result.count() == original_count
 
     @pytest.mark.spark
-    def test_dataframe_filtering(self, sample_dataframe):
+    def test_dataframe_filtering(self, sample_dataframe, spark_session):
         """Test DataFrame filtering operations."""
-        # Test filtering
+        # Verify original DataFrame (this fixture creates 3 rows, not 5)
+        original_count = sample_dataframe.count()
+        assert original_count == 3, f"Expected 3 rows, got {original_count}"
+        original_columns = sample_dataframe.columns
+        assert "user_id" in original_columns
+        assert "action" in original_columns
+        assert "timestamp" in original_columns
+
+        # Test filtering - use F.col() which should work with proper column names
+        # All rows have non-null user_id, so all should pass
         result = sample_dataframe.filter(F.col("user_id").isNotNull())
 
         # Check that original columns are still there
@@ -215,8 +237,8 @@ class TestDataTransformationUtilities:
         assert "action" in columns
         assert "timestamp" in columns
 
-        # Verify the data is still there
-        assert result.count() == 3
+        # Verify the data is still there - should match original count
+        assert result.count() == original_count
 
 
 class TestFactoryFunctions:

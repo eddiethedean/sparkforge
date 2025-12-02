@@ -15,9 +15,6 @@ import pytest
 
 from pipeline_builder.logging import PipelineLogger
 
-# These functions were removed in the refactoring - tests updated to use PipelineLogger directly
-# create_logger, get_global_logger, get_logger, reset_global_logger, set_global_logger, set_logger
-
 
 class TestPipelineLoggerComprehensive:
     """Comprehensive test cases for PipelineLogger class."""
@@ -112,7 +109,9 @@ class TestPipelineLoggerComprehensive:
             mock_info.assert_any_call("Starting: test_operation")
             mock_info.assert_any_call("Completed: test_operation")
 
-    @pytest.mark.skip(reason="context method with kwargs was removed, use log_context instead")
+    @pytest.mark.skip(
+        reason="context method with kwargs was removed, use log_context instead"
+    )
     def test_context_manager_with_existing_extra(self):
         """Test context manager with existing extra data."""
         logger = PipelineLogger()
@@ -141,9 +140,7 @@ class TestPipelineLoggerComprehensive:
 
         with patch.object(logger.logger, "info") as mock_info:
             logger.step_start("silver", "enriched_events")
-            mock_info.assert_called_once_with(
-                "▶️ Starting SILVER step: enriched_events"
-            )
+            mock_info.assert_called_once_with("▶️ Starting SILVER step: enriched_events")
 
     def test_step_complete(self):
         """Test step completion logging."""
@@ -165,7 +162,9 @@ class TestPipelineLoggerComprehensive:
                 "✅ Completed SILVER step: enriched_events (30.10s) - 0 rows processed, 0 rows written, 0 invalid, 100.0% valid"
             )
 
-    @pytest.mark.skip(reason="step_failed method was removed in refactoring, use error() instead")
+    @pytest.mark.skip(
+        reason="step_failed method was removed in refactoring, use error() instead"
+    )
     def test_step_failed(self):
         """Test step failure logging."""
         logger = PipelineLogger()
@@ -176,7 +175,9 @@ class TestPipelineLoggerComprehensive:
                 "❌ Failed BRONZE step: user_events (45.20s) - Connection timeout"
             )
 
-    @pytest.mark.skip(reason="step_failed method was removed in refactoring, use error() instead")
+    @pytest.mark.skip(
+        reason="step_failed method was removed in refactoring, use error() instead"
+    )
     def test_step_failed_no_duration(self):
         """Test step failure logging without duration."""
         logger = PipelineLogger()
@@ -259,9 +260,9 @@ class TestPipelineLoggerComprehensive:
         """Test timer context manager."""
         logger = PipelineLogger()
 
-        with patch("pipeline_builder_base.logging.datetime") as mock_datetime, patch.object(
-            logger.logger, "info"
-        ) as mock_info:
+        with patch(
+            "pipeline_builder_base.logging.datetime"
+        ) as mock_datetime, patch.object(logger.logger, "info") as mock_info:
             from datetime import timezone
 
             start_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
@@ -278,15 +279,18 @@ class TestPipelineLoggerComprehensive:
                 pass
 
             # Check that info was called with timing message
-            assert any("context_timer" in str(call) and "5.00" in str(call) for call in mock_info.call_args_list)
+            assert any(
+                "context_timer" in str(call) and "5.00" in str(call)
+                for call in mock_info.call_args_list
+            )
 
     def test_timer_context_manager_exception(self):
         """Test timer context manager with exception."""
         logger = PipelineLogger()
 
-        with patch("pipeline_builder_base.logging.datetime") as mock_datetime, patch.object(
-            logger.logger, "info"
-        ) as mock_info:
+        with patch(
+            "pipeline_builder_base.logging.datetime"
+        ) as mock_datetime, patch.object(logger.logger, "info") as mock_info:
             from datetime import timezone
 
             start_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
@@ -306,7 +310,10 @@ class TestPipelineLoggerComprehensive:
             # Timer should still be cleaned up even on exception
             assert "context_timer" not in logger._timers
             # Check that info was called with timing message
-            assert any("context_timer" in str(call) and "5.00" in str(call) for call in mock_info.call_args_list)
+            assert any(
+                "context_timer" in str(call) and "5.00" in str(call)
+                for call in mock_info.call_args_list
+            )
 
     def test_setup_handlers_console_only(self):
         """Test handler setup with console only."""
@@ -399,88 +406,6 @@ class TestPipelineLoggerComprehensive:
         assert logger.logger.level == logging.DEBUG
 
 
-class TestGlobalLoggerFunctions:
-    """Test cases for global logger functions."""
-
-    @pytest.mark.skip(reason="get_logger function was removed in refactoring")
-    def test_get_logger_default(self):
-        """Test getting default logger."""
-        logger = get_logger()
-
-        assert isinstance(logger, PipelineLogger)
-        assert logger.name == "PipelineRunner"
-
-    @pytest.mark.skip(reason="set_logger function was removed in refactoring")
-    def test_set_logger(self):
-        """Test setting custom logger."""
-        custom_logger = PipelineLogger(name="CustomLogger")
-        set_logger(custom_logger)
-
-        logger = get_logger()
-        assert logger == custom_logger
-        assert logger.name == "CustomLogger"
-
-    @pytest.mark.skip(reason="create_logger function was removed in refactoring")
-    def test_create_logger_default(self):
-        """Test creating logger with default parameters."""
-        logger = create_logger()
-
-        assert isinstance(logger, PipelineLogger)
-        assert logger.name == "PipelineRunner"
-
-    @pytest.mark.skip(reason="create_logger function was removed in refactoring")
-    def test_create_logger_custom(self):
-        """Test creating logger with custom parameters."""
-        logger = create_logger(name="CustomLogger", level=logging.DEBUG, verbose=False)
-
-        assert isinstance(logger, PipelineLogger)
-        assert logger.name == "CustomLogger"
-        assert logger.level == logging.DEBUG
-        assert logger.verbose is False
-
-    @pytest.mark.skip(reason="create_logger function was removed in refactoring")
-    def test_create_logger_with_file(self):
-        """Test creating logger with file."""
-        with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
-            log_file = f.name
-
-        try:
-            logger = create_logger(log_file=log_file)
-
-            assert isinstance(logger, PipelineLogger)
-            assert logger.log_file == log_file
-        finally:
-            os.unlink(log_file)
-
-    @pytest.mark.skip(reason="get_global_logger function was removed in refactoring")
-    def test_get_global_logger(self):
-        """Test getting global logger."""
-        logger = get_global_logger()
-
-        assert isinstance(logger, PipelineLogger)
-
-    @pytest.mark.skip(reason="set_global_logger function was removed in refactoring")
-    def test_set_global_logger(self):
-        """Test setting global logger."""
-        custom_logger = PipelineLogger(name="GlobalLogger")
-        set_global_logger(custom_logger)
-
-        logger = get_global_logger()
-        assert logger == custom_logger
-
-    @pytest.mark.skip(reason="reset_global_logger function was removed in refactoring")
-    def test_reset_global_logger(self):
-        """Test resetting global logger."""
-        custom_logger = PipelineLogger(name="GlobalLogger")
-        set_global_logger(custom_logger)
-
-        reset_global_logger()
-
-        logger = get_global_logger()
-        assert logger != custom_logger
-        assert isinstance(logger, PipelineLogger)
-
-
 class TestTimerContextManager:
     """Test cases for timer context manager."""
 
@@ -488,9 +413,9 @@ class TestTimerContextManager:
         """Test timer context manager on success."""
         logger = PipelineLogger()
 
-        with patch("pipeline_builder_base.logging.datetime") as mock_datetime, patch.object(
-            logger.logger, "info"
-        ) as mock_info:
+        with patch(
+            "pipeline_builder_base.logging.datetime"
+        ) as mock_datetime, patch.object(logger.logger, "info") as mock_info:
             from datetime import timezone
 
             start_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
@@ -507,16 +432,19 @@ class TestTimerContextManager:
                 pass
 
             # Check that info was called with timing message
-            assert any("test_timer" in str(call) and "3.00" in str(call) for call in mock_info.call_args_list)
+            assert any(
+                "test_timer" in str(call) and "3.00" in str(call)
+                for call in mock_info.call_args_list
+            )
             assert "test_timer" not in logger._timers
 
     def test_timer_context_manager_exception(self):
         """Test timer context manager with exception."""
         logger = PipelineLogger()
 
-        with patch("pipeline_builder_base.logging.datetime") as mock_datetime, patch.object(
-            logger.logger, "info"
-        ) as mock_info:
+        with patch(
+            "pipeline_builder_base.logging.datetime"
+        ) as mock_datetime, patch.object(logger.logger, "info"):
             from datetime import timezone
 
             start_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)

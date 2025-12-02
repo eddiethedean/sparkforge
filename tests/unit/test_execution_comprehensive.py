@@ -10,12 +10,17 @@ from datetime import datetime
 from unittest.mock import patch
 
 import pytest
-from mock_spark import (
-    IntegerType,
-    StructField,
-    StructType,
-    StringType,
-)
+
+# Import types based on SPARK_MODE
+if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+    from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+else:
+    from mock_spark import (
+        IntegerType,
+        StructField,
+        StructType,
+        StringType,
+    )
 
 from pipeline_builder.errors import ExecutionError
 from pipeline_builder.execution import (

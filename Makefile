@@ -44,24 +44,24 @@ quality: ## Run all quality checks
 
 format: ## Format code with Black and isort
 	@echo "🎨 Formatting code..."
-	python -m black sparkforge/ tests/
-	python -m isort sparkforge/ tests/
+	python -m black src/ tests/
+	python -m isort src/ tests/
 	@echo "✅ Code formatted successfully"
 
 lint: ## Run linting checks (ruff, pylint)
 	@echo "🔍 Running linting checks..."
-	python -m ruff check sparkforge/ tests/
-	python -m pylint sparkforge/
+	python -m ruff check src/ tests/
+	python -m pylint src/
 	@echo "✅ Linting completed"
 
 type-check: ## Run type checking with mypy
 	@echo "🔍 Running type checks..."
-	python -m mypy sparkforge/
+	python -m mypy src/
 	@echo "✅ Type checking completed"
 
 security: ## Run security checks with bandit
 	@echo "🔒 Running security checks..."
-	python -m bandit -r sparkforge/ -f json -o bandit-report.json
+	python -m bandit -r src/ -f json -o bandit-report.json
 	@echo "✅ Security checks completed"
 
 # Testing
@@ -87,12 +87,12 @@ test-system: ## Run system tests
 
 test-cov: ## Run tests with coverage
 	@echo "🧪 Running tests with coverage..."
-	python -m pytest tests/ --cov=sparkforge --cov-report=html --cov-report=term-missing
+	python -m pytest tests/ --cov=src/pipeline_builder --cov-report=html --cov-report=term-missing
 	@echo "✅ Tests with coverage completed"
 
 test-cov-unit: ## Run unit tests with coverage
 	@echo "🧪 Running unit tests with coverage..."
-	python -m pytest tests/unit/ --cov=sparkforge --cov-report=html --cov-report=term-missing
+	python -m pytest tests/unit/ --cov=src/pipeline_builder --cov-report=html --cov-report=term-missing
 	@echo "✅ Unit tests with coverage completed"
 
 test-fast: ## Run fast tests only
@@ -124,9 +124,9 @@ pre-commit: ## Run pre-commit on all files
 # Fixes
 fix-all: format lint type-check ## Fix all fixable issues
 	@echo "🔧 Fixing all fixable issues..."
-	python -m black sparkforge/ tests/
-	python -m isort sparkforge/ tests/
-	python -m ruff check --fix sparkforge/ tests/
+	python -m black src/ tests/
+	python -m isort src/ tests/
+	python -m ruff check --fix src/ tests/
 	@echo "✅ All fixes applied"
 
 # Cleanup
@@ -210,4 +210,4 @@ status: ## Show current development status
 	@echo "Pip version: $(shell pip --version)"
 	@echo "Git status: $(shell git status --porcelain | wc -l) files changed"
 	@echo "Test files: $(shell find tests -name '*.py' | wc -l)"
-	@echo "Source files: $(shell find sparkforge -name '*.py' | wc -l)"
+	@echo "Source files: $(shell find src -name '*.py' | wc -l)"

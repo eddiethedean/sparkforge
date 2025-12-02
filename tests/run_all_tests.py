@@ -11,9 +11,12 @@ import sys
 import time
 from pathlib import Path
 
-# Add project root to Python path
+# Add project root and src directory to Python path
 project_root = Path(__file__).parent.parent
+src_dir = project_root / "src"
 sys.path.insert(0, str(project_root))
+if str(src_dir) not in sys.path:
+    sys.path.insert(0, str(src_dir))
 
 
 def run_all_tests():
@@ -42,7 +45,7 @@ def run_all_tests():
         "-v",
         "--tb=short",
         "--durations=10",
-        "--cov=sparkforge",
+        "--cov=src/pipeline_builder",
         "--cov-report=term",
         "--cov-report=html:htmlcov_all",
     ]
@@ -69,7 +72,7 @@ def run_all_tests():
         sys.executable,
         "-m",
         "mypy",
-        "sparkforge/",
+        "src/pipeline_builder",
         "--config-file=mypy.ini",
     ]
 

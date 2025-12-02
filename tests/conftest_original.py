@@ -14,8 +14,12 @@ import time
 import pytest
 from pyspark.sql import SparkSession
 
-# Add the project root to the Python path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add the project root and src directory to the Python path
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SRC_DIR = os.path.join(PROJECT_ROOT, "src")
+sys.path.insert(0, PROJECT_ROOT)
+if SRC_DIR not in sys.path:
+    sys.path.insert(0, SRC_DIR)
 
 # Add the tests directory to the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

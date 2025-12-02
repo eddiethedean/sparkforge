@@ -57,15 +57,12 @@ echo "Step 2: Running main test suite (remaining tests)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-# Use parallel execution with fewer workers to avoid DuckDB threading issues
-# mock-spark has known threading issues with DuckDB connections in parallel execution
-# Using -n 4 instead of -n 10 to reduce contention and potential deadlocks
-# If tests still hang, reduce to -n 2 or remove -n entirely for sequential execution
+# Use parallel execution - mock-spark 3.7+ uses Polars backend which fixes threading issues
 pytest tests/ \
        --ignore=tests/unit/test_validation.py \
        --ignore=tests/unit/test_execution_100_coverage.py \
        --ignore=tests/unit/test_bronze_rules_column_validation.py \
-       -n 4 \
+       -n 10 \
        -v --tb=short --no-cov > /tmp/sparkforge_main_tests.log 2>&1
 
 if [ $? -eq 0 ]; then

@@ -4,10 +4,15 @@ Final tests to achieve 100% coverage for execution.py.
 This module covers the remaining uncovered lines.
 """
 
+import os
 from datetime import datetime
 from unittest.mock import patch
 
-from mock_spark import IntegerType, StructField, StructType, StringType
+# Import types based on SPARK_MODE
+if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+    from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+else:
+    from mock_spark import IntegerType, StructField, StructType, StringType
 
 from pipeline_builder.execution import (
     ExecutionEngine,

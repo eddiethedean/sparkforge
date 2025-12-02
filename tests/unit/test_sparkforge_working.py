@@ -7,13 +7,18 @@ import uuid
 from datetime import datetime
 
 import pytest
-from mock_spark import (
-    DoubleType,
-    IntegerType,
-    StructField,
-    StructType,
-    StringType,
-)
+
+# Import types based on SPARK_MODE
+if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+    from pyspark.sql.types import DoubleType, IntegerType, StringType, StructField, StructType
+else:
+    from mock_spark import (
+        DoubleType,
+        IntegerType,
+        StructField,
+        StructType,
+        StringType,
+    )
 
 from pipeline_builder.errors import (
     ConfigurationError,

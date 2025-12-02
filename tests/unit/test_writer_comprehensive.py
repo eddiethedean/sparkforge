@@ -2,14 +2,20 @@
 Comprehensive tests for pipeline_builder.writer.core module.
 """
 
+import os
 from datetime import datetime
 
 import pytest
-from mock_spark import (
-    IntegerType,
-    StructField,
-    StructType,
-)
+
+# Import types based on SPARK_MODE
+if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+    from pyspark.sql.types import IntegerType, StructField, StructType
+else:
+    from mock_spark import (
+        IntegerType,
+        StructField,
+        StructType,
+    )
 
 from pipeline_builder.logging import PipelineLogger
 from pipeline_builder.models import (

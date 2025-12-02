@@ -17,6 +17,7 @@ else:
     from pyspark.sql import functions as F
 # Import types based on engine
 import os
+
 _ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
 if _ENGINE in ("pyspark", "spark", "real"):
     try:

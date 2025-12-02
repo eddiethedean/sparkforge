@@ -49,6 +49,7 @@ def extract_version() -> str:
     """Extract version from pipeline_builder/__init__.py"""
     candidate_paths = [
         Path("sparkforge/__init__.py"),
+        Path("src/pipeline_builder/__init__.py"),
         Path("pipeline_builder/__init__.py"),
     ]
 
@@ -82,14 +83,106 @@ def extract_dependencies(file_path: Path) -> List[str]:
         return []
 
 
-def get_module_info(base_root: Path, spark_root: Path) -> Dict[str, Dict]:
+def parse_import_dependencies(code: str, current_package: str) -> List[str]:
+    """Parse import statements to find dependencies, including relative imports."""
+    deps = []
+    lines = code.split("\n")
+    in_type_checking = False
+
+    for line in lines:
+        # Skip TYPE_CHECKING blocks
+        if "if TYPE_CHECKING:" in line:
+            in_type_checking = True
+            continue
+        if in_type_checking and (
+            line.strip().startswith("else:")
+            or (
+                line.strip()
+                and not line.strip().startswith("#")
+                and len(line) - len(line.lstrip()) <= 4
+            )
+        ):
+            in_type_checking = False
+        if in_type_checking:
+            continue
+
+        # Match: from package.module import ...
+        match = re.match(r"^\s*from\s+([a-zA-Z_][a-zA-Z0-9_.]*)\s+import", line)
+        if match:
+            module_path = match.group(1)
+            # Skip standard library and external packages
+            if module_path.startswith(("pipeline_builder", "abstracts", "interfaces")):
+                # Extract the module path
+                deps.append(module_path)
+
+        # Match: from .module import ... or from ..module import ... (relative imports)
+        match = re.match(r"^\s*from\s+(\.+)([a-zA-Z_][a-zA-Z0-9_.]*)\s+import", line)
+        if match:
+            dots = match.group(1)
+            rel_module = match.group(2)
+            # Convert relative import to absolute based on current package
+            # Parse current_package to get the module hierarchy
+            parts = current_package.split(".")
+            levels_up = len(dots)
+
+            if levels_up == 1:
+                # .module -> same package level
+                # For "pipeline_builder_base.steps.manager", .validation -> pipeline_builder_base.steps.validation
+                abs_module = (
+                    f"{current_package.rsplit('.', 1)[0]}.{rel_module}"
+                    if "." in current_package
+                    else f"{current_package}.{rel_module}"
+                )
+            elif levels_up == 2:
+                # ..module -> go up one level, then access module
+                # For "pipeline_builder_base.steps.manager", ..validation -> pipeline_builder_base.validation
+                if len(parts) >= 2:
+                    # Remove last part (manager), then remove steps, add validation
+                    parent_package = ".".join(parts[:-1])  # pipeline_builder_base.steps
+                    # Actually, we need to go up from the parent, so remove one more level
+                    if len(parts) >= 2:
+                        grandparent_package = (
+                            ".".join(parts[:-2]) if len(parts) > 2 else parts[0]
+                        )
+                        abs_module = f"{grandparent_package}.{rel_module}"
+                    else:
+                        abs_module = f"{parent_package}.{rel_module}"
+                else:
+                    continue
+            else:
+                # More dots - go up more levels
+                # For each dot after the first, remove one more level
+                if levels_up - 1 < len(parts):
+                    parent_package = ".".join(parts[: -(levels_up - 1)])
+                    abs_module = f"{parent_package}.{rel_module}"
+                else:
+                    continue
+
+            # Only add if it's one of our packages
+            if abs_module.startswith(("pipeline_builder", "abstracts", "interfaces")):
+                deps.append(abs_module)
+
+        # Match: import package.module
+        match = re.match(r"^\s*import\s+([a-zA-Z_][a-zA-Z0-9_.]*)", line)
+        if match:
+            module_path = match.group(1)
+            if module_path.startswith(("pipeline_builder", "abstracts", "interfaces")):
+                deps.append(module_path)
+
+    return deps
+
+
+def get_module_info(
+    base_root: Path, spark_root: Path, abstracts_root: Optional[Path] = None
+) -> Dict[str, Dict]:
     """
     Get information about all modules including their dependencies from both
-    pipeline_builder_base and pipeline_builder packages.
+    pipeline_builder_base, pipeline_builder, and abstracts packages.
 
     Args:
         base_root: Path to pipeline_builder_base directory
         spark_root: Path to pipeline_builder directory
+        abstracts_root: Path to abstracts directory (optional)
 
     Returns:
         Dict mapping module_path to {file_path, dependencies, code, package}
@@ -108,12 +201,27 @@ def get_module_info(base_root: Path, spark_root: Path) -> Dict[str, Dict]:
             rel_path = py_file.relative_to(base_root.parent)
             module_path = str(rel_path).replace(".py", "").replace("/", ".")
 
+            # Store the package-relative path for dependency resolution
+            package_rel_path = py_file.relative_to(base_root)
+            package_module_path = (
+                str(package_rel_path).replace(".py", "").replace("/", ".")
+            )
+
             # Read file content
             with open(py_file) as f:
                 code = f.read()
 
-            # Extract dependencies and normalize them
+            # Extract dependencies from docstring and also parse imports
             deps = extract_dependencies(py_file)
+            # Also parse import statements to find dependencies
+            # Determine current module path for relative import resolution
+            current_module = str(package_rel_path).replace(".py", "").replace("/", ".")
+            import_deps = parse_import_dependencies(
+                code, f"pipeline_builder_base.{current_module}"
+            )
+            deps.extend(import_deps)
+            deps = list(set(deps))  # Remove duplicates
+
             # Normalize dependencies to use module paths
             normalized_deps = []
             for dep in deps:
@@ -121,24 +229,49 @@ def get_module_info(base_root: Path, spark_root: Path) -> Dict[str, Dict]:
                 if dep in modules:
                     normalized_deps.append(dep)
                 else:
-                    # Try to find the module
-                    # Dependencies might be relative like "errors" or "models.base"
-                    # Convert to full module path
-                    if "." in dep:
+                    # Try to resolve relative dependencies within the same package
+                    # e.g., "models.base" -> "pipeline_builder_base.models.base"
+                    if "." in dep and not dep.startswith("pipeline_builder"):
+                        # Relative path like "models.base" or "errors"
+                        # Try resolving within the same package first
+                        base_full_path = f"pipeline_builder_base.{dep}"
+                        if base_full_path in modules:
+                            normalized_deps.append(base_full_path)
+                            continue
+                    elif "." in dep:
                         # Already a full path, check if it exists
                         if dep in modules:
                             normalized_deps.append(dep)
+                            continue
                     else:
                         # Simple name, try both packages
                         base_path = f"pipeline_builder_base.{dep}"
                         spark_path = f"pipeline_builder.{dep}"
                         if base_path in modules:
                             normalized_deps.append(base_path)
+                            continue
                         elif spark_path in modules:
                             normalized_deps.append(spark_path)
-                        else:
-                            # Keep original for now, will be resolved during sort
-                            normalized_deps.append(dep)
+                            continue
+
+                    # If still not found, try relative resolution
+                    # For base package, try resolving relative to current module's package
+                    if package_module_path:
+                        # Try resolving relative to current module's directory
+                        current_dir = package_rel_path.parent
+                        if current_dir != Path("."):
+                            rel_dep_path = current_dir / dep.replace(".", "/")
+                            if rel_dep_path.suffix == "":
+                                rel_dep_path = rel_dep_path.with_suffix(".py")
+                            full_rel_path = base_root / rel_dep_path
+                            if full_rel_path.exists():
+                                full_module_path = f"pipeline_builder_base.{str(rel_dep_path).replace('.py', '').replace('/', '.')}"
+                                if full_module_path in modules:
+                                    normalized_deps.append(full_module_path)
+                                    continue
+
+                    # Keep original for now, will be resolved during sort
+                    normalized_deps.append(dep)
 
             modules[module_path] = {
                 "file_path": py_file,
@@ -146,6 +279,7 @@ def get_module_info(base_root: Path, spark_root: Path) -> Dict[str, Dict]:
                 "code": code,
                 "name": py_file.stem,
                 "package": "pipeline_builder_base",
+                "package_rel_path": package_module_path,
             }
 
     # Process pipeline_builder (Spark-specific package)
@@ -160,12 +294,32 @@ def get_module_info(base_root: Path, spark_root: Path) -> Dict[str, Dict]:
             rel_path = py_file.relative_to(spark_root.parent)
             module_path = str(rel_path).replace(".py", "").replace("/", ".")
 
+            # Store the package-relative path for dependency resolution
+            package_rel_path = py_file.relative_to(spark_root)
+            package_module_path = (
+                str(package_rel_path).replace(".py", "").replace("/", ".")
+            )
+
             # Read file content
             with open(py_file) as f:
                 code = f.read()
 
-            # Extract dependencies and normalize them
+            # Extract dependencies from docstring and also parse imports
             deps = extract_dependencies(py_file)
+            # Also parse import statements to find dependencies
+            # Determine current module path for relative import resolution
+            current_module = str(package_rel_path).replace(".py", "").replace("/", ".")
+            import_deps = parse_import_dependencies(
+                code, f"pipeline_builder.{current_module}"
+            )
+            deps.extend(import_deps)
+            deps = list(set(deps))  # Remove duplicates
+
+            # Special case: pipeline_builder.pipeline.builder imports PipelineValidator from pipeline_builder_base
+            # Add this as a dependency
+            if module_path == "pipeline_builder.pipeline.builder":
+                if "pipeline_builder_base.validation.pipeline_validator" not in deps:
+                    deps.append("pipeline_builder_base.validation.pipeline_validator")
             # Normalize dependencies - convert pipeline_builder_base references
             normalized_deps = []
             for dep in deps:
@@ -173,11 +327,29 @@ def get_module_info(base_root: Path, spark_root: Path) -> Dict[str, Dict]:
                 if dep.startswith("pipeline_builder_base."):
                     # Keep as is - it's an absolute reference
                     normalized_deps.append(dep)
+                elif "." in dep and not dep.startswith("pipeline_builder"):
+                    # Relative path like "models.base" - resolve within pipeline_builder
+                    spark_full_path = f"pipeline_builder.{dep}"
+                    if spark_full_path in modules:
+                        normalized_deps.append(spark_full_path)
+                    else:
+                        # Try resolving relative to current module's directory
+                        current_dir = package_rel_path.parent
+                        if current_dir != Path("."):
+                            rel_dep_path = current_dir / dep.replace(".", "/")
+                            if rel_dep_path.suffix == "":
+                                rel_dep_path = rel_dep_path.with_suffix(".py")
+                            full_rel_path = spark_root / rel_dep_path
+                            if full_rel_path.exists():
+                                full_module_path = f"pipeline_builder.{str(rel_dep_path).replace('.py', '').replace('/', '.')}"
+                                if full_module_path in modules:
+                                    normalized_deps.append(full_module_path)
+                                    continue
+                        normalized_deps.append(dep)
                 elif "." in dep:
-                    # Relative path within pipeline_builder, convert to full path
-                    full_path = f"pipeline_builder.{dep}"
-                    if full_path in modules:
-                        normalized_deps.append(full_path)
+                    # Already a full path, check if it exists
+                    if dep in modules:
+                        normalized_deps.append(dep)
                     else:
                         normalized_deps.append(dep)
                 else:
@@ -197,6 +369,82 @@ def get_module_info(base_root: Path, spark_root: Path) -> Dict[str, Dict]:
                 "code": code,
                 "name": py_file.stem,
                 "package": "pipeline_builder",
+                "package_rel_path": package_module_path,
+            }
+
+    # Process abstracts package if provided
+    if abstracts_root and abstracts_root.exists():
+        for py_file in abstracts_root.rglob("*.py"):
+            if "__pycache__" in str(py_file):
+                continue
+            if py_file.name == "__init__.py":
+                continue
+
+            # Get module path with package prefix
+            rel_path = py_file.relative_to(abstracts_root.parent)
+            module_path = str(rel_path).replace(".py", "").replace("/", ".")
+
+            # Store the package-relative path for dependency resolution
+            package_rel_path = py_file.relative_to(abstracts_root)
+            package_module_path = (
+                str(package_rel_path).replace(".py", "").replace("/", ".")
+            )
+
+            # Read file content
+            with open(py_file) as f:
+                code = f.read()
+
+            # Extract dependencies from docstring and also parse imports
+            deps = extract_dependencies(py_file)
+            # Also parse import statements to find dependencies
+            # Determine current module path for relative import resolution
+            current_module = str(package_rel_path).replace(".py", "").replace("/", ".")
+            import_deps = parse_import_dependencies(code, f"abstracts.{current_module}")
+            deps.extend(import_deps)
+            deps = list(set(deps))  # Remove duplicates
+            normalized_deps = []
+            for dep in deps:
+                if dep in modules:
+                    normalized_deps.append(dep)
+                elif "." in dep and not dep.startswith("abstracts"):
+                    # Relative path like "reports.transform" - resolve within abstracts
+                    abstracts_full_path = f"abstracts.{dep}"
+                    if abstracts_full_path in modules:
+                        normalized_deps.append(abstracts_full_path)
+                    else:
+                        # Try resolving relative to current module's directory
+                        current_dir = package_rel_path.parent
+                        if current_dir != Path("."):
+                            rel_dep_path = current_dir / dep.replace(".", "/")
+                            if rel_dep_path.suffix == "":
+                                rel_dep_path = rel_dep_path.with_suffix(".py")
+                            full_rel_path = abstracts_root / rel_dep_path
+                            if full_rel_path.exists():
+                                full_module_path = f"abstracts.{str(rel_dep_path).replace('.py', '').replace('/', '.')}"
+                                if full_module_path in modules:
+                                    normalized_deps.append(full_module_path)
+                                    continue
+                        normalized_deps.append(dep)
+                elif "." in dep:
+                    if dep in modules:
+                        normalized_deps.append(dep)
+                    else:
+                        normalized_deps.append(dep)
+                else:
+                    # Simple name, try to resolve
+                    abstracts_path = f"abstracts.{dep}"
+                    if abstracts_path in modules:
+                        normalized_deps.append(abstracts_path)
+                    else:
+                        normalized_deps.append(dep)
+
+            modules[module_path] = {
+                "file_path": py_file,
+                "dependencies": normalized_deps,
+                "code": code,
+                "name": py_file.stem,
+                "package": "abstracts",
+                "package_rel_path": package_module_path,
             }
 
     return modules
@@ -228,21 +476,18 @@ def topological_sort(modules: Dict[str, Dict]) -> List[str]:
             else:
                 # Try to find partial matches (e.g., "errors" might refer to "pipeline_builder_base.errors")
                 # or "models.base" might refer to "pipeline_builder_base.models.base"
-                found = False
                 for mod_key in modules:
                     # Check if dependency is a suffix of module path
                     if mod_key.endswith(f".{dep}") or mod_key == dep:
                         adjacency[mod_key].append(module)
                         in_degree[module] += 1
                         edges.append((mod_key, module))
-                        found = True
                         break
                     # Check if dependency matches a module name
                     if modules[mod_key]["name"] == dep:
                         adjacency[mod_key].append(module)
                         in_degree[module] += 1
                         edges.append((mod_key, module))
-                        found = True
                         break
 
     # Find nodes with no incoming edges
@@ -296,13 +541,49 @@ def remove_sparkforge_imports(code: str) -> str:
     code = re.sub(r"(?m)^\s*from\s+pipeline_builder\.", "from .", code)
     code = re.sub(r"(?m)^\s*from\s+pipeline_builder_base\.", "from .", code)
     code = re.sub(r"(?m)^\s*from\s+sparkforge\.", "from .", code)
+    code = re.sub(r"(?m)^\s*from\s+abstracts\.", "from .", code)
+    code = re.sub(r"(?m)^\s*import\s+abstracts\b", "import .", code)
 
     lines = code.split("\n")
     new_lines = []
     in_multiline_import = False
     in_mock_spark_import = False
+    in_type_checking_block = False
+    type_checking_indent = 0
 
     for line in lines:
+        # Preserve TYPE_CHECKING blocks completely (they're compile-time only)
+        if re.match(r"^\s*if\s+TYPE_CHECKING\s*:", line):
+            in_type_checking_block = True
+            type_checking_indent = len(line) - len(line.lstrip())
+            new_lines.append(line)
+            continue
+        elif in_type_checking_block:
+            current_indent = (
+                len(line) - len(line.lstrip())
+                if line.strip()
+                else type_checking_indent + 1
+            )
+            # Check if we've exited the TYPE_CHECKING block (else: or dedented code)
+            if (
+                line.strip().startswith("else:")
+                and current_indent == type_checking_indent
+            ):
+                in_type_checking_block = False
+                new_lines.append(line)
+                continue
+            elif (
+                line.strip()
+                and current_indent <= type_checking_indent
+                and not line.strip().startswith("#")
+            ):
+                # We've dedented past the if block
+                in_type_checking_block = False
+            else:
+                # Still in TYPE_CHECKING block, preserve it
+                new_lines.append(line)
+                continue
+
         # Check for mock_spark imports (which we want to completely remove)
         if re.match(r"^\s*from\s+mock_spark", line) or re.match(
             r"^\s*import\s+mock_spark", line
@@ -350,6 +631,8 @@ def remove_sparkforge_imports(code: str) -> str:
                 "# " + line.strip() + "  # Removed: defined in notebook cells above"
             )
             new_lines.append(" " * indent + comment)
+        # Keep abstracts imports - they're part of the source code
+        # (abstracts modules are included in the notebook)
         elif in_multiline_import:
             # Comment out continuation lines of multi-line imports
             indent = len(line) - len(line.lstrip())
@@ -415,57 +698,61 @@ def remove_sparkforge_imports(code: str) -> str:
 
 
 def extract_code_without_docstring(code: str) -> str:
-    """Extract code without the module docstring."""
+    """Extract code, optionally removing only the module-level docstring."""
     lines = code.split("\n")
 
-    # Find and skip module docstring
+    # Find module-level docstring (first docstring at top level)
     docstring_start = -1
     docstring_end = -1
     in_docstring = False
     quote_type = None
+    found_first_statement = False
 
     for i, line in enumerate(lines):
         stripped = line.strip()
 
-        # Skip shebang, encoding, comments at start
-        if stripped.startswith("#"):
+        # Skip shebang, encoding, blank lines, comments at start
+        if stripped.startswith("#!") or stripped.startswith("# -*-"):
             continue
-        if not stripped:
+        if not stripped or stripped.startswith("#"):
             continue
 
-        # Skip imports before docstring
-        if stripped.startswith("from ") or stripped.startswith("import "):
-            if docstring_start == -1:
-                continue
-            else:
-                break
-
-        # Found docstring
-        if not in_docstring:
-            if '"""' in stripped or "'''" in stripped:
+        # Track when we find the first actual statement (not docstring)
+        if not found_first_statement:
+            # Check if this is a docstring
+            if ('"""' in stripped or "'''" in stripped) and not in_docstring:
                 quote_type = '"""' if '"""' in stripped else "'''"
                 docstring_start = i
 
                 if stripped.count(quote_type) >= 2:
+                    # Single-line docstring
                     docstring_end = i
-                    break
+                    # Continue to find first actual code statement
                 else:
                     in_docstring = True
-        elif in_docstring and quote_type in line:
-            docstring_end = i
-            break
+            elif in_docstring:
+                if quote_type in line:
+                    docstring_end = i
+                    in_docstring = False
+            else:
+                # This is actual code, not a docstring
+                found_first_statement = True
+                if docstring_start != -1 and docstring_end == -1:
+                    # We were in a docstring but it wasn't closed - this shouldn't happen
+                    # but if it does, don't remove anything
+                    docstring_start = -1
+                break
 
-    # Return code without docstring
-    if docstring_start != -1:
+    # Return code without module docstring (but keep all other code intact)
+    if docstring_start != -1 and docstring_end != -1:
+        # Remove the docstring lines
         result_lines = lines[:docstring_start] + lines[docstring_end + 1 :]
     else:
         result_lines = lines
 
-    # Remove leading/trailing blank lines
+    # Remove leading blank lines only (keep trailing structure)
     while result_lines and not result_lines[0].strip():
         result_lines.pop(0)
-    while result_lines and not result_lines[-1].strip():
-        result_lines.pop()
 
     return "\n".join(result_lines)
 
@@ -603,9 +890,65 @@ except ImportError:
         else:
             module_header += "# Dependencies: None (base module)\n\n"
 
-        # Extract code without docstring and remove sparkforge imports
-        code = extract_code_without_docstring(info["code"])
+        # Remove sparkforge imports (keep docstrings for documentation)
+        code = info["code"]
+        # Remove only the "Depends on:" section from docstring
+        code = re.sub(r"# Depends on:\n((?:#   .+\n)*)", "", code)
         code = remove_sparkforge_imports(code)
+
+        # Fix Protocol StepValidator shadowing issue
+        # If this is the Protocol StepValidator from pipeline_validation, rename it to avoid shadowing
+        if module_path == "pipeline_builder.validation.pipeline_validation":
+            # Rename the Protocol StepValidator class to StepValidatorProtocol
+            # Match: class StepValidator: (not Protocol, just a regular class acting as protocol)
+            code = re.sub(
+                r"^class StepValidator:\s*$",
+                "class StepValidatorProtocol:",
+                code,
+                flags=re.MULTILINE,
+            )
+            # Update references to this Protocol (but not the real StepValidator from base)
+            # Only replace in contexts where it's clear it's the Protocol version
+            # This is tricky - we'll be conservative and only rename the class definition
+            # The usage should be minimal since it's a Protocol
+
+        # Fix abstracts.builder.PipelineBuilder name collision
+        # Store it with a unique name to avoid collision with pipeline_builder.pipeline.builder.PipelineBuilder
+        if module_path == "abstracts.builder":
+            # After the class definition ends, add a global alias
+            # Find the end of the class (last method/line before next class or end of module)
+            # Actually, simpler: just add it at the very end of the code
+            code = (
+                code.rstrip()
+                + "\n\n# Store as global alias to avoid name collision with pipeline_builder.pipeline.builder.PipelineBuilder\n_AbstractsPipelineBuilderClass = PipelineBuilder\n"
+            )
+
+        # Fix BasePipelineValidator alias issue
+        # PipelineValidator is actually UnifiedValidator in pipeline_builder_base
+        # But PipelineValidator exists in pipeline_builder_base.validation.__init__ as an alias
+        if module_path == "pipeline_builder.pipeline.builder":
+            # Replace BasePipelineValidator with UnifiedValidator (the actual class name)
+            # Or we can use PipelineValidator if it's available from __init__
+            # Actually, let's just remove the cast since it's not needed for runtime
+            code = re.sub(r"\bBasePipelineValidator\b", "UnifiedValidator", code)
+            code = re.sub(r"cast\(UnifiedValidator,", "cast(UnifiedValidator,", code)
+            # Remove the commented import block
+            code = re.sub(
+                r"# from pipeline_builder_base\.validation import[^\n]*\n[^\n]*PipelineValidator[^\n]*\n[^\n]*\)[^\n]*\n",
+                "",
+                code,
+                flags=re.MULTILINE,
+            )
+            # Fix AbstractsPipelineBuilder - it's from abstracts.builder, but the import is commented
+            # We created a global alias _AbstractsPipelineBuilderClass when processing abstracts.builder
+            # Use that alias instead
+            if "AbstractsPipelineBuilder" in code:
+                # Replace with the global alias we created
+                code = re.sub(
+                    r"\bAbstractsPipelineBuilder\b",
+                    "_AbstractsPipelineBuilderClass",
+                    code,
+                )
 
         # Clean up the code
         code = code.strip()
@@ -696,9 +1039,18 @@ def main() -> int:
     print("🔍 Analyzing modules...\n")
 
     # Get all module information from both packages
-    base_root = Path("pipeline_builder_base")
-    spark_root = Path("pipeline_builder")
-    
+    base_root = Path("src/pipeline_builder_base")
+    spark_root = Path("src/pipeline_builder")
+    abstracts_root = Path("src/abstracts")
+
+    # Fallback to old structure if src/ doesn't exist
+    if not base_root.exists():
+        base_root = Path("pipeline_builder_base")
+    if not spark_root.exists():
+        spark_root = Path("pipeline_builder")
+    if not abstracts_root.exists():
+        abstracts_root = Path("abstracts")
+
     # Fallback to old structure if new structure doesn't exist
     if not base_root.exists() and not spark_root.exists():
         sparkforge_root = Path("sparkforge")
@@ -712,8 +1064,10 @@ def main() -> int:
         # Use old single-package structure
         modules = get_module_info(Path("."), sparkforge_root)
     else:
-        # Use new two-package structure
-        modules = get_module_info(base_root, spark_root)
+        # Use new multi-package structure (include abstracts if it exists)
+        modules = get_module_info(
+            base_root, spark_root, abstracts_root if abstracts_root.exists() else None
+        )
 
     print(f"Found {len(modules)} modules")
 

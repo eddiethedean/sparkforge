@@ -377,14 +377,17 @@ def main() -> int:
 
     args = parser.parse_args()
 
-    sparkforge_root = Path("sparkforge")
+    # Try src/ first (new structure), then fallback to old structure
+    sparkforge_root = Path("src/pipeline_builder")
 
     if not sparkforge_root.exists():
-        print(
-            "Error: sparkforge/ directory not found. Run this script from the project root.",
-            file=sys.stderr,
-        )
-        return 2
+        sparkforge_root = Path("sparkforge")
+        if not sparkforge_root.exists():
+            print(
+                "Error: src/pipeline_builder/ or sparkforge/ directory not found. Run this script from the project root.",
+                file=sys.stderr,
+            )
+            return 2
 
     # Find all Python files (excluding __init__.py files)
     all_files = []

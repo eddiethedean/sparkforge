@@ -340,7 +340,9 @@ class TestErrorBackwardCompatibility:
         error = ConfigurationError("Config error")
         assert error.message == "Config error"
         assert error.category == ErrorCategory.CONFIGURATION
-        assert error.severity == ErrorSeverity.MEDIUM  # ConfigurationError defaults to MEDIUM
+        assert (
+            error.severity == ErrorSeverity.MEDIUM
+        )  # ConfigurationError defaults to MEDIUM
 
     def test_error_inheritance_still_works(self):
         """Test that error inheritance still works correctly."""

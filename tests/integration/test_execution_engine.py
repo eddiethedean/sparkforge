@@ -11,6 +11,7 @@ from datetime import datetime
 from unittest.mock import Mock, patch
 
 import pytest
+
 # Use compatibility layer
 from pipeline_builder.compat import DataFrame, SparkSession
 

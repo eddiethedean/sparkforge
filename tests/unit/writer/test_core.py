@@ -33,12 +33,11 @@ class TestLogWriter:
         logger = Mock(spec=PipelineLogger)
         # Add log_context method (context manager)
         from contextlib import contextmanager
-        from unittest.mock import MagicMock
-        
+
         @contextmanager
         def mock_log_context(name):
             yield None
-        
+
         logger.log_context = mock_log_context
         # Add basic logging methods
         logger.info = Mock()

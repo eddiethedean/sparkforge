@@ -13,7 +13,11 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath(".."))
+# Add project root and src directory to sys.path
+project_root = os.path.abspath("..")
+src_dir = os.path.join(project_root, "src")
+sys.path.insert(0, project_root)
+sys.path.insert(0, src_dir)
 
 # -- Project information -----------------------------------------------------
 

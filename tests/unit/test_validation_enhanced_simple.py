@@ -9,19 +9,32 @@ focusing on the most important functionality.
 # NOTE: mock-spark patches removed - now using mock-spark 1.3.0 which doesn't need patches
 # The apply_mock_spark_patches() call was causing test pollution
 
+import os
+
 import pytest
 
-# Import mock objects
-from mock_spark import (
-    BooleanType,
-    DoubleType,
-    IntegerType,
-    Functions,
-    SparkSession,
-    StructField,
-    StructType,
-    StringType,
-)
+# Import types based on SPARK_MODE
+if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+    from pyspark.sql.types import (
+        BooleanType,
+        DoubleType,
+        IntegerType,
+        StringType,
+        StructField,
+        StructType,
+    )
+    from pyspark.sql import SparkSession, functions as Functions
+else:
+    from mock_spark import (
+        BooleanType,
+        DoubleType,
+        IntegerType,
+        Functions,
+        SparkSession,
+        StructField,
+        StructType,
+        StringType,
+    )
 
 # Import SparkForge validation modules
 from pipeline_builder.validation.data_validation import (
@@ -40,7 +53,12 @@ class TestValidationWithFunctionsSimple:
     def setup_method(self):
         """Set up test fixtures."""
         self.mock_spark = SparkSession("TestApp")
-        self.mock_functions = Functions()
+        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+        if spark_mode == "real":
+            from pyspark.sql import functions
+            self.mock_functions = functions
+        else:
+            self.mock_functions = Functions()
 
         # Create sample data
         self.sample_data = [
@@ -245,7 +263,12 @@ class TestPipelineBuilderWithFunctionsSimple:
     def setup_method(self):
         """Set up test fixtures."""
         self.mock_spark = SparkSession("TestApp")
-        self.mock_functions = Functions()
+        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+        if spark_mode == "real":
+            from pyspark.sql import functions
+            self.mock_functions = functions
+        else:
+            self.mock_functions = Functions()
 
     def test_pipeline_builder_with_mock_functions(self):
         """Test PipelineBuilder initialization with mock functions."""
@@ -333,7 +356,12 @@ class TestFunctionsIntegrationSimple:
     def setup_method(self):
         """Set up test fixtures."""
         self.mock_spark = SparkSession("TestApp")
-        self.mock_functions = Functions()
+        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+        if spark_mode == "real":
+            from pyspark.sql import functions
+            self.mock_functions = functions
+        else:
+            self.mock_functions = Functions()
 
     def test_mock_functions_behavior(self):
         """Test that Functions behaves correctly with validation."""

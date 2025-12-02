@@ -2,8 +2,6 @@
 Tests for the dependencies/analyzer.py module.
 """
 
-from dataclasses import dataclass
-from enum import Enum
 from unittest.mock import Mock, patch
 
 import pytest
@@ -13,14 +11,16 @@ from pipeline_builder.dependencies.analyzer import (
     DependencyAnalysisResult,
     DependencyAnalyzer,
 )
-from pipeline_builder.dependencies.exceptions import DependencyError
 from pipeline_builder_base.dependencies.graph import DependencyGraph, StepNode, StepType
+
 # Import from base for isinstance checks and enum comparisons to work correctly
 from pipeline_builder_base.dependencies.graph import (
     DependencyGraph as BaseDependencyGraph,
     StepType as BaseStepType,
 )
-from pipeline_builder_base.dependencies.exceptions import DependencyError as BaseDependencyError
+from pipeline_builder_base.dependencies.exceptions import (
+    DependencyError as BaseDependencyError,
+)
 from pipeline_builder.logging import PipelineLogger
 from pipeline_builder.models import BronzeStep, GoldStep, SilverStep
 

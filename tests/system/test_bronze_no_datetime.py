@@ -20,7 +20,12 @@ if _ENGINE in ("pyspark", "spark", "real"):
     try:
         from pyspark.sql.types import IntegerType, StringType, StructField, StructType
     except ImportError:
-        from mock_spark.spark_types import IntegerType, StringType, StructField, StructType
+        from mock_spark.spark_types import (
+            IntegerType,
+            StringType,
+            StructField,
+            StructType,
+        )
 else:
     from mock_spark.spark_types import IntegerType, StringType, StructField, StructType
 
@@ -42,12 +47,14 @@ class TestBronzeNoDatetime:
     @pytest.fixture
     def sample_data_no_datetime(self, spark_session):
         """Create sample data without datetime columns."""
+        from pipeline_builder.compat_helpers import create_test_dataframe
+
         data = [
-            ("user1", "click", 100),
-            ("user2", "view", 200),
-            ("user3", "purchase", 300),
-            ("user4", "click", 150),
-            ("user5", "view", 250),
+            {"user_id": "user1", "action": "click", "value": 100},
+            {"user_id": "user2", "action": "view", "value": 200},
+            {"user_id": "user3", "action": "purchase", "value": 300},
+            {"user_id": "user4", "action": "click", "value": 150},
+            {"user_id": "user5", "action": "view", "value": 250},
         ]
         schema = StructType(
             [
@@ -56,7 +63,7 @@ class TestBronzeNoDatetime:
                 StructField("value", IntegerType(), True),
             ]
         )
-        return spark_session.createDataFrame(data, schema)
+        return create_test_dataframe(spark_session, data, schema)
 
     def test_bronze_step_without_incremental_col(
         self, spark_session, sample_data_no_datetime

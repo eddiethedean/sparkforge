@@ -9,16 +9,24 @@ This module tests all data validation and quality assessment functions.
 # NOTE: mock-spark patches removed - now using mock-spark 1.3.0 which doesn't need patches
 # The apply_mock_spark_patches() call was causing test pollution
 
+import os
+
 import pytest
-from mock_spark import (
-    DoubleType,
-    Functions,
-    IntegerType,
-    SparkSession,
-    StructField,
-    StructType,
-    StringType,
-)
+
+# Import types based on SPARK_MODE
+if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+    from pyspark.sql.types import DoubleType, IntegerType, StringType, StructField, StructType
+    from pyspark.sql import SparkSession, functions as Functions
+else:
+    from mock_spark import (
+        DoubleType,
+        Functions,
+        IntegerType,
+        SparkSession,
+        StructField,
+        StructType,
+        StringType,
+    )
 
 from pipeline_builder.validation import (
     _convert_rule_to_expression,
@@ -41,7 +49,13 @@ def mock_spark_session():
 @pytest.fixture
 def mock_functions():
     """Create mock functions for testing."""
-    return Functions()
+    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+    if spark_mode == "real":
+        # In PySpark, functions is a module, not a class
+        from pyspark.sql import functions
+        return functions
+    else:
+        return Functions()
 
 
 @pytest.fixture
