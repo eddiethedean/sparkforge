@@ -75,7 +75,21 @@ class UnifiedValidator:
         silver_steps: Dict[StepName, SilverStep],
         gold_steps: Dict[StepName, GoldStep],
     ) -> ValidationResult:
-        """Validate the entire pipeline configuration."""
+        """
+        Validate the entire pipeline configuration.
+
+        Returns:
+            ValidationResult object containing:
+            - errors: List[str] of validation error messages
+            - warnings: List[str] of validation warnings
+            - recommendations: List[str] of recommendations
+            - is_valid: bool indicating if validation passed
+
+        Note:
+            This differs from PipelineValidator.validate_pipeline() which returns List[str].
+            The PipelineBuilder.validate_pipeline() method handles both return types
+            using runtime type checks and type guard functions.
+        """
         errors: list[str] = []
         warnings: list[str] = []
         recommendations: list[str] = []

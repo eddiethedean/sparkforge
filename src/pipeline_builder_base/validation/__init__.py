@@ -3,6 +3,10 @@ Shared validation utilities.
 """
 
 from .pipeline_validator import PipelineValidator
+from .protocols import (
+    PipelineValidatorProtocol,
+    ValidationResultProtocol,
+)
 from .step_validator import StepValidator
 from .utils import (
     check_duplicate_names,
@@ -14,7 +18,9 @@ from .utils import (
 
 __all__ = [
     "PipelineValidator",
+    "PipelineValidatorProtocol",
     "StepValidator",
+    "ValidationResultProtocol",
     "check_duplicate_names",
     "safe_divide",
     "validate_dependency_chain",

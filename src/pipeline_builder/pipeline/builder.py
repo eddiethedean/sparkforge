@@ -48,6 +48,7 @@ from pipeline_builder_base.models import (
 from ..compat import DataFrame, SparkSession
 from ..engine import SparkEngine
 from ..functions import FunctionsProtocol, get_default_functions
+from ..validation import ValidationResult
 from ..models import (
     BronzeStep,
     GoldStep,
@@ -260,13 +261,18 @@ class PipelineBuilder(BasePipelineBuilder):
 
         from pipeline_builder_base.validation import PipelineValidator
 
-        # Cast validator to PipelineValidator for mypy
-        # mypy can't infer type from base class, so we use cast
+        # Type cast: BasePipelineBuilder.__init__ creates PipelineValidator instance
+        # Runtime check: We verify this is actually a PipelineValidator via isinstance
+        # This cast is safe because BasePipelineBuilder always creates PipelineValidator
+        # NOTE: We use runtime type checks in validate_pipeline() to catch any mismatches
         validator: PipelineValidator = cast(PipelineValidator, self.validator)  # type: ignore[redundant-cast]
         self._base_validator: PipelineValidator = validator
+
         # Override base validator with spark_validator for backward compatibility
         # This allows add_validator() to work on self.validator
-        # Type cast needed because UnifiedValidator is compatible with PipelineValidator interface
+        # Type cast: UnifiedValidator implements the PipelineValidator interface
+        # but has different return types. We cast for interface compatibility.
+        # NOTE: Runtime type checks in validate_pipeline() handle the return type differences
         from pipeline_builder_base.validation import (
             PipelineValidator as BasePipelineValidator,
         )
@@ -895,29 +901,108 @@ class PipelineBuilder(BasePipelineBuilder):
 
         return self
 
+    @staticmethod
+    def _extract_errors_from_validator_result(
+        result: ValidationResult | List[str], validator_name: str, logger: PipelineLogger
+    ) -> List[str]:
+        """
+        Type guard function to safely extract errors from validator results.
+
+        This function handles both ValidationResult and List[str] return types,
+        providing runtime type safety and clear error messages. This prevents
+        type mismatch bugs like the ValidationResult + List[str] concatenation error.
+
+        Different validators return different types:
+        - PipelineValidator.validate_pipeline() returns List[str]
+        - UnifiedValidator.validate_pipeline() returns ValidationResult
+
+        This function normalizes both to List[str] for safe concatenation.
+
+        Args:
+            result: Result from validator (ValidationResult or List[str])
+            validator_name: Name of the validator for error messages
+            logger: Logger instance for warnings/errors
+
+        Returns:
+            List of validation error strings (guaranteed to be List[str])
+
+        Raises:
+            TypeError: If result is neither ValidationResult nor List[str],
+                      or if List contains non-string items
+
+        Example:
+            >>> base_result = validator.validate_pipeline(...)
+            >>> errors = PipelineBuilder._extract_errors_from_validator_result(
+            ...     base_result, "base_validator", logger
+            ... )
+            >>> # errors is guaranteed to be List[str]
+        """
+        if isinstance(result, ValidationResult):
+            # UnifiedValidator returns ValidationResult
+            return result.errors
+        elif isinstance(result, list):
+            # PipelineValidator returns List[str]
+            # Verify all items are strings
+            if not all(isinstance(item, str) for item in result):
+                error_msg = (
+                    f"Validator {validator_name} returned List with non-string items. "
+                    f"Expected List[str]. Got: {result}"
+                )
+                logger.error(error_msg)
+                raise TypeError(error_msg)
+            return result
+        else:
+            # Unexpected type
+            error_msg = (
+                f"Unexpected return type from {validator_name}: {type(result)}. "
+                f"Expected ValidationResult or List[str]. Got: {result}"
+            )
+            logger.error(error_msg)
+            raise TypeError(error_msg)
+
     def validate_pipeline(self) -> List[str]:
         """
         Validate the entire pipeline configuration.
 
+        This method runs both base validator (PipelineValidator) and spark validator
+        (UnifiedValidator), then combines their errors. Runtime type checks ensure
+        that return types match expectations, preventing type mismatch bugs.
+
+        Return Types:
+        - PipelineValidator.validate_pipeline() returns List[str]
+        - UnifiedValidator.validate_pipeline() returns ValidationResult
+
+        Both are normalized to List[str] using type guard functions before concatenation.
+
         Returns:
-            List of validation errors (empty if valid)
+            List of validation error strings (empty if valid)
+
+        Raises:
+            TypeError: If validators return unexpected types (caught by runtime checks)
         """
         # Use base class validation first (from BasePipelineBuilder)
-        # Call base validator directly to get List[str]
-        base_errors = self._base_validator.validate_pipeline(
+        # PipelineValidator.validate_pipeline() returns List[str]
+        base_result = self._base_validator.validate_pipeline(
             self.config, self.bronze_steps, self.silver_steps, self.gold_steps
+        )
+
+        # Extract errors using type guard function for runtime safety
+        base_errors = self._extract_errors_from_validator_result(
+            base_result, "base_validator", self.logger
         )
 
         # Also run Spark-specific validation
-        # Spark validator returns ValidationResult object
-        validation_result = self.spark_validator.validate_pipeline(
+        # UnifiedValidator.validate_pipeline() returns ValidationResult
+        spark_result = self.spark_validator.validate_pipeline(
             self.config, self.bronze_steps, self.silver_steps, self.gold_steps
         )
 
-        # Combine errors - validation_result is a ValidationResult object with .errors attribute
-        spark_errors = (
-            validation_result.errors if hasattr(validation_result, "errors") else []
+        # Extract errors using type guard function for runtime safety
+        spark_errors = self._extract_errors_from_validator_result(
+            spark_result, "spark_validator", self.logger
         )
+
+        # Combine errors - both are now guaranteed to be lists
         all_errors = base_errors + spark_errors
 
         if all_errors:

@@ -365,6 +365,104 @@ class TestPipelineBuilder(unittest.TestCase):
             "Bronze step 'nonexistent_bronze' not found", str(context.exception)
         )
 
+    def test_validate_pipeline_return_type(self):
+        """Test that validate_pipeline returns List[str]."""
+        # Add valid steps
+        self.builder.with_bronze_rules(
+            name="bronze1", rules={"id": ["not_null"]}, incremental_col="created_at"
+        )
+
+        errors = self.builder.validate_pipeline()
+        # Verify return type is List[str]
+        self.assertIsInstance(errors, list)
+        self.assertTrue(
+            all(isinstance(error, str) for error in errors),
+            "All validation errors should be strings",
+        )
+
+    def test_validator_return_types(self):
+        """Test that validators return expected types."""
+        from pipeline_builder.validation import ValidationResult
+        from pipeline_builder_base.validation import PipelineValidator
+
+        # Test base validator returns List[str]
+        base_result = self.builder._base_validator.validate_pipeline(
+            self.builder.config,
+            self.builder.bronze_steps,
+            self.builder.silver_steps,
+            self.builder.gold_steps,
+        )
+        self.assertIsInstance(
+            base_result,
+            list,
+            "PipelineValidator.validate_pipeline() should return List[str]",
+        )
+        if base_result:
+            self.assertTrue(
+                all(isinstance(item, str) for item in base_result),
+                "All items in base validator result should be strings",
+            )
+
+        # Test spark validator returns ValidationResult
+        spark_result = self.builder.spark_validator.validate_pipeline(
+            self.builder.config,
+            self.builder.bronze_steps,
+            self.builder.silver_steps,
+            self.builder.gold_steps,
+        )
+        self.assertIsInstance(
+            spark_result,
+            ValidationResult,
+            "UnifiedValidator.validate_pipeline() should return ValidationResult",
+        )
+        self.assertIsInstance(
+            spark_result.errors, list, "ValidationResult.errors should be List[str]"
+        )
+        if spark_result.errors:
+            self.assertTrue(
+                all(isinstance(item, str) for item in spark_result.errors),
+                "All items in ValidationResult.errors should be strings",
+            )
+
+    def test_validate_pipeline_error_concatenation(self):
+        """Test that error concatenation works correctly with both validator types."""
+        from pipeline_builder.validation import ValidationResult
+
+        # Add valid steps
+        self.builder.with_bronze_rules(
+            name="bronze1", rules={"id": ["not_null"]}, incremental_col="created_at"
+        )
+
+        # Get results from both validators
+        base_result = self.builder._base_validator.validate_pipeline(
+            self.builder.config,
+            self.builder.bronze_steps,
+            self.builder.silver_steps,
+            self.builder.gold_steps,
+        )
+        spark_result = self.builder.spark_validator.validate_pipeline(
+            self.builder.config,
+            self.builder.bronze_steps,
+            self.builder.silver_steps,
+            self.builder.gold_steps,
+        )
+
+        # Extract errors using the same logic as validate_pipeline
+        base_errors = base_result if isinstance(base_result, list) else base_result.errors
+        spark_errors = (
+            spark_result.errors
+            if isinstance(spark_result, ValidationResult)
+            else spark_result
+        )
+
+        # Test concatenation works
+        all_errors = base_errors + spark_errors
+        self.assertIsInstance(all_errors, list)
+        self.assertTrue(
+            all(isinstance(error, str) for error in all_errors),
+            "Concatenated errors should all be strings",
+        )
+
     def test_to_pipeline_success(self):
         """Test successful pipeline creation."""
         # Add valid steps
