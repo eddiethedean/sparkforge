@@ -6,6 +6,12 @@ A production-ready data pipeline framework for Apache Spark & Delta Lake that tr
 
 Pipeline Builder provides a fluent API for constructing robust data pipelines with comprehensive validation, automatic dependency management, and enterprise-grade features. It eliminates 70% of boilerplate code while providing built-in data quality enforcement, parallel execution, and seamless incremental processing.
 
+## Architecture Diagrams
+
+![PipelineBuilder Architecture](pipelinebuilder-diagram.png)
+
+![PipelineBuilder Multi-Source Architecture](pipelinebuilder-diagram-muti.png)
+
 ## Key Features
 
 - **70% Less Boilerplate**: Transform 200+ lines of complex Spark code into 20-30 lines of clean, readable code
