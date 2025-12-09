@@ -24,9 +24,7 @@ Pipeline Builder provides a fluent API for constructing robust data pipelines wi
 ### From Source
 
 ```bash
-# Clone the repository
-git clone {repo/url}
-cd {repo_name}
+# From the repository root directory
 
 # Install with PySpark support
 pip install -e ".[pyspark]"
@@ -526,10 +524,10 @@ The framework automatically detects which engine is available.
 
 ## Documentation
 
-- **Full Documentation**: https://sparkforge.readthedocs.io/
-- **API Reference**: https://sparkforge.readthedocs.io/en/latest/api_reference.html
-- **User Guide**: https://sparkforge.readthedocs.io/en/latest/user_guide.html
-- **Examples**: See `examples/` directory in the repository
+- **Full Documentation**: [Documentation Directory](../../docs/)
+- **API Reference**: [Enhanced API Reference](../../docs/ENHANCED_API_REFERENCE.md) or [API Reference (Markdown)](../../docs/markdown/API_REFERENCE.md)
+- **User Guide**: [Comprehensive User Guide](../../docs/COMPREHENSIVE_USER_GUIDE.md) or [User Guide (Markdown)](../../docs/markdown/USER_GUIDE.md)
+- **Examples**: [Examples Directory](../../examples/)
 
 ## Contributing
 
@@ -545,14 +543,15 @@ Current version: **2.3.0**
 
 ## Support
 
-- **Documentation**: https://sparkforge.readthedocs.io/
-- **GitHub Issues**: https://github.com/eddiethedean/sparkforge/issues
-- **GitHub Discussions**: https://github.com/eddiethedean/sparkforge/discussions
+- **Documentation**: [Documentation Directory](../../docs/)
+- **Examples**: [Examples Directory](../../examples/)
+- **Troubleshooting**: [Comprehensive Troubleshooting Guide](../../docs/COMPREHENSIVE_TROUBLESHOOTING_GUIDE.md)
 
 ## Related Files
 
-- **PRESENTATION_README.md** - Presentation materials for Pipeline Builder on Databricks
-- **Main README** - See `../../README.md` for project overview
+- **[Architecture.md](Architecture.md)** - Detailed architecture documentation for PipelineBuilder
+- **[PRESENTATION_README.md](PRESENTATION_README.md)** - Presentation materials for Pipeline Builder on Databricks
+- **[Main README](../../README.md)** - Project overview
 
 ---
 

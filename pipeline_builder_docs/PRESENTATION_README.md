@@ -4,6 +4,11 @@ This directory contains comprehensive presentation materials for presenting Pipe
 
 ## 📁 Files Overview
 
+### Documentation Files
+
+- **`Architecture.md`** - Detailed architecture documentation for PipelineBuilder
+- **`README.md`** - Complete user guide and API reference for PipelineBuilder
+
 ### Main Presentation Files
 
 - **`PRESENTATION_DATABRICKS.md`** - Complete markdown presentation document (30+ minutes, mixed audience)
@@ -245,19 +250,21 @@ The presentation includes complete code examples for:
 ## 📚 Additional Resources
 
 ### Documentation
-- Main README: `../../README.md`
-- Comprehensive User Guide: `../../docs/COMPREHENSIVE_USER_GUIDE.md`
-- API Reference: `../../docs/ENHANCED_API_REFERENCE.md`
-- Troubleshooting Guide: `../../docs/COMPREHENSIVE_TROUBLESHOOTING_GUIDE.md`
+- **[Architecture.md](Architecture.md)** - PipelineBuilder architecture documentation (this directory)
+- **[README.md](README.md)** - Complete PipelineBuilder user guide (this directory)
+- **[Main README](../../README.md)** - Project overview
+- **[Comprehensive User Guide](../../docs/COMPREHENSIVE_USER_GUIDE.md)** - Complete user guide
+- **[API Reference](../../docs/ENHANCED_API_REFERENCE.md)** - API documentation
+- **[Troubleshooting Guide](../../docs/COMPREHENSIVE_TROUBLESHOOTING_GUIDE.md)** - Troubleshooting help
 
 ### Examples
-- Databricks Examples: `../../examples/databricks/`
-- Single Notebook: `../../examples/databricks/single_notebook_pipeline.py`
-- Multi-Task Job: `../../examples/databricks/multi_task_job/`
+- **[Databricks Examples](../../examples/databricks/)** - Databricks-specific examples
+- **[Single Notebook](../../examples/databricks/single_notebook_pipeline.py)** - Single notebook example
+- **[Multi-Task Job](../../examples/databricks/multi_task_job/)** - Multi-task job example
 
 ### Online Resources
-- Documentation: https://sparkforge.readthedocs.io/
-- GitHub: https://github.com/eddiethedean/sparkforge
+- [Documentation Directory](../../docs/)
+- [Examples Directory](../../examples/)
 
 ## 🎯 Presentation Goals
 
@@ -273,7 +280,7 @@ The presentation includes complete code examples for:
 - [ ] Add your name and date to title slide
 - [ ] Add company/organization logos
 - [ ] Download and insert Databricks logo
-- [ ] Download and insert Pipeline Builder/SparkForge logo
+- [ ] Download and insert Pipeline Builder logo
 - [ ] Add icons and diagrams as specified in outline
 - [ ] Review all code examples for accuracy
 - [ ] Practice timing (30+ minutes)
