@@ -94,7 +94,7 @@ from pipeline_builder_base.models import (
 from .compat import DataFrame, F, SparkSession, is_mock_spark
 from .functions import FunctionsProtocol
 from .models import BronzeStep, GoldStep, SilverStep
-from .table_operations import fqn
+from .table_operations import fqn, table_exists
 from .validation import apply_column_rules
 
 
@@ -172,7 +172,7 @@ class ExecutionEngine:
 
     def __init__(
         self,
-        spark: SparkSession,
+        spark: SparkSession,  # type: ignore[valid-type]
         config: PipelineConfig,
         logger: PipelineLogger | None = None,
         functions: FunctionsProtocol | None = None,
@@ -186,7 +186,7 @@ class ExecutionEngine:
             logger: Optional logger instance
             functions: Optional functions object for PySpark operations
         """
-        self.spark: SparkSession = spark
+        self.spark: SparkSession = spark  # type: ignore[valid-type]
         self.config = config
         if logger is None:
             self.logger = PipelineLogger()
@@ -222,7 +222,8 @@ class ExecutionEngine:
         try:
             # Try using mock-spark storage API if available (for mock-spark compatibility)
             if hasattr(self.spark, "storage") and hasattr(
-                self.spark.storage, "create_schema"  # type: ignore[union-attr]
+                self.spark.storage,
+                "create_schema",  # type: ignore[union-attr]
             ):
                 try:
                     self.spark.storage.create_schema(schema)  # type: ignore[union-attr]
@@ -257,8 +258,10 @@ class ExecutionEngine:
             raise ExecutionError(f"Failed to create schema '{schema}': {str(e)}") from e
 
     def _ensure_materialized_for_validation(
-        self, df: DataFrame, rules: Dict[str, Any]
-    ) -> DataFrame:
+        self,
+        df: DataFrame,  # type: ignore[valid-type]
+        rules: Dict[str, Any],
+    ) -> DataFrame:  # type: ignore[valid-type]
         """
         Force DataFrame materialization before validation to avoid CTE optimization issues.
 
@@ -285,11 +288,11 @@ class ExecutionEngine:
                 # This bypasses CTE optimization entirely
                 try:
                     # Get schema first
-                    schema = df.schema
+                    schema = df.schema  # type: ignore[attr-defined]
 
                     # Collect data to force full materialization
                     # This bypasses CTE optimization in mock-spark
-                    collected_data = df.collect()
+                    collected_data = df.collect()  # type: ignore[attr-defined]
 
                     # Convert Row objects to dictionaries to preserve column names
                     # This fixes a bug in mock-spark's Polars backend where Row objects
@@ -309,13 +312,13 @@ class ExecutionEngine:
 
                     # Recreate DataFrame from dictionary data
                     # This ensures all columns are fully materialized with correct names
-                    df = self.spark.createDataFrame(dict_data, schema)  # type: ignore[assignment]
+                    df = self.spark.createDataFrame(dict_data, schema)  # type: ignore[assignment,attr-defined]
                 except Exception as e:
                     # If materialization fails, try alternative: just cache and count
                     try:
                         if hasattr(df, "cache"):
                             df = df.cache()  # type: ignore[assignment]
-                        _ = df.count()  # Force evaluation
+                        _ = df.count()  # type: ignore[attr-defined]  # Force evaluation
                     except Exception:
                         # If all materialization attempts fail, return original
                         # Validation will still be attempted
@@ -331,7 +334,7 @@ class ExecutionEngine:
     def execute_step(
         self,
         step: BronzeStep | SilverStep | GoldStep,
-        context: Dict[str, DataFrame],
+        context: Dict[str, DataFrame],  # type: ignore[valid-type]
         mode: ExecutionMode = ExecutionMode.INITIAL,
     ) -> StepExecutionResult:
         """
@@ -368,7 +371,7 @@ class ExecutionEngine:
             self.logger.step_start(step_type.value, step.name)
 
             # Execute the step based on type
-            output_df: DataFrame
+            output_df: DataFrame  # type: ignore[valid-type]
             if isinstance(step, BronzeStep):
                 output_df = self._execute_bronze_step(step, context)
             elif isinstance(step, SilverStep):
@@ -428,7 +431,7 @@ class ExecutionEngine:
                 # Try multiple methods to ensure schema is visible.
                 try:
                     # Method 1: Try SQL (reliable for both PySpark and mock-spark)
-                    self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+                    self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")  # type: ignore[attr-defined]
                     # Method 2: Also try storage API if available (redundancy for mock-spark)
                     if hasattr(self.spark, "storage") and hasattr(
                         self.spark.storage, "create_schema"
@@ -459,20 +462,157 @@ class ExecutionEngine:
                 else:  # INITIAL or FULL_REFRESH
                     write_mode_str = "overwrite"
 
-                output_df.write.mode(write_mode_str).saveAsTable(output_table)
+                # For incremental mode with append, validate schema matches existing table
+                if mode == ExecutionMode.INCREMENTAL and write_mode_str == "append":
+                    if table_exists(self.spark, output_table):
+                        try:
+                            existing_table = self.spark.table(output_table)  # type: ignore[attr-defined]
+                            existing_schema = existing_table.schema  # type: ignore[attr-defined]
+                            output_schema = output_df.schema  # type: ignore[attr-defined]
+
+                            # Compare schemas - check column names and types
+                            existing_columns = {
+                                f.name: f.dataType for f in existing_schema.fields
+                            }
+                            output_columns = {
+                                f.name: f.dataType for f in output_schema.fields
+                            }
+
+                            # Check for missing columns in output
+                            missing_in_output = set(existing_columns.keys()) - set(
+                                output_columns.keys()
+                            )
+                            # Check for new columns in output (not in existing table)
+                            new_in_output = set(output_columns.keys()) - set(
+                                existing_columns.keys()
+                            )
+                            # Check for type mismatches
+                            type_mismatches = []
+                            for col in set(existing_columns.keys()) & set(
+                                output_columns.keys()
+                            ):
+                                if existing_columns[col] != output_columns[col]:
+                                    type_mismatches.append(
+                                        f"{col}: existing={existing_columns[col]}, "
+                                        f"output={output_columns[col]}"
+                                    )
+
+                            if missing_in_output or new_in_output or type_mismatches:
+                                error_details = []
+                                if missing_in_output:
+                                    error_details.append(
+                                        f"Missing columns in output: {sorted(missing_in_output)}"
+                                    )
+                                if new_in_output:
+                                    error_details.append(
+                                        f"New columns in output (not in existing table): {sorted(new_in_output)}"
+                                    )
+                                if type_mismatches:
+                                    error_details.append(
+                                        f"Type mismatches: {', '.join(type_mismatches)}"
+                                    )
+
+                                raise ExecutionError(
+                                    f"Schema mismatch for table '{output_table}' in incremental mode. "
+                                    f"Cannot append data with different schema to existing table.\n"
+                                    f"{chr(10).join(error_details)}\n\n"
+                                    f"Existing table schema: {existing_schema}\n"
+                                    f"Output DataFrame schema: {output_schema}",
+                                    context={
+                                        "step_name": step.name,
+                                        "table": output_table,
+                                        "mode": "incremental",
+                                        "existing_schema": str(existing_schema),
+                                        "output_schema": str(output_schema),
+                                    },
+                                    suggestions=[
+                                        "Use schema_override to explicitly specify the expected schema",
+                                        "Run initial_load or full_refresh to recreate the table with the new schema",
+                                        "Manually update the existing table schema to match the new schema",
+                                        "If you want to add new columns, use Delta Lake's mergeSchema option "
+                                        "(requires schema_override with the new schema)",
+                                    ],
+                                )
+                        except Exception as e:
+                            # If we can't read the table schema, let the write operation fail naturally
+                            # but provide a helpful error message
+                            if isinstance(e, ExecutionError):
+                                raise
+                            # Otherwise, continue - the write will fail with a more specific error
+
+                # Handle schema override if provided
+                schema_override = getattr(step, "schema_override", None)
+                should_apply_schema_override = False
+
+                if schema_override is not None:
+                    # Import StructType here to avoid circular dependency
+                    from pyspark.sql.types import StructType
+
+                    if not isinstance(schema_override, StructType):
+                        raise ExecutionError(
+                            f"Step '{step.name}' has invalid schema_override. "
+                            f"Expected StructType, got {type(schema_override)}"
+                        )
+
+                    # Determine when to apply schema override:
+                    # - Gold steps: Always apply (always use overwrite mode)
+                    # - Silver steps in initial/full refresh: Always apply
+                    # - Silver steps in incremental: Only if table doesn't exist
+                    if isinstance(step, GoldStep):
+                        should_apply_schema_override = True
+                    elif isinstance(step, SilverStep):
+                        if mode != ExecutionMode.INCREMENTAL:
+                            # Initial or full refresh - always apply
+                            should_apply_schema_override = True
+                        else:
+                            # Incremental mode - only apply if table doesn't exist
+                            should_apply_schema_override = not table_exists(
+                                self.spark, output_table
+                            )
+
+                # Apply schema override if needed
+                if should_apply_schema_override:
+                    try:
+                        # Cast DataFrame to the override schema
+                        output_df = self.spark.createDataFrame(  # type: ignore[attr-defined]
+                            output_df.rdd, schema_override
+                        )  # type: ignore[attr-defined]
+                        # Write with overwriteSchema option
+                        (
+                            output_df.write.mode(write_mode_str)
+                            .option("overwriteSchema", "true")
+                            .saveAsTable(output_table)  # type: ignore[attr-defined]
+                        )
+                    except Exception as e:
+                        raise ExecutionError(
+                            f"Failed to write table '{output_table}' with schema override: {e}",
+                            context={
+                                "step_name": step.name,
+                                "table": output_table,
+                                "schema_override": str(schema_override),
+                            },
+                            suggestions=[
+                                "Verify that the schema_override matches the DataFrame structure",
+                                "Check that all required columns are present in the DataFrame",
+                                "Ensure data types are compatible",
+                            ],
+                        ) from e
+                else:
+                    # Normal write without schema override
+                    output_df.write.mode(write_mode_str).saveAsTable(output_table)  # type: ignore[attr-defined]
                 result.output_table = output_table
-                result.rows_processed = output_df.count()
+                result.rows_processed = output_df.count()  # type: ignore[attr-defined]
 
                 # Set write mode in result for tracking
-                result.write_mode = write_mode_str
+                result.write_mode = write_mode_str  # type: ignore[attr-defined]
             elif isinstance(step, BronzeStep):
                 # Bronze steps only validate data, don't write to tables
-                result.rows_processed = output_df.count()
-                result.write_mode = None
+                result.rows_processed = output_df.count()  # type: ignore[attr-defined]
+                result.write_mode = None  # type: ignore[attr-defined]
             else:  # VALIDATION_ONLY mode
                 # Validation-only mode doesn't write to tables
-                result.rows_processed = output_df.count()
-                result.write_mode = None
+                result.rows_processed = output_df.count()  # type: ignore[attr-defined]
+                result.write_mode = None  # type: ignore[attr-defined]
 
             result.status = StepStatus.COMPLETED
             result.end_time = datetime.now()
@@ -521,7 +661,7 @@ class ExecutionEngine:
         steps: list[BronzeStep | SilverStep | GoldStep],
         mode: ExecutionMode = ExecutionMode.INITIAL,
         max_workers: int = 4,
-        context: Dict[str, DataFrame] | None = None,
+        context: Dict[str, DataFrame] | None = None,  # type: ignore[valid-type]
     ) -> ExecutionResult:
         """
         Execute a complete pipeline with smart dependency-aware parallel execution.
@@ -570,8 +710,8 @@ class ExecutionEngine:
             # Collect unique schemas from all steps
             required_schemas = set()
             for step in steps:
-                if hasattr(step, "schema") and step.schema:
-                    schema_value = step.schema
+                if hasattr(step, "schema") and step.schema:  # type: ignore[attr-defined]
+                    schema_value = step.schema  # type: ignore[attr-defined]
                     # Handle both string schemas and Mock objects (for tests)
                     if isinstance(schema_value, str):
                         required_schemas.add(schema_value)
@@ -580,7 +720,7 @@ class ExecutionEngine:
             for schema in required_schemas:
                 try:
                     # Always try to create schema - CREATE SCHEMA IF NOT EXISTS is idempotent
-                    self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+                    self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")  # type: ignore[attr-defined]
                     # Also use _ensure_schema_exists as backup (tries multiple methods)
                     self._ensure_schema_exists(schema)
                 except Exception as e:
@@ -839,7 +979,7 @@ class ExecutionEngine:
     def _execute_step_safe(
         self,
         step: BronzeStep | SilverStep | GoldStep,
-        context: Dict[str, DataFrame],
+        context: Dict[str, DataFrame],  # type: ignore[valid-type]
         mode: ExecutionMode,
         context_lock: threading.Lock,
     ) -> StepExecutionResult:
@@ -861,15 +1001,16 @@ class ExecutionEngine:
         # Ensure schema exists in THIS worker thread before execution
         # Schema creation is serialized with a lock, and schemas are created right before saveAsTable.
         # This is just a safety check.
-        if hasattr(step, "schema") and step.schema:
+        if hasattr(step, "schema") and step.schema:  # type: ignore[attr-defined]
             with context_lock:
                 # Try to ensure schema exists (serialized to avoid race conditions)
                 try:
                     # Use SQL to ensure schema exists (reliable for both PySpark and mock-spark)
-                    self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {step.schema}")
+                    schema_name = step.schema  # type: ignore[attr-defined]
+                    self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")  # type: ignore[attr-defined]
                 except Exception as e:
                     self.logger.debug(
-                        f"Schema '{step.schema}' creation in worker thread (non-critical): {e}"
+                        f"Schema '{schema_name}' creation in worker thread (non-critical): {e}"
                     )
 
         # Read from context with lock to get a snapshot
@@ -888,7 +1029,7 @@ class ExecutionEngine:
 
                 if schema is not None:
                     # Add the step's output table to context for downstream steps
-                    context[step.name] = self.spark.table(fqn(schema, table_name))
+                    context[step.name] = self.spark.table(fqn(schema, table_name))  # type: ignore[attr-defined,valid-type]
                 else:
                     self.logger.warning(
                         f"Step '{step.name}' completed but has no schema. "
@@ -898,8 +1039,10 @@ class ExecutionEngine:
         return result
 
     def _execute_bronze_step(
-        self, step: BronzeStep, context: Dict[str, DataFrame]
-    ) -> DataFrame:
+        self,
+        step: BronzeStep,
+        context: Dict[str, DataFrame],  # type: ignore[valid-type]  # type: ignore[valid-type]
+    ) -> DataFrame:  # type: ignore[valid-type]
         """Execute a bronze step."""
         # Bronze steps require data to be provided in context
         # This is the expected behavior - bronze steps validate existing data
@@ -911,10 +1054,10 @@ class ExecutionEngine:
                 f"Available context keys: {list(context.keys())}"
             )
 
-        df: DataFrame = context[step.name]
+        df: DataFrame = context[step.name]  # type: ignore[valid-type]
 
         # Validate that the DataFrame is not empty (optional check)
-        if df.count() == 0:
+        if df.count() == 0:  # type: ignore[attr-defined]
             self.logger.warning(
                 f"Bronze step '{step.name}' received empty DataFrame. "
                 f"This may indicate missing or invalid data source."
@@ -925,9 +1068,9 @@ class ExecutionEngine:
     def _execute_silver_step(
         self,
         step: SilverStep,
-        context: Dict[str, DataFrame],
+        context: Dict[str, DataFrame],  # type: ignore[valid-type]
         mode: ExecutionMode,
-    ) -> DataFrame:
+    ) -> DataFrame:  # type: ignore[valid-type]
         """Execute a silver step."""
 
         # Get source bronze data
@@ -936,7 +1079,7 @@ class ExecutionEngine:
                 f"Source bronze step {step.source_bronze} not found in context"
             )
 
-        bronze_df: DataFrame = context[step.source_bronze]
+        bronze_df: DataFrame = context[step.source_bronze]  # type: ignore[valid-type]
 
         if mode == ExecutionMode.INCREMENTAL:
             bronze_df = self._filter_incremental_bronze_input(step, bronze_df)
@@ -945,8 +1088,10 @@ class ExecutionEngine:
         return step.transform(self.spark, bronze_df, {})
 
     def _filter_incremental_bronze_input(
-        self, step: SilverStep, bronze_df: DataFrame
-    ) -> DataFrame:
+        self,
+        step: SilverStep,
+        bronze_df: DataFrame,  # type: ignore[valid-type]  # type: ignore[valid-type]
+    ) -> DataFrame:  # type: ignore[valid-type]
         """
         Filter bronze input rows that were already processed in previous incremental runs.
 
@@ -973,7 +1118,7 @@ class ExecutionEngine:
         output_table = fqn(schema, table_name)
 
         try:
-            existing_table = self.spark.table(output_table)
+            existing_table = self.spark.table(output_table)  # type: ignore[attr-defined]
         except Exception as exc:
             self.logger.debug(
                 f"Silver step {step.name}: unable to read existing table {output_table} "
@@ -989,7 +1134,7 @@ class ExecutionEngine:
             return bronze_df
 
         try:
-            watermark_rows = existing_table.select(watermark_col).collect()
+            watermark_rows = existing_table.select(watermark_col).collect()  # type: ignore[attr-defined]
         except Exception as exc:
             self.logger.warning(
                 f"Silver step {step.name}: failed to collect watermark values "
@@ -1021,7 +1166,7 @@ class ExecutionEngine:
             return bronze_df
 
         try:
-            filtered_df = bronze_df.filter(F.col(incremental_col) > F.lit(cutoff_value))
+            filtered_df = bronze_df.filter(F.col(incremental_col) > F.lit(cutoff_value))  # type: ignore[attr-defined]
         except Exception as exc:
             if self._using_mock_spark():
                 mock_df = self._filter_bronze_rows_mock(
@@ -1050,7 +1195,7 @@ class ExecutionEngine:
             f"Silver step {step.name}: filtering bronze rows where "
             f"{incremental_col} <= {cutoff_value}"
         )
-        return cast(DataFrame, filtered_df)
+        return cast(DataFrame, filtered_df)  # type: ignore[valid-type]
 
     def _using_mock_spark(self) -> bool:
         """Determine if current spark session is backed by mock-spark."""
@@ -1062,15 +1207,18 @@ class ExecutionEngine:
         return is_mock_spark() or "mock_spark" in spark_module
 
     def _filter_bronze_rows_mock(
-        self, bronze_df: DataFrame, incremental_col: str, cutoff_value: object
-    ) -> DataFrame | None:
+        self,
+        bronze_df: DataFrame,  # type: ignore[valid-type]
+        incremental_col: str,
+        cutoff_value: object,
+    ) -> DataFrame | None:  # type: ignore[valid-type]
         """
         Mock-spark fallback: collect rows and filter in-memory when column operations fail.
         """
 
         try:
-            rows = bronze_df.collect()
-            schema = bronze_df.schema
+            rows = bronze_df.collect()  # type: ignore[attr-defined]
+            schema = bronze_df.schema  # type: ignore[attr-defined]
         except Exception:
             return None
 
@@ -1087,12 +1235,12 @@ class ExecutionEngine:
 
         if not filtered_rows:
             try:
-                result = bronze_df.limit(0)
-                return cast(DataFrame, result)  # type: ignore[return-value]
+                result = bronze_df.limit(0)  # type: ignore[attr-defined]
+                return cast(DataFrame, result)  # type: ignore[valid-type,return-value]
             except Exception:
                 pass
-            result = self.spark.createDataFrame([], schema)
-            return cast(DataFrame, result)  # type: ignore[return-value]
+            result = self.spark.createDataFrame([], schema)  # type: ignore[attr-defined]
+            return cast(DataFrame, result)  # type: ignore[valid-type]  # type: ignore[valid-type,return-value]
 
         try:
             column_order: list[str] = []
@@ -1113,8 +1261,10 @@ class ExecutionEngine:
                     )
                 else:
                     structured_rows.append(tuple(row))
-            result = self.spark.createDataFrame(structured_rows, schema, verifySchema=False)
-            return cast(DataFrame, result)  # type: ignore[return-value]
+            result = self.spark.createDataFrame(  # type: ignore[attr-defined]
+                structured_rows, schema, verifySchema=False
+            )  # type: ignore[attr-defined]
+            return cast(DataFrame, result)  # type: ignore[valid-type]  # type: ignore[valid-type,return-value]
         except Exception:
             return None
 
@@ -1140,8 +1290,10 @@ class ExecutionEngine:
         return None
 
     def _execute_gold_step(
-        self, step: GoldStep, context: Dict[str, DataFrame]
-    ) -> DataFrame:
+        self,
+        step: GoldStep,
+        context: Dict[str, DataFrame],  # type: ignore[valid-type]  # type: ignore[valid-type]
+    ) -> DataFrame:  # type: ignore[valid-type]
         """Execute a gold step."""
 
         # Build silvers dict from source_silvers
@@ -1152,7 +1304,7 @@ class ExecutionEngine:
                     raise ExecutionError(
                         f"Source silver {silver_name} not found in context"
                     )
-                silvers[silver_name] = context[silver_name]
+                silvers[silver_name] = context[silver_name]  # type: ignore[valid-type]
 
         return step.transform(self.spark, silvers)
 

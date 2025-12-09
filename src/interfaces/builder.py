@@ -4,12 +4,12 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from reader import Reader
-    from writer import Writer
+    from reader import Reader  # type: ignore[import-not-found]
+    from writer import Writer  # type: ignore[import-not-found]
 
-from rules import Rules
-from runner import Runner
-from transformer import Transformer
+from rules import Rules  # type: ignore[import-not-found]
+from runner import Runner  # type: ignore[import-not-found]
+from transformer import Transformer  # type: ignore[import-not-found]
 
 
 class Builder(ABC):

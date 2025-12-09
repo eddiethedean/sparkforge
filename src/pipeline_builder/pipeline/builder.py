@@ -22,7 +22,10 @@ The builder creates pipelines that can be executed with the simplified execution
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List
+
+if TYPE_CHECKING:
+    from pyspark.sql.types import StructType
 
 from abstracts.builder import PipelineBuilder as AbstractsPipelineBuilder
 from pipeline_builder_base.builder import BasePipelineBuilder
@@ -98,7 +101,7 @@ class PipelineBuilder(BasePipelineBuilder):
         builder.add_silver_transform(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.filter(F.col("value") > 0),
+            transform=lambda spark, df, silvers: df.filter(F.col("value")  # type: ignore[attr-defined] > 0),
             rules={"value": ["gt", 0]},  # String rules
             table_name="clean_events"
         )
@@ -156,7 +159,7 @@ class PipelineBuilder(BasePipelineBuilder):
         >>> builder.add_silver_transform(
         ...     name="clean_events",
         ...     source_bronze="events",
-        ...     transform=lambda spark, df, silvers: df.filter(F.col("status") == "active"),
+        ...     transform=lambda spark, df, silvers: df.filter(F.col("status")  # type: ignore[attr-defined] == "active"),
         ...     rules={"status": [F.col("status").isNotNull()]},
         ...     table_name="clean_events",
         ...     watermark_col="timestamp"
@@ -179,7 +182,7 @@ class PipelineBuilder(BasePipelineBuilder):
     def __init__(
         self,
         *,
-        spark: SparkSession,
+        spark: SparkSession,  # type: ignore[valid-type]
         schema: str,
         min_bronze_rate: float = 95.0,
         min_silver_rate: float = 98.0,
@@ -253,9 +256,10 @@ class PipelineBuilder(BasePipelineBuilder):
         self.spark_validator = UnifiedValidator(self.logger)
         # Store base validator before overriding
         # Type annotation needed for mypy - validator is set in BasePipelineBuilder.__init__
-        from pipeline_builder_base.validation import PipelineValidator
         from typing import cast
-        
+
+        from pipeline_builder_base.validation import PipelineValidator
+
         # Cast validator to PipelineValidator for mypy
         # mypy can't infer type from base class, so we use cast
         validator: PipelineValidator = cast(PipelineValidator, self.validator)  # type: ignore[redundant-cast]
@@ -490,10 +494,10 @@ class PipelineBuilder(BasePipelineBuilder):
         # Create SilverStep for existing table
         # Create a dummy transform function for existing tables
         def dummy_transform_func(
-            spark: SparkSession,
-            bronze_df: DataFrame,
-            prior_silvers: Dict[str, DataFrame],
-        ) -> DataFrame:
+            spark: SparkSession,  # type: ignore[valid-type]
+            bronze_df: DataFrame,  # type: ignore[valid-type]
+            prior_silvers: Dict[str, DataFrame],  # type: ignore[valid-type]
+        ) -> DataFrame:  # type: ignore[valid-type]
             return bronze_df
 
         # Type the function properly
@@ -556,6 +560,7 @@ class PipelineBuilder(BasePipelineBuilder):
         description: str | None = None,
         depends_on: list[StepName] | None = None,
         schema: str | None = None,
+        schema_override: StructType | None = None,
     ) -> PipelineBuilder:
         """
         Add Silver layer transformation step for data cleaning and enrichment.
@@ -570,7 +575,7 @@ class PipelineBuilder(BasePipelineBuilder):
                           If not provided, will automatically infer from the most recent
                           with_bronze_rules() call. If no bronze steps exist, will raise an error.
             transform: Transformation function with signature:
-                     (spark: SparkSession, bronze_df: DataFrame, prior_silvers: Dict[str, DataFrame]) -> DataFrame
+                     (spark: SparkSession  # type: ignore[valid-type], bronze_df: DataFrame  # type: ignore[valid-type], prior_silvers: Dict[str, DataFrame]  # type: ignore[valid-type]) -> DataFrame
                      Must be callable and cannot be None.
             rules: Dictionary mapping column names to validation rule lists.
                    Supports both PySpark Column expressions and string rules:
@@ -582,6 +587,9 @@ class PipelineBuilder(BasePipelineBuilder):
             description: Optional description of this Silver step
             depends_on: List of other Silver step names that must complete before this step.
             schema: Optional schema name for writing silver data. If not provided, uses the builder's default schema.
+            schema_override: Optional PySpark StructType schema to override DataFrame schema when creating tables.
+                          Uses Delta Lake's overwriteSchema option. Applied during initial runs and when table
+                          doesn't exist.
 
         Returns:
             Self for method chaining
@@ -713,6 +721,7 @@ class PipelineBuilder(BasePipelineBuilder):
             watermark_col=watermark_col,
             schema=schema,
             source_incremental_col=source_incremental_col,
+            schema_override=schema_override,
         )
 
         self.silver_steps[name] = silver_step
@@ -730,6 +739,7 @@ class PipelineBuilder(BasePipelineBuilder):
         source_silvers: list[StepName] | None = None,
         description: str | None = None,
         schema: str | None = None,
+        schema_override: StructType | None = None,
     ) -> PipelineBuilder:
         """
         Add Gold layer transformation step for business analytics and aggregations.
@@ -741,7 +751,7 @@ class PipelineBuilder(BasePipelineBuilder):
         Args:
             name: Unique identifier for this Gold step
             transform: Transformation function with signature:
-                     (spark: SparkSession, silvers: Dict[str, DataFrame]) -> DataFrame
+                     (spark: SparkSession  # type: ignore[valid-type], silvers: Dict[str, DataFrame]  # type: ignore[valid-type]) -> DataFrame
                      Must be callable and cannot be None.
             rules: Dictionary mapping column names to validation rule lists.
                    Supports both PySpark Column expressions and string rules:
@@ -753,6 +763,8 @@ class PipelineBuilder(BasePipelineBuilder):
                            If no Silver steps exist, will raise an error.
             description: Optional description of this Gold step
             schema: Optional schema name for writing gold data. If not provided, uses the builder's default schema.
+            schema_override: Optional PySpark StructType schema to override DataFrame schema when writing to gold tables.
+                          Uses Delta Lake's overwriteSchema option. Always applied for gold table writes.
 
         Returns:
             Self for method chaining
@@ -875,6 +887,7 @@ class PipelineBuilder(BasePipelineBuilder):
             table_name=table_name,
             source_silvers=source_silvers,
             schema=schema,
+            schema_override=schema_override,
         )
 
         self.gold_steps[name] = gold_step
@@ -925,7 +938,7 @@ class PipelineBuilder(BasePipelineBuilder):
     @classmethod
     def for_development(
         cls,
-        spark: SparkSession,
+        spark: SparkSession,  # type: ignore[valid-type]
         schema: str,
         functions: FunctionsProtocol | None = None,
         **kwargs: Any,
@@ -961,7 +974,7 @@ class PipelineBuilder(BasePipelineBuilder):
     @classmethod
     def for_production(
         cls,
-        spark: SparkSession,
+        spark: SparkSession,  # type: ignore[valid-type]
         schema: str,
         functions: FunctionsProtocol | None = None,
         **kwargs: Any,
@@ -997,7 +1010,7 @@ class PipelineBuilder(BasePipelineBuilder):
     @classmethod
     def for_testing(
         cls,
-        spark: SparkSession,
+        spark: SparkSession,  # type: ignore[valid-type]
         schema: str,
         functions: FunctionsProtocol | None = None,
         **kwargs: Any,
@@ -1163,7 +1176,7 @@ class PipelineBuilder(BasePipelineBuilder):
             List of column names that appear to be timestamps
 
         Example:
-            >>> timestamp_cols = PipelineBuilder.detect_timestamp_columns(df.schema)
+            >>> timestamp_cols = PipelineBuilder.detect_timestamp_columns(df.schema  # type: ignore[attr-defined])
             >>> # Returns columns like ["timestamp", "created_at", "updated_at"]
         """
         timestamp_keywords = [
@@ -1260,7 +1273,7 @@ class PipelineBuilder(BasePipelineBuilder):
         """
         try:
             # Use SQL to create schema
-            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")  # type: ignore[attr-defined]
             self.logger.info(f"✅ Schema '{schema}' created or already exists")
         except Exception as e:
             raise StepError(

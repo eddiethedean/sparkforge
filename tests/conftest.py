@@ -157,6 +157,7 @@ def _create_real_spark_session():
         except ImportError:
             # Try alternative import path
             import delta.pip_utils as pip_utils
+
             configure_spark_with_delta_pip = pip_utils.configure_spark_with_delta_pip
 
         print("🔧 Configuring real Spark with Delta Lake support for all tests")

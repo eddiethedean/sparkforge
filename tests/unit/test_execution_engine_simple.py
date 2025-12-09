@@ -162,7 +162,12 @@ class TestExecutionEngineSimple:
         # Create empty DataFrame - use types that match SPARK_MODE
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
-            from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+            from pyspark.sql.types import (
+                IntegerType,
+                StringType,
+                StructField,
+                StructType,
+            )
         else:
             from mock_spark import IntegerType, StructField, StructType, StringType
 

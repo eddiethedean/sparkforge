@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipeline Builder on Databricks</title>
+
+    <!-- Reveal.js CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/theme/white.css">
+
+    <!-- Highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --bronze: #CD7F32;
+            --silver: #C0C0C0;
+            --gold: #FFD700;
+            --accent: #0066CC;
+            --accent-dark: #004499;
+            --accent-light: #3399FF;
+            --text: #1A1A1A;
+            --text-light: #4A4A4A;
+            --text-muted: #6B6B6B;
+            --background: #FFFFFF;
+            --background-alt: #F8F9FA;
+            --background-subtle: #FAFBFC;
+            --code-bg: #1E1E1E;
+            --code-text: #D4D4D4;
+            --border: #E1E8ED;
+            --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-accent: linear-gradient(135deg, #0066CC 0%, #004499 100%);
+            --gradient-subtle: linear-gradient(180deg, #FFFFFF 0%, #F8F9FA 100%);
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        .reveal {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #F5F7FA 0%, #E8ECF1 50%, #DDE4EA 100%);
+            color: var(--text);
+        }
+
+        .reveal .slides section {
+            text-align: left;
+            background: var(--background);
+            border-radius: 16px;
+            padding: 3em 2.5em;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .reveal .slides section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--gradient-accent);
+        }
+
+        .reveal h1, .reveal h2, .reveal h3 {
+            color: var(--text);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+        }
+
+        .reveal h1 {
+            font-size: 2.8em;
+            margin-bottom: 0.6em;
+            margin-top: 0.2em;
+            color: var(--accent);
+            font-weight: 800;
+            border-bottom: 3px solid var(--accent);
+            padding-bottom: 0.3em;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .reveal h2 {
+            font-size: 1.9em;
+            margin-bottom: 0.5em;
+            color: var(--accent-dark);
+            font-weight: 700;
+        }
+
+        .reveal h3 {
+            font-size: 1.4em;
+            color: var(--text-light);
+            font-weight: 600;
+        }
+
+        .reveal .subtitle {
+            font-size: 1.6em;
+            font-weight: 600;
+            color: var(--accent);
+            margin-top: 0.4em;
+            margin-bottom: 0.8em;
+            padding: 0.4em 0;
+            border-left: 4px solid var(--accent);
+            padding-left: 0.8em;
+        }
+
+        .reveal ul, .reveal ol {
+            margin-left: 1.2em;
+            font-size: 0.95em;
+            line-height: 1.8;
+        }
+
+        .reveal li {
+            margin-bottom: 0.7em;
+            color: var(--text-light);
+            line-height: 1.7;
+            padding-left: 0.5em;
+        }
+
+        .reveal li::marker {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        .reveal p {
+            color: var(--text-light);
+            line-height: 1.7;
+            font-size: 0.95em;
+            margin-bottom: 1em;
+        }
+
+        .reveal .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2.5em;
+            margin-top: 1.5em;
+        }
+
+        .reveal .two-column > div {
+            background: var(--background-subtle);
+            padding: 2em 1.8em;
+            border-radius: 12px;
+            border-left: 5px solid var(--accent);
+            box-shadow: var(--shadow-md);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .reveal .two-column > div:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .reveal .four-quadrant {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 1.5em;
+        }
+
+        .reveal .quadrant {
+            padding: 1.5em;
+            border: 2px solid var(--accent);
+            border-radius: 12px;
+            background: var(--background-alt);
+            box-shadow: var(--shadow);
+            transition: transform 0.2s;
+        }
+
+        .reveal .quadrant:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .reveal .code-block {
+            background: var(--code-bg);
+            border: none;
+            border-radius: 12px;
+            padding: 1.8em;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', 'Courier New', monospace;
+            font-size: 0.72em;
+            overflow-x: auto;
+            text-align: left;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            margin: 1.5em 0;
+        }
+
+        .reveal .code-block::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--gradient-accent);
+            border-radius: 12px 12px 0 0;
+        }
+
+        .reveal .code-block::after {
+            content: 'Python';
+            position: absolute;
+            top: 0.8em;
+            right: 1.2em;
+            font-size: 0.7em;
+            color: rgba(255, 255, 255, 0.5);
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .reveal .code-block pre {
+            margin: 0;
+            color: var(--code-text);
+        }
+
+        .reveal .code-block code {
+            background: transparent;
+            padding: 0;
+            color: var(--code-text);
+        }
+
+        .reveal .bottom-text {
+            text-align: center;
+            font-size: 1.4em;
+            font-weight: 700;
+            margin-top: 1.5em;
+            padding: 1em 1.5em;
+            background: var(--gradient-accent);
+            color: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow-md);
+            letter-spacing: 0.02em;
+        }
+
+        .reveal .bronze-accent {
+            color: var(--bronze);
+            font-weight: 600;
+        }
+
+        .reveal .silver-accent {
+            color: var(--silver);
+            font-weight: 600;
+        }
+
+        .reveal .gold-accent {
+            color: var(--gold);
+            font-weight: 600;
+        }
+
+        .reveal .title-slide {
+            text-align: center;
+            background: var(--gradient-primary);
+            color: white;
+            border-radius: 16px;
+            padding: 4em 3em;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .reveal .title-slide::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            animation: pulse 20s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.1) rotate(180deg); }
+        }
+
+        .reveal .title-slide h1 {
+            color: white;
+            -webkit-text-fill-color: white;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            margin-top: 0.5em;
+            border: none;
+            font-size: 3.2em;
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            position: relative;
+            z-index: 1;
+        }
+
+        .reveal .title-slide .subtitle {
+            color: rgba(255, 255, 255, 0.95);
+            -webkit-text-fill-color: rgba(255, 255, 255, 0.95);
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            border: none;
+            padding: 0;
+            margin-top: 0.8em;
+            font-size: 1.8em;
+            position: relative;
+            z-index: 1;
+        }
+
+        .reveal .footer {
+            font-size: 0.65em;
+            color: rgba(255, 255, 255, 0.85);
+            margin-top: 3em;
+            position: relative;
+            z-index: 1;
+            font-weight: 500;
+        }
+
+        .reveal .diagram {
+            font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+            font-size: 0.85em;
+            white-space: pre;
+            background: var(--background-subtle);
+            padding: 2em;
+            border-radius: 12px;
+            border: 2px solid var(--border);
+            box-shadow: var(--shadow-md);
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+
+        .reveal .progress {
+            background: var(--gradient-accent);
+            height: 4px;
+        }
+
+        .reveal .controls {
+            color: var(--accent);
+        }
+
+        .reveal .controls button {
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .reveal .controls button:hover {
+            opacity: 1;
+        }
+
+        /* Slide transitions */
+        .reveal .slides section {
+            transition: all 0.3s ease;
+        }
+
+        /* Print styles */
+        @media print {
+            .reveal .slides section {
+                page-break-after: always;
+                box-shadow: none;
+                border: 1px solid #ddd;
+            }
+        }
+        
+        /* Image and icon styles */
+        .slide-icon {
+            font-size: 2em;
+            margin: 0.3em;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        
+        .slide-icon.fa {
+            color: var(--accent);
+            margin-right: 0.5em;
+        }
+        
+        .image-placeholder {
+            background: var(--background-alt);
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 1em;
+            margin: 0.5em 0;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85em;
+        }
+        
+        .title-slide .slide-icon {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 3em;
+        }
+        
+        .icon-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1em;
+            margin: 1em 0;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+            <section>
+                <div class="title-slide">
+                    <div class="icon-grid">
+                        <span class="slide-icon">☁️</span>
+                        <span class="slide-icon">🔧</span>
+                        <span class="slide-icon">🏢</span>
+                    </div>
+                    <h1>Title Slide</h1>
+                    <h2 class="subtitle">Creating and Maintaining Silver &amp; Gold Tables 
+with Scheduled Incremental Runs</h2>
+                    <div class="footer">[Presenter Name]
+[Date]
+[Company/Organization]</div>
+                </div>
+            </section>
+            <section>
+                <h1>Agenda</h1>
+                <div style="margin: 0.5em 0 1em 0;">
+                    <i class="fas fa-route slide-icon" title="Roadmap/checklist icon"></i>
+                    <i class="fas fa-list slide-icon" title="Numbered list graphic (optional)"></i>
+                </div>
+            </section>
+            <section>
+                <h1>The Challenge</h1>
+                <div style="margin: 0.5em 0 1em 0; text-align: center;">
+                    <i class="fas fa-exclamation-triangle slide-icon" title="Warning/alert icons"></i>
+                    <i class="fas fa-image slide-icon" title="Complexity visualization"></i>
+                    <i class="fas fa-clock slide-icon" title="Clock icon (time)"></i>
+                </div>
+                <div class="two-column">
+                    <div>
+                        <ul>
+                            <li>200+ lines of complex Spark code</li>
+                            <li>Manual dependency management</li>
+                            <li>Scattered validation logic</li>
+                            <li>Difficult debugging</li>
+                            <li>No built-in error handling</li>
+                            <li>Manual schema management</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <ul>
+                            <li>Data quality issues</li>
+                            <li>Slow time-to-market</li>
+                            <li>High maintenance costs</li>
+                            <li>Lack of visibility</li>
+                            <li>Incorrect business decisions</li>
+                            <li>Resource consumption</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+            <section>
+                <h1>What is Pipeline Builder?</h1>
+                <div style="margin: 0.5em 0 1em 0; text-align: center;">
+                    <i class="fas fa-project-diagram slide-icon" title="Pipeline Builder logo"></i>
+                    <i class="fas fa-code slide-icon" title="Code reduction visualization (200 lines → 20 lines)"></i>
+                    <i class="fas fa-image slide-icon" title="Simplification icon"></i>
+                </div>
+                <h2 class="subtitle">Production-Ready Data Pipeline Framework</h2>
+                <p>• Transforms complex Spark development into 
+  clean, maintainable code
+• Built on Medallion Architecture 
+  (Bronze → Silver → Gold)
+• Key Benefits:
+  ✓ 70% less boilerplate code
+  ✓ Automatic dependency management
+  ✓ Built-in validation
+  ✓ Seamless incremental processing</p>
+            </section>
+            <section>
+                <h1>Why Databricks + Pipeline Builder?</h1>
+                <div style="margin: 0.5em 0 1em 0; text-align: center;">
+                    <i class="fas fa-cloud slide-icon" title="Databricks logo (left)"></i>
+                    <i class="fas fa-project-diagram slide-icon" title="Pipeline Builder logo (right)"></i>
+                    <i class="fas fa-image slide-icon" title="Integration/connection icon (center)"></i>
+                </div>
+                <div class="two-column">
+                    <div>
+                        <ul>
+                            <li>Managed Spark clusters</li>
+                            <li>Delta Lake (ACID transactions)</li>
+                            <li>Job scheduling</li>
+                            <li>Enterprise security</li>
+                            <li>Auto-scaling</li>
+                            <li>Time travel</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <ul>
+                            <li>70% less code</li>
+                            <li>Automatic dependencies</li>
+                            <li>Built-in validation</li>
+                            <li>Production-ready patterns</li>
+                            <li>Step-by-step debugging</li>
+                            <li>Incremental processing</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="bottom-text">Together = Powerful Platform</div>
+            </section>
+            <section>
+                <h1>What You&#39;ll Learn Today</h1>
+                <div style="margin: 0.5em 0 1em 0; text-align: center;">
+                    <i class="fas fa-graduation-cap slide-icon" title="Learning/education icon"></i>
+                    <i class="fas fa-tasks slide-icon" title="Checklist graphic"></i>
+                    <i class="fas fa-arrow-right slide-icon" title="Arrow/roadmap visualization"></i>
+                </div>
+                <p>1. How to build Silver and Gold tables 
+   on Databricks
+
+2. How to schedule incremental updates 
+   automatically
+
+3. Best practices for production deployment
+
+4. Real-world examples and patterns
+
+5. How to monitor and maintain pipelines</p>
+            </section>
+            <section>
+                <h1>What is the Medallion Architecture?</h1>
+                <div style="margin: 0.5em 0 1em 0; text-align: center;">
+                    <i class="fas fa-image slide-icon" title="Three-layer pyramid/stack diagram"></i>
+                    <span class="slide-icon" style="font-size: 3em;">🥉</span>
+                    <i class="fas fa-arrow-right slide-icon" title="Data flow arrows"></i>
+                </div>
+                <p>Data lakehouse design pattern that organizes 
+data into three quality layers:
+
+• Bronze: Raw data (as-is, validated)
+• Silver: Cleaned and enriched data
+• Gold: Business-ready analytics</p>
+                <div class="diagram">┌─────────────────────┐
+│   GOLD LAYER        │  ← Business Analytics
+│   (Highest Quality) │
+├─────────────────────┤
+│   SILVER LAYER      │  ← Cleaned &amp; Enriched
+│   (Medium Quality)  │
+├─────────────────────┤
+│   BRONZE LAYER      │  ← Raw Data
+│   (Basic Quality)   │
+└─────────────────────┘</div>
+            </section>
+            <section>
+                <h1>Bronze Layer - Raw Data</h1>
+                <div style="margin: 0.5em 0 1em 0;">
+                    <i class="fas fa-image slide-icon" title="Bronze medal icon (large)"></i>
+                    <i class="fas fa-image slide-icon" title="Warehouse/raw materials icon"></i>
+                    <i class="fas fa-image slide-icon" title="Data ingestion visualization"></i>
+                    <i class="fas fa-image slide-icon" title="Example data icon"></i>
+                </div>
+                <ul>
+                    <li>Stores in Delta Lake format</li>
+                    <li>Applies basic validation</li>
+                    <li>Tracks metadata and lineage</li>
+                    <li>Supports incremental processing</li>
+                </ul>
+            </section>
+            <section>
+                <h1>Silver Layer - Cleaned Data</h1>
+                <div style="margin: 0.5em 0 1em 0;">
+                    <i class="fas fa-image slide-icon" title="Silver medal icon (large)"></i>
+                    <i class="fas fa-image slide-icon" title="Quality control icon"></i>
+                    <i class="fas fa-image slide-icon" title="Data transformation visualization"></i>
+                    <i class="fas fa-image slide-icon" title="Before/After comparison"></i>
+                </div>
+                <ul>
+                    <li>Transforms Bronze data</li>
+                    <li>Applies business rules</li>
+                    <li>Higher quality standards (95%+)</li>
+                    <li>Supports incremental updates</li>
+                    <li>Handles deduplication</li>
+                </ul>
+            </section>
+            <section>
+                <h1>Gold Layer - Business Analytics</h1>
+                <div style="margin: 0.5em 0 1em 0;">
+                    <i class="fas fa-image slide-icon" title="Gold medal icon (large)"></i>
+                    <i class="fas fa-chart-line slide-icon" title="Dashboard/analytics icon"></i>
+                    <i class="fas fa-chart-pie slide-icon" title="Chart/graph visualization"></i>
+                    <i class="fas fa-image slide-icon" title="Business metrics icon"></i>
+                </div>
+                <ul>
+                    <li>Aggregates Silver data</li>
+                    <li>Creates KPIs and summaries</li>
+                    <li>Optimized for fast queries</li>
+                    <li>Highest quality standards (98%+)</li>
+                    <li>Typically uses overwrite mode</li>
+                </ul>
+            </section>
+            <section>
+                <h1>Data Flow Diagram</h1>
+                <div style="margin: 0.5em 0 1em 0; text-align: center;">
+                    <i class="fas fa-arrow-right slide-icon" title="Flow arrows (animated if possible)"></i>
+                    <span class="slide-icon" style="font-size: 3em;">🥉</span>
+                    <i class="fas fa-image slide-icon" title="Data source icons"></i>
+                    <i class="fas fa-chart-line slide-icon" title="Destination/dashboard icon"></i>
+                </div>
+                <div class="diagram">Raw Data Sources
+    │
+    ▼
+┌──────────────────────┐
+│   BRONZE LAYER       │
+│   Raw Data           │
+│   • Validated        │
+│   • As-Is            │
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│   SILVER LAYER       │
+│   Cleaned Data       │
+│   • Enriched         │
+│   • Business Rules   │
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│   GOLD LAYER         │
+│   Business Analytics │
+│   • Aggregated       │
+│   • Metrics Ready    │
+└──────────────────────┘</div>
+            </section>
+            <section>
+                <h1>Benefits of Medallion Architecture</h1>
+                <div class="four-quadrant">
+                    <div class="quadrant">
+                        <ul>
+                            <li>Progressive quality gates</li>
+                            <li>Early error detection</li>
+                            <li>Clear separation of concerns</li>
+                        </ul>
+                    </div>
+                    <div class="quadrant">
+                        <ul>
+                            <li>Independent reprocessing</li>
+                            <li>Time travel capabilities</li>
+                            <li>Complete audit trail</li>
+                        </ul>
+                    </div>
+                    <div class="quadrant">
+                        <ul>
+                            <li>Optimized storage</li>
+                            <li>Parallel processing</li>
+                            <li>Efficient incremental updates</li>
+                        </ul>
+                    </div>
+                    <div class="quadrant">
+                        <ul>
+                            <li>Clear data flow</li>
+                            <li>Easy debugging</li>
+                            <li>Scalable architecture</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+            <section>
+                <h1>How Pipeline Builder Works</h1>
+                <h2 class="subtitle">Fluent API for Intuitive Pipeline Construction</h2>
+                <div class="code-block">
+                    <pre><code class="language-python">from pipeline_builder import PipelineBuilder
+
+builder = PipelineBuilder(
+    spark=spark,
+    schema=&quot;analytics&quot;
+)</code></pre>
+                </div>
+                <ul>
+                    <li>PipelineBuilder</li>
+                    <li>Constructs pipelines</li>
+                    <li>Defines steps and rules</li>
+                    <li>PipelineRunner</li>
+                    <li>Executes pipelines</li>
+                    <li>Handles execution modes</li>
+                    <li>Validation System</li>
+                    <li>Enforces data quality</li>
+                    <li>Tracks validation rates</li>
+                </ul>
+            </section>
+            <section>
+                <h1>Validation System</h1>
+                <div class="code-block">
+                    <pre><code class="language-python">rules = {
+    &quot;user_id&quot;: [&quot;not_null&quot;],
+    &quot;age&quot;: [&quot;gt&quot;, 0],
+    &quot;status&quot;: [&quot;in&quot;, [&quot;active&quot;, &quot;inactive&quot;]]
+}</code></pre>
+                </div>
+                <ul>
+                    <li>String rules: &quot;not_null&quot;, &quot;gt&quot;, 0</li>
+                    <li>PySpark expressions</li>
+                    <li>Automatic conversion</li>
+                    <li>Clear error messages</li>
+                </ul>
+            </section>
+            <section>
+                <h1>Parallel Execution</h1>
+                <div style="margin: 0.5em 0 1em 0; text-align: center;">
+                    <i class="fas fa-clock slide-icon" title="Timeline comparison"></i>
+                    <i class="fas fa-image slide-icon" title="Parallel vs sequential diagram"></i>
+                    <i class="fas fa-image slide-icon" title="Speed icon"></i>
+                </div>
+                <div class="two-column">
+                    <div>
+                        <ul>
+                            <li>Sequential Execution:</li>
+                            <li>Step A: 2s</li>
+                            <li>Step B: 2s</li>
+                            <li>Step C: 2s</li>
+                            <li>Total: 6s</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <ul>
+                            <li>Parallel Execution:</li>
+                            <li>Step A: 2s ┐</li>
+                            <li>Step B: 2s ├─ All concurrent</li>
+                            <li>Step C: 2s ┘</li>
+                            <li>Total: 2s ⚡</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+            <section>
+                <h1>Automatic Dependency Management</h1>
+                <div class="code-block">
+                    <pre><code class="language-python"># Pipeline Builder automatically knows dependencies
+builder.with_bronze_rules(name=&quot;events&quot;, ...)
+builder.add_silver_transform(
+    name=&quot;clean&quot;, 
+    source_bronze=&quot;events&quot;, ...)
+builder.add_gold_transform(
+    name=&quot;analytics&quot;,
+    source_silvers=[&quot;clean&quot;], ...)</code></pre>
+                </div>
+                <ul>
+                    <li>Detects dependencies between steps</li>
+                    <li>Validates all dependencies exist</li>
+                    <li>Orders execution correctly</li>
+                    <li>Prevents circular dependencies</li>
+                </ul>
+            </section>
+            <section>
+                <h1>Code Comparison</h1>
+                <div class="code-block">
+                    <pre><code class="language-python">**Images to Insert:**
+- Code comparison visualization
+- Metrics icons
+- Before/After arrows
+
+**Layout:** Two-column code comparison
+
+---
+
+## SECTION 4: DATABRICKS DEPLOYMENT (Slides 18-23)
+
+### Slide 18: Deployment Patterns Overview
+
+**Title (44pt, Bold):**</code></pre>
+                </div>
+            </section>
+            <section>
+                <h1>Single Notebook Pattern</h1>
+                <div class="code-block">
+                    <pre><code class="language-python"># Configuration
+target_schema = &quot;analytics&quot;
+
+# Build pipeline
+builder = PipelineBuilder(...)
+builder.with_bronze_rules(...)
+builder.add_silver_transform(...)
+builder.add_gold_transform(...)
+
+# Execute
+pipeline = builder.to_pipeline()
+result = pipeline.run_initial_load(...)</code></pre>
+                </div>
+                <ul>
+                    <li>All code in one notebook</li>
+                    <li>Sequential execution</li>
+                    <li>Simple to understand</li>
+                    <li>Easy to test locally</li>
+                    <li>Simple setup</li>
+                    <li>All code in one place</li>
+                    <li>Easy to maintain</li>
+                    <li>Quick to deploy</li>
+                </ul>
+            </section>
+            <section>
+                <h1>Multi-Task Job Pattern</h1>
+                <div style="margin: 0.5em 0 1em 0;">
+                    <i class="fas fa-arrow-right slide-icon" title="Multi-task workflow diagram"></i>
+                    <i class="fas fa-chart-line slide-icon" title="Task dependency graph"></i>
+                    <i class="fas fa-image slide-icon" title="Cluster configuration icon"></i>
+                </div>
+                <ul>
+                    <li>Separate tasks with dependencies</li>
+                    <li>Independent scaling per task</li>
+                    <li>Different cluster types</li>
+                    <li>Production-ready</li>
+                </ul>
+            </section>
+            <section>
+                <h1>Job Configuration</h1>
+                <div style="margin: 0.5em 0 1em 0; text-align: center;">
+                    <i class="fas fa-image slide-icon" title="Cluster diagram"></i>
+                    <i class="fas fa-image slide-icon" title="Configuration visualization"></i>
+                    <i class="fas fa-arrow-right slide-icon" title="Task flow"></i>
+                </div>
+            </section>
+            <section>
+                <h1>Scheduling Options</h1>
+                <div style="margin: 0.5em 0 1em 0;">
+                    <i class="fas fa-image slide-icon" title="Calendar/schedule icon"></i>
+                    <i class="fas fa-clock slide-icon" title="Timeline visualization"></i>
+                    <i class="fas fa-image slide-icon" title="Automation icon"></i>
+                </div>
+                <ul>
+                    <li>Daily: &quot;0 0 2 * * ?&quot;</li>
+                    <li>Hourly: &quot;0 0 */1 * * ?&quot;</li>
+                    <li>Weekly: &quot;0 0 0 * * MON&quot;</li>
+                    <li>Every 15 min: &quot;0 */15 * * * ?&quot;</li>
+                </ul>
+            </section>
+            <section>
+                <h1>Cluster Optimization</h1>
+                <div style="margin: 0.5em 0 1em 0;">
+                    <i class="fas fa-image slide-icon" title="Cluster size comparison"></i>
+                    <i class="fas fa-tasks slide-icon" title="Optimization checklist"></i>
+                    <i class="fas fa-image slide-icon" title="Performance icon"></i>
+                </div>
+                <ul>
+                    <li>Adaptive Query Execution</li>
+                    <li>Delta auto-compact</li>
+                    <li>Optimize writes</li>
+                    <li>Keep statistics updated</li>
+                </ul>
+            </section>
+            <section>
+                <h1>Building a Complete Pipeline</h1>
+                <div style="margin: 0.5em 0 1em 0; text-align: center;">
+                    <i class="fas fa-image slide-icon" title="Step-by-step process diagram"></i>
+                    <i class="fas fa-arrow-right slide-icon" title="Numbered workflow"></i>
+                    <i class="fas fa-project-diagram slide-icon" title="Pipeline construction icon"></i>
+                </div>
+            </section>
+            <section>
+                <h1>Step 1 - Initialize Builder</h1>
+                <div class="code-block">
+                    <pre><code class="language-python">Why Incremental Processing?</code></pre>
+                </div>
+                <ul>
+                    <li>Sets up Spark session</li>
+                    <li>Creates target schema</li>
+                    <li>Configures validation thresholds</li>
+                    <li>Initializes builder instance</li>
+                    <li>Validates raw data</li>
+                    <li>Stores in Delta table: analytics.events</li>
+                    <li>Enables incremental processing</li>
+                    <li>Tracks metadata</li>
+                    <li>Transforms Bronze data</li>
+                    <li>Applies business logic</li>
+                    <li>Creates Silver table: analytics.enriched_events</li>
+                    <li>Higher quality standards (95%+)</li>
+                    <li>Aggregates Silver data</li>
+                    <li>Creates business metrics</li>
+                    <li>Creates Gold table: analytics.daily_analytics</li>
+                    <li>Highest quality standards (98%+)</li>
+                </ul>
+            </section>
+            <section>
+                <h1>How Incremental Runs Work</h1>
+                <div style="margin: 0.5em 0 1em 0;">
+                    <i class="fas fa-arrow-right slide-icon" title="Incremental processing flow diagram"></i>
+                    <i class="fas fa-clock slide-icon" title="Timeline showing processed vs new"></i>
+                    <i class="fas fa-image slide-icon" title="Filter visualization"></i>
+                    <i class="fas fa-clock slide-icon" title="Clock/timestamp icon"></i>
+                </div>
+                <ul>
+                    <li>Incremental Column: Timestamp tracks data age</li>
+                    <li>Delta Lake Time Travel: Tracks processed data</li>
+                    <li>Automatic Filtering: Only processes new data</li>
+                </ul>
+            </section>
+            <section>
+                <h1>Configuring Incremental Processing</h1>
+                <div style="margin: 0.5em 0 1em 0; text-align: center;">
+                    <i class="fas fa-image slide-icon" title="Configuration steps diagram"></i>
+                    <i class="fas fa-image slide-icon" title="Incremental column visualization"></i>
+                    <i class="fas fa-image slide-icon" title="Step-by-step process"></i>
+                </div>
+            </section>
+            <section>
+                <h1>Incremental Processing Flow</h1>
+                <div style="margin: 0.5em 0 1em 0; text-align: center;">
+                    <i class="fas fa-arrow-right slide-icon" title="Flow diagram with two phases"></i>
+                    <i class="fas fa-clock slide-icon" title="Timeline showing initial vs incremental"></i>
+                    <i class="fas fa-arrow-right slide-icon" title="Data flow arrows"></i>
+                    <i class="fas fa-clock slide-icon" title="Clock/timestamp visualization"></i>
+                </div>
+            </section>
+            <section>
+                <h1>Scheduling on Databricks</h1>
+                <div style="margin: 0.5em 0 1em 0; text-align: center;">
+                    <i class="fas fa-image slide-icon" title="Schedule configuration diagram"></i>
+                    <i class="fas fa-image slide-icon" title="Calendar/schedule icon"></i>
+                    <i class="fas fa-code slide-icon" title="Code snippet"></i>
+                    <i class="fas fa-image slide-icon" title="Automation visualization"></i>
+                </div>
+            </section>
+            <section>
+                <h1>Full Refresh vs Incremental</h1>
+                <div style="margin: 0.5em 0 1em 0; text-align: center;">
+                    <i class="fas fa-table slide-icon" title="Comparison table"></i>
+                    <i class="fas fa-image slide-icon" title="Decision tree"></i>
+                    <i class="fas fa-image slide-icon" title="Use case icons"></i>
+                </div>
+                <div class="two-column">
+                </div>
+            </section>
+            <section>
+                <h1>Silver &amp; Gold Processing Modes</h1>
+                <div style="margin: 0.5em 0 1em 0; text-align: center;">
+                    <i class="fas fa-image slide-icon" title="Processing mode diagram"></i>
+                    <i class="fas fa-image slide-icon" title="Append vs Overwrite visualization"></i>
+                    <span class="slide-icon" style="font-size: 3em;">🥈</span>
+                </div>
+            </section>
+            <section>
+                <h1>Monitoring Incremental Runs</h1>
+                <div class="code-block">
+                    <pre><code class="language-python">Production Best Practices</code></pre>
+                </div>
+                <ul>
+                    <li>Run ID, timestamps, mode</li>
+                    <li>Success/failure status</li>
+                    <li>Rows processed/written</li>
+                    <li>Duration, validation rates</li>
+                    <li>Error messages (if any)</li>
+                    <li>Schema Management</li>
+                    <li>Always create schemas explicitly</li>
+                    <li>Use consistent naming conventions</li>
+                    <li>Data Quality</li>
+                    <li>Set appropriate validation thresholds</li>
+                    <li>Monitor validation rates</li>
+                    <li>Resource Management</li>
+                    <li>Configure timeouts and retries</li>
+                    <li>Right-size clusters</li>
+                    <li>Error Handling</li>
+                    <li>Comprehensive try/catch blocks</li>
+                    <li>Alert on failures</li>
+                    <li>Monitoring</li>
+                    <li>Use LogWriter for execution tracking</li>
+                    <li>Query execution history</li>
+                </ul>
+            </section>
+            <section>
+                <h1>Error Handling &amp; Monitoring</h1>
+                <div class="code-block">
+                    <pre><code class="language-python">Performance Optimization Tips</code></pre>
+                </div>
+                <ul>
+                    <li>LogWriter tracks all executions</li>
+                    <li>Query execution history</li>
+                    <li>Performance trends</li>
+                    <li>Error tracking</li>
+                    <li>Data quality metrics</li>
+                    <li>Cluster Sizing</li>
+                    <li>Right-size for workload</li>
+                    <li>Use auto-scaling</li>
+                    <li>Delta Optimizations</li>
+                    <li>Auto-compact enabled</li>
+                    <li>Optimize writes</li>
+                    <li>Parallel Execution</li>
+                    <li>Enable for independent steps</li>
+                    <li>Configure worker count</li>
+                    <li>Data Partitioning</li>
+                    <li>Partition large tables by date</li>
+                    <li>Optimize query performance</li>
+                    <li>Query Optimization</li>
+                    <li>Keep statistics updated</li>
+                    <li>Use adaptive query execution</li>
+                </ul>
+            </section>
+            <section>
+                <h1>Security &amp; Governance</h1>
+                <div style="margin: 0.5em 0 1em 0;">
+                    <i class="fas fa-shield-alt slide-icon" title="Security shield icon"></i>
+                    <i class="fas fa-image slide-icon" title="Access control diagram"></i>
+                    <i class="fas fa-image slide-icon" title="Audit trail visualization"></i>
+                </div>
+                <ul>
+                    <li>Access Control</li>
+                    <li>Configure permissions</li>
+                    <li>Role-based access</li>
+                    <li>Data Lineage</li>
+                    <li>Automatic tracking</li>
+                    <li>Source → Bronze → Silver → Gold</li>
+                    <li>Audit Logging</li>
+                    <li>Comprehensive execution logs</li>
+                    <li>Who, when, what processed</li>
+                    <li>Schema Validation</li>
+                    <li>Automatic schema checks</li>
+                    <li>Reject incompatible changes</li>
+                </ul>
+            </section>
+            <section>
+                <h1>E-Commerce Analytics Pipeline</h1>
+                <div style="margin: 0.5em 0 1em 0;">
+                    <i class="fas fa-image slide-icon" title="E-commerce icon"></i>
+                    <i class="fas fa-project-diagram slide-icon" title="Pipeline diagram"></i>
+                    <i class="fas fa-image slide-icon" title="Business requirements visualization"></i>
+                </div>
+                <ul>
+                    <li>Process clicks, views, purchases</li>
+                    <li>Enrich with customer profiles</li>
+                    <li>Calculate daily revenue metrics</li>
+                    <li>Schedule daily incremental updates</li>
+                </ul>
+            </section>
+            <section>
+                <h1>Complete Pipeline Code</h1>
+                <div class="code-block">
+                    <pre><code class="language-python">Results &amp; Monitoring</code></pre>
+                </div>
+                <ul>
+                    <li>Execution logged in monitoring.pipeline_logs</li>
+                    <li>Track success rates, durations</li>
+                    <li>Monitor data quality</li>
+                    <li>Query execution history</li>
+                </ul>
+            </section>
+            <section>
+                <h1>Development Time Savings</h1>
+                <div class="code-block">
+                    <pre><code class="language-python">**Chart/Graph:**
+- Bar chart showing before/after
+- Time savings visualization
+
+**Images to Insert:**
+- Before/After comparison
+- Time savings chart
+- Code reduction visualization
+- Metrics dashboard
+
+**Layout:** Comparison with charts
+
+---
+
+### Slide 47: Performance &amp; Cost Benefits
+
+**Title (44pt, Bold):**</code></pre>
+                </div>
+            </section>
+            <section>
+                <h1>ROI Calculation</h1>
+                <div style="margin: 0.5em 0 1em 0; text-align: center;">
+                    <i class="fas fa-table slide-icon" title="ROI calculation table"></i>
+                    <i class="fas fa-chart-pie slide-icon" title="Savings breakdown chart"></i>
+                    <i class="fas fa-dollar-sign slide-icon" title="Dollar amount visualization"></i>
+                    <i class="fas fa-chart-line slide-icon" title="Investment return graph"></i>
+                </div>
+            </section>
+            <section>
+                <h1>Key Takeaways</h1>
+                <div style="margin: 0.5em 0 1em 0; text-align: center;">
+                    <i class="fas fa-tasks slide-icon" title="Key takeaways checklist"></i>
+                    <i class="fas fa-route slide-icon" title="Next steps roadmap"></i>
+                    <i class="fas fa-image slide-icon" title="Action items"></i>
+                    <i class="fas fa-image slide-icon" title="Resources/icons"></i>
+                </div>
+            </section>
+            <section>
+                <h1>Thank You &amp; Q&amp;A</h1>
+                <div style="margin: 0.5em 0 1em 0;">
+                    <i class="fas fa-image slide-icon" title="Full architecture diagram"></i>
+                    <i class="fas fa-image slide-icon" title="Component relationships"></i>
+                    <i class="fas fa-arrow-right slide-icon" title="Data flow visualization"></i>
+                    <i class="fas fa-image slide-icon" title="System overview"></i>
+                </div>
+                <h2 class="subtitle">Questions?</h2>
+                <ul>
+                    <li>Documentation: sparkforge.readthedocs.io</li>
+                    <li>GitHub: github.com/eddiethedean/sparkforge</li>
+                    <li>Examples: examples/databricks/</li>
+                    <li>Validation errors → Check thresholds</li>
+                    <li>Incremental not working → Verify timestamp column</li>
+                    <li>Slow execution → Enable parallel, optimize cluster</li>
+                    <li>Tables not created → Check schema permissions</li>
+                </ul>
+            </section>
+        </div>
+    </div>
+
+    <!-- Reveal.js JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            controls: true,
+            progress: true,
+            center: true,
+            transition: 'slide'
+        });
+
+        // Initialize syntax highlighting
+        hljs.highlightAll();
+    </script>
+</body>
+</html>

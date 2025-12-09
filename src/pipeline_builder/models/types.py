@@ -11,16 +11,16 @@ from ..compat import Column, DataFrame, SparkSession
 
 # Specific types for model values instead of Any
 ModelValue = Union[str, int, float, bool, List[str], Dict[str, str], None]
-ColumnRule = Union[DataFrame, str, bool]  # PySpark Column, string, or boolean
+ColumnRule = Union[DataFrame, str, bool]  # type: ignore[valid-type]  # PySpark Column, string, or boolean
 ResourceValue = Union[str, int, float, bool, List[str], Dict[str, str]]
 
 # Type aliases for better readability
 ColumnRules = Dict[str, List[Union[str, Column]]]
 TransformFunction = Callable[[DataFrame], DataFrame]
 SilverTransformFunction = Callable[
-    [SparkSession, DataFrame, Dict[str, DataFrame]], DataFrame
+    [SparkSession, DataFrame, Dict[str, DataFrame]], DataFrame  # type: ignore[valid-type]
 ]
-GoldTransformFunction = Callable[[SparkSession, Dict[str, DataFrame]], DataFrame]
+GoldTransformFunction = Callable[[SparkSession, Dict[str, DataFrame]], DataFrame]  # type: ignore[valid-type]
 
 # Generic type for pipeline results
 T = TypeVar("T")

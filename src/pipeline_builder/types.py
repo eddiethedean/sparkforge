@@ -71,9 +71,9 @@ class StepStatus(Enum):
 TransformFunction = Callable[[SparkSession, DataFrame], DataFrame]
 BronzeTransformFunction = Callable[[SparkSession, DataFrame], DataFrame]
 SilverTransformFunction = Callable[
-    [SparkSession, DataFrame, Dict[str, DataFrame]], DataFrame
+    [SparkSession, DataFrame, Dict[str, DataFrame]], DataFrame  # type: ignore[valid-type]
 ]
-GoldTransformFunction = Callable[[SparkSession, Dict[str, DataFrame]], DataFrame]
+GoldTransformFunction = Callable[[SparkSession, Dict[str, DataFrame]], DataFrame]  # type: ignore[valid-type]
 
 # Filter function type
 FilterFunction = Callable[[DataFrame], DataFrame]

@@ -24,24 +24,18 @@ use_real_spark = _SPARK_MODE == "real" or _ENGINE in ("pyspark", "spark", "real"
 if use_real_spark:
     try:
         from pyspark.sql.types import (
-            DoubleType,
-            IntegerType,
             StringType,
             StructField,
             StructType,
         )
     except ImportError:
         from mock_spark.spark_types import (
-            DoubleType,
-            IntegerType,
             StringType,
             StructField,
             StructType,
         )
 else:
     from mock_spark.spark_types import (
-        DoubleType,
-        IntegerType,
         StringType,
         StructField,
         StructType,
@@ -80,7 +74,7 @@ def sample_dataframe(spark_session):
     # Use types that match the spark_session (already imported at top based on SPARK_MODE)
     # The types are already imported at module level based on SPARKFORGE_ENGINE
     # But we should check SPARK_MODE to ensure compatibility
-    
+
     spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
     if spark_mode == "real":
         # Use PySpark types for real Spark

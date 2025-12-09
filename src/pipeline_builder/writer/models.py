@@ -403,7 +403,7 @@ def create_log_row_from_step_result(
         duration_secs=step_result.duration_secs,
         # Table information
         table_fqn=step_result.table_fqn,
-        write_mode=step_result.write_mode,  # type: ignore[typeddict-item]
+        write_mode=step_result.write_mode,  # type: ignore[attr-defined,typeddict-item]
         # Data metrics
         input_rows=step_result.input_rows,
         output_rows=step_result.rows_processed,

@@ -97,7 +97,7 @@ class StepValidator:
         """
         # Check if step has type attribute
         if hasattr(step, "type") and step.type:
-            step_type = step.type.lower()
+            step_type = str(step.type).lower()
             if step_type in ("bronze", "silver", "gold"):
                 return step_type
 

@@ -351,8 +351,8 @@ def table_exists(session: Any, schema: str | None, table: str) -> bool:
 
         inspector = inspect(session.bind)
         if schema:
-            return inspector.has_table(table, schema=schema)
-        return inspector.has_table(table)
+            return bool(inspector.has_table(table, schema=schema))
+        return bool(inspector.has_table(table))
     except Exception:
         # Fallback: try querying database metadata manually
         try:

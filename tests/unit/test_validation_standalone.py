@@ -24,7 +24,13 @@ import sys
 
 # Import types based on SPARK_MODE
 if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql.types import DoubleType, IntegerType, StringType, StructField, StructType
+    from pyspark.sql.types import (
+        DoubleType,
+        IntegerType,
+        StringType,
+        StructField,
+        StructType,
+    )
     from pyspark.sql import SparkSession, functions as Functions
 else:
     from mock_spark import (
@@ -124,6 +130,7 @@ class TestConvertRuleToExpression:
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             from pyspark.sql import functions
+
             mock_functions = functions
         else:
             mock_functions = Functions()

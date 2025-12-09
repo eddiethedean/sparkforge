@@ -22,7 +22,10 @@ except ImportError:
 
 # Type for SQLAlchemy validation rules
 # Can be ColumnElement expressions like User.email.is_not(None) or column('age').between(18, 65)
-SqlValidationRule = Union[ColumnElement, Any] if HAS_SQLALCHEMY else Any
+if HAS_SQLALCHEMY:
+    SqlValidationRule = Union[ColumnElement, Any]
+else:
+    SqlValidationRule = Any
 SqlColumnRules = Dict[str, List[SqlValidationRule]]
 
 # Type for SQL transform functions

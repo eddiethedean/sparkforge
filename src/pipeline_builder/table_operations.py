@@ -43,7 +43,9 @@ def fqn(schema: str, table: str) -> str:
 
 @time_operation("table write (overwrite)")
 def write_overwrite_table(
-    df: DataFrame, fqn: str, **options: str | int | float | bool
+    df: DataFrame,
+    fqn: str,
+    **options: str | int | float | bool,  # type: ignore[valid-type]
 ) -> int:
     """
     Write DataFrame to table in overwrite mode.
@@ -61,9 +63,9 @@ def write_overwrite_table(
     """
     try:
         # Cache DataFrame for potential multiple operations
-        df.cache()  # type: ignore[union-attr]
-        cnt: int = df.count()  # type: ignore[union-attr]
-        writer = (  # type: ignore[union-attr]
+        df.cache()  # type: ignore[attr-defined]
+        cnt: int = df.count()  # type: ignore[attr-defined]
+        writer = (  # type: ignore[attr-defined]
             df.write.format("parquet")
             .mode("overwrite")
             .option("overwriteSchema", "true")
@@ -83,7 +85,9 @@ def write_overwrite_table(
 
 @time_operation("table write (append)")
 def write_append_table(
-    df: DataFrame, fqn: str, **options: str | int | float | bool
+    df: DataFrame,
+    fqn: str,
+    **options: str | int | float | bool,  # type: ignore[valid-type]
 ) -> int:
     """
     Write DataFrame to table in append mode.
@@ -101,9 +105,9 @@ def write_append_table(
     """
     try:
         # Cache DataFrame for potential multiple operations
-        df.cache()  # type: ignore[union-attr]
-        cnt: int = df.count()  # type: ignore[union-attr]
-        writer = df.write.format("parquet").mode("append")  # type: ignore[union-attr]
+        df.cache()  # type: ignore[attr-defined]
+        cnt: int = df.count()  # type: ignore[attr-defined]
+        writer = df.write.format("parquet").mode("append")  # type: ignore[attr-defined]
 
         # Apply additional options
         for key, value in options.items():
@@ -117,7 +121,10 @@ def write_append_table(
         raise TableOperationError(f"Failed to write table {fqn}: {e}") from e
 
 
-def read_table(spark: SparkSession, fqn: str) -> DataFrame:
+def read_table(
+    spark: SparkSession,
+    fqn: str,  # type: ignore[valid-type]
+) -> DataFrame:  # type: ignore[valid-type]
     """
     Read data from a table.
 
@@ -132,16 +139,19 @@ def read_table(spark: SparkSession, fqn: str) -> DataFrame:
         TableOperationError: If read operation fails
     """
     try:
-        df = spark.table(fqn)
+        df = spark.table(fqn)  # type: ignore[attr-defined]
         logger.info(f"Successfully read table {fqn}")
-        return cast(DataFrame, df)
+        return cast(DataFrame, df)  # type: ignore[valid-type]
     except AnalysisException as e:
         raise TableOperationError(f"Table {fqn} does not exist: {e}") from e
     except Exception as e:
         raise TableOperationError(f"Failed to read table {fqn}: {e}") from e
 
 
-def table_exists(spark: SparkSession, fqn: str) -> bool:
+def table_exists(
+    spark: SparkSession,
+    fqn: str,  # type: ignore[valid-type]
+) -> bool:  # type: ignore[valid-type]
     """
     Check if a table exists.
 
@@ -153,7 +163,7 @@ def table_exists(spark: SparkSession, fqn: str) -> bool:
         True if table exists, False otherwise
     """
     try:
-        spark.table(fqn).count()
+        spark.table(fqn).count()  # type: ignore[attr-defined]
         return True
     except AnalysisException:
         logger.debug(f"Table {fqn} does not exist (AnalysisException)")
@@ -163,7 +173,10 @@ def table_exists(spark: SparkSession, fqn: str) -> bool:
         return False
 
 
-def drop_table(spark: SparkSession, fqn: str) -> bool:
+def drop_table(
+    spark: SparkSession,
+    fqn: str,  # type: ignore[valid-type]
+) -> bool:  # type: ignore[valid-type]
     """
     Drop a table if it exists.
 
@@ -177,7 +190,7 @@ def drop_table(spark: SparkSession, fqn: str) -> bool:
     try:
         if table_exists(spark, fqn):
             # Use Java SparkSession to access external catalog
-            jspark_session = spark._jsparkSession
+            jspark_session = spark._jsparkSession  # type: ignore[attr-defined]
             external_catalog = jspark_session.sharedState().externalCatalog()
 
             # Parse fully qualified name

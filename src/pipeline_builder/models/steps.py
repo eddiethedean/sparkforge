@@ -10,11 +10,15 @@ Step models for the Pipeline Builder.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from pipeline_builder_base.errors import PipelineValidationError, ValidationError
 
 from .base import BaseModel
 from .types import ColumnRules, GoldTransformFunction, SilverTransformFunction
+
+if TYPE_CHECKING:
+    from pyspark.sql.types import StructType
 
 
 @dataclass
@@ -122,7 +126,7 @@ class SilverStep(BaseModel):
         name: Unique identifier for this Silver step
         source_bronze: Name of the Bronze step providing input data
         transform: Transformation function with signature:
-                 (spark: SparkSession, bronze_df: DataFrame, prior_silvers: Dict[str, DataFrame]) -> DataFrame
+                 (spark: SparkSession  # type: ignore[valid-type], bronze_df: DataFrame  # type: ignore[valid-type], prior_silvers: Dict[str, DataFrame]  # type: ignore[valid-type]) -> DataFrame
                  Must be callable and cannot be None.
         rules: Dictionary mapping column names to validation rule lists.
                Each rule should be a PySpark Column expression.
@@ -132,6 +136,9 @@ class SilverStep(BaseModel):
                       If None, uses overwrite mode for full refresh.
         existing: Whether this represents an existing table (for validation-only steps)
         schema: Optional schema name for writing silver data
+        schema_override: Optional PySpark StructType schema to override DataFrame schema
+                        when creating tables. Uses Delta Lake's overwriteSchema option.
+                        Applied during initial runs and when table doesn't exist.
 
     Raises:
         ValidationError: If validation requirements are not met during construction
@@ -174,6 +181,7 @@ class SilverStep(BaseModel):
     existing: bool = False
     schema: str | None = None
     source_incremental_col: str | None = None
+    schema_override: StructType | None = None
 
     def __post_init__(self) -> None:
         """Validate required fields after initialization."""
@@ -191,6 +199,12 @@ class SilverStep(BaseModel):
             self.source_incremental_col, str
         ):
             raise ValidationError("source_incremental_col must be a string")
+        if self.schema_override is not None:
+            # Import here to avoid circular dependency
+            from pyspark.sql.types import StructType
+
+            if not isinstance(self.schema_override, StructType):
+                raise ValidationError("schema_override must be a PySpark StructType")
 
     def validate(self) -> None:
         """Validate silver step configuration."""
@@ -212,6 +226,13 @@ class SilverStep(BaseModel):
             raise PipelineValidationError(
                 "source_incremental_col must be a string when provided"
             )
+        if self.schema_override is not None:
+            from pyspark.sql.types import StructType
+
+            if not isinstance(self.schema_override, StructType):
+                raise PipelineValidationError(
+                    "schema_override must be a PySpark StructType"
+                )
 
 
 @dataclass
@@ -233,7 +254,7 @@ class GoldStep(BaseModel):
     Attributes:
         name: Unique identifier for this Gold step
         transform: Transformation function with signature:
-                 (spark: SparkSession, silvers: Dict[str, DataFrame]) -> DataFrame
+                 (spark: SparkSession  # type: ignore[valid-type], silvers: Dict[str, DataFrame]  # type: ignore[valid-type]) -> DataFrame
                  - spark: Active SparkSession for operations
                  - silvers: Dictionary of all Silver DataFrames by step name
                  Must be callable and cannot be None.
@@ -244,6 +265,9 @@ class GoldStep(BaseModel):
                        If None, uses all available Silver steps.
                        Allows selective consumption of Silver data.
         schema: Optional schema name for writing gold data
+        schema_override: Optional PySpark StructType schema to override DataFrame schema
+                        when writing to gold tables. Uses Delta Lake's overwriteSchema option.
+                        Always applied for gold table writes.
 
     Raises:
         ValidationError: If validation requirements are not met during construction
@@ -288,6 +312,7 @@ class GoldStep(BaseModel):
     table_name: str
     source_silvers: list[str] | None = None
     schema: str | None = None
+    schema_override: StructType | None = None
 
     def __post_init__(self) -> None:
         """Validate required fields after initialization."""
@@ -303,6 +328,12 @@ class GoldStep(BaseModel):
             not isinstance(self.source_silvers, list) or not self.source_silvers
         ):
             raise ValidationError("Source silvers must be a non-empty list")
+        if self.schema_override is not None:
+            # Import here to avoid circular dependency
+            from pyspark.sql.types import StructType
+
+            if not isinstance(self.schema_override, StructType):
+                raise ValidationError("schema_override must be a PySpark StructType")
 
     def validate(self) -> None:
         """Validate gold step configuration."""
@@ -318,3 +349,10 @@ class GoldStep(BaseModel):
             self.source_silvers, list
         ):
             raise PipelineValidationError("Source silvers must be a list or None")
+        if self.schema_override is not None:
+            from pyspark.sql.types import StructType
+
+            if not isinstance(self.schema_override, StructType):
+                raise PipelineValidationError(
+                    "schema_override must be a PySpark StructType"
+                )

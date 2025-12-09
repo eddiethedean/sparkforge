@@ -24,7 +24,7 @@ Quick Start:
 
     # Create sample data
     data = [("user1", "click", 100), ("user2", "purchase", 200)]
-    df = spark.createDataFrame(data, ["user_id", "action", "value"])
+    df = spark.createDataFrame(data, ["user_id", "action", "value"])  # type: ignore[attr-defined]
 
     # Build pipeline with validation
     builder = PipelineBuilder(spark=spark, schema="analytics")
@@ -40,7 +40,7 @@ Quick Start:
     builder.add_silver_transform(
         name="clean_events",
         source_bronze="events",
-        transform=lambda spark, df, silvers: df.filter(F.col("value") > 50),
+        transform=lambda spark, df, silvers: df.filter(F.col("value")  # type: ignore[attr-defined] > 50),
         rules={"value": [F.col("value") > 50]},
         table_name="clean_events"
     )

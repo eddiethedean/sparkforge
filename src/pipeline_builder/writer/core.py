@@ -229,7 +229,7 @@ class LogWriter:
 
     def __init__(
         self,
-        spark: SparkSession,
+        spark: SparkSession,  # type: ignore[valid-type]
         schema: str | None = None,
         table_name: str | None = None,
         config: WriterConfig | None = None,
@@ -992,7 +992,7 @@ class LogWriter:
         """Create DataFrame from log rows (for backward compatibility with tests)."""
         # Convert TypedDict to regular dicts for createDataFrame
         dict_rows = [dict(row) for row in log_rows]
-        return self.spark.createDataFrame(dict_rows, schema=self.schema)
+        return self.spark.createDataFrame(dict_rows, schema=self.schema)  # type: ignore[attr-defined]
 
     def detect_anomalies(self, log_rows: list[LogRow]) -> AnomalyReport:
         """Detect anomalies in log data (for backward compatibility with tests)."""

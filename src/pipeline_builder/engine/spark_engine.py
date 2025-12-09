@@ -7,7 +7,7 @@ and the concrete pipeline_builder implementation.
 
 from __future__ import annotations
 
-from typing import Any, Optional, cast
+from typing import Any, Optional
 
 from abstracts.engine import Engine
 from abstracts.reports.transform import TransformReport
@@ -35,7 +35,7 @@ class SparkEngine(Engine):
 
     def __init__(
         self,
-        spark: SparkSession,
+        spark: SparkSession,  # type: ignore[valid-type]
         config: Any,  # PipelineConfig
         logger: Optional[PipelineLogger] = None,
         functions: Optional[FunctionsProtocol] = None,
@@ -70,7 +70,7 @@ class SparkEngine(Engine):
         if not isinstance(source, DataFrame):
             raise TypeError(f"Source must be a DataFrame, got {type(source)}")
 
-        df: DataFrame = source
+        df: DataFrame = source  # type: ignore[valid-type]
 
         # Type check: step should be a concrete step type
         # Cast to Any first to avoid Protocol isinstance issues with mypy
@@ -96,8 +96,8 @@ class SparkEngine(Engine):
                 functions=self.functions,
             )
 
-            valid_rows = valid_df.count()
-            invalid_rows = invalid_df.count()
+            valid_rows = valid_df.count()  # type: ignore[attr-defined]
+            invalid_rows = invalid_df.count()  # type: ignore[attr-defined]
 
             return ValidationReport(
                 source=valid_df,  # Return validated source
@@ -109,7 +109,7 @@ class SparkEngine(Engine):
             return ValidationReport(
                 source=df,
                 valid_rows=0,
-                invalid_rows=df.count() if df is not None else 0,
+                invalid_rows=df.count() if df is not None else 0,  # type: ignore[attr-defined]
                 error=e,
             )
 
@@ -128,7 +128,7 @@ class SparkEngine(Engine):
         if not isinstance(source, DataFrame):
             raise TypeError(f"Source must be a DataFrame, got {type(source)}")
 
-        df: DataFrame = source
+        df: DataFrame = source  # type: ignore[valid-type]
 
         # Type check: step should be a concrete step type
         # Cast to Any first to avoid Protocol isinstance issues with mypy
@@ -163,7 +163,7 @@ class SparkEngine(Engine):
                     raise ValueError(
                         f"Gold step '{concrete_step.name}' requires a transform function"
                     )
-                # For gold steps, source should be a dict of silvers (Dict[str, DataFrame])
+                # For gold steps, source should be a dict of silvers (Dict[str, DataFrame]  # type: ignore[valid-type])
                 # The abstracts interface expects Source, but we accept dict for gold steps
                 if isinstance(source, dict):
                     silvers = source
@@ -196,7 +196,7 @@ class SparkEngine(Engine):
         if not isinstance(source, DataFrame):
             raise TypeError(f"Source must be a DataFrame, got {type(source)}")
 
-        df: DataFrame = source
+        df: DataFrame = source  # type: ignore[valid-type]
 
         # Type check: step should be a concrete step type
         # Cast to Any first to avoid Protocol isinstance issues with mypy
@@ -211,7 +211,7 @@ class SparkEngine(Engine):
 
         # Bronze steps don't write to tables
         if isinstance(concrete_step, BronzeStep):
-            rows_written = df.count()
+            rows_written = df.count()  # type: ignore[attr-defined]
             return WriteReport(
                 source=df,
                 written_rows=rows_written,
@@ -223,7 +223,9 @@ class SparkEngine(Engine):
         table_name = getattr(concrete_step, "table_name", None) or getattr(
             concrete_step, "target", concrete_step.name
         )
-        schema = getattr(concrete_step, "schema", None) or getattr(concrete_step, "write_schema", None)
+        schema = getattr(concrete_step, "schema", None) or getattr(
+            concrete_step, "write_schema", None
+        )
 
         if schema is None:
             raise ValueError(
@@ -244,14 +246,14 @@ class SparkEngine(Engine):
 
         # Create schema if needed
         try:
-            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")  # type: ignore[attr-defined]
         except Exception as e:
             raise RuntimeError(f"Failed to create schema '{schema}': {e}") from e
 
         # Write to table
         try:
-            rows_before = df.count()
-            df.write.mode(write_mode).saveAsTable(output_table)
+            rows_before = df.count()  # type: ignore[attr-defined]
+            df.write.mode(write_mode).saveAsTable(output_table)  # type: ignore[attr-defined]
             rows_written = rows_before  # Assuming all rows were written successfully
             return WriteReport(
                 source=df,
@@ -263,6 +265,6 @@ class SparkEngine(Engine):
             return WriteReport(
                 source=df,
                 written_rows=0,
-                failed_rows=df.count() if df is not None else 0,
+                failed_rows=df.count() if df is not None else 0,  # type: ignore[attr-defined]
                 error=e,
             )

@@ -10,7 +10,13 @@ import pytest
 
 # Import types based on SPARK_MODE
 if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql.types import DoubleType, IntegerType, StringType, StructField, StructType
+    from pyspark.sql.types import (
+        DoubleType,
+        IntegerType,
+        StringType,
+        StructField,
+        StructType,
+    )
 else:
     from mock_spark import (
         DoubleType,

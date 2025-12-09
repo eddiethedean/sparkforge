@@ -51,7 +51,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
 
     def __init__(
         self,
-        spark: SparkSession,
+        spark: SparkSession,  # type: ignore[valid-type]
         config: PipelineConfig,
         bronze_steps: Optional[Dict[str, BronzeStep]] = None,
         silver_steps: Optional[Dict[str, SilverStep]] = None,
@@ -109,7 +109,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
         self,
         steps: list[BronzeStep | SilverStep | GoldStep],
         mode: PipelineMode = PipelineMode.INITIAL,
-        bronze_sources: Dict[str, DataFrame] | None = None,
+        bronze_sources: Dict[str, DataFrame] | None = None,  # type: ignore[valid-type]
     ) -> PipelineReport:
         """
         Run a complete pipeline.
@@ -190,7 +190,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
         # Source Protocol is satisfied by DataFrame, so we accept any DataFrame-like object
         from ..compat_helpers import is_dataframe_like
 
-        bronze_sources_df: Optional[Dict[str, DataFrame]] = None
+        bronze_sources_df: Optional[Dict[str, DataFrame]] = None  # type: ignore[valid-type]
         if bronze_sources:
             bronze_sources_df = {}
             for name, source in bronze_sources.items():
@@ -242,7 +242,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
         # Source Protocol is satisfied by DataFrame, so we accept any DataFrame-like object
         from ..compat_helpers import is_dataframe_like
 
-        bronze_sources_df: Optional[Dict[str, DataFrame]] = None
+        bronze_sources_df: Optional[Dict[str, DataFrame]] = None  # type: ignore[valid-type]
         if bronze_sources:
             bronze_sources_df = {}
             for name, source in bronze_sources.items():
@@ -266,7 +266,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
 
     def run_full_refresh(
         self,
-        bronze_sources: Dict[str, DataFrame] | None = None,
+        bronze_sources: Dict[str, DataFrame] | None = None,  # type: ignore[valid-type]
     ) -> PipelineReport:
         """
         Run full refresh pipeline with all stored steps.
@@ -286,7 +286,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
 
     def run_validation_only(
         self,
-        bronze_sources: Dict[str, DataFrame] | None = None,
+        bronze_sources: Dict[str, DataFrame] | None = None,  # type: ignore[valid-type]
     ) -> PipelineReport:
         """
         Run validation-only pipeline with all stored steps.
@@ -348,7 +348,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
                 "end_time": step_result.end_time.isoformat()
                 if step_result.end_time
                 else None,
-                "write_mode": step_result.write_mode,
+                "write_mode": step_result.write_mode,  # type: ignore[attr-defined]
                 "validation_rate": step_result.validation_rate,
                 "rows_written": step_result.rows_written,
                 "input_rows": step_result.input_rows,

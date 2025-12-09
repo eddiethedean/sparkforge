@@ -77,7 +77,7 @@ for _generic_name in ("Mapping", "MutableMapping", "Sequence", "Iterable"):
         _cls.__class_getitem__ = _make_generic_getitem(_generic_name)
 
 # Provide a stub duckdb backend package so optional imports don't crash on Python 3.8.
-import types
+import types  # noqa: E402
 
 if "mock_spark.backend.duckdb" not in sys.modules:
     duckdb_stub = types.ModuleType("mock_spark.backend.duckdb")

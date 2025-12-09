@@ -13,7 +13,13 @@ Resolution order:
 from __future__ import annotations
 
 import os
-from typing import Any, Optional, Tuple, Type
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Optional,
+    Tuple,
+    Type,
+)
 
 _ENGINE = os.getenv("SPARKFORGE_ENGINE", "auto").lower()
 
@@ -46,26 +52,26 @@ def _try_import_mockspark() -> Optional[
         from mock_spark.sql import Column as _Column
         from mock_spark.sql import DataFrame as _DataFrame
         from mock_spark.sql import SparkSession as _SparkSession
+        from mock_spark.sql import functions as _F
         from mock_spark.sql import types as _types
         from mock_spark.sql.utils import (
             AnalysisException as _AnalysisException,
         )
-        from mock_spark.sql import functions as _F
 
         return _DataFrame, _SparkSession, _Column, _F, _types, _AnalysisException
     except Exception:
         # Fallback to old import paths for backward compatibility with older mock-spark versions
         try:
-            from mock_spark import Column as _Column
-            from mock_spark import DataFrame as _DataFrame
-            from mock_spark import SparkSession as _SparkSession
-            from mock_spark import spark_types as _types
+            from mock_spark import Column as _ColumnFallback
+            from mock_spark import DataFrame as _DataFrameFallback
+            from mock_spark import SparkSession as _SparkSessionFallback
+            from mock_spark import spark_types as _typesFallback
             from mock_spark.errors import (
-                AnalysisException as _AnalysisException,
+                AnalysisException as _AnalysisExceptionFallback,
             )
-            from mock_spark.functions import F as _F
+            from mock_spark.functions import F as _FFallback
 
-            return _DataFrame, _SparkSession, _Column, _F, _types, _AnalysisException
+            return _DataFrameFallback, _SparkSessionFallback, _ColumnFallback, _FFallback, _typesFallback, _AnalysisExceptionFallback
         except Exception:
             # Log the error for debugging but don't fail
             # Note: mock-spark 3.1.0 has Python 3.8 compatibility issues
@@ -108,18 +114,33 @@ def _select_engine() -> Tuple[
     )
 
 
-_ENGINE_NAME, (DataFrame, SparkSession, Column, F, types, AnalysisException) = (
+_ENGINE_NAME, (_DataFrame, _SparkSession, _Column, F, types, AnalysisException) = (
     _select_engine()
 )
 
-# Type annotations to help mypy understand these are not Optional
-if False:
-    from typing import TYPE_CHECKING
-    if TYPE_CHECKING:
-        # These are type aliases for mypy's benefit
-        DataFrame = DataFrame  # noqa: F811
-        SparkSession = SparkSession  # noqa: F811
-        Column = Column  # noqa: F811
+# Runtime assignment - these are the actual classes
+# Type annotations are handled via TYPE_CHECKING block below
+DataFrame = _DataFrame
+SparkSession = _SparkSession
+Column = _Column
+
+# Type stubs for mypy
+if TYPE_CHECKING:
+    # Import actual PySpark types for type checking when available
+    try:
+        from pyspark.sql import Column as _PySparkColumn
+        from pyspark.sql import DataFrame as _PySparkDataFrame
+        from pyspark.sql import SparkSession as _PySparkSparkSession
+    except ImportError:
+        # Use Any as fallback if PySpark not available during type checking
+        _PySparkColumn = Any  # type: ignore[assignment,misc]
+        _PySparkDataFrame = Any  # type: ignore[assignment,misc]
+        _PySparkSparkSession = Any  # type: ignore[assignment,misc]
+
+    # Re-export as type aliases for mypy
+    DataFrame = _PySparkDataFrame  # type: ignore[assignment,misc]
+    SparkSession = _PySparkSparkSession  # type: ignore[assignment,misc]
+    Column = _PySparkColumn  # type: ignore[assignment,misc]
 
 
 def is_mock_spark() -> bool:

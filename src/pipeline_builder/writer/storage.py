@@ -115,7 +115,7 @@ class StorageManager:
 
     def __init__(
         self,
-        spark: SparkSession,
+        spark: SparkSession,  # type: ignore[valid-type]
         config: WriterConfig,
         functions: FunctionsProtocol | None = None,
         logger: PipelineLogger | None = None,
@@ -153,7 +153,7 @@ class StorageManager:
             if schema_name:
                 try:
                     # Use SQL to ensure schema exists (more reliable than storage API in some contexts)
-                    self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+                    self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")  # type: ignore[attr-defined]
                 except Exception as e:
                     # If SQL fails, try storage API
                     try:
@@ -169,12 +169,12 @@ class StorageManager:
 
             if not table_exists(self.spark, self.table_fqn):
                 # Create empty DataFrame with schema
-                empty_df = self.spark.createDataFrame([], schema)
+                empty_df = self.spark.createDataFrame([], schema)  # type: ignore[attr-defined]
 
                 # Ensure schema exists RIGHT BEFORE saveAsTable
                 if schema_name:
                     try:
-                        self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+                        self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")  # type: ignore[attr-defined]
                     except Exception:
                         pass  # Schema might already exist
 
@@ -183,7 +183,7 @@ class StorageManager:
                     empty_df.write.format("delta")
                     .mode("overwrite")
                     .option("overwriteSchema", "true")
-                    .saveAsTable(self.table_fqn)
+                    .saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
                 )
 
                 self.logger.info(f"Table created successfully: {self.table_fqn}")
@@ -205,7 +205,7 @@ class StorageManager:
 
     def write_dataframe(
         self,
-        df: DataFrame,
+        df: DataFrame,  # type: ignore[valid-type]
         write_mode: WriteMode = WriteMode.APPEND,
         partition_columns: list[str] | None = None,
     ) -> WriteResult:
@@ -232,7 +232,7 @@ class StorageManager:
             df_prepared = self._prepare_dataframe_for_write(df)
 
             # Configure write options
-            writer = df_prepared.write.format("delta").mode(write_mode.value)
+            writer = df_prepared.write.format("delta").mode(write_mode.value)  # type: ignore[attr-defined]
 
             # Add partitioning if specified
             if partition_columns:
@@ -249,7 +249,7 @@ class StorageManager:
             writer.saveAsTable(self.table_fqn)
 
             # Get write statistics
-            row_count = df_prepared.count()
+            row_count = df_prepared.count()  # type: ignore[attr-defined]
 
             write_result = {
                 "table_name": self.table_fqn,
@@ -265,7 +265,7 @@ class StorageManager:
         except Exception as e:
             # Safely get row count for error context
             try:
-                row_count = df.count() if hasattr(df, "count") else 0
+                row_count = df.count() if hasattr(df, "count") else 0  # type: ignore[attr-defined]
             except Exception:
                 row_count = 0
 
@@ -298,11 +298,10 @@ class StorageManager:
         try:
             self.logger.info(f"Writing batch of {len(log_rows)} log rows")
 
-            # Convert log rows to DataFrame
+            # Convert log rows to DataFrame and write
             df = self._create_dataframe_from_log_rows(log_rows)
-
             # Write DataFrame
-            return self.write_dataframe(df, write_mode)
+            return self.write_dataframe(df, write_mode)  # type: ignore[attr-defined]
 
         except Exception as e:
             self.logger.error(f"Failed to write batch: {e}")
@@ -337,7 +336,7 @@ class StorageManager:
                 delta_table.optimize()
             else:
                 # Fallback: use SQL command
-                self.spark.sql(f"OPTIMIZE {self.table_fqn}")
+                self.spark.sql(f"OPTIMIZE {self.table_fqn}")  # type: ignore[attr-defined]
 
             # Get table statistics
             table_info = self.get_table_info()
@@ -432,7 +431,7 @@ class StorageManager:
                 f"Delta Lake not available, using basic table info for {self.table_fqn}"
             )
             # Get basic info without Delta Lake
-            row_count = self.spark.table(self.table_fqn).count()
+            row_count = self.spark.table(self.table_fqn).count()  # type: ignore[attr-defined]
             return {
                 "table_name": self.table_fqn,
                 "row_count": row_count,
@@ -455,13 +454,13 @@ class StorageManager:
                 # Fallback: use SQL command
                 table_details = self.spark.sql(
                     f"DESCRIBE DETAIL {self.table_fqn}"
-                ).collect()
+                ).collect()  # type: ignore[attr-defined]
 
             # Get table history
             table_history = delta_table.history().collect()
 
             # Get row count
-            row_count = self.spark.table(self.table_fqn).count()
+            row_count = self.spark.table(self.table_fqn).count()  # type: ignore[attr-defined]
 
             table_info = {
                 "table_name": self.table_fqn,
@@ -488,7 +487,7 @@ class StorageManager:
         self,
         limit: int | None = None,
         filters: Union[Dict[str, Union[str, int, float, bool]], None] = None,
-    ) -> DataFrame:
+    ) -> DataFrame:  # type: ignore[valid-type]
         """
         Query logs from the table.
 
@@ -503,18 +502,18 @@ class StorageManager:
             self.logger.info(f"Querying logs from: {self.table_fqn}")
 
             # Start with the base table
-            result_df = self.spark.table(self.table_fqn)
+            result_df = self.spark.table(self.table_fqn)  # type: ignore[attr-defined]
 
             # Apply filters if provided using PySpark functions
             if filters:
                 for column, value in filters.items():
                     if isinstance(value, str):
                         result_df = result_df.filter(
-                            self.functions.col(column) == self.functions.lit(value)
+                            self.functions.col(column) == self.functions.lit(value)  # type: ignore[attr-defined]
                         )
                     else:
                         result_df = result_df.filter(
-                            self.functions.col(column) == value
+                            self.functions.col(column) == value  # type: ignore[attr-defined]
                         )
 
             # Add ordering using PySpark functions
@@ -524,12 +523,14 @@ class StorageManager:
 
             # Apply limit if specified
             if limit:
-                result_df = result_df.limit(limit)
+                result_df = result_df.limit(limit)  # type: ignore[attr-defined]
 
-            self.logger.info(f"Query executed successfully: {result_df.count()} rows")
+            self.logger.info(f"Query executed successfully: {result_df.count()} rows")  # type: ignore[attr-defined]
             from typing import cast
+
             from ..compat import DataFrame
-            return cast(DataFrame, result_df)
+
+            return cast(DataFrame, result_df)  # type: ignore[valid-type]
 
         except Exception as e:
             self.logger.error(f"Failed to query logs from {self.table_fqn}: {e}")
@@ -544,7 +545,7 @@ class StorageManager:
                 ],
             ) from e
 
-    def _prepare_dataframe_for_write(self, df: DataFrame) -> DataFrame:
+    def _prepare_dataframe_for_write(self, df: DataFrame) -> DataFrame:  # type: ignore[valid-type]
         """Prepare DataFrame for writing to Delta table."""
         try:
             # Add metadata columns if not present
@@ -552,10 +553,10 @@ class StorageManager:
 
             current_time_str = datetime.now().isoformat()
 
-            if "created_at" not in df.columns:
+            if "created_at" not in df.columns:  # type: ignore[attr-defined]
                 df = df.withColumn("created_at", self.functions.lit(current_time_str))
 
-            if "updated_at" not in df.columns:
+            if "updated_at" not in df.columns:  # type: ignore[attr-defined]
                 df = df.withColumn("updated_at", self.functions.lit(current_time_str))
 
             return df
@@ -564,7 +565,7 @@ class StorageManager:
             self.logger.error(f"Failed to prepare DataFrame for write: {e}")
             raise
 
-    def _create_dataframe_from_log_rows(self, log_rows: list[LogRow]) -> DataFrame:
+    def _create_dataframe_from_log_rows(self, log_rows: list[LogRow]) -> DataFrame:  # type: ignore[valid-type]
         """Create DataFrame from log rows."""
         try:
             # Convert log rows to dictionaries
@@ -611,10 +612,12 @@ class StorageManager:
 
             # Create DataFrame with explicit schema for type safety and None value handling
             schema = create_log_schema()
-            df = self.spark.createDataFrame(log_data, schema)
+            df = self.spark.createDataFrame(log_data, schema)  # type: ignore[attr-defined]
             from typing import cast
+
             from ..compat import DataFrame
-            return cast(DataFrame, df)
+
+            return cast(DataFrame, df)  # type: ignore[valid-type]
 
         except Exception as e:
             self.logger.error(f"Failed to create DataFrame from log rows: {e}")

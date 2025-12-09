@@ -20,10 +20,12 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "real":
     )
     from pyspark.sql import SparkSession, functions as F
     from pyspark.sql.utils import AnalysisException
+
     # PySpark doesn't have PySparkValueError - use standard ValueError
     PySparkValueError = ValueError
     # PySpark function imports - these are accessed differently
     from pyspark.sql.functions import Column, lit as Literal, window as WindowFunction
+
     # AggregateFunction is a class, not a function import
     from pyspark.sql.functions import sum as AggregateFunction  # Using sum as example
 else:

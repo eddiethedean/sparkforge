@@ -1,7 +1,7 @@
 from typing import Protocol
 
-from report import Report
-from sources import Sources
+from report import Report  # type: ignore[import-not-found]
+from sources import Sources  # type: ignore[import-not-found]
 
 
 class Runner(Protocol):

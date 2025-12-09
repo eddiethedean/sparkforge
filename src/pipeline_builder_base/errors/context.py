@@ -7,15 +7,12 @@ and generating helpful error suggestions.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, List, Union
+from typing import Any, Dict, List, Union
 
-if TYPE_CHECKING:
-    from ..errors import ErrorContext as ErrorContextType
-else:
-    # Type alias for runtime
-    ErrorContextType = Dict[
-        str, Union[str, int, float, bool, List[str], Dict[str, str], None]
-    ]
+# Type alias for error context
+ErrorContextType = Dict[
+    str, Union[str, int, float, bool, List[str], Dict[str, str], None]
+]
 
 
 class ErrorContext:
@@ -40,7 +37,7 @@ class ErrorContext:
             key: Context key
             value: Context value
         """
-        self.context[key] = value  # type: ignore[index]
+        self.context[key] = value
 
     def to_dict(self) -> ErrorContextType:
         """
@@ -49,8 +46,7 @@ class ErrorContext:
         Returns:
             Dictionary representation of context
         """
-        from typing import cast
-        return cast(ErrorContextType, self.context.copy())
+        return self.context.copy()
 
     def __repr__(self) -> str:
         """Return string representation."""
@@ -168,17 +164,17 @@ def build_validation_context(step: Any, step_type: str) -> ErrorContextType:
 
     step_name = getattr(step, "name", None)
     if step_name:
-        context["step_name"] = step_name  # type: ignore[index]
+        context["step_name"] = step_name
 
     # Add step-specific context
     if step_type == "silver":
         source_bronze = getattr(step, "source_bronze", None)
         if source_bronze:
-            context["source_bronze"] = source_bronze  # type: ignore[index]
+            context["source_bronze"] = source_bronze
     elif step_type == "gold":
         source_silvers = getattr(step, "source_silvers", None)
         if source_silvers:
-            context["source_silvers"] = (  # type: ignore[index]
+            context["source_silvers"] = (
                 source_silvers if isinstance(source_silvers, list) else [source_silvers]
             )
 
@@ -203,10 +199,10 @@ def build_execution_context(step: Any, error: Exception) -> ErrorContextType:
 
     step_name = getattr(step, "name", None)
     if step_name:
-        context["step_name"] = step_name  # type: ignore[index]
+        context["step_name"] = step_name
 
     step_type = getattr(step, "type", None)
     if step_type:
-        context["step_type"] = step_type  # type: ignore[index]
+        context["step_type"] = step_type
 
     return context

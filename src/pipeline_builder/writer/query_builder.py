@@ -23,7 +23,11 @@ class QueryBuilder:
     """Builder class for common PySpark DataFrame operations."""
 
     @staticmethod
-    def filter_by_date_range(df: DataFrame, days: int = 30) -> DataFrame:
+    def filter_by_date_range(
+        df: DataFrame,
+        days: int = 30,
+        date_column: str = "created_at",
+    ) -> DataFrame:
         """
         Filter DataFrame by date range.
 
@@ -40,15 +44,15 @@ class QueryBuilder:
             functions.col("created_at")
             >= functions.lit(start_date.strftime("%Y-%m-%d"))
         )
-        return cast(DataFrame, result)
+        return cast(DataFrame, result)  # type: ignore[valid-type]
 
     @staticmethod
     def add_date_column(
-        df: DataFrame,
+        df: DataFrame,  # type: ignore[valid-type]
         date_column: str = "created_at",
         output_column: str = "date",
         format: str = "yyyy-MM-dd",
-    ) -> DataFrame:
+    ) -> DataFrame:  # type: ignore[valid-type]
         """
         Add formatted date column to DataFrame.
 
@@ -64,7 +68,7 @@ class QueryBuilder:
         result = df.withColumn(
             output_column, functions.date_format(functions.col(date_column), format)
         )
-        return cast(DataFrame, result)
+        return cast(DataFrame, result)  # type: ignore[valid-type]
 
     @staticmethod
     def get_common_aggregations() -> Dict[str, Any]:
@@ -175,7 +179,10 @@ class QueryBuilder:
         }
 
     @staticmethod
-    def build_daily_trends_query(df: DataFrame, days: int = 30) -> DataFrame:
+    def build_daily_trends_query(
+        df: DataFrame,
+        days: int = 30,
+    ) -> DataFrame:
         """
         Build daily trends query with common aggregations.
 
@@ -195,10 +202,13 @@ class QueryBuilder:
             .agg(**aggs)
             .orderBy("date")
         )
-        return cast(DataFrame, result)
+        return cast(DataFrame, result)  # type: ignore[valid-type]
 
     @staticmethod
-    def build_phase_trends_query(df: DataFrame, days: int = 30) -> DataFrame:
+    def build_phase_trends_query(
+        df: DataFrame,
+        days: int = 30,
+    ) -> DataFrame:
         """
         Build phase trends query with common aggregations.
 
@@ -213,10 +223,13 @@ class QueryBuilder:
         aggs = QueryBuilder.get_performance_aggregations()
 
         result = filtered_df.groupBy("phase").agg(**aggs).orderBy("phase")
-        return cast(DataFrame, result)
+        return cast(DataFrame, result)  # type: ignore[valid-type]
 
     @staticmethod
-    def build_step_trends_query(df: DataFrame, days: int = 30) -> DataFrame:
+    def build_step_trends_query(
+        df: DataFrame,
+        days: int = 30,
+    ) -> DataFrame:
         """
         Build step trends query with common aggregations.
 
@@ -235,10 +248,13 @@ class QueryBuilder:
             .agg(**aggs)
             .orderBy(functions.desc("avg_execution_time"))
         )
-        return cast(DataFrame, result)
+        return cast(DataFrame, result)  # type: ignore[valid-type]
 
     @staticmethod
-    def build_quality_trends_query(df: DataFrame, days: int = 30) -> DataFrame:
+    def build_quality_trends_query(
+        df: DataFrame,
+        days: int = 30,
+    ) -> DataFrame:
         """
         Build quality trends query with common aggregations.
 
@@ -260,7 +276,10 @@ class QueryBuilder:
         )
 
     @staticmethod
-    def build_overall_metrics_query(df: DataFrame, days: int = 30) -> DataFrame:
+    def build_overall_metrics_query(
+        df: DataFrame,
+        days: int = 30,
+    ) -> DataFrame:
         """
         Build overall metrics query.
 
@@ -275,11 +294,13 @@ class QueryBuilder:
         aggs = QueryBuilder.get_quality_aggregations()
 
         result = filtered_df.agg(**aggs)
-        return cast(DataFrame, result)
+        return cast(DataFrame, result)  # type: ignore[valid-type]
 
     @staticmethod
     def build_anomaly_detection_query(
-        df: DataFrame, threshold_column: str, threshold_value: float
+        df: DataFrame,
+        threshold_column: str,
+        threshold_value: float,
     ) -> DataFrame:
         """
         Build anomaly detection query.
@@ -292,12 +313,13 @@ class QueryBuilder:
         Returns:
             DataFrame with anomalies
         """
-        result = df.filter(functions.col(threshold_column) < threshold_value)
-        return cast(DataFrame, result)
+        result = df.filter(functions.col(threshold_column) < threshold_value)  # type: ignore[attr-defined]
+        return cast(DataFrame, result)  # type: ignore[valid-type]
 
     @staticmethod
     def build_performance_anomaly_query(
-        df: DataFrame, performance_threshold: float
+        df: DataFrame,
+        performance_threshold: float,
     ) -> DataFrame:
         """
         Build performance anomaly detection query.
@@ -314,11 +336,12 @@ class QueryBuilder:
             | (functions.col("validation_rate") < 80.0)
             | (~functions.col("success"))
         )
-        return cast(DataFrame, result)
+        return cast(DataFrame, result)  # type: ignore[valid-type]
 
     @staticmethod
     def build_quality_anomaly_query(
-        df: DataFrame, quality_threshold: float = 90.0
+        df: DataFrame,
+        quality_threshold: float = 90.0,
     ) -> DataFrame:
         """
         Build quality anomaly detection query.
@@ -330,12 +353,13 @@ class QueryBuilder:
         Returns:
             DataFrame with quality anomalies
         """
-        result = df.filter(functions.col("validation_rate") < quality_threshold)
-        return cast(DataFrame, result)
+        result = df.filter(functions.col("validation_rate") < quality_threshold)  # type: ignore[attr-defined]
+        return cast(DataFrame, result)  # type: ignore[valid-type]
 
     @staticmethod
     def build_temporal_anomaly_query(
-        df: DataFrame, change_threshold: float = -10.0
+        df: DataFrame,
+        change_threshold: float = -10.0,
     ) -> DataFrame:
         """
         Build temporal anomaly detection query.
@@ -372,10 +396,13 @@ class QueryBuilder:
             .filter(functions.col("quality_change") < change_threshold)
             .orderBy("quality_change")
         )
-        return cast(DataFrame, result)
+        return cast(DataFrame, result)  # type: ignore[valid-type]
 
     @staticmethod
-    def calculate_statistics(df: DataFrame, column: str) -> Dict[str, float]:
+    def calculate_statistics(
+        df: DataFrame,
+        column: str,
+    ) -> Dict[str, float]:
         """
         Calculate basic statistics for a column.
 
@@ -402,7 +429,10 @@ class QueryBuilder:
         }
 
     @staticmethod
-    def build_recent_performance_query(df: DataFrame, days: int = 7) -> DataFrame:
+    def build_recent_performance_query(
+        df: DataFrame,
+        days: int = 7,
+    ) -> DataFrame:
         """
         Build recent performance query.
 
@@ -430,4 +460,4 @@ class QueryBuilder:
             .agg(**aggs)
             .orderBy("date")
         )
-        return cast(DataFrame, result)
+        return cast(DataFrame, result)  # type: ignore[valid-type]

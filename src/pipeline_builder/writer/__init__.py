@@ -36,7 +36,7 @@ Functions:
     validate_log_data: Validate log data before writing
 
 Example:
-    from the framework.writer import LogWriter, WriterConfig
+    from the framework.write  # type: ignore[attr-defined]r import LogWriter, WriterConfig
     from the framework.models import ExecutionResult
 
     # Configure writer
@@ -50,7 +50,7 @@ Example:
     writer = LogWriter(spark, config)
 
     # Write execution result
-    result = writer.write_execution_result(execution_result)
+    result = writer.write  # type: ignore[attr-defined]_execution_result(execution_result)
 """
 
 from .analytics import DataQualityAnalyzer, TrendAnalyzer

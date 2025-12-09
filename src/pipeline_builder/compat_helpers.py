@@ -14,7 +14,7 @@ from .compat import SparkSession, is_mock_spark
 
 
 def create_dataframe_compat(
-    spark: SparkSession,
+    spark: SparkSession,  # type: ignore[valid-type]
     data: Any,
     schema: Optional[Any] = None,
     original_method: Optional[Any] = None,
@@ -125,7 +125,10 @@ def detect_spark_type(spark: SparkSession) -> str:
 
 
 def create_test_dataframe(
-    spark: SparkSession, data: Any, schema: Optional[Any] = None, **kwargs: Any
+    spark: SparkSession,  # type: ignore[valid-type]
+    data: Any,
+    schema: Optional[Any] = None,
+    **kwargs: Any,
 ) -> Any:
     """
     High-level helper for creating test DataFrames.

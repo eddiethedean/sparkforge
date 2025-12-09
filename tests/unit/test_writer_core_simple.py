@@ -82,18 +82,25 @@ class TestWriterCoreSimple:
     def test_table_exists_function(self, spark_session):
         """Test table_exists function."""
         import os
-        
+
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-        
+
         if spark_mode == "real":
             # Use PySpark SQL commands for real Spark
-            from pyspark.sql.types import IntegerType, StringType, StructField, StructType
-            
+            from pyspark.sql.types import (
+                IntegerType,
+                StringType,
+                StructField,
+                StructType,
+            )
+
             spark_session.sql("CREATE DATABASE IF NOT EXISTS test_schema")
-            schema = StructType([
-                StructField("id", IntegerType()),
-                StructField("name", StringType()),
-            ])
+            schema = StructType(
+                [
+                    StructField("id", IntegerType()),
+                    StructField("name", StringType()),
+                ]
+            )
             # Create table using SQL
             test_data = [{"id": 1, "name": "test"}]
             df = spark_session.createDataFrame(test_data, schema)
@@ -101,13 +108,15 @@ class TestWriterCoreSimple:
         else:
             # Use mock-spark storage API
             from mock_spark import IntegerType, StructField, StringType
-            
+
             spark_session.storage.create_schema("test_schema")
             schema_fields = [
                 StructField("id", IntegerType()),
                 StructField("name", StringType()),
             ]
-            spark_session.storage.create_table("test_schema", "test_table", schema_fields)
+            spark_session.storage.create_table(
+                "test_schema", "test_table", schema_fields
+            )
 
         # Test table exists
         assert table_exists(spark_session, "test_schema.test_table")

@@ -56,6 +56,7 @@ class TestValidationWithFunctionsSimple:
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             from pyspark.sql import functions
+
             self.mock_functions = functions
         else:
             self.mock_functions = Functions()
@@ -266,6 +267,7 @@ class TestPipelineBuilderWithFunctionsSimple:
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             from pyspark.sql import functions
+
             self.mock_functions = functions
         else:
             self.mock_functions = Functions()
@@ -359,6 +361,7 @@ class TestFunctionsIntegrationSimple:
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             from pyspark.sql import functions
+
             self.mock_functions = functions
         else:
             self.mock_functions = Functions()

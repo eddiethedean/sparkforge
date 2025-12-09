@@ -225,7 +225,7 @@ class SqlLogWriter(BaseLogWriter):
 
                 log_row: LogRow = {
                     "run_id": row_dict.get("run_id", ""),
-                    "run_mode": row_dict.get("run_mode", "initial"),  # type: ignore
+                    "run_mode": row_dict.get("run_mode", "initial"),
                     "run_started_at": row_dict.get("run_started_at"),
                     "run_ended_at": row_dict.get("run_ended_at"),
                     "execution_id": row_dict.get("execution_id", ""),

@@ -15,7 +15,13 @@ import pytest
 
 # Import types based on SPARK_MODE
 if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql.types import DoubleType, IntegerType, StringType, StructField, StructType
+    from pyspark.sql.types import (
+        DoubleType,
+        IntegerType,
+        StringType,
+        StructField,
+        StructType,
+    )
     from pyspark.sql import SparkSession, functions as Functions
 else:
     from mock_spark import (
@@ -53,6 +59,7 @@ def mock_functions():
     if spark_mode == "real":
         # In PySpark, functions is a module, not a class
         from pyspark.sql import functions
+
         return functions
     else:
         return Functions()

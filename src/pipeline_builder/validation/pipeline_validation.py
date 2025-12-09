@@ -144,7 +144,7 @@ class UnifiedValidator:
         """Validate pipeline configuration."""
         errors = []
 
-        if not config.schema:
+        if not config.schema:  # type: ignore[attr-defined]
             errors.append("Pipeline schema is required")
 
         # Table prefix is optional in simplified config

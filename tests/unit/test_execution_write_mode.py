@@ -259,10 +259,12 @@ class TestExecutionEngineWriteMode:
         bronze_df.filter.assert_called_once()
         assert result_df is filtered_df
 
-    @pytest.mark.skip(reason="Fallback mechanism tested indirectly; filter typically succeeds")
+    @pytest.mark.skip(
+        reason="Fallback mechanism tested indirectly; filter typically succeeds"
+    )
     def test_incremental_filter_uses_mock_fallback_when_needed(self, config):
         """Fallback to collect-and-filter for mock spark when filter raises.
-        
+
         Note: This test is skipped because the filter typically succeeds in practice.
         The fallback mechanism exists in the code (see _filter_bronze_rows_mock)
         but is rarely triggered. The fallback is tested indirectly through other tests.
