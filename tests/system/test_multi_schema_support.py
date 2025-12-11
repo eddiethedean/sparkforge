@@ -221,13 +221,26 @@ class TestMultiSchemaSupport:
 
     def test_schema_creation_failure(self):
         """Test schema creation failure handling."""
-        with patch.object(
-            self.builder.spark.catalog, "createDatabase"
-        ) as mock_create_db:
-            mock_create_db.side_effect = Exception("Permission denied")
+        # PySpark uses SQL, mock-spark uses catalog.createDatabase
+        import os
+        if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+            # For PySpark, patch sql method
+            with patch.object(
+                self.builder.spark, "sql"
+            ) as mock_sql:
+                mock_sql.side_effect = Exception("Permission denied")
 
-            with pytest.raises(StepError, match="Failed to create schema 'new_schema'"):
-                self.builder._create_schema_if_not_exists("new_schema")
+                with pytest.raises(StepError, match="Failed to create schema 'new_schema'"):
+                    self.builder._create_schema_if_not_exists("new_schema")
+        else:
+            # For mock-spark, patch catalog.createDatabase
+            with patch.object(
+                self.builder.spark.catalog, "createDatabase"
+            ) as mock_create_db:
+                mock_create_db.side_effect = Exception("Permission denied")
+
+                with pytest.raises(StepError, match="Failed to create schema 'new_schema'"):
+                    self.builder._create_schema_if_not_exists("new_schema")
 
     def test_cross_schema_pipeline(self):
         """Test a complete cross-schema pipeline."""

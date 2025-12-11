@@ -14,13 +14,24 @@ from datetime import datetime, timedelta
 from typing import Any, List
 
 import pytest
-from mock_spark import (
-    DoubleType,
-    IntegerType,
-    StringType,
-    StructField,
-    StructType,
-)
+
+# Import types based on SPARK_MODE
+if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+    from pyspark.sql.types import (
+        DoubleType,
+        IntegerType,
+        StringType,
+        StructField,
+        StructType,
+    )
+else:
+    from mock_spark import (
+        DoubleType,
+        IntegerType,
+        StringType,
+        StructField,
+        StructType,
+    )
 
 # Import functions after setting environment
 from pipeline_builder.models import ParallelConfig, PipelineConfig, ValidationThresholds

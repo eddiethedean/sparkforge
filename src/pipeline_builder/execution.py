@@ -283,47 +283,65 @@ class ExecutionEngine:
             # Check if we're using mock-spark
             from pipeline_builder.compat import is_mock_spark
 
-            if is_mock_spark() and rules:
-                # Force full materialization by collecting and recreating DataFrame
-                # This bypasses CTE optimization entirely
-                try:
-                    # Get schema first
-                    schema = df.schema  # type: ignore[attr-defined]
-
-                    # Collect data to force full materialization
-                    # This bypasses CTE optimization in mock-spark
-                    collected_data = df.collect()  # type: ignore[attr-defined]
-
-                    # Convert Row objects to dictionaries to preserve column names
-                    # This fixes a bug in mock-spark's Polars backend where Row objects
-                    # lose column names during materialization after filter operations
-                    if collected_data and hasattr(collected_data[0], "asDict"):
-                        # Convert Row objects to dictionaries
-                        dict_data = [row.asDict() for row in collected_data]
-                    elif collected_data:
-                        # Fallback: try to convert to dict if possible
-                        try:
-                            dict_data = [dict(row) for row in collected_data]
-                        except (TypeError, ValueError):
-                            # If conversion fails, use original data
-                            dict_data = collected_data
-                    else:
-                        dict_data = collected_data
-
-                    # Recreate DataFrame from dictionary data
-                    # This ensures all columns are fully materialized with correct names
-                    df = self.spark.createDataFrame(dict_data, schema)  # type: ignore[assignment,attr-defined]
-                except Exception as e:
-                    # If materialization fails, try alternative: just cache and count
+            # Materialize for both mock-spark and PySpark when rules reference transform-created columns
+            # PySpark also requires materialization before validation can access new columns
+            if rules:
+                # For PySpark, use a simpler materialization approach that doesn't lose data
+                # Collecting and recreating can cause issues with computed columns
+                if not is_mock_spark():
+                    # For PySpark, cache and force evaluation to materialize without losing data
                     try:
                         if hasattr(df, "cache"):
                             df = df.cache()  # type: ignore[assignment]
-                        _ = df.count()  # type: ignore[attr-defined]  # Force evaluation
-                    except Exception:
-                        # If all materialization attempts fail, return original
-                        # Validation will still be attempted
-                        self.logger.debug(f"Could not materialize DataFrame: {e}")
-                        pass
+                        # Force evaluation by counting - this materializes the DataFrame
+                        _ = df.count()  # type: ignore[attr-defined]
+                    except Exception as e:
+                        # If caching fails, try just counting
+                        try:
+                            _ = df.count()  # type: ignore[attr-defined]
+                        except Exception:
+                            self.logger.debug(f"Could not materialize DataFrame for PySpark: {e}")
+                            pass
+                else:
+                    # For mock-spark, use the collect and recreate approach to fix CTE issues
+                    try:
+                        # Get schema first
+                        schema = df.schema  # type: ignore[attr-defined]
+
+                        # Collect data to force full materialization
+                        # This bypasses CTE optimization in mock-spark
+                        collected_data = df.collect()  # type: ignore[attr-defined]
+
+                        # Convert Row objects to dictionaries to preserve column names
+                        # This fixes a bug in mock-spark's Polars backend where Row objects
+                        # lose column names during materialization after filter operations
+                        if collected_data and hasattr(collected_data[0], "asDict"):
+                            # Convert Row objects to dictionaries
+                            dict_data = [row.asDict() for row in collected_data]
+                        elif collected_data:
+                            # Fallback: try to convert to dict if possible
+                            try:
+                                dict_data = [dict(row) for row in collected_data]
+                            except (TypeError, ValueError):
+                                # If conversion fails, use original data
+                                dict_data = collected_data
+                        else:
+                            dict_data = collected_data
+
+                        # Recreate DataFrame from dictionary data
+                        # This ensures all columns are fully materialized with correct names
+                        df = self.spark.createDataFrame(dict_data, schema)  # type: ignore[assignment,attr-defined]
+                    except Exception as e:
+                        # If materialization fails, try alternative: just cache and count
+                        try:
+                            if hasattr(df, "cache"):
+                                df = df.cache()  # type: ignore[assignment]
+                            _ = df.count()  # type: ignore[attr-defined]  # Force evaluation
+                        except Exception:
+                            # If all materialization attempts fail, return original
+                            # Validation will still be attempted
+                            self.logger.debug(f"Could not materialize DataFrame: {e}")
+                            pass
         except Exception:
             # If we can't determine mock-spark status or materialization fails,
             # return original DataFrame

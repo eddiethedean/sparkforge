@@ -18,8 +18,10 @@ else:
 # Import types based on engine
 import os
 
+# Check SPARK_MODE first (used by tests), then SPARKFORGE_ENGINE
+_SPARK_MODE = os.environ.get("SPARK_MODE", "mock").lower()
 _ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
-if _ENGINE in ("pyspark", "spark", "real"):
+if _SPARK_MODE == "real" or _ENGINE in ("pyspark", "spark", "real"):
     try:
         from pyspark.sql.types import StringType, StructField, StructType
     except ImportError:

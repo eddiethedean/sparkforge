@@ -532,7 +532,7 @@ class TestHealthcarePipeline:
         def normalize_labs_transform(spark, df, silvers):
             return df.withColumn(
                 "test_date_parsed",
-                F.to_timestamp(F.col("test_date"), "yyyy-MM-dd'T'HH:mm:ss"),
+                F.to_timestamp(F.col("test_date").cast("string"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"),
             )
 
         builder.add_silver_transform(
@@ -621,7 +621,7 @@ class TestHealthcarePipeline:
         def normalize_labs_transform(spark, df, silvers):
             return df.withColumn(
                 "test_date_parsed",
-                F.to_timestamp(F.col("test_date"), "yyyy-MM-dd'T'HH:mm:ss"),
+                F.to_timestamp(F.col("test_date").cast("string"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"),
             )
 
         builder.add_silver_transform(

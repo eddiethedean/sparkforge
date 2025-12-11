@@ -151,7 +151,18 @@ class TestPipelineBuilder(unittest.TestCase):
             from mock_spark import SparkSession
             self.spark = SparkSession("TestApp")
         else:
-            self.spark = Mock()
+            # For PySpark, create a real SparkSession
+            from pyspark.sql import SparkSession
+            import tempfile
+            warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
+            self.spark = (
+                SparkSession.builder.appName("TestApp")
+                .master("local[1]")
+                .config("spark.sql.warehouse.dir", warehouse_dir)
+                .config("spark.driver.host", "127.0.0.1")
+                .config("spark.driver.bindAddress", "127.0.0.1")
+                .getOrCreate()
+            )
         self.schema = "test_schema"
 
         # Create pipeline builder with mock functions if in mock mode
@@ -508,7 +519,18 @@ class TestPipelineBuilderIntegration(unittest.TestCase):
             from mock_spark import SparkSession
             self.spark = SparkSession("TestApp")
         else:
-            self.spark = Mock()
+            # For PySpark, create a real SparkSession
+            from pyspark.sql import SparkSession
+            import tempfile
+            warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
+            self.spark = (
+                SparkSession.builder.appName("TestApp")
+                .master("local[1]")
+                .config("spark.sql.warehouse.dir", warehouse_dir)
+                .config("spark.driver.host", "127.0.0.1")
+                .config("spark.driver.bindAddress", "127.0.0.1")
+                .getOrCreate()
+            )
         self.schema = "test_schema"
 
     def test_complex_pipeline_construction(self):

@@ -235,7 +235,13 @@ def create_mixed_valid_invalid_data(
 
 def get_log_entries_by_run(log_df, run_id: str) -> List[Dict]:
     """Filter log entries by run_id."""
-    return [row.asDict() for row in log_df.filter(log_df.run_id == run_id).collect()]
+    # Use F.col() for PySpark compatibility
+    if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+        from pyspark.sql import functions as F
+        filtered = log_df.filter(F.col("run_id") == run_id)
+    else:
+        filtered = log_df.filter(log_df.run_id == run_id)
+    return [row.asDict() for row in filtered.collect()]
 
 
 # ============================================================================

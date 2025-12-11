@@ -41,10 +41,8 @@ def system_spark_session():
             .config("spark.driver.host", "127.0.0.1")
             .config("spark.driver.bindAddress", "127.0.0.1")
             .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-            .config(
-                "spark.sql.catalog.spark_catalog",
-                "org.apache.spark.sql.delta.catalog.DeltaCatalog",
-            )
+            # Note: spark.sql.catalog.spark_catalog is set by configure_spark_with_delta_pip()
+            # Don't set it here to avoid ClassNotFoundException if Delta Lake setup fails
             .config("spark.sql.adaptive.skewJoin.enabled", "true")
             .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
             .config("spark.driver.memory", "2g")
@@ -52,6 +50,14 @@ def system_spark_session():
         )
 
         spark = configure_spark_with_delta_pip(builder).getOrCreate()
+        
+        # Verify and set Delta catalog if not already set
+        try:
+            current_catalog = spark.conf.get("spark.sql.catalog.spark_catalog", None)  # type: ignore[attr-defined]
+            if current_catalog != "org.apache.spark.sql.delta.catalog.DeltaCatalog":
+                spark.conf.set("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")  # type: ignore[attr-defined]
+        except Exception:
+            pass  # Ignore if we can't set it
     except Exception as e:
         print(f"⚠️ Delta Lake configuration failed: {e}")
         # Fall back to basic Spark

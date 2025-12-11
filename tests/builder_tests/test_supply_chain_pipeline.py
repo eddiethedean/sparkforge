@@ -9,7 +9,12 @@ and logistics performance metrics.
 import os
 
 import pytest
-from mock_spark import functions as F
+
+# Import functions based on SPARK_MODE
+if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+    from pyspark.sql import functions as F
+else:
+    from mock_spark import functions as F
 
 from pipeline_builder.pipeline import PipelineBuilder
 from pipeline_builder.writer import LogWriter
@@ -23,29 +28,37 @@ class TestSupplyChainPipeline:
         reason="Polars backend still fails complex datetime validation in this pipeline (mock-spark follow-up).",
     )
     def test_complete_supply_chain_pipeline_execution(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark_session, data_generator, test_assertions
     ):
         """Test complete supply chain pipeline: orders → shipments → logistics insights."""
 
+        # Helper function for schema creation
+        def create_schema_if_not_exists(spark, schema_name: str):
+            """Create a schema using the appropriate method for mock-spark or PySpark."""
+            if hasattr(spark, "storage") and hasattr(spark.storage, "create_schema"):
+                spark.storage.create_schema(schema_name)
+            else:
+                spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+
         # Setup schemas
-        mock_spark_session.storage.create_schema("bronze")
-        mock_spark_session.storage.create_schema("silver")
-        mock_spark_session.storage.create_schema("gold")
+        create_schema_if_not_exists(spark_session, "bronze")
+        create_schema_if_not_exists(spark_session, "silver")
+        create_schema_if_not_exists(spark_session, "gold")
 
         # Create realistic supply chain data
         orders_df = data_generator.create_supply_chain_orders(
-            mock_spark_session, num_orders=80
+            spark_session, num_orders=80
         )
         shipments_df = data_generator.create_supply_chain_shipments(
-            mock_spark_session, num_shipments=100
+            spark_session, num_shipments=100
         )
         inventory_df = data_generator.create_supply_chain_inventory(
-            mock_spark_session, num_items=150
+            spark_session, num_items=150
         )
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=mock_spark_session,
+            spark=spark_session,
             functions=F,
             schema="bronze",
             min_bronze_rate=95.0,
@@ -94,7 +107,7 @@ class TestSupplyChainPipeline:
                 df.withColumn(
                     "order_date_parsed",
                     F.to_timestamp(
-                        F.regexp_replace(F.col("order_date"), r"\.\d+", ""),
+                        F.regexp_replace(F.col("order_date"), r"\.\d+", "").cast("string"),
                         "yyyy-MM-dd'T'HH:mm:ss",
                     ),
                 )
@@ -143,14 +156,14 @@ class TestSupplyChainPipeline:
                 df.withColumn(
                     "shipping_date_parsed",
                     F.to_timestamp(
-                        F.regexp_replace(F.col("shipping_date"), r"\.\d+", ""),
+                        F.regexp_replace(F.col("shipping_date"), r"\.\d+", "").cast("string"),
                         "yyyy-MM-dd'T'HH:mm:ss",
                     ),
                 )
                 .withColumn(
                     "delivery_date_parsed",
                     F.to_timestamp(
-                        F.regexp_replace(F.col("delivery_date"), r"\.\d+", ""),
+                        F.regexp_replace(F.col("delivery_date"), r"\.\d+", "").cast("string"),
                         "yyyy-MM-dd'T'HH:mm:ss",
                     ),
                 )
@@ -209,7 +222,7 @@ class TestSupplyChainPipeline:
                 df.withColumn(
                     "snapshot_date_parsed",
                     F.to_timestamp(
-                        F.regexp_replace(F.col("snapshot_date"), r"\.\d+", ""),
+                        F.regexp_replace(F.col("snapshot_date"), r"\.\d+", "").cast("string"),
                         "yyyy-MM-dd'T'HH:mm:ss",
                     ),
                 )
@@ -440,21 +453,21 @@ class TestSupplyChainPipeline:
         assert turnover_result.get("rows_processed", 0) >= 0  # Can be 0 if no matches
 
     def test_incremental_supply_chain_processing(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark_session, data_generator, test_assertions
     ):
         """Test incremental processing of new supply chain data."""
         # Setup schemas
-        mock_spark_session.storage.create_schema("bronze")
-        mock_spark_session.storage.create_schema("silver")
+        spark_session.storage.create_schema("bronze")
+        spark_session.storage.create_schema("silver")
 
         # Create initial data
         orders_initial = data_generator.create_supply_chain_orders(
-            mock_spark_session, num_orders=30
+            spark_session, num_orders=30
         )
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=mock_spark_session,
+            spark=spark_session,
             schema="bronze",
             functions=F,
             min_bronze_rate=95.0,
@@ -480,7 +493,7 @@ class TestSupplyChainPipeline:
                 )
                 .withColumn(
                     "order_date_parsed",
-                    F.to_timestamp(F.col("order_date_clean"), "yyyy-MM-dd'T'HH:mm:ss"),
+                    F.to_timestamp(F.col("order_date_clean").cast("string"), "yyyy-MM-dd'T'HH:mm:ss"),
                 )
                 .drop("order_date_clean")
             )
@@ -504,7 +517,7 @@ class TestSupplyChainPipeline:
 
         # Incremental load with new orders
         orders_incremental = data_generator.create_supply_chain_orders(
-            mock_spark_session, num_orders=20
+            spark_session, num_orders=20
         )
 
         result2 = pipeline.run_incremental(
@@ -515,29 +528,29 @@ class TestSupplyChainPipeline:
         assert result2.mode.value == "incremental"
 
     def test_supply_chain_logging(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark_session, data_generator, test_assertions
     ):
         """Test comprehensive logging for supply chain pipeline."""
 
         # Create test data
         orders_df = data_generator.create_supply_chain_orders(
-            mock_spark_session, num_orders=25
+            spark_session, num_orders=25
         )
 
         # Setup schemas
-        mock_spark_session.storage.create_schema("bronze")
-        mock_spark_session.storage.create_schema("analytics")
+        spark_session.storage.create_schema("bronze")
+        spark_session.storage.create_schema("analytics")
 
         # Create LogWriter
         log_writer = LogWriter(
-            spark=mock_spark_session,
+            spark=spark_session,
             schema="analytics",
             table_name="supply_chain_logs",
         )
 
         # Create pipeline
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="bronze", functions=F, verbose=False
+            spark=spark_session, schema="bronze", functions=F, verbose=False
         )
 
         builder.with_bronze_rules(
@@ -554,7 +567,7 @@ class TestSupplyChainPipeline:
                 )
                 .withColumn(
                     "order_date_parsed",
-                    F.to_timestamp(F.col("order_date_clean"), "yyyy-MM-dd'T'HH:mm:ss"),
+                    F.to_timestamp(F.col("order_date_clean").cast("string"), "yyyy-MM-dd'T'HH:mm:ss"),
                 )
                 .drop("order_date_clean")
             )

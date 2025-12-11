@@ -472,7 +472,7 @@ class TestSupplyChainPipeline:
         def processed_orders_transform(spark, df, silvers):
             return df.withColumn(
                 "order_date_parsed",
-                F.to_timestamp(F.col("order_date"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"),
+                F.to_timestamp(F.col("order_date").cast("string"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"),
             )
 
         builder.add_silver_transform(
@@ -548,7 +548,7 @@ class TestSupplyChainPipeline:
         def processed_orders_transform(spark, df, silvers):
             return df.withColumn(
                 "order_date_parsed",
-                F.to_timestamp(F.col("order_date"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"),
+                F.to_timestamp(F.col("order_date").cast("string"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"),
             )
 
         builder.add_silver_transform(

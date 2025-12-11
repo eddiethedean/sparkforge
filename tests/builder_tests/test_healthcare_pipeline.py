@@ -9,10 +9,25 @@ diagnoses, medications, and population health insights.
 import os
 
 import pytest
-from mock_spark import functions as F
+
+# Import functions based on SPARK_MODE
+if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+    from pyspark.sql import functions as F
+else:
+    from mock_spark import functions as F
 
 from pipeline_builder.pipeline import PipelineBuilder
 from pipeline_builder.writer import LogWriter
+
+
+def create_schema_if_not_exists(spark, schema_name: str):
+    """Create a schema using the appropriate method for mock-spark or PySpark."""
+    if hasattr(spark, "storage") and hasattr(spark.storage, "create_schema"):
+        # Mock-spark
+        spark.storage.create_schema(schema_name)
+    else:
+        # PySpark
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
 
 
 class TestHealthcarePipeline:
@@ -23,32 +38,32 @@ class TestHealthcarePipeline:
         reason="Polars backend still fails complex datetime validation in this pipeline (mock-spark follow-up).",
     )
     def test_complete_healthcare_pipeline_execution(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark_session, data_generator, test_assertions
     ):
         """Test complete healthcare pipeline: patients → medical records → health insights."""
 
         # Setup schemas
-        mock_spark_session.storage.create_schema("bronze")
-        mock_spark_session.storage.create_schema("silver")
-        mock_spark_session.storage.create_schema("gold")
+        create_schema_if_not_exists(spark_session, "bronze")
+        create_schema_if_not_exists(spark_session, "silver")
+        create_schema_if_not_exists(spark_session, "gold")
 
         # Create realistic healthcare data
         patients_df = data_generator.create_healthcare_patients(
-            mock_spark_session, num_patients=40
+            spark_session, num_patients=40
         )
         labs_df = data_generator.create_healthcare_labs(
-            mock_spark_session, num_results=150
+            spark_session, num_results=150
         )
         diagnoses_df = data_generator.create_healthcare_diagnoses(
-            mock_spark_session, num_diagnoses=120
+            spark_session, num_diagnoses=120
         )
         medications_df = data_generator.create_healthcare_medications(
-            mock_spark_session, num_prescriptions=160
+            spark_session, num_prescriptions=160
         )
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=mock_spark_session,
+            spark=spark_session,
             functions=F,
             schema="bronze",
             min_bronze_rate=95.0,
@@ -111,7 +126,7 @@ class TestHealthcarePipeline:
                 )
                 .drop("birth_date")
                 .withColumn(
-                    "full_name", F.col("first_name") + F.lit(" ") + F.col("last_name")
+                    "full_name", F.concat(F.col("first_name"), F.lit(" "), F.col("last_name"))
                 )
                 .withColumn(
                     "age_group",
@@ -502,24 +517,24 @@ class TestHealthcarePipeline:
         assert population_metrics_result.get("rows_processed", 0) > 0
 
     def test_incremental_healthcare_processing(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark_session, data_generator, test_assertions
     ):
         """Test incremental processing of new healthcare data."""
         # Setup schemas
-        mock_spark_session.storage.create_schema("bronze")
-        mock_spark_session.storage.create_schema("silver")
+        create_schema_if_not_exists(spark_session, "bronze")
+        create_schema_if_not_exists(spark_session, "silver")
 
         # Create initial data
         patients_df = data_generator.create_healthcare_patients(
-            mock_spark_session, num_patients=20
+            spark_session, num_patients=20
         )
         labs_initial = data_generator.create_healthcare_labs(
-            mock_spark_session, num_results=50
+            spark_session, num_results=50
         )
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=mock_spark_session,
+            spark=spark_session,
             schema="bronze",
             functions=F,
             min_bronze_rate=95.0,
@@ -579,7 +594,7 @@ class TestHealthcarePipeline:
 
         # Incremental load with new lab results
         labs_incremental = data_generator.create_healthcare_labs(
-            mock_spark_session, num_results=30
+            spark_session, num_results=30
         )
 
         result2 = pipeline.run_incremental(
@@ -603,8 +618,8 @@ class TestHealthcarePipeline:
         labs_df = data_generator.create_healthcare_labs(spark_session, num_results=50)
 
         # Setup schemas
-        spark_session.storage.create_schema("bronze")
-        spark_session.storage.create_schema("analytics")
+        create_schema_if_not_exists(spark_session, "bronze")
+        create_schema_if_not_exists(spark_session, "analytics")
 
         # Create LogWriter
         log_writer = LogWriter(

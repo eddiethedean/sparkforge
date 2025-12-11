@@ -9,7 +9,12 @@ and source reconciliation.
 import os
 
 import pytest
-from mock_spark import functions as F
+
+# Import functions based on SPARK_MODE
+if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+    from pyspark.sql import functions as F
+else:
+    from mock_spark import functions as F
 
 from pipeline_builder.pipeline import PipelineBuilder
 
@@ -22,26 +27,34 @@ class TestDataQualityPipeline:
         reason="Polars backend still fails complex datetime validation in this pipeline (mock-spark follow-up).",
     )
     def test_complete_data_quality_pipeline_execution(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark_session, data_generator, test_assertions
     ):
         """Test complete data quality pipeline: raw sources → quality scoring → reconciliation insights."""
 
+        # Helper function for schema creation
+        def create_schema_if_not_exists(spark, schema_name: str):
+            """Create a schema using the appropriate method for mock-spark or PySpark."""
+            if hasattr(spark, "storage") and hasattr(spark.storage, "create_schema"):
+                spark.storage.create_schema(schema_name)
+            else:
+                spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+
         # Setup schemas
-        mock_spark_session.storage.create_schema("bronze")
-        mock_spark_session.storage.create_schema("silver")
-        mock_spark_session.storage.create_schema("gold")
+        create_schema_if_not_exists(spark_session, "bronze")
+        create_schema_if_not_exists(spark_session, "silver")
+        create_schema_if_not_exists(spark_session, "gold")
 
         # Create realistic data with quality issues
         source_a_df = data_generator.create_data_quality_source_a(
-            mock_spark_session, num_records=80
+            spark_session, num_records=80
         )
         source_b_df = data_generator.create_data_quality_source_b(
-            mock_spark_session, num_records=100
+            spark_session, num_records=100
         )
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=mock_spark_session,
+            spark=spark_session,
             functions=F,
             schema="bronze",
             min_bronze_rate=95.0,
@@ -76,7 +89,7 @@ class TestDataQualityPipeline:
                 df.withColumn(
                     "transaction_date_parsed",
                     F.to_timestamp(
-                        F.regexp_replace(F.col("transaction_date"), r"\.\d+", ""),
+                        F.regexp_replace(F.col("transaction_date"), r"\.\d+", "").cast("string"),
                         "yyyy-MM-dd'T'HH:mm:ss",
                     ),
                 )
@@ -179,7 +192,7 @@ class TestDataQualityPipeline:
                 df.withColumn(
                     "transaction_date_parsed",
                     F.to_timestamp(
-                        F.regexp_replace(F.col("date"), r"\.\d+", ""),
+                        F.regexp_replace(F.col("date"), r"\.\d+", "").cast("string"),
                         "yyyy-MM-dd'T'HH:mm:ss",
                     ),
                 )
@@ -451,17 +464,17 @@ class TestDataQualityPipeline:
         assert reconciliation_result.get("rows_processed", 0) >= 0
 
     def test_incremental_data_quality_processing(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark_session, data_generator, test_assertions
     ):
         """Test incremental processing of new data quality data."""
         # Create initial data
         source_a_initial = data_generator.create_data_quality_source_a(
-            mock_spark_session, num_records=30
+            spark_session, num_records=30
         )
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=mock_spark_session,
+            spark=spark_session,
             schema="bronze",
             functions=F,
             min_bronze_rate=95.0,
@@ -480,8 +493,8 @@ class TestDataQualityPipeline:
         )
 
         # Setup schemas
-        mock_spark_session.storage.create_schema("bronze")
-        mock_spark_session.storage.create_schema("silver")
+        spark_session.storage.create_schema("bronze")
+        spark_session.storage.create_schema("silver")
 
         def normalized_source_a_transform(spark, df, silvers):
             return (
@@ -492,7 +505,7 @@ class TestDataQualityPipeline:
                 .withColumn(
                     "transaction_date_parsed",
                     F.to_timestamp(
-                        F.col("transaction_date_clean"), "yyyy-MM-dd'T'HH:mm:ss"
+                        F.col("transaction_date_clean").cast("string"), "yyyy-MM-dd'T'HH:mm:ss"
                     ),
                 )
                 .drop("transaction_date_clean")
@@ -517,7 +530,7 @@ class TestDataQualityPipeline:
 
         # Incremental load with new records
         source_a_incremental = data_generator.create_data_quality_source_a(
-            mock_spark_session, num_records=20
+            spark_session, num_records=20
         )
 
         result2 = pipeline.run_incremental(

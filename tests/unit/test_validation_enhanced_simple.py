@@ -437,17 +437,28 @@ class TestFunctionsIntegrationSimple:
         end_time = time.time()
 
         # Should be very fast
-        assert (end_time - start_time) < 0.1  # Less than 100ms for 1000 calls
+        # PySpark is slower due to JVM overhead, so use different threshold
+        import os
+        if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+            assert (end_time - start_time) < 2.0  # Less than 2s for 1000 calls with PySpark
+        else:
+            assert (end_time - start_time) < 0.1  # Less than 100ms for 1000 calls with mock-spark
 
     def test_mock_functions_error_handling(self):
         """Test Functions error handling."""
         # Test with invalid inputs
+        import os
+        from py4j.protocol import Py4JJavaError
         try:
             self.mock_functions.col(None)
             # Functions should handle this gracefully
         except Exception as e:
             # If it raises an exception, that's also acceptable
-            assert isinstance(e, (TypeError, ValueError, AttributeError))
+            # PySpark throws Py4JJavaError, mock-spark throws Python exceptions
+            if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+                assert isinstance(e, (TypeError, ValueError, AttributeError, Py4JJavaError))
+            else:
+                assert isinstance(e, (TypeError, ValueError, AttributeError))
 
     def test_functions_protocol_compatibility(self):
         """Test that Functions is compatible with FunctionsProtocol."""

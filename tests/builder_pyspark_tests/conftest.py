@@ -34,17 +34,43 @@ def spark_session():
     warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
     os.makedirs(warehouse_dir, exist_ok=True)
 
-    spark = (
-        SparkSession.builder.appName("builder_pyspark_tests")
-        .master("local[*]")
-        .config("spark.sql.warehouse.dir", warehouse_dir)
-        .config("spark.driver.memory", "2g")
-        .config("spark.driver.bindAddress", "127.0.0.1")
-        .config("spark.driver.host", "127.0.0.1")
-        .config("spark.sql.adaptive.enabled", "false")
-        .config("spark.sql.adaptive.coalescePartitions.enabled", "false")
-        .getOrCreate()
-    )
+    # Configure Spark with Delta Lake support
+    spark = None
+    try:
+        from delta import configure_spark_with_delta_pip
+
+        builder = (
+            SparkSession.builder.appName("builder_pyspark_tests")
+            .master("local[*]")
+            .config("spark.sql.warehouse.dir", warehouse_dir)
+            .config("spark.driver.memory", "2g")
+            .config("spark.driver.bindAddress", "127.0.0.1")
+            .config("spark.driver.host", "127.0.0.1")
+            .config("spark.sql.adaptive.enabled", "false")
+            .config("spark.sql.adaptive.coalescePartitions.enabled", "false")
+            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+            .config(
+                "spark.sql.catalog.spark_catalog",
+                "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+            )
+        )
+
+        spark = configure_spark_with_delta_pip(builder).getOrCreate()
+    except Exception as e:
+        print(f"⚠️ Delta Lake configuration failed: {e}")
+        # Fall back to basic Spark
+        spark = (
+            SparkSession.builder.appName("builder_pyspark_tests")
+            .master("local[*]")
+            .config("spark.sql.warehouse.dir", warehouse_dir)
+            .config("spark.driver.memory", "2g")
+            .config("spark.driver.bindAddress", "127.0.0.1")
+            .config("spark.driver.host", "127.0.0.1")
+            .config("spark.sql.adaptive.enabled", "false")
+            .config("spark.sql.adaptive.coalescePartitions.enabled", "false")
+            .getOrCreate()
+        )
+
     spark._warehouse_dir = warehouse_dir  # type: ignore[attr-defined]
 
     # Create required databases for PySpark tests

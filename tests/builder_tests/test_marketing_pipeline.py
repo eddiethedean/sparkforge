@@ -9,7 +9,12 @@ conversions, and campaign performance metrics.
 import os
 
 import pytest
-from mock_spark import functions as F
+
+# Import functions based on SPARK_MODE
+if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+    from pyspark.sql import functions as F
+else:
+    from mock_spark import functions as F
 
 from pipeline_builder.pipeline import PipelineBuilder
 
@@ -22,29 +27,37 @@ class TestMarketingPipeline:
         reason="Polars backend still fails complex datetime validation in this pipeline (mock-spark follow-up).",
     )
     def test_complete_marketing_pipeline_execution(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark_session, data_generator, test_assertions
     ):
         """Test complete marketing pipeline: impressions → clicks → conversions → campaign insights."""
 
+        # Helper function for schema creation
+        def create_schema_if_not_exists(spark, schema_name: str):
+            """Create a schema using the appropriate method for mock-spark or PySpark."""
+            if hasattr(spark, "storage") and hasattr(spark.storage, "create_schema"):
+                spark.storage.create_schema(schema_name)
+            else:
+                spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+
         # Setup schemas
-        mock_spark_session.storage.create_schema("bronze")
-        mock_spark_session.storage.create_schema("silver")
-        mock_spark_session.storage.create_schema("gold")
+        create_schema_if_not_exists(spark_session, "bronze")
+        create_schema_if_not_exists(spark_session, "silver")
+        create_schema_if_not_exists(spark_session, "gold")
 
         # Create realistic marketing data
         impressions_df = data_generator.create_marketing_impressions(
-            mock_spark_session, num_impressions=150
+            spark_session, num_impressions=150
         )
         clicks_df = data_generator.create_marketing_clicks(
-            mock_spark_session, num_clicks=60
+            spark_session, num_clicks=60
         )
         conversions_df = data_generator.create_marketing_conversions(
-            mock_spark_session, num_conversions=40
+            spark_session, num_conversions=40
         )
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=mock_spark_session,
+            spark=spark_session,
             functions=F,
             schema="bronze",
             min_bronze_rate=95.0,
@@ -94,7 +107,7 @@ class TestMarketingPipeline:
                 df.withColumn(
                     "impression_date_parsed",
                     F.to_timestamp(
-                        F.regexp_replace(F.col("impression_date"), r"\.\d+", ""),
+                        F.regexp_replace(F.col("impression_date"), r"\.\d+", "").cast("string"),
                         "yyyy-MM-dd'T'HH:mm:ss",
                     ),
                 )
@@ -148,7 +161,7 @@ class TestMarketingPipeline:
                 df.withColumn(
                     "click_date_parsed",
                     F.to_timestamp(
-                        F.regexp_replace(F.col("click_date"), r"\.\d+", ""),
+                        F.regexp_replace(F.col("click_date"), r"\.\d+", "").cast("string"),
                         "yyyy-MM-dd'T'HH:mm:ss",
                     ),
                 )
@@ -193,7 +206,7 @@ class TestMarketingPipeline:
                 df.withColumn(
                     "conversion_date_parsed",
                     F.to_timestamp(
-                        F.regexp_replace(F.col("conversion_date"), r"\.\d+", ""),
+                        F.regexp_replace(F.col("conversion_date"), r"\.\d+", "").cast("string"),
                         "yyyy-MM-dd'T'HH:mm:ss",
                     ),
                 )
@@ -528,21 +541,21 @@ class TestMarketingPipeline:
         assert journey_result.get("rows_processed", 0) >= 0
 
     def test_incremental_marketing_processing(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark_session, data_generator, test_assertions
     ):
         """Test incremental processing of new marketing data."""
         # Setup schemas
-        mock_spark_session.storage.create_schema("bronze")
-        mock_spark_session.storage.create_schema("silver")
+        spark_session.storage.create_schema("bronze")
+        spark_session.storage.create_schema("silver")
 
         # Create initial data
         impressions_initial = data_generator.create_marketing_impressions(
-            mock_spark_session, num_impressions=50
+            spark_session, num_impressions=50
         )
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=mock_spark_session,
+            spark=spark_session,
             schema="bronze",
             functions=F,
             min_bronze_rate=95.0,
@@ -594,7 +607,7 @@ class TestMarketingPipeline:
 
         # Incremental load with new impressions
         impressions_incremental = data_generator.create_marketing_impressions(
-            mock_spark_session, num_impressions=30
+            spark_session, num_impressions=30
         )
 
         result2 = pipeline.run_incremental(

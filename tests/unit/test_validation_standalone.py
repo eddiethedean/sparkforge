@@ -184,11 +184,16 @@ class TestConvertRuleToExpression:
         if spark_mode == "real":
             from pyspark.sql import functions
             mock_functions = functions
+            # PySpark's F.expr() expects SQL, not Python code
+            expr = _convert_rule_to_expression(
+                "user_id IS NOT NULL", "user_id", mock_functions
+            )
         else:
             mock_functions = Functions()
-        expr = _convert_rule_to_expression(
-            "col('user_id').isNotNull()", "user_id", mock_functions
-        )
+            # For mock-spark, Python-like expression works
+            expr = _convert_rule_to_expression(
+                "col('user_id').isNotNull()", "user_id", mock_functions
+            )
         assert expr is not None
 
 
