@@ -7,7 +7,7 @@ providing clear error handling and debugging information.
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 
 class WriterError(Exception):
@@ -21,9 +21,9 @@ class WriterError(Exception):
     def __init__(
         self,
         message: str,
-        context: Dict[str, Any] | None = None,
-        suggestions: list[str] | None = None,
-        cause: Exception | None = None,
+        context: Optional[Dict[str, Any]] = None,
+        suggestions: Optional[list[str]] = None,
+        cause: Optional[Exception] = None,
     ) -> None:
         """
         Initialize the writer error.
@@ -61,9 +61,9 @@ class WriterValidationError(WriterError):
     def __init__(
         self,
         message: str,
-        validation_errors: list[str] | None = None,
-        context: Dict[str, Any] | None = None,
-        suggestions: list[str] | None = None,
+        validation_errors: Optional[list[str]] = None,
+        context: Optional[Dict[str, Any]] = None,
+        suggestions: Optional[list[str]] = None,
     ) -> None:
         """
         Initialize validation error.
@@ -89,9 +89,9 @@ class WriterConfigurationError(WriterError):
     def __init__(
         self,
         message: str,
-        config_errors: list[str] | None = None,
-        context: Dict[str, Any] | None = None,
-        suggestions: list[str] | None = None,
+        config_errors: Optional[list[str]] = None,
+        context: Optional[Dict[str, Any]] = None,
+        suggestions: Optional[list[str]] = None,
     ) -> None:
         """
         Initialize configuration error.
@@ -117,11 +117,11 @@ class WriterTableError(WriterError):
     def __init__(
         self,
         message: str,
-        table_name: str | None = None,
-        operation: str | None = None,
-        context: Dict[str, Any] | None = None,
-        suggestions: list[str] | None = None,
-        cause: Exception | None = None,
+        table_name: Optional[str] = None,
+        operation: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None,
+        suggestions: Optional[list[str]] = None,
+        cause: Optional[Exception] = None,
     ) -> None:
         """
         Initialize table error.
@@ -150,12 +150,12 @@ class WriterPerformanceError(WriterError):
     def __init__(
         self,
         message: str,
-        actual_duration: float | None = None,
-        expected_duration: float | None = None,
-        actual_memory: float | None = None,
-        expected_memory: float | None = None,
-        context: Dict[str, Any] | None = None,
-        suggestions: list[str] | None = None,
+        actual_duration: Optional[float] = None,
+        expected_duration: Optional[float] = None,
+        actual_memory: Optional[float] = None,
+        expected_memory: Optional[float] = None,
+        context: Optional[Dict[str, Any]] = None,
+        suggestions: Optional[list[str]] = None,
     ) -> None:
         """
         Initialize performance error.
@@ -187,11 +187,11 @@ class WriterSchemaError(WriterError):
     def __init__(
         self,
         message: str,
-        schema_errors: list[str] | None = None,
-        expected_schema: str | None = None,
-        actual_schema: str | None = None,
-        context: Dict[str, Any] | None = None,
-        suggestions: list[str] | None = None,
+        schema_errors: Optional[list[str]] = None,
+        expected_schema: Optional[str] = None,
+        actual_schema: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None,
+        suggestions: Optional[list[str]] = None,
     ) -> None:
         """
         Initialize schema error.
@@ -221,11 +221,11 @@ class WriterDataQualityError(WriterError):
     def __init__(
         self,
         message: str,
-        quality_issues: list[str] | None = None,
-        validation_rate: float | None = None,
-        threshold: float | None = None,
-        context: Dict[str, Any] | None = None,
-        suggestions: list[str] | None = None,
+        quality_issues: Optional[list[str]] = None,
+        validation_rate: Optional[float] = None,
+        threshold: Optional[float] = None,
+        context: Optional[Dict[str, Any]] = None,
+        suggestions: Optional[list[str]] = None,
     ) -> None:
         """
         Initialize data quality error.

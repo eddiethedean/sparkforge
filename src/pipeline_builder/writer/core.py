@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from pipeline_builder_base.logging import PipelineLogger
 from pipeline_builder_base.models import ExecutionResult, StepResult
@@ -120,7 +120,7 @@ def create_log_rows_from_execution_result(
     execution_result: ExecutionResult,
     run_id: str,
     run_mode: str = "initial",
-    metadata: Dict[str, Any] | None = None,
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> list[LogRow]:
     """
     Create log rows from an execution result.
@@ -230,11 +230,11 @@ class LogWriter:
     def __init__(
         self,
         spark: SparkSession,  # type: ignore[valid-type]
-        schema: str | None = None,
-        table_name: str | None = None,
-        config: WriterConfig | None = None,
-        functions: FunctionsProtocol | None = None,
-        logger: PipelineLogger | None = None,
+        schema: Optional[str] = None,
+        table_name: Optional[str] = None,
+        config: Optional[WriterConfig] = None,
+        functions: Optional[FunctionsProtocol] = None,
+        logger: Optional[PipelineLogger] = None,
     ) -> None:
         """
         Initialize the LogWriter with modular components.
@@ -327,7 +327,7 @@ class LogWriter:
         self.table_fqn = f"{self.config.table_schema}.{self.config.table_name}"
 
         # Cache table row counts to avoid repeated counts within a single write operation
-        self._table_total_rows_cache: dict[str, int | None] = {}
+        self._table_total_rows_cache: dict[str, Optional[int]] = {}
 
         self.logger.info(f"LogWriter initialized for table: {self.table_fqn}")
 
@@ -352,9 +352,9 @@ class LogWriter:
     def write_execution_result(
         self,
         execution_result: ExecutionResult,
-        run_id: str | None = None,
+        run_id: Optional[str] = None,
         run_mode: str = "initial",
-        metadata: Dict[str, Any] | None = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Write execution result to log table.
@@ -455,9 +455,9 @@ class LogWriter:
     def write_step_results(
         self,
         step_results: Dict[str, StepResult],
-        run_id: str | None = None,
+        run_id: Optional[str] = None,
         run_mode: str = "initial",
-        metadata: Dict[str, Any] | None = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Write step results to log table.
@@ -536,7 +536,7 @@ class LogWriter:
     def write_log_rows(
         self,
         log_rows: list[LogRow],
-        run_id: str | None = None,
+        run_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Write log rows directly to the table.
@@ -606,9 +606,9 @@ class LogWriter:
     def write_execution_result_batch(
         self,
         execution_results: list[ExecutionResult],
-        run_ids: list[str] | None = None,
+        run_ids: Optional[list[str]] = None,
         run_mode: str = "initial",
-        metadata: Dict[str, Any] | None = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Write multiple execution results in batch.
@@ -697,7 +697,7 @@ class LogWriter:
             self.logger.error(f"Failed to write execution result batch: {e}")
             raise
 
-    def show_logs(self, limit: int | None = None) -> None:
+    def show_logs(self, limit: Optional[int] = None) -> None:
         """
         Display logs from the table.
 
@@ -743,7 +743,7 @@ class LogWriter:
         """Clear cached table counts so subsequent operations refresh totals."""
         self._table_total_rows_cache.clear()
 
-    def _get_table_total_rows(self, table_fqn: str | None) -> int | None:
+    def _get_table_total_rows(self, table_fqn: Optional[str]) -> Optional[int]:
         """
         Determine the total number of rows for a given table.
 
@@ -962,7 +962,7 @@ class LogWriter:
         self,
         log_rows: list[LogRow],
         run_id: str,
-        metadata: Dict[str, Any] | None = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> WriteResult:
         """Write log rows directly (for backward compatibility with tests)."""
         return self.storage_manager.write_batch(log_rows, self.config.write_mode)
@@ -1141,7 +1141,7 @@ class LogWriter:
     # ========================================================================
 
     def _convert_report_to_log_rows(
-        self, report: PipelineReport, run_id: str | None = None
+        self, report: PipelineReport, run_id: Optional[str] = None
     ) -> list[LogRow]:
         """
         Convert a PipelineReport to log rows for storage.
@@ -1163,7 +1163,7 @@ class LogWriter:
         log_rows: list[LogRow] = []
 
         # Helper function to parse datetime strings
-        def parse_datetime(dt_str: str | None) -> datetime | None:
+        def parse_datetime(dt_str: Optional[str]) -> Optional[datetime]:
             if dt_str is None:
                 return None
             try:
@@ -1348,7 +1348,7 @@ class LogWriter:
         return log_rows
 
     def create_table(
-        self, report: PipelineReport, run_id: str | None = None
+        self, report: PipelineReport, run_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Create or overwrite the log table with data from a PipelineReport.
@@ -1438,7 +1438,7 @@ class LogWriter:
             raise
 
     def append(
-        self, report: PipelineReport, run_id: str | None = None
+        self, report: PipelineReport, run_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Append data from a PipelineReport to the log table.

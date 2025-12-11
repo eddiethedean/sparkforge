@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import time
 from datetime import datetime
-from typing import Dict, TypedDict, cast
+from typing import Dict, Optional, TypedDict, cast
 
 try:
     import psutil  # type: ignore[import-untyped]
@@ -46,7 +46,7 @@ class OperationMetrics(TypedDict):
     duration_secs: float
     rows_written: int
     memory_usage_mb: float
-    error_message: str | None
+    error_message: Optional[str]
     timestamp: str
 
 
@@ -176,7 +176,7 @@ class PerformanceMonitor:
     def __init__(
         self,
         spark: SparkSession,
-        logger: PipelineLogger | None = None,
+        logger: Optional[PipelineLogger] = None,
     ):
         """Initialize the performance monitor."""
         self.spark = spark
@@ -222,7 +222,7 @@ class PerformanceMonitor:
         operation_id: str,
         success: bool,
         rows_written: int = 0,
-        error_message: str | None = None,
+        error_message: Optional[str] = None,
     ) -> OperationMetrics:
         """
         End monitoring an operation and update metrics.
@@ -414,7 +414,7 @@ class AnalyticsEngine:
     def __init__(
         self,
         spark: SparkSession,
-        logger: PipelineLogger | None = None,
+        logger: Optional[PipelineLogger] = None,
     ):
         """Initialize the analytics engine."""
         self.spark = spark

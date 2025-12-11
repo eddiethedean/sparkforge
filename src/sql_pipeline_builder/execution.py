@@ -8,7 +8,7 @@ with comprehensive error handling, step-by-step processing, and async support.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 from pipeline_builder_base.dependencies import DependencyAnalyzer
 from pipeline_builder_base.logging import PipelineLogger
@@ -65,7 +65,7 @@ class SqlExecutionEngine:
 
     def execute_step(
         self,
-        step: SqlBronzeStep | SqlSilverStep | SqlGoldStep,
+        step: Union[SqlBronzeStep, SqlSilverStep] | SqlGoldStep,
         context: Dict[str, Any],
         mode: ExecutionMode = ExecutionMode.INITIAL,
     ) -> StepResult:

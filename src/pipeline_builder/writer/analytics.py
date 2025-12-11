@@ -14,7 +14,7 @@ pipeline execution data, detecting trends, and generating insights.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Dict, Literal, TypedDict, Union, cast
+from typing import Dict, Literal, Optional, TypedDict, Union, cast
 
 from ..compat import DataFrame, F, SparkSession
 from ..logging import PipelineLogger
@@ -192,7 +192,7 @@ class DataQualityAnalyzer:
     def __init__(
         self,
         spark: SparkSession,
-        logger: PipelineLogger | None = None,
+        logger: Optional[PipelineLogger] = None,
     ):
         """Initialize the data quality analyzer."""
         self.spark = spark
@@ -469,7 +469,7 @@ class TrendAnalyzer:
     def __init__(
         self,
         spark: SparkSession,
-        logger: PipelineLogger | None = None,
+        logger: Optional[PipelineLogger] = None,
     ):
         """Initialize the trend analyzer."""
         self.spark = spark

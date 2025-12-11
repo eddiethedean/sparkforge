@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import Callable, Dict, TypedDict, Union, cast
+from typing import Callable, Dict, Optional, TypedDict, Union, cast
 
 from pipeline_builder_base.logging import PipelineLogger
 from pipeline_builder_base.models import ExecutionResult, StepResult
@@ -56,8 +56,8 @@ class DataProcessor:
     def __init__(
         self,
         spark: SparkSession,  # type: ignore[valid-type]
-        functions: FunctionsProtocol | None = None,
-        logger: PipelineLogger | None = None,
+        functions: Optional[FunctionsProtocol] = None,
+        logger: Optional[PipelineLogger] = None,
     ):
         """Initialize the data processor."""
         self.spark = spark
@@ -70,7 +70,9 @@ class DataProcessor:
         run_id: str,
         run_mode: str = "initial",
         metadata: Union[Dict[str, Union[str, int, float, bool]], None] = None,
-        table_total_rows_provider: Callable[[str | None], int | None] | None = None,
+        table_total_rows_provider: Optional[
+            Callable[[Optional[str]], Optional[int]]
+        ] = None,
     ) -> list[LogRow]:
         """
         Process execution result into log rows.

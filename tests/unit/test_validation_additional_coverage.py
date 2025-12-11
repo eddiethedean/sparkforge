@@ -36,8 +36,9 @@ from pipeline_builder.validation import (
 class TestValidationEdgeCases:
     """Test validation function edge cases and missing coverage."""
 
-    def test_convert_rule_to_expression_string_handling(self) -> None:
+    def test_convert_rule_to_expression_string_handling(self, spark_session) -> None:
         """Test _convert_rule_to_expression with string rules."""
+        # mock-spark 3.11.0+ requires active SparkSession for function calls (like PySpark)
         # Test with string rule
         result = _convert_rule_to_expression("col1 > 0", "col1", F)
         # Check for Column-like object (works with both PySpark and mock-spark)
@@ -74,8 +75,9 @@ class TestValidationEdgeCases:
         assert result is not None
         mock_df.limit.assert_called_once_with(0)
 
-    def test_apply_column_rules_with_rules(self) -> None:
+    def test_apply_column_rules_with_rules(self, spark_session) -> None:
         """Test apply_column_rules with actual rules."""
+        # mock-spark 3.11.0+ requires active SparkSession for function calls (like PySpark)
         # Create mock DataFrame
         mock_df = Mock(spec=DataFrame)
         mock_df.count.return_value = 100
@@ -158,8 +160,9 @@ class TestValidationEdgeCases:
         result = apply_column_rules(mock_df, {}, "test_stage", "test_step", functions=F)
         assert result is not None
 
-    def test_convert_rules_to_expressions_complex_cases(self) -> None:
+    def test_convert_rules_to_expressions_complex_cases(self, spark_session) -> None:
         """Test _convert_rules_to_expressions with complex cases."""
+        # mock-spark 3.11.0+ requires active SparkSession for function calls (like PySpark)
         # Test with mixed rule types
         rules = {
             "col1": ["not_null"],
@@ -170,31 +173,35 @@ class TestValidationEdgeCases:
         result = _convert_rules_to_expressions(rules, F)
         assert isinstance(result, dict)
 
-    def test_convert_rule_to_expression_edge_cases(self) -> None:
+    def test_convert_rule_to_expression_edge_cases(self, spark_session) -> None:
         """Test _convert_rule_to_expression with edge cases."""
+        # mock-spark 3.11.0+ requires active SparkSession for function calls (like PySpark)
         # Test with valid string expressions
         result = _convert_rule_to_expression("col1 > 0", "col1", F)
         # Check for Column-like object (works with both PySpark and mock-spark)
         assert hasattr(result, "__and__") and hasattr(result, "__invert__")
 
-    def test_and_all_rules_single_expression(self) -> None:
+    def test_and_all_rules_single_expression(self, spark_session) -> None:
         """Test and_all_rules with single expression."""
+        # mock-spark 3.11.0+ requires active SparkSession for function calls (like PySpark)
         # Test with single valid expression
         rules = {"col1": ["col1 > 0"]}
         result = and_all_rules(rules, F)
         # Check for Column-like object (works with both PySpark and mock-spark)
         assert hasattr(result, "__and__") and hasattr(result, "__invert__")
 
-    def test_and_all_rules_multiple_expressions(self) -> None:
+    def test_and_all_rules_multiple_expressions(self, spark_session) -> None:
         """Test and_all_rules with multiple expressions."""
+        # mock-spark 3.11.0+ requires active SparkSession for function calls (like PySpark)
         # Test with multiple expressions
         rules = {"col1": ["col1 > 0"], "col2": ["col2 IS NOT NULL"]}
         result = and_all_rules(rules, F)
         # Check for Column-like object (works with both PySpark and mock-spark)
         assert hasattr(result, "__and__") and hasattr(result, "__invert__")
 
-    def test_string_rule_conversion_edge_cases(self) -> None:
+    def test_string_rule_conversion_edge_cases(self, spark_session) -> None:
         """Test string rule conversion edge cases."""
+        # mock-spark 3.11.0+ requires active SparkSession for function calls (like PySpark)
         # Test various string rule formats
         test_cases = [
             "col1 > 0",

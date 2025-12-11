@@ -287,23 +287,26 @@ class TestPipelineConfig:
 class TestBronzeStep:
     """Test cases for BronzeStep class."""
 
-    def test_bronze_step_creation(self):
+    def test_bronze_step_creation(self, spark_session):
         """Test BronzeStep creation."""
+        # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()]}
         step = BronzeStep(name="test_bronze", rules=rules)
 
         assert step.name == "test_bronze"
         assert step.rules == rules
 
-    def test_bronze_step_validation(self):
+    def test_bronze_step_validation(self, spark_session):
         """Test BronzeStep validation."""
+        # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()]}
         step = BronzeStep(name="test_bronze", rules=rules)
 
         step.validate()  # Should not raise
 
-    def test_bronze_step_invalid_name(self):
+    def test_bronze_step_invalid_name(self, spark_session):
         """Test BronzeStep creation with invalid name should fail."""
+        # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()]}
 
         with pytest.raises(
@@ -324,12 +327,13 @@ class TestBronzeStep:
 class TestSilverStep:
     """Test cases for SilverStep class."""
 
-    def test_silver_step_creation(self):
+    def test_silver_step_creation(self, spark_session):
         """Test SilverStep creation."""
 
         def transform_func(spark, df, silvers):
             return df
 
+        # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()]}
         step = SilverStep(
             name="test_silver",
@@ -345,12 +349,13 @@ class TestSilverStep:
         assert step.rules == rules
         assert step.table_name == "test_table"
 
-    def test_silver_step_validation(self):
+    def test_silver_step_validation(self, spark_session):
         """Test SilverStep validation."""
 
         def transform_func(spark, df, silvers):
             return df
 
+        # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()]}
         step = SilverStep(
             name="test_silver",
@@ -362,12 +367,13 @@ class TestSilverStep:
 
         step.validate()  # Should not raise
 
-    def test_silver_step_invalid_source_bronze(self):
+    def test_silver_step_invalid_source_bronze(self, spark_session):
         """Test SilverStep creation with invalid source_bronze should fail."""
 
         def transform_func(spark, df, silvers):
             return df
 
+        # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()]}
 
         with pytest.raises(
@@ -381,8 +387,9 @@ class TestSilverStep:
                 table_name="test_table",
             )
 
-    def test_silver_step_invalid_transform(self):
+    def test_silver_step_invalid_transform(self, spark_session):
         """Test SilverStep with invalid transform."""
+        # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()]}
 
         with pytest.raises(
@@ -396,12 +403,13 @@ class TestSilverStep:
                 table_name="test_table",
             )
 
-    def test_silver_step_invalid_table_name(self):
+    def test_silver_step_invalid_table_name(self, spark_session):
         """Test SilverStep with invalid table_name."""
 
         def transform_func(spark, df, silvers):
             return df
 
+        # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()]}
 
         with pytest.raises(
@@ -419,12 +427,13 @@ class TestSilverStep:
 class TestGoldStep:
     """Test cases for GoldStep class."""
 
-    def test_gold_step_creation(self):
+    def test_gold_step_creation(self, spark_session):
         """Test GoldStep creation."""
 
         def transform_func(spark, silvers):
             return silvers["test_silver"]
 
+        # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()]}
         step = GoldStep(
             name="test_gold",
@@ -440,12 +449,13 @@ class TestGoldStep:
         assert step.table_name == "test_table"
         assert step.source_silvers == ["test_silver"]
 
-    def test_gold_step_validation(self):
+    def test_gold_step_validation(self, spark_session):
         """Test GoldStep validation."""
 
         def transform_func(spark, silvers):
             return silvers["test_silver"]
 
+        # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()]}
         step = GoldStep(
             name="test_gold",
@@ -457,8 +467,9 @@ class TestGoldStep:
 
         step.validate()  # Should not raise
 
-    def test_gold_step_invalid_transform(self):
+    def test_gold_step_invalid_transform(self, spark_session):
         """Test GoldStep with invalid transform."""
+        # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()]}
 
         with pytest.raises(
@@ -472,12 +483,13 @@ class TestGoldStep:
                 source_silvers=["test_silver"],
             )
 
-    def test_gold_step_invalid_table_name(self):
+    def test_gold_step_invalid_table_name(self, spark_session):
         """Test GoldStep with invalid table_name."""
 
         def transform_func(spark, silvers):
             return silvers["test_silver"]
 
+        # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()]}
 
         with pytest.raises(
@@ -491,12 +503,13 @@ class TestGoldStep:
                 source_silvers=["test_silver"],
             )
 
-    def test_gold_step_invalid_source_silvers(self):
+    def test_gold_step_invalid_source_silvers(self, spark_session):
         """Test GoldStep with invalid source_silvers."""
 
         def transform_func(spark, silvers):
             return silvers["test_silver"]
 
+        # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()]}
 
         with pytest.raises(

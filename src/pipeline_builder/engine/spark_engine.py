@@ -7,7 +7,7 @@ and the concrete pipeline_builder implementation.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from abstracts.engine import Engine
 from abstracts.reports.transform import TransformReport
@@ -81,7 +81,7 @@ class SparkEngine(Engine):
             )
         # Cast to help mypy - we know it's one of the concrete types after isinstance
         # Use step_any directly since isinstance already narrowed the type
-        concrete_step: BronzeStep | SilverStep | GoldStep = step_any
+        concrete_step: Union[BronzeStep, SilverStep, GoldStep] = step_any
 
         # Apply validation rules
         try:
@@ -139,7 +139,7 @@ class SparkEngine(Engine):
             )
         # Cast to help mypy - we know it's one of the concrete types after isinstance
         # Use step_any directly since isinstance already narrowed the type
-        concrete_step: BronzeStep | SilverStep | GoldStep = step_any
+        concrete_step: Union[BronzeStep, SilverStep, GoldStep] = step_any
 
         try:
             # Bronze steps: no transformation, just return source
@@ -207,7 +207,7 @@ class SparkEngine(Engine):
             )
         # Cast to help mypy - we know it's one of the concrete types after isinstance
         # Use step_any directly since isinstance already narrowed the type
-        concrete_step: BronzeStep | SilverStep | GoldStep = step_any
+        concrete_step: Union[BronzeStep, SilverStep, GoldStep] = step_any
 
         # Bronze steps don't write to tables
         if isinstance(concrete_step, BronzeStep):

@@ -8,6 +8,7 @@ that can be used by both Spark and SQL pipeline builders.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Optional
 
 from ..logging import PipelineLogger
 from ..models import ExecutionResult
@@ -39,8 +40,8 @@ class BaseLogWriter(ABC):
         self,
         schema: str,
         table_name: str,
-        config: WriterConfig | None = None,
-        logger: PipelineLogger | None = None,
+        config: Optional[WriterConfig] = None,
+        logger: Optional[PipelineLogger] = None,
     ) -> None:
         """
         Initialize the base LogWriter.
@@ -184,7 +185,7 @@ class BaseLogWriter(ABC):
         self._write_log_rows(log_rows, mode)
         return self._get_metrics()
 
-    def read(self, limit: int | None = None) -> list[LogRow]:
+    def read(self, limit: Optional[int] = None) -> list[LogRow]:
         """
         Read log rows from the table.
 
@@ -217,7 +218,7 @@ class BaseLogWriter(ABC):
         pass
 
     @abstractmethod
-    def _read_log_table(self, limit: int | None = None) -> list[LogRow]:
+    def _read_log_table(self, limit: Optional[int] = None) -> list[LogRow]:
         """
         Read log rows from the storage system.
 

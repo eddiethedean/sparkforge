@@ -10,7 +10,7 @@ into framework components, allowing for better testability and flexibility.
 
 from __future__ import annotations
 
-from typing import Protocol, cast
+from typing import Optional, Protocol, Union, cast
 
 from .compat import Column
 
@@ -26,51 +26,51 @@ class FunctionsProtocol(Protocol):
         """Create an expression from a string."""
         ...
 
-    def lit(self, value: str | int | float | bool | None) -> Column:  # type: ignore[valid-type]
+    def lit(self, value: Union[str, int] | Union[float, Optional[bool]]) -> Column:  # type: ignore[valid-type]
         """Create a literal column."""
         ...
 
     def when(
         self,
         condition: Column,
-        value: str | int | float | bool | None,
+        value: Union[str, int] | Union[float, Optional[bool]],
     ) -> Column:  # type: ignore[valid-type]
         """Create a conditional expression."""
         ...
 
-    def count(self, col: str | Column = "*") -> Column:  # type: ignore[valid-type]
+    def count(self, col: Union[str, Column] = "*") -> Column:  # type: ignore[valid-type]
         """Create a count aggregation."""
         ...
 
-    def countDistinct(self, *cols: str | Column) -> Column:  # type: ignore[valid-type]
+    def countDistinct(self, *cols: Union[str, Column]) -> Column:  # type: ignore[valid-type]
         """Create a count distinct aggregation."""
         ...
 
-    def sum(self, col: str | Column) -> Column:  # type: ignore[valid-type]
+    def sum(self, col: Union[str, Column]) -> Column:  # type: ignore[valid-type]
         """Create a sum aggregation."""
         ...
 
-    def max(self, col: str | Column) -> Column:  # type: ignore[valid-type]
+    def max(self, col: Union[str, Column]) -> Column:  # type: ignore[valid-type]
         """Create a max aggregation."""
         ...
 
-    def min(self, col: str | Column) -> Column:  # type: ignore[valid-type]
+    def min(self, col: Union[str, Column]) -> Column:  # type: ignore[valid-type]
         """Create a min aggregation."""
         ...
 
-    def avg(self, col: str | Column) -> Column:  # type: ignore[valid-type]
+    def avg(self, col: Union[str, Column]) -> Column:  # type: ignore[valid-type]
         """Create an average aggregation."""
         ...
 
-    def length(self, col: str | Column) -> Column:  # type: ignore[valid-type]
+    def length(self, col: Union[str, Column]) -> Column:  # type: ignore[valid-type]
         """Create a length function."""
         ...
 
-    def date_trunc(self, format: str, col: str | Column) -> Column:  # type: ignore[valid-type]
+    def date_trunc(self, format: str, col: Union[str, Column]) -> Column:  # type: ignore[valid-type]
         """Create a date truncation function."""
         ...
 
-    def dayofweek(self, col: str | Column) -> Column:  # type: ignore[valid-type]
+    def dayofweek(self, col: Union[str, Column]) -> Column:  # type: ignore[valid-type]
         """Create a day of week function."""
         ...
 

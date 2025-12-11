@@ -9,7 +9,7 @@ using SQLAlchemy.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from pipeline_builder_base.builder import BasePipelineBuilder
 from pipeline_builder_base.errors import ConfigurationError, ValidationError
@@ -195,9 +195,9 @@ class SqlPipelineBuilder(BasePipelineBuilder):
         *,
         name: str,
         rules: SqlColumnRules,
-        incremental_col: str | None = None,
-        schema: str | None = None,
-        model_class: Any | None = None,
+        incremental_col: Optional[str] = None,
+        schema: Optional[str] = None,
+        model_class: Optional[Any] = None,
     ) -> SqlPipelineBuilder:
         """
         Add Bronze layer validation rules for raw data ingestion.
@@ -243,9 +243,9 @@ class SqlPipelineBuilder(BasePipelineBuilder):
         transform: SilverTransformFunction,
         rules: SqlColumnRules,
         table_name: str,
-        watermark_col: str | None = None,
-        schema: str | None = None,
-        model_class: Any | None = None,
+        watermark_col: Optional[str] = None,
+        schema: Optional[str] = None,
+        model_class: Optional[Any] = None,
     ) -> SqlPipelineBuilder:
         """
         Add Silver layer transformation step.
@@ -306,9 +306,9 @@ class SqlPipelineBuilder(BasePipelineBuilder):
         transform: GoldTransformFunction,
         rules: SqlColumnRules,
         table_name: str,
-        source_silvers: list[str] | None = None,
-        schema: str | None = None,
-        model_class: Any | None = None,
+        source_silvers: Optional[list[str]] = None,
+        schema: Optional[str] = None,
+        model_class: Optional[Any] = None,
     ) -> SqlPipelineBuilder:
         """
         Add Gold layer transformation step.

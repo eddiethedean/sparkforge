@@ -6,7 +6,7 @@ frameworks, allowing sparkforge to work with either PySpark or mock-spark (or an
 other compatible implementation).
 
 Resolution order:
-- Respect SPARKFORGE_ENGINE env var if set (pyspark|mock)
+- Respect SPARKFORGE_ENGINE env var if set (Union[pyspark, mock])
 - Otherwise prefer PySpark if importable, else mock-spark
 """
 
@@ -71,7 +71,14 @@ def _try_import_mockspark() -> Optional[
             )
             from mock_spark.functions import F as _FFallback
 
-            return _DataFrameFallback, _SparkSessionFallback, _ColumnFallback, _FFallback, _typesFallback, _AnalysisExceptionFallback
+            return (
+                _DataFrameFallback,
+                _SparkSessionFallback,
+                _ColumnFallback,
+                _FFallback,
+                _typesFallback,
+                _AnalysisExceptionFallback,
+            )
         except Exception:
             # Log the error for debugging but don't fail
             # Note: mock-spark 3.1.0 has Python 3.8 compatibility issues
@@ -137,10 +144,9 @@ if TYPE_CHECKING:
         _PySparkDataFrame = Any  # type: ignore[assignment,misc]
         _PySparkSparkSession = Any  # type: ignore[assignment,misc]
 
-    # Re-export as type aliases for mypy
-    DataFrame = _PySparkDataFrame  # type: ignore[assignment,misc]
-    SparkSession = _PySparkSparkSession  # type: ignore[assignment,misc]
-    Column = _PySparkColumn  # type: ignore[assignment,misc]
+    # Note: DataFrame, SparkSession, and Column are assigned at runtime (lines 130-132)
+    # Mypy will infer their types from the runtime assignments
+    # We don't redefine them here to avoid "already defined" errors
 
 
 def is_mock_spark() -> bool:
@@ -153,7 +159,7 @@ def compat_name() -> str:
     return str(_ENGINE_NAME)
 
 
-def require_pyspark(message: str | None = None) -> None:
+def require_pyspark(message: Optional[str] = None) -> None:
     """Raise an error if not using PySpark."""
     if is_mock_spark():
         raise RuntimeError(

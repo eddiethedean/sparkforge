@@ -35,21 +35,6 @@ class TestWriteModeIntegration:
     """Integration tests for write_mode behavior."""
 
     @pytest.fixture
-    def spark_session(self):
-        """Create a mock Spark session."""
-        session = SparkSession()
-        # Ensure test_schema exists (required in mock-spark 2.16.1+)
-        try:
-            session.storage.create_schema("test_schema")
-        except Exception:
-            # Try SQL approach if storage API doesn't work
-            try:
-                session.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
-            except Exception:
-                pass  # Schema might already exist
-        return session
-
-    @pytest.fixture
     def config(self):
         """Create a test pipeline config."""
         # NOTE: Parallel execution disabled for this test to ensure deterministic behavior
@@ -67,8 +52,9 @@ class TestWriteModeIntegration:
         return PipelineLogger("test")
 
     @pytest.fixture
-    def silver_step(self):
+    def silver_step(self, spark_session):
         """Create a test silver step."""
+        # PySpark requires active SparkContext for F.col() calls
 
         def simple_transform(spark, bronze_df, prior_silvers):
             return bronze_df
@@ -85,8 +71,9 @@ class TestWriteModeIntegration:
         )
 
     @pytest.fixture
-    def gold_step(self):
+    def gold_step(self, spark_session):
         """Create a test gold step."""
+        # PySpark requires active SparkContext for F.col() calls
 
         def simple_transform(spark, silvers):
             return silvers["test_silver"]
@@ -101,8 +88,9 @@ class TestWriteModeIntegration:
         )
 
     @pytest.fixture
-    def bronze_step(self):
+    def bronze_step(self, spark_session):
         """Create a test bronze step."""
+        # PySpark requires active SparkContext for F.col() calls
         return BronzeStep(
             name="test_bronze",
             rules={"id": [F.col("id").isNotNull()]},

@@ -16,7 +16,7 @@ import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from functools import wraps
-from typing import Any, Callable, Generator
+from typing import Any, Callable, Generator, Optional
 
 from .compat import DataFrame
 
@@ -74,7 +74,7 @@ def time_operation(operation_name: str = "operation") -> Callable[[Callable], Ca
 
 @contextmanager
 def performance_monitor(
-    operation_name: str, max_duration: float | None = None
+    operation_name: str, max_duration: Optional[float] = None
 ) -> Generator[None, None, None]:
     """Context manager to monitor operation performance."""
     start_time = time.time()
@@ -150,7 +150,7 @@ def time_write_operation(
 
 
 def monitor_performance(
-    operation_name: str, max_duration: float | None = None
+    operation_name: str, max_duration: Optional[float] = None
 ) -> Callable:
     """
     Decorator factory for performance monitoring.

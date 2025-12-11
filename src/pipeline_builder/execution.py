@@ -81,7 +81,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, cast
+from typing import Any, Dict, Optional, Union, cast
 
 from pipeline_builder_base.dependencies import DependencyAnalyzer
 from pipeline_builder_base.errors import ExecutionError
@@ -124,15 +124,15 @@ class StepExecutionResult:
     step_type: StepType
     status: StepStatus
     start_time: datetime
-    end_time: datetime | None = None
-    duration: float | None = None
-    error: str | None = None
-    rows_processed: int | None = None
-    output_table: str | None = None
-    write_mode: str | None = None
+    end_time: Optional[datetime] = None
+    duration: Optional[float] = None
+    error: Optional[str] = None
+    rows_processed: Optional[int] = None
+    output_table: Optional[str] = None
+    write_mode: Optional[str] = None
     validation_rate: float = 100.0
-    rows_written: int | None = None
-    input_rows: int | None = None
+    rows_written: Optional[int] = None
+    input_rows: Optional[int] = None
 
     def __post_init__(self) -> None:
         if self.end_time and self.start_time:
@@ -146,11 +146,11 @@ class ExecutionResult:
     execution_id: str
     mode: ExecutionMode
     start_time: datetime
-    end_time: datetime | None = None
-    duration: float | None = None
+    end_time: Optional[datetime] = None
+    duration: Optional[float] = None
     status: str = "running"
-    steps: list[StepExecutionResult] | None = None
-    error: str | None = None
+    steps: Optional[list[StepExecutionResult]] = None
+    error: Optional[str] = None
     parallel_efficiency: float = 0.0
     execution_groups_count: int = 0
     max_group_size: int = 0
@@ -174,8 +174,8 @@ class ExecutionEngine:
         self,
         spark: SparkSession,  # type: ignore[valid-type]
         config: PipelineConfig,
-        logger: PipelineLogger | None = None,
-        functions: FunctionsProtocol | None = None,
+        logger: Optional[PipelineLogger] = None,
+        functions: Optional[FunctionsProtocol] = None,
     ):
         """
         Initialize the execution engine.
@@ -333,7 +333,7 @@ class ExecutionEngine:
 
     def execute_step(
         self,
-        step: BronzeStep | SilverStep | GoldStep,
+        step: Union[BronzeStep, SilverStep] | GoldStep,
         context: Dict[str, DataFrame],  # type: ignore[valid-type]
         mode: ExecutionMode = ExecutionMode.INITIAL,
     ) -> StepExecutionResult:
@@ -608,18 +608,24 @@ class ExecutionEngine:
                         except Exception:
                             # Table doesn't exist yet, will be created normally
                             existing_table = None
-                    
+
                     if write_mode_str == "overwrite" and existing_table is not None:
                         try:
                             existing_schema = existing_table.schema  # type: ignore[attr-defined]
                             output_schema = output_df.schema  # type: ignore[attr-defined]
-                            
+
                             # Check if there are new columns in output that don't exist in table
-                            existing_columns = {f.name: f for f in existing_schema.fields}
+                            existing_columns = {
+                                f.name: f for f in existing_schema.fields
+                            }
                             output_columns = {f.name: f for f in output_schema.fields}
-                            new_columns = set(output_columns.keys()) - set(existing_columns.keys())
-                            missing_columns = set(existing_columns.keys()) - set(output_columns.keys())
-                            
+                            new_columns = set(output_columns.keys()) - set(
+                                existing_columns.keys()
+                            )
+                            missing_columns = set(existing_columns.keys()) - set(
+                                output_columns.keys()
+                            )
+
                             # If there are new columns, merge schemas manually to preserve existing columns
                             # Always preserve ALL existing columns, even if validation rules filtered them out
                             if new_columns:
@@ -631,7 +637,7 @@ class ExecutionEngine:
                                     f"missing columns {sorted(missing_columns)}. "
                                     f"Preserving all existing columns (including those filtered by validation)."
                                 )
-                                
+
                                 # Add ALL existing columns that are missing from output_df
                                 # This preserves columns that were filtered out by validation rules
                                 merged_df = output_df
@@ -657,19 +663,22 @@ class ExecutionEngine:
                                             else:
                                                 # For real PySpark, cast to the exact type from existing schema
                                                 merged_df = merged_df.withColumn(
-                                                    col_name, F.lit(None).cast(field.dataType)
+                                                    col_name,
+                                                    F.lit(None).cast(field.dataType),
                                                 )
                                                 columns_added.append(col_name)
                                         except Exception as e:
                                             self.logger.warning(
                                                 f"Could not add missing column '{col_name}' during schema evolution: {e}"
                                             )
-                                
+
                                 # Verify all columns exist before selecting
                                 available_columns = set(merged_df.columns)
-                                all_columns = list(existing_columns.keys()) + sorted(new_columns)
+                                all_columns = list(existing_columns.keys()) + sorted(
+                                    new_columns
+                                )
                                 missing_in_merged = set(all_columns) - available_columns
-                                
+
                                 if missing_in_merged:
                                     self.logger.error(
                                         f"Schema merge failed: columns {sorted(missing_in_merged)} "
@@ -681,16 +690,18 @@ class ExecutionEngine:
                                     # Select columns in the order: existing columns first, then new columns
                                     # This ensures schema compatibility and preserves all existing columns
                                     merged_df = merged_df.select(*all_columns)
-                                
+
                                 if columns_added:
                                     self.logger.info(
                                         f"Added {len(columns_added)} missing columns during schema evolution: {sorted(columns_added)}"
                                     )
-                                
+
                                 output_df = merged_df
-                                
+
                                 # Use overwriteSchema to allow schema changes
-                                writer = output_df.write.mode(write_mode_str).option("overwriteSchema", "true")
+                                writer = output_df.write.mode(write_mode_str).option(
+                                    "overwriteSchema", "true"
+                                )
                             else:
                                 # No schema changes, normal write
                                 writer = output_df.write.mode(write_mode_str)
@@ -704,7 +715,7 @@ class ExecutionEngine:
                     else:
                         # Table doesn't exist or not overwrite mode, normal write
                         writer = output_df.write.mode(write_mode_str)
-                    
+
                     writer.saveAsTable(output_table)  # type: ignore[attr-defined]
                 result.output_table = output_table
                 result.rows_processed = output_df.count()  # type: ignore[attr-defined]
@@ -764,10 +775,10 @@ class ExecutionEngine:
 
     def execute_pipeline(
         self,
-        steps: list[BronzeStep | SilverStep | GoldStep],
+        steps: list[Union[BronzeStep, SilverStep] | GoldStep],
         mode: ExecutionMode = ExecutionMode.INITIAL,
         max_workers: int = 4,
-        context: Dict[str, DataFrame] | None = None,  # type: ignore[valid-type]
+        context: Optional[Dict[str, DataFrame]] = None,  # type: ignore[valid-type]
     ) -> ExecutionResult:
         """
         Execute a complete pipeline with smart dependency-aware parallel execution.
@@ -1084,7 +1095,7 @@ class ExecutionEngine:
 
     def _execute_step_safe(
         self,
-        step: BronzeStep | SilverStep | GoldStep,
+        step: Union[BronzeStep, SilverStep] | GoldStep,
         context: Dict[str, DataFrame],  # type: ignore[valid-type]
         mode: ExecutionMode,
         context_lock: threading.Lock,
@@ -1110,9 +1121,9 @@ class ExecutionEngine:
         if hasattr(step, "schema") and step.schema:  # type: ignore[attr-defined]
             with context_lock:
                 # Try to ensure schema exists (serialized to avoid race conditions)
+                schema_name = step.schema  # type: ignore[attr-defined]
                 try:
                     # Use SQL to ensure schema exists (reliable for both PySpark and mock-spark)
-                    schema_name = step.schema  # type: ignore[attr-defined]
                     self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")  # type: ignore[attr-defined]
                 except Exception as e:
                     self.logger.debug(
@@ -1135,48 +1146,23 @@ class ExecutionEngine:
 
                 if schema is not None:
                     # Add the step's output table to context for downstream steps
-                    # Try to read the table, with retry for mock-spark compatibility
+                    # Catalog sync and aggregated DataFrame registration are fixed in mock-spark 3.10.3+
+                    # Tables should be immediately accessible without retry logic
                     table_fqn = fqn(schema, table_name)
-                    max_retries = 3
-                    table_df = None
-                    
-                    for attempt in range(max_retries):
-                        try:
-                            table_df = self.spark.table(table_fqn)  # type: ignore[attr-defined,valid-type]
-                            break  # Success, exit retry loop
-                        except Exception as e:
-                            if attempt < max_retries - 1:
-                                # Wait a bit before retrying (for mock-spark catalog sync)
-                                import time
-                                time.sleep(0.01 * (attempt + 1))  # Exponential backoff: 10ms, 20ms, 30ms
-                                self.logger.debug(
-                                    f"Retry {attempt + 1}/{max_retries} reading table '{table_fqn}' "
-                                    f"after write: {e}"
-                                )
-                            else:
-                                # Final attempt failed - try refreshing catalog and one more read
-                                try:
-                                    # Try to refresh catalog if available (for mock-spark)
-                                    if hasattr(self.spark.catalog, 'refreshTable'):
-                                        self.spark.catalog.refreshTable(table_fqn)  # type: ignore[attr-defined]
-                                    table_df = self.spark.table(table_fqn)  # type: ignore[attr-defined,valid-type]
-                                except Exception as final_e:
-                                    # If all else fails, log warning but don't fail the step
-                                    # The table was written successfully, it just can't be read immediately
-                                    # This is a known issue with mock-spark catalog synchronization
-                                    self.logger.warning(
-                                        f"Could not read table '{table_fqn}' immediately after writing. "
-                                        f"The table was written successfully but is not yet available in the catalog. "
-                                        f"This is a known mock-spark limitation. "
-                                        f"The table should be accessible in subsequent operations. "
-                                        f"Error: {final_e}"
-                                    )
-                                    # Don't add to context - downstream steps will need to read the table directly
-                                    # or it will be available on the next pipeline run
-                                    table_df = None
-                    
-                    if table_df is not None:
+
+                    try:
+                        # Read table immediately - should work with mock-spark 3.10.3+
+                        table_df = self.spark.table(table_fqn)  # type: ignore[attr-defined,valid-type]
                         context[step.name] = table_df  # type: ignore[valid-type]
+                    except Exception as e:
+                        # If reading fails, log warning but don't fail the step
+                        # The table was written successfully, it just can't be added to context
+                        self.logger.warning(
+                            f"Could not read table '{table_fqn}' immediately after writing. "
+                            f"The table was written successfully but is not yet accessible. "
+                            f"This should be rare with mock-spark 3.10.3+. Error: {e}"
+                        )
+                        # Don't add to context - downstream steps will need to read the table directly
                 else:
                     self.logger.warning(
                         f"Step '{step.name}' completed but has no schema. "
@@ -1320,7 +1306,7 @@ class ExecutionEngine:
                     bronze_df, incremental_col, cutoff_value
                 )
                 if mock_df is not None:
-                    self.logger.debug(
+                    self.logger.debug(  # type: ignore[unreachable]
                         f"Silver step {step.name}: applied mock fallback filter "
                         f"for {incremental_col} > {cutoff_value}"
                     )
@@ -1358,7 +1344,7 @@ class ExecutionEngine:
         bronze_df: DataFrame,  # type: ignore[valid-type]
         incremental_col: str,
         cutoff_value: object,
-    ) -> DataFrame | None:  # type: ignore[valid-type]
+    ) -> Optional[DataFrame]:  # type: ignore[valid-type]
         """
         Mock-spark fallback: collect rows and filter in-memory when column operations fail.
         """
@@ -1375,7 +1361,7 @@ class ExecutionEngine:
             if value is None:
                 continue
             try:
-                if value > cutoff_value:
+                if value > cutoff_value:  # type: ignore[operator]
                     filtered_rows.append(row)
             except Exception:
                 continue
@@ -1416,22 +1402,22 @@ class ExecutionEngine:
             return None
 
     @staticmethod
-    def _extract_row_value(row: Any, column: str) -> object | None:
+    def _extract_row_value(row: Any, column: str) -> Optional[object]:
         """Safely extract a column value from a Row-like object."""
         if hasattr(row, "__getitem__"):
             try:
-                result: object | None = row[column]  # type: ignore[assignment]
+                result: Optional[object] = row[column]  # type: ignore[assignment]
                 return result
             except Exception:
                 try:
                     result = row[0]  # type: ignore[assignment]
-                    return cast(object | None, result)
+                    return cast(Optional[object], result)
                 except Exception:
                     pass
         if hasattr(row, "asDict"):
             try:
                 result = row.asDict().get(column)  # type: ignore[assignment]
-                return cast(object | None, result)
+                return cast(Optional[object], result)
             except Exception:
                 return None
         return None

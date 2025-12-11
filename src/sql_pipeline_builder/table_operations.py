@@ -7,7 +7,7 @@ in SQL databases using SQLAlchemy.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from pipeline_builder_base.errors import DataError
 from pipeline_builder_base.logging import PipelineLogger
@@ -34,7 +34,7 @@ def fqn(schema: str, table: str) -> str:
     return f"{schema}.{table}"
 
 
-def create_schema_if_not_exists(session: Any, schema: str | None) -> None:
+def create_schema_if_not_exists(session: Any, schema: Optional[str]) -> None:
     """
     Create a database schema if it does not exist.
 
@@ -79,7 +79,7 @@ def create_schema_if_not_exists(session: Any, schema: str | None) -> None:
 
 
 def read_table(
-    session: Any, schema: str, table: str, model_class: Any | None = None
+    session: Any, schema: str, table: str, model_class: Optional[Any] = None
 ) -> Any:
     """
     Read a table and return a SQLAlchemy Query.
@@ -113,7 +113,7 @@ def read_table(
         raise DataError(f"Failed to read table {schema}.{table}: {e}") from e
 
 
-def _drop_table(session: Any, schema: str | None, table: str) -> None:
+def _drop_table(session: Any, schema: Optional[str], table: str) -> None:
     """Drop a table if it exists."""
     from sqlalchemy import MetaData, Table
 
@@ -128,9 +128,9 @@ def _drop_table(session: Any, schema: str | None, table: str) -> None:
 
 def _ensure_table_from_model(
     session: Any,
-    schema: str | None,
+    schema: Optional[str],
     table: str,
-    model_class: Any | None,
+    model_class: Optional[Any],
     drop_existing: bool = False,
 ) -> None:
     """
@@ -185,7 +185,7 @@ def write_table(
     schema: str,
     table: str,
     mode: str = "overwrite",
-    model_class: Any | None = None,
+    model_class: Optional[Any] = None,
     *,
     drop_existing_table: bool = False,
 ) -> int:
@@ -334,7 +334,7 @@ def write_table(
         raise DataError(f"Failed to write table {identifier}: {e}") from e
 
 
-def table_exists(session: Any, schema: str | None, table: str) -> bool:
+def table_exists(session: Any, schema: Optional[str], table: str) -> bool:
     """
     Check if a table exists.
 

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from typing import Union
 
 from .base import ParallelConfig, ValidationThresholds
 from .enums import ExecutionMode
@@ -55,7 +56,7 @@ def validate_pipeline_config(config: PipelineConfig) -> None:
         raise PipelineConfigurationError(f"Invalid pipeline configuration: {e}") from e
 
 
-def validate_step_config(step: BronzeStep | SilverStep | GoldStep) -> None:
+def validate_step_config(step: Union[BronzeStep, SilverStep, GoldStep]) -> None:
     """Validate a step configuration."""
     try:
         step.validate()

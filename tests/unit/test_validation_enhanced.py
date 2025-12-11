@@ -50,16 +50,17 @@ from pipeline_builder.validation.data_validation import (
 class TestValidationWithFunctions:
     """Test validation functions using injectable mock functions."""
 
-    def setup_method(self):
-        """Set up test fixtures."""
-        self.mock_spark = SparkSession("TestApp")
-        # Functions is a module in PySpark, a class in mock-spark
+    @pytest.fixture(autouse=True)
+    def setup_fixtures(self, spark_session):
+        """Set up test fixtures automatically for all tests."""
+        # Use spark_session fixture for PySpark compatibility
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
+            self.mock_spark = spark_session
             from pyspark.sql import functions
-
             self.mock_functions = functions
         else:
+            self.mock_spark = SparkSession("TestApp")
             self.mock_functions = Functions()
 
         # Create sample data
@@ -277,16 +278,17 @@ class TestValidationWithFunctions:
 class TestPipelineBuilderWithFunctions:
     """Test PipelineBuilder with injectable mock functions."""
 
-    def setup_method(self):
-        """Set up test fixtures."""
-        self.mock_spark = SparkSession("TestApp")
-        # Functions is a module in PySpark, a class in mock-spark
+    @pytest.fixture(autouse=True)
+    def setup_fixtures(self, spark_session):
+        """Set up test fixtures automatically for all tests."""
+        # Use spark_session fixture for PySpark compatibility
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
+            self.mock_spark = spark_session
             from pyspark.sql import functions
-
             self.mock_functions = functions
         else:
+            self.mock_spark = SparkSession("TestApp")
             self.mock_functions = Functions()
 
     def test_pipeline_builder_with_mock_functions(self):
@@ -372,16 +374,17 @@ class TestPipelineBuilderWithFunctions:
 class TestFunctionsIntegration:
     """Test integration between Functions and SparkForge validation."""
 
-    def setup_method(self):
-        """Set up test fixtures."""
-        self.mock_spark = SparkSession("TestApp")
-        # Functions is a module in PySpark, a class in mock-spark
+    @pytest.fixture(autouse=True)
+    def setup_fixtures(self, spark_session):
+        """Set up test fixtures automatically for all tests."""
+        # Use spark_session fixture for PySpark compatibility
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
+            self.mock_spark = spark_session
             from pyspark.sql import functions
-
             self.mock_functions = functions
         else:
+            self.mock_spark = SparkSession("TestApp")
             self.mock_functions = Functions()
 
     def test_mock_functions_behavior(self):

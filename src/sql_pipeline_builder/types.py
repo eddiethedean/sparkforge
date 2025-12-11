@@ -6,7 +6,7 @@ This module defines the types used for SQL transform functions and validation ru
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Protocol, Union
+from typing import Any, Callable, Dict, List, Optional, Protocol, Union
 
 try:
     from sqlalchemy.orm import Query, Session
@@ -54,7 +54,7 @@ class SqlStepProtocol(Protocol):
 class SqlBronzeStepProtocol(SqlStepProtocol, Protocol):
     """Protocol for SQL bronze steps."""
 
-    incremental_col: str | None
+    incremental_col: Optional[str]
 
 
 class SqlSilverStepProtocol(SqlStepProtocol, Protocol):
@@ -68,6 +68,6 @@ class SqlSilverStepProtocol(SqlStepProtocol, Protocol):
 class SqlGoldStepProtocol(SqlStepProtocol, Protocol):
     """Protocol for SQL gold steps."""
 
-    source_silvers: list[str] | None
+    source_silvers: Optional[list[str]]
     table_name: str
     transform: GoldTransformFunction

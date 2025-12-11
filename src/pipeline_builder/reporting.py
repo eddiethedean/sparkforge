@@ -8,6 +8,7 @@ and adds Spark-specific reporting functions if needed.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Optional
 
 # TypedDict is available in typing for Python 3.8+
 try:
@@ -30,8 +31,8 @@ from pipeline_builder_base.reporting import (
 class ValidationReport(TypedDict):
     """Validation report structure."""
 
-    stage: str | None
-    step: str | None
+    stage: Optional[str]
+    step: Optional[str]
     total_rows: int
     valid_rows: int
     invalid_rows: int
@@ -99,7 +100,7 @@ class SummaryReport(TypedDict):
 
 
 def create_validation_dict(
-    stats: StageStats | None, *, start_at: datetime, end_at: datetime
+    stats: Optional[StageStats], *, start_at: datetime, end_at: datetime
 ) -> ValidationReport:
     """
     Create validation dictionary for reporting.

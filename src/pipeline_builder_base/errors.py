@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 
 class ErrorSeverity(Enum):
@@ -51,13 +51,13 @@ class SparkForgeError(Exception):
         self,
         message: str,
         *,
-        error_code: str | None = None,
-        category: ErrorCategory | None = None,
+        error_code: Optional[str] = None,
+        category: Optional[ErrorCategory] = None,
         severity: ErrorSeverity = ErrorSeverity.MEDIUM,
-        context: ErrorContext | None = None,
-        suggestions: ErrorSuggestions | None = None,
-        timestamp: datetime | None = None,
-        cause: Exception | None = None,
+        context: Optional[ErrorContext] = None,
+        suggestions: Optional[ErrorSuggestions] = None,
+        timestamp: Optional[datetime] = None,
+        cause: Optional[Exception] = None,
     ):
         """
         Initialize a framework error.
@@ -119,7 +119,7 @@ class ValidationError(SparkForgeError):
         self,
         message: str,
         *,
-        field: str | None = None,
+        field: Optional[str] = None,
         value: Any = None,
         **kwargs: Any,
     ):
@@ -144,8 +144,8 @@ class PipelineValidationError(ValidationError):
         self,
         message: str,
         *,
-        step_name: str | None = None,
-        phase: str | None = None,
+        step_name: Optional[str] = None,
+        phase: Optional[str] = None,
         **kwargs: Any,
     ):
         super().__init__(message, **kwargs)
@@ -178,8 +178,8 @@ class ExecutionError(SparkForgeError):
         self,
         message: str,
         *,
-        step_name: str | None = None,
-        phase: str | None = None,
+        step_name: Optional[str] = None,
+        phase: Optional[str] = None,
         **kwargs: Any,
     ):
         super().__init__(

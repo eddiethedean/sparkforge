@@ -7,7 +7,7 @@ execution to the SQL execution engine.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 from abstracts.runner import Runner
 from abstracts.source import Source
@@ -84,7 +84,7 @@ class SqlPipelineRunner(BaseRunner, Runner):
 
     def run_initial_load(
         self,
-        bronze_sources: Dict[str, Any] | None = None,  # Dict[str, Query]
+        bronze_sources: Optional[Dict[str, Any]] = None,  # Dict[str, Query]
     ) -> ExecutionResult:
         """
         Run initial load pipeline execution.
@@ -142,9 +142,9 @@ class SqlPipelineRunner(BaseRunner, Runner):
 
     def run_pipeline(
         self,
-        steps: list[SqlBronzeStep | SqlSilverStep | SqlGoldStep],
+        steps: list[Union[SqlBronzeStep, SqlSilverStep] | SqlGoldStep],
         mode: ExecutionMode,
-        bronze_sources: Dict[str, Any] | None = None,
+        bronze_sources: Optional[Dict[str, Any]] = None,
     ) -> ExecutionResult:
         """
         Run pipeline with specified steps and mode.

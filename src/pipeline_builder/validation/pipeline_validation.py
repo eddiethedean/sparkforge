@@ -14,7 +14,7 @@ step dependencies, and overall pipeline structure.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from pipeline_builder_base.logging import PipelineLogger
 from pipeline_builder_base.models import ExecutionContext, PipelineConfig
@@ -55,7 +55,7 @@ class UnifiedValidator:
     combining data validation and pipeline validation functionality.
     """
 
-    def __init__(self, logger: PipelineLogger | None = None):
+    def __init__(self, logger: Optional[PipelineLogger] = None):
         """Initialize the unified validator."""
         if logger is None:
             self.logger = PipelineLogger()
@@ -158,7 +158,7 @@ class UnifiedValidator:
         """Validate pipeline configuration."""
         errors = []
 
-        if not config.schema:  # type: ignore[attr-defined]
+        if not config.schema:
             errors.append("Pipeline schema is required")
 
         # Table prefix is optional in simplified config

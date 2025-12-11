@@ -31,9 +31,9 @@ class SqlLogWriter(BaseLogWriter):
     def __init__(
         self,
         session: Any,  # SQLAlchemy Session or AsyncSession
-        schema: str | None = None,
-        table_name: str | None = None,
-        config: WriterConfig | None = None,
+        schema: Optional[str] = None,
+        table_name: Optional[str] = None,
+        config: Optional[WriterConfig] = None,
         logger: Optional[PipelineLogger] = None,
     ) -> None:
         """

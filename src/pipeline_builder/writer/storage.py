@@ -16,7 +16,7 @@ integration, table management, and data persistence.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Dict, TypedDict, Union, cast
+from typing import Dict, Optional, TypedDict, Union, cast
 
 from ..compat import DataFrame, SparkSession, types
 
@@ -66,10 +66,10 @@ class TableInfo(TypedDict, total=False):
 
     table_name: str
     row_count: int
-    details: list[dict[str, str | int | float | bool | None]]
+    details: list[dict[str, Union[str, int, float, Optional[bool]]]]
     history_count: int
-    last_modified: str | None
-    history: list[dict[str, str | int | float | bool | None]]
+    last_modified: Optional[str]
+    history: list[dict[str, Union[str, int, float, Optional[bool]]]]
     timestamp: str
 
 
@@ -117,8 +117,8 @@ class StorageManager:
         self,
         spark: SparkSession,  # type: ignore[valid-type]
         config: WriterConfig,
-        functions: FunctionsProtocol | None = None,
-        logger: PipelineLogger | None = None,
+        functions: Optional[FunctionsProtocol] = None,
+        logger: Optional[PipelineLogger] = None,
     ):
         """Initialize the storage manager."""
         self.spark = spark
@@ -207,7 +207,7 @@ class StorageManager:
         self,
         df: DataFrame,  # type: ignore[valid-type]
         write_mode: WriteMode = WriteMode.APPEND,
-        partition_columns: list[str] | None = None,
+        partition_columns: Optional[list[str]] = None,
     ) -> WriteResult:
         """
         Write DataFrame to the log table.
@@ -485,7 +485,7 @@ class StorageManager:
 
     def query_logs(
         self,
-        limit: int | None = None,
+        limit: Optional[int] = None,
         filters: Union[Dict[str, Union[str, int, float, bool]], None] = None,
     ) -> DataFrame:  # type: ignore[valid-type]
         """

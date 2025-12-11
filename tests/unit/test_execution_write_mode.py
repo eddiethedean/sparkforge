@@ -37,11 +37,6 @@ class TestExecutionEngineWriteMode:
     """Test cases for ExecutionEngine write_mode behavior."""
 
     @pytest.fixture
-    def spark_session(self):
-        """Create a mock Spark session."""
-        return SparkSession()
-
-    @pytest.fixture
     def config(self):
         """Create a test pipeline config."""
         return PipelineConfig(

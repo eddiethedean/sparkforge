@@ -17,8 +17,10 @@ else:
 # Import Window based on engine
 import os
 
+# Import Window based on SPARK_MODE (preferred) or SPARKFORGE_ENGINE
+_SPARK_MODE = os.environ.get("SPARK_MODE", "mock").lower()
 _ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
-if _ENGINE in ("pyspark", "spark", "real"):
+if _SPARK_MODE == "real" or _ENGINE in ("pyspark", "spark", "real"):
     try:
         from pyspark.sql.window import Window
     except ImportError:

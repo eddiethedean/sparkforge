@@ -7,7 +7,7 @@ This module provides SQL-specific step implementations using SQLAlchemy ORM.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Optional
 
 from pipeline_builder_base.errors import PipelineValidationError, ValidationError
 from pipeline_builder_base.models import BaseModel
@@ -76,9 +76,9 @@ class SqlBronzeStep(BaseModel):
 
     name: str
     rules: SqlColumnRules
-    incremental_col: str | None = None
-    schema: str | None = None
-    model_class: Any | None = None  # SQLAlchemy ORM model class
+    incremental_col: Optional[str] = None
+    schema: Optional[str] = None
+    model_class: Optional[Any] = None  # SQLAlchemy ORM model class
 
     def __post_init__(self) -> None:
         """Validate required fields after initialization."""
@@ -171,9 +171,9 @@ class SqlSilverStep(BaseModel):
     transform: SilverTransformFunction
     rules: SqlColumnRules
     table_name: str
-    watermark_col: str | None = None
-    schema: str | None = None
-    model_class: Any | None = None  # SQLAlchemy ORM model class
+    watermark_col: Optional[str] = None
+    schema: Optional[str] = None
+    model_class: Optional[Any] = None  # SQLAlchemy ORM model class
 
     def __post_init__(self) -> None:
         """Validate required fields after initialization."""
@@ -274,9 +274,9 @@ class SqlGoldStep(BaseModel):
     transform: GoldTransformFunction
     rules: SqlColumnRules
     table_name: str
-    source_silvers: list[str] | None = None
-    schema: str | None = None
-    model_class: Any | None = None  # SQLAlchemy ORM model class
+    source_silvers: Optional[list[str]] = None
+    schema: Optional[str] = None
+    model_class: Optional[Any] = None  # SQLAlchemy ORM model class
 
     def __post_init__(self) -> None:
         """Validate required fields after initialization."""

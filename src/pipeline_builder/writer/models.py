@@ -16,7 +16,7 @@ import os
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Literal, TypedDict
+from typing import Any, Dict, Literal, Optional, TypedDict
 
 from pipeline_builder_base.models import ExecutionContext, ExecutionResult, StepResult
 
@@ -77,8 +77,8 @@ class LogRow(TypedDict):
     # Run-level information
     run_id: str
     run_mode: Literal["initial", "incremental", "full_refresh", "validation_only"]
-    run_started_at: datetime | None
-    run_ended_at: datetime | None
+    run_started_at: Optional[datetime]
+    run_ended_at: Optional[datetime]
 
     # Execution context
     execution_id: str
@@ -91,20 +91,20 @@ class LogRow(TypedDict):
     step_type: str
 
     # Timing information
-    start_time: datetime | None
-    end_time: datetime | None
+    start_time: Optional[datetime]
+    end_time: Optional[datetime]
     duration_secs: float
 
     # Table information
-    table_fqn: str | None
-    write_mode: Literal["overwrite", "append"] | None
+    table_fqn: Optional[str]
+    write_mode: Optional[Literal["overwrite", "append"]]
 
     # Data metrics
-    input_rows: int | None
-    output_rows: int | None
-    rows_written: int | None
+    input_rows: Optional[int]
+    output_rows: Optional[int]
+    rows_written: Optional[int]
     rows_processed: int
-    table_total_rows: int | None  # Total rows in table after this write
+    table_total_rows: Optional[int]  # Total rows in table after this write
 
     # Validation metrics
     valid_rows: int
@@ -113,11 +113,11 @@ class LogRow(TypedDict):
 
     # Execution status
     success: bool
-    error_message: str | None
+    error_message: Optional[str]
 
     # Performance metrics
-    memory_usage_mb: float | None
-    cpu_usage_percent: float | None
+    memory_usage_mb: Optional[float]
+    cpu_usage_percent: Optional[float]
 
     # Metadata
     metadata: Dict[str, Any]
@@ -155,12 +155,14 @@ class WriterConfig:
     write_mode: WriteMode = WriteMode.APPEND
 
     # Custom table naming patterns
-    table_name_pattern: str | None = None  # e.g., "{schema}.{pipeline_id}_{timestamp}"
-    table_suffix_pattern: str | None = None  # e.g., "_{run_mode}_{date}"
+    table_name_pattern: Optional[str] = (
+        None  # e.g., "{schema}.{pipeline_id}_{timestamp}"
+    )
+    table_suffix_pattern: Optional[str] = None  # e.g., "_{run_mode}_{date}"
 
     # Partitioning and optimization
-    partition_columns: list[str] | None = None
-    partition_count: int | None = None
+    partition_columns: Optional[list[str]] = None
+    partition_count: Optional[int] = None
     compression: str = "snappy"
 
     # Schema options
@@ -229,9 +231,9 @@ class WriterConfig:
 
     def generate_table_name(
         self,
-        pipeline_id: str | None = None,
-        run_mode: str | None = None,
-        timestamp: str | None = None,
+        pipeline_id: Optional[str] = None,
+        run_mode: Optional[str] = None,
+        timestamp: Optional[str] = None,
     ) -> str:
         """
         Generate dynamic table name based on patterns.
@@ -366,7 +368,7 @@ def create_log_row_from_step_result(
     execution_context: ExecutionContext,
     run_id: str,
     run_mode: str,
-    metadata: Dict[str, Any] | None = None,
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> LogRow:
     """
     Create a LogRow from a StepResult and ExecutionContext.
@@ -431,7 +433,7 @@ def create_log_rows_from_execution_result(
     execution_result: ExecutionResult,
     run_id: str,
     run_mode: str,
-    metadata: Dict[str, Any] | None = None,
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> list[LogRow]:
     """
     Create multiple LogRows from an ExecutionResult.
@@ -463,7 +465,7 @@ def create_log_rows_from_pipeline_report(
     pipeline_report: PipelineReport,
     run_id: str,
     run_mode: str,
-    metadata: Dict[str, Any] | None = None,
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> list[LogRow]:
     """
     Create multiple LogRows from a PipelineReport.

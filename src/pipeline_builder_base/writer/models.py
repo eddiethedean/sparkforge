@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Literal, TypedDict
+from typing import Any, Dict, Literal, Optional, TypedDict
 
 from ..models import ExecutionResult
 
@@ -44,8 +44,8 @@ class LogRow(TypedDict):
     # Run-level information
     run_id: str
     run_mode: Literal["initial", "incremental", "full_refresh", "validation_only"]
-    run_started_at: datetime | None
-    run_ended_at: datetime | None
+    run_started_at: Optional[datetime]
+    run_ended_at: Optional[datetime]
 
     # Execution context
     execution_id: str
@@ -58,20 +58,20 @@ class LogRow(TypedDict):
     step_type: str
 
     # Timing information
-    start_time: datetime | None
-    end_time: datetime | None
+    start_time: Optional[datetime]
+    end_time: Optional[datetime]
     duration_secs: float
 
     # Table information
-    table_fqn: str | None
-    write_mode: Literal["overwrite", "append"] | None
+    table_fqn: Optional[str]
+    write_mode: Optional[Literal["overwrite", "append"]]
 
     # Data metrics
-    input_rows: int | None
-    output_rows: int | None
-    rows_written: int | None
+    input_rows: Optional[int]
+    output_rows: Optional[int]
+    rows_written: Optional[int]
     rows_processed: int
-    table_total_rows: int | None  # Total rows in table after this write
+    table_total_rows: Optional[int]  # Total rows in table after this write
 
     # Validation metrics
     valid_rows: int
@@ -80,11 +80,11 @@ class LogRow(TypedDict):
 
     # Execution status
     success: bool
-    error_message: str | None
+    error_message: Optional[str]
 
     # Performance metrics
-    memory_usage_mb: float | None
-    cpu_usage_percent: float | None
+    memory_usage_mb: Optional[float]
+    cpu_usage_percent: Optional[float]
 
     # Metadata
     metadata: Dict[str, Any]
@@ -151,7 +151,7 @@ def create_log_rows_from_execution_result(
     run_mode: Literal[
         "initial", "incremental", "full_refresh", "validation_only"
     ] = "initial",
-    metadata: Dict[str, Any] | None = None,
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> list[LogRow]:
     """
     Create log rows from an execution result.

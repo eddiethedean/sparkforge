@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from pipeline_builder_base.models import PipelineMetrics
 
@@ -50,7 +50,7 @@ class PipelineReport:
     mode: PipelineMode
     status: PipelineStatus  # Protocol expects str, but we use enum - structural typing allows this
     start_time: datetime
-    end_time: datetime | None = None
+    end_time: Optional[datetime] = None
     duration_seconds: float = 0.0
     metrics: PipelineMetrics = field(default_factory=PipelineMetrics)
     bronze_results: Dict[str, Any] = field(default_factory=dict)

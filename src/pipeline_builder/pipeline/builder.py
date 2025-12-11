@@ -22,7 +22,7 @@ The builder creates pipelines that can be executed with the simplified execution
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 if TYPE_CHECKING:
     from pyspark.sql.types import StructType
@@ -48,7 +48,6 @@ from pipeline_builder_base.models import (
 from ..compat import DataFrame, SparkSession
 from ..engine import SparkEngine
 from ..functions import FunctionsProtocol, get_default_functions
-from ..validation import ValidationResult
 from ..models import (
     BronzeStep,
     GoldStep,
@@ -61,7 +60,7 @@ from ..types import (
     StepName,
     TableName,
 )
-from ..validation import _convert_rules_to_expressions
+from ..validation import ValidationResult, _convert_rules_to_expressions
 from .runner import PipelineRunner
 
 
@@ -189,7 +188,7 @@ class PipelineBuilder(BasePipelineBuilder):
         min_silver_rate: float = 98.0,
         min_gold_rate: float = 99.0,
         verbose: bool = True,
-        functions: FunctionsProtocol | None = None,
+        functions: Optional[FunctionsProtocol] = None,
     ) -> None:
         """
         Initialize a new PipelineBuilder instance.
@@ -309,9 +308,9 @@ class PipelineBuilder(BasePipelineBuilder):
         *,
         name: StepName,
         rules: ColumnRules,
-        incremental_col: str | None = None,
-        description: str | None = None,
-        schema: str | None = None,
+        incremental_col: Optional[str] = None,
+        description: Optional[str] = None,
+        schema: Optional[str] = None,
     ) -> PipelineBuilder:
         """
         Add Bronze layer validation rules for raw data ingestion.
@@ -427,9 +426,9 @@ class PipelineBuilder(BasePipelineBuilder):
         name: StepName,
         table_name: TableName,
         rules: ColumnRules,
-        watermark_col: str | None = None,
-        description: str | None = None,
-        schema: str | None = None,
+        watermark_col: Optional[str] = None,
+        description: Optional[str] = None,
+        schema: Optional[str] = None,
     ) -> PipelineBuilder:
         """
         Add existing Silver layer table for validation and monitoring.
@@ -551,22 +550,22 @@ class PipelineBuilder(BasePipelineBuilder):
             >>>
             >>> builder.add_validator(CustomValidator())
         """
-        self.validator.add_validator(validator)
+        self.spark_validator.add_validator(validator)
         return self
 
     def add_silver_transform(
         self,
         *,
         name: StepName,
-        source_bronze: StepName | None = None,
+        source_bronze: Optional[StepName] = None,
         transform: SilverTransformFunction,
         rules: ColumnRules,
         table_name: TableName,
-        watermark_col: str | None = None,
-        description: str | None = None,
-        depends_on: list[StepName] | None = None,
-        schema: str | None = None,
-        schema_override: StructType | None = None,
+        watermark_col: Optional[str] = None,
+        description: Optional[str] = None,
+        depends_on: Optional[list[StepName]] = None,
+        schema: Optional[str] = None,
+        schema_override: Optional[StructType] = None,
     ) -> PipelineBuilder:
         """
         Add Silver layer transformation step for data cleaning and enrichment.
@@ -742,10 +741,10 @@ class PipelineBuilder(BasePipelineBuilder):
         transform: GoldTransformFunction,
         rules: ColumnRules,
         table_name: TableName,
-        source_silvers: list[StepName] | None = None,
-        description: str | None = None,
-        schema: str | None = None,
-        schema_override: StructType | None = None,
+        source_silvers: Optional[list[StepName]] = None,
+        description: Optional[str] = None,
+        schema: Optional[str] = None,
+        schema_override: Optional[StructType] = None,
     ) -> PipelineBuilder:
         """
         Add Gold layer transformation step for business analytics and aggregations.
@@ -903,7 +902,9 @@ class PipelineBuilder(BasePipelineBuilder):
 
     @staticmethod
     def _extract_errors_from_validator_result(
-        result: ValidationResult | List[str], validator_name: str, logger: PipelineLogger
+        result: Union[ValidationResult, List[str]],
+        validator_name: str,
+        logger: PipelineLogger,
     ) -> List[str]:
         """
         Type guard function to safely extract errors from validator results.
@@ -952,7 +953,8 @@ class PipelineBuilder(BasePipelineBuilder):
                 raise TypeError(error_msg)
             return result
         else:
-            # Unexpected type
+            # Unexpected type - this is reachable at runtime even though
+            # the type hint suggests it shouldn't be
             error_msg = (
                 f"Unexpected return type from {validator_name}: {type(result)}. "
                 f"Expected ValidationResult or List[str]. Got: {result}"
@@ -1025,7 +1027,7 @@ class PipelineBuilder(BasePipelineBuilder):
         cls,
         spark: SparkSession,  # type: ignore[valid-type]
         schema: str,
-        functions: FunctionsProtocol | None = None,
+        functions: Optional[FunctionsProtocol] = None,
         **kwargs: Any,
     ) -> PipelineBuilder:
         """
@@ -1061,7 +1063,7 @@ class PipelineBuilder(BasePipelineBuilder):
         cls,
         spark: SparkSession,  # type: ignore[valid-type]
         schema: str,
-        functions: FunctionsProtocol | None = None,
+        functions: Optional[FunctionsProtocol] = None,
         **kwargs: Any,
     ) -> PipelineBuilder:
         """
@@ -1097,7 +1099,7 @@ class PipelineBuilder(BasePipelineBuilder):
         cls,
         spark: SparkSession,  # type: ignore[valid-type]
         schema: str,
-        functions: FunctionsProtocol | None = None,
+        functions: Optional[FunctionsProtocol] = None,
         **kwargs: Any,
     ) -> PipelineBuilder:
         """
@@ -1134,7 +1136,7 @@ class PipelineBuilder(BasePipelineBuilder):
 
     @staticmethod
     def not_null_rules(
-        columns: list[str], functions: FunctionsProtocol | None = None
+        columns: list[str], functions: Optional[FunctionsProtocol] = None
     ) -> ColumnRules:
         """
         Create validation rules for non-null constraints on multiple columns.
@@ -1161,7 +1163,7 @@ class PipelineBuilder(BasePipelineBuilder):
 
     @staticmethod
     def positive_number_rules(
-        columns: list[str], functions: FunctionsProtocol | None = None
+        columns: list[str], functions: Optional[FunctionsProtocol] = None
     ) -> ColumnRules:
         """
         Create validation rules for positive number constraints on multiple columns.
@@ -1190,7 +1192,7 @@ class PipelineBuilder(BasePipelineBuilder):
 
     @staticmethod
     def string_not_empty_rules(
-        columns: list[str], functions: FunctionsProtocol | None = None
+        columns: list[str], functions: Optional[FunctionsProtocol] = None
     ) -> ColumnRules:
         """
         Create validation rules for non-empty string constraints on multiple columns.
@@ -1222,7 +1224,7 @@ class PipelineBuilder(BasePipelineBuilder):
 
     @staticmethod
     def timestamp_rules(
-        columns: list[str], functions: FunctionsProtocol | None = None
+        columns: list[str], functions: Optional[FunctionsProtocol] = None
     ) -> ColumnRules:
         """
         Create validation rules for timestamp constraints on multiple columns.
@@ -1371,7 +1373,7 @@ class PipelineBuilder(BasePipelineBuilder):
                 ],
             ) from e
 
-    def _get_effective_schema(self, step_schema: str | None) -> str:
+    def _get_effective_schema(self, step_schema: Optional[str]) -> str:
         """
         Get the effective schema for a step, falling back to the builder's default schema.
 

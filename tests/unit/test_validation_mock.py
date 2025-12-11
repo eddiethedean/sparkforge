@@ -47,14 +47,20 @@ from pipeline_builder.validation import (
 
 
 @pytest.fixture
-def mock_spark_session():
+def mock_spark_session(spark_session):
     """Create mock Spark session for testing."""
-    return SparkSession("TestApp")
+    # Use spark_session fixture from conftest for PySpark compatibility
+    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+    if spark_mode == "real":
+        return spark_session
+    else:
+        return SparkSession("TestApp")
 
 
 @pytest.fixture
-def mock_functions():
+def mock_functions(spark_session):
     """Create mock functions for testing."""
+    # PySpark requires active SparkContext for function calls
     spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
     if spark_mode == "real":
         # In PySpark, functions is a module, not a class

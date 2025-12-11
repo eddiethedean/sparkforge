@@ -308,46 +308,41 @@ class TestIotPipeline:
             mock_spark_session, num_readings=80
         )
 
-        # Add some anomalous readings
+        # Get the schema from normal_data to ensure compatibility
+        normal_schema = normal_data.schema
+
+        # Add some anomalous readings with the same schema as normal_data
         anomaly_data = mock_spark_session.createDataFrame(
             [
-                (
-                    "SENSOR-99",
-                    "2024-01-01T12:00:00",
-                    150.0,
-                    50.0,
-                    1013.0,
-                    "Building-5",
-                    "active",
-                ),  # Extreme temperature
-                (
-                    "SENSOR-99",
-                    "2024-01-01T12:01:00",
-                    -100.0,
-                    50.0,
-                    1013.0,
-                    "Building-5",
-                    "active",
-                ),  # Extreme temperature
-                (
-                    "SENSOR-99",
-                    "2024-01-01T12:02:00",
-                    25.0,
-                    150.0,
-                    1013.0,
-                    "Building-5",
-                    "active",
-                ),  # Invalid humidity
+                {
+                    "sensor_id": "SENSOR-99",
+                    "timestamp": "2024-01-01T12:00:00",
+                    "temperature": 150.0,
+                    "humidity": 50.0,
+                    "pressure": 1013.0,
+                    "location": "Building-5",
+                    "device_status": "active",
+                },  # Extreme temperature
+                {
+                    "sensor_id": "SENSOR-99",
+                    "timestamp": "2024-01-01T12:01:00",
+                    "temperature": -100.0,
+                    "humidity": 50.0,
+                    "pressure": 1013.0,
+                    "location": "Building-5",
+                    "device_status": "active",
+                },  # Extreme temperature
+                {
+                    "sensor_id": "SENSOR-99",
+                    "timestamp": "2024-01-01T12:02:00",
+                    "temperature": 25.0,
+                    "humidity": 150.0,
+                    "pressure": 1013.0,
+                    "location": "Building-5",
+                    "device_status": "active",
+                },  # Invalid humidity
             ],
-            [
-                "sensor_id",
-                "timestamp",
-                "temperature",
-                "humidity",
-                "pressure",
-                "location",
-                "device_status",
-            ],
+            schema=normal_schema,  # Use the same schema to ensure union compatibility
         )
 
         # Combine normal and anomaly data

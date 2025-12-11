@@ -13,7 +13,7 @@ for pipeline execution.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TypedDict
+from typing import Optional, TypedDict
 
 from .models import StageStats
 from .validation import safe_divide
@@ -26,8 +26,8 @@ from .validation import safe_divide
 class ValidationReport(TypedDict):
     """Validation report structure."""
 
-    stage: str | None
-    step: str | None
+    stage: Optional[str]
+    step: Optional[str]
     total_rows: int
     valid_rows: int
     invalid_rows: int
@@ -95,7 +95,7 @@ class SummaryReport(TypedDict):
 
 
 def create_validation_dict(
-    stats: StageStats | None, *, start_at: datetime, end_at: datetime
+    stats: Optional[StageStats], *, start_at: datetime, end_at: datetime
 ) -> ValidationReport:
     """
     Create a validation report dictionary from stage stats.

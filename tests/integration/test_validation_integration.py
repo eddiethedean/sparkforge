@@ -52,29 +52,34 @@ from pipeline_builder.validation import (
 class TestConvertRuleToExpression:
     """Test cases for _convert_rule_to_expression function."""
 
-    def test_not_null_rule(self):
+    def test_not_null_rule(self, spark_session):
         """Test not_null rule conversion."""
+        # PySpark requires active SparkContext for F.col() calls in _convert_rule_to_expression
         result = _convert_rule_to_expression("not_null", "test_column", F)
         # This should return a PySpark Column expression
         assert result is not None
 
-    def test_positive_rule(self):
+    def test_positive_rule(self, spark_session):
         """Test positive rule conversion."""
+        # PySpark requires active SparkContext for F.col() calls in _convert_rule_to_expression
         result = _convert_rule_to_expression("positive", "test_column", F)
         assert result is not None
 
-    def test_non_negative_rule(self):
+    def test_non_negative_rule(self, spark_session):
         """Test non_negative rule conversion."""
+        # PySpark requires active SparkContext for F.col() calls in _convert_rule_to_expression
         result = _convert_rule_to_expression("non_negative", "test_column", F)
         assert result is not None
 
-    def test_non_zero_rule(self):
+    def test_non_zero_rule(self, spark_session):
         """Test non_zero rule conversion."""
+        # PySpark requires active SparkContext for F.col() calls in _convert_rule_to_expression
         result = _convert_rule_to_expression("non_zero", "test_column", F)
         assert result is not None
 
-    def test_unknown_rule(self):
+    def test_unknown_rule(self, spark_session):
         """Test unknown rule converts to F.expr."""
+        # PySpark requires active SparkContext for F.expr() calls
         result = _convert_rule_to_expression("custom_rule", "test_column", F)
         # Should return a Column object created by F.expr
         assert hasattr(result, "isNull")  # Column objects have isNull method
@@ -83,8 +88,9 @@ class TestConvertRuleToExpression:
 class TestConvertRulesToExpressions:
     """Test cases for _convert_rules_to_expressions function."""
 
-    def test_string_rules_conversion(self):
+    def test_string_rules_conversion(self, spark_session):
         """Test conversion of string rules to expressions."""
+        # PySpark requires active SparkContext for F.col() calls in _convert_rules_to_expressions
         rules = {
             "id": ["not_null", "positive"],
             "name": ["not_null"],
@@ -100,8 +106,9 @@ class TestConvertRulesToExpressions:
         assert len(result["name"]) == 1
         assert len(result["age"]) == 1
 
-    def test_mixed_rules_conversion(self):
+    def test_mixed_rules_conversion(self, spark_session):
         """Test conversion of mixed string and expression rules."""
+        # PySpark requires active SparkContext for F.col() calls
         rules = {"id": ["not_null", F.col("id") > 0], "name": ["not_null"]}
 
         result = _convert_rules_to_expressions(rules, F)
@@ -125,26 +132,30 @@ class TestAndAllRules:
         result = and_all_rules({})
         assert result is True
 
-    def test_single_column_single_rule(self):
+    def test_single_column_single_rule(self, spark_session):
         """Test and_all_rules with single column and single rule."""
+        # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()]}
         result = and_all_rules(rules)
         assert result is not None
 
-    def test_single_column_multiple_rules(self):
+    def test_single_column_multiple_rules(self, spark_session):
         """Test and_all_rules with single column and multiple rules."""
+        # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull(), F.col("id") > 0]}
         result = and_all_rules(rules)
         assert result is not None
 
-    def test_multiple_columns(self):
+    def test_multiple_columns(self, spark_session):
         """Test and_all_rules with multiple columns."""
+        # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()], "name": [F.col("name").isNotNull()]}
         result = and_all_rules(rules)
         assert result is not None
 
-    def test_complex_rules(self):
+    def test_complex_rules(self, spark_session):
         """Test and_all_rules with complex rule combinations."""
+        # PySpark requires active SparkContext for F.col() calls
         rules = {
             "id": [F.col("id").isNotNull(), F.col("id") > 0],
             "name": [F.col("name").isNotNull()],
@@ -497,11 +508,12 @@ class TestUnifiedValidator:
         assert result.is_valid is True
         assert result.errors == []
 
-    def test_validate_bronze_steps(self):
+    def test_validate_bronze_steps(self, spark_session):
         """Test bronze steps validation."""
         validator = UnifiedValidator()
 
         # Create valid bronze step for testing
+        # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()]}
         bronze_steps = {"test_bronze": BronzeStep(name="test_bronze", rules=rules)}
 
@@ -511,11 +523,12 @@ class TestUnifiedValidator:
         assert len(errors) == 0
         assert len(warnings) == 0
 
-    def test_validate_silver_steps(self):
+    def test_validate_silver_steps(self, spark_session):
         """Test silver steps validation."""
         validator = UnifiedValidator()
 
         # Create valid silver step for testing
+        # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()]}
         silver_steps = {
             "test_silver": SilverStep(
@@ -535,11 +548,12 @@ class TestUnifiedValidator:
         assert len(errors) == 0
         assert len(warnings) == 0
 
-    def test_validate_gold_steps(self):
+    def test_validate_gold_steps(self, spark_session):
         """Test gold steps validation."""
         validator = UnifiedValidator()
 
         # Create valid gold step for testing
+        # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()]}
         gold_steps = {
             "test_gold": GoldStep(
@@ -568,11 +582,12 @@ class TestUnifiedValidator:
         assert len(errors) == 0
         assert len(warnings) == 0
 
-    def test_validate_dependencies(self):
+    def test_validate_dependencies(self, spark_session):
         """Test dependency validation."""
         validator = UnifiedValidator()
 
         # Create valid steps for testing
+        # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()]}
         bronze_steps = {"bronze1": BronzeStep(name="bronze1", rules=rules)}
         silver_steps = {}

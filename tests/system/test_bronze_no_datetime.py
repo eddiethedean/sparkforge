@@ -14,9 +14,10 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
     from mock_spark import functions as F  # type: ignore
 else:
     from pyspark.sql import functions as F  # type: ignore
-# Import types based on engine
+# Import types based on SPARK_MODE (preferred) or SPARKFORGE_ENGINE
+_SPARK_MODE = os.environ.get("SPARK_MODE", "mock").lower()
 _ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
-if _ENGINE in ("pyspark", "spark", "real"):
+if _SPARK_MODE == "real" or _ENGINE in ("pyspark", "spark", "real"):
     try:
         from pyspark.sql.types import IntegerType, StringType, StructField, StructType
     except ImportError:

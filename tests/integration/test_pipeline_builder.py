@@ -146,7 +146,12 @@ class TestPipelineBuilder(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        self.spark = Mock()
+        # mock-spark 3.11.0+ requires active SparkSession for function calls (like PySpark)
+        if MockF is not None:
+            from mock_spark import SparkSession
+            self.spark = SparkSession("TestApp")
+        else:
+            self.spark = Mock()
         self.schema = "test_schema"
 
         # Create pipeline builder with mock functions if in mock mode
@@ -383,7 +388,6 @@ class TestPipelineBuilder(unittest.TestCase):
     def test_validator_return_types(self):
         """Test that validators return expected types."""
         from pipeline_builder.validation import ValidationResult
-        from pipeline_builder_base.validation import PipelineValidator
 
         # Test base validator returns List[str]
         base_result = self.builder._base_validator.validate_pipeline(
@@ -448,7 +452,9 @@ class TestPipelineBuilder(unittest.TestCase):
         )
 
         # Extract errors using the same logic as validate_pipeline
-        base_errors = base_result if isinstance(base_result, list) else base_result.errors
+        base_errors = (
+            base_result if isinstance(base_result, list) else base_result.errors
+        )
         spark_errors = (
             spark_result.errors
             if isinstance(spark_result, ValidationResult)
@@ -497,7 +503,12 @@ class TestPipelineBuilderIntegration(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        self.spark = Mock()
+        # mock-spark 3.11.0+ requires active SparkSession for function calls (like PySpark)
+        if MockF is not None:
+            from mock_spark import SparkSession
+            self.spark = SparkSession("TestApp")
+        else:
+            self.spark = Mock()
         self.schema = "test_schema"
 
     def test_complex_pipeline_construction(self):

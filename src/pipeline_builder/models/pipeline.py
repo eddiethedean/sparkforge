@@ -9,7 +9,7 @@ Pipeline configuration models.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Union
 
 from ..errors import PipelineValidationError
 from .base import BaseModel, ParallelConfig, ValidationThresholds
@@ -29,7 +29,7 @@ class PipelineConfig(BaseModel):
 
     schema: str
     thresholds: ValidationThresholds
-    parallel: ParallelConfig | bool
+    parallel: Union[ParallelConfig, bool]
     verbose: bool = True
 
     def __post_init__(self) -> None:

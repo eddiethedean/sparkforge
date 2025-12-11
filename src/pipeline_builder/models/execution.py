@@ -13,7 +13,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from .base import BaseModel
 from .enums import ExecutionMode, PipelinePhase
@@ -43,16 +43,16 @@ class ExecutionContext(BaseModel):
 
     mode: ExecutionMode
     start_time: datetime
-    end_time: datetime | None = None
-    duration_secs: float | None = None
+    end_time: Optional[datetime] = None
+    duration_secs: Optional[float] = None
     run_id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
     # Additional fields for writer compatibility
     execution_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     pipeline_id: str = "unknown"
     schema: str = "default"
-    started_at: datetime | None = None
-    ended_at: datetime | None = None
+    started_at: Optional[datetime] = None
+    ended_at: Optional[datetime] = None
     run_mode: str = "initial"
     config: Dict[str, Any] = field(default_factory=dict)
 
@@ -117,8 +117,8 @@ class StageStats(BaseModel):
     invalid_rows: int
     validation_rate: float
     duration_secs: float
-    start_time: datetime | None = None
-    end_time: datetime | None = None
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
 
     def validate(self) -> None:
         """Validate stage statistics."""
@@ -186,11 +186,11 @@ class StepResult(BaseModel):
     rows_processed: int
     rows_written: int
     validation_rate: float
-    error_message: str | None = None
-    step_type: str | None = None
-    table_fqn: str | None = None
-    write_mode: str | None = None
-    input_rows: int | None = None
+    error_message: Optional[str] = None
+    step_type: Optional[str] = None
+    table_fqn: Optional[str] = None
+    write_mode: Optional[str] = None
+    input_rows: Optional[int] = None
 
     def validate(self) -> None:
         """Validate the step result."""
@@ -232,10 +232,10 @@ class StepResult(BaseModel):
         rows_processed: int,
         rows_written: int,
         validation_rate: float,
-        step_type: str | None = None,
-        table_fqn: str | None = None,
-        write_mode: str | None = None,
-        input_rows: int | None = None,
+        step_type: Optional[str] = None,
+        table_fqn: Optional[str] = None,
+        write_mode: Optional[str] = None,
+        input_rows: Optional[int] = None,
     ) -> StepResult:
         """Create a successful step result."""
         duration_secs = (end_time - start_time).total_seconds()
@@ -264,10 +264,10 @@ class StepResult(BaseModel):
         start_time: datetime,
         end_time: datetime,
         error_message: str,
-        step_type: str | None = None,
-        table_fqn: str | None = None,
-        write_mode: str | None = None,
-        input_rows: int | None = None,
+        step_type: Optional[str] = None,
+        table_fqn: Optional[str] = None,
+        write_mode: Optional[str] = None,
+        input_rows: Optional[int] = None,
     ) -> StepResult:
         """Create a failed step result."""
         duration_secs = (end_time - start_time).total_seconds()

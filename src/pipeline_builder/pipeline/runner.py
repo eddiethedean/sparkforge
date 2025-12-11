@@ -17,7 +17,7 @@ execution to the simplified execution engine.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 from abstracts.reports.run import Report
 from abstracts.runner import Runner
@@ -107,9 +107,9 @@ class SimplePipelineRunner(BaseRunner, Runner):
 
     def run_pipeline(
         self,
-        steps: list[BronzeStep | SilverStep | GoldStep],
+        steps: list[Union[BronzeStep, SilverStep] | GoldStep],
         mode: PipelineMode = PipelineMode.INITIAL,
-        bronze_sources: Dict[str, DataFrame] | None = None,  # type: ignore[valid-type]
+        bronze_sources: Optional[Dict[str, DataFrame]] = None,  # type: ignore[valid-type]
     ) -> PipelineReport:
         """
         Run a complete pipeline.
@@ -165,7 +165,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
 
     def run_initial_load(
         self,
-        bronze_sources: Optional[Dict[str, Source]] | list = None,
+        bronze_sources: Union[Optional[Dict[str, Source]], list] = None,
         steps: Optional[
             list
         ] = None,  # Backward compatibility: old signature accepted steps as first arg
@@ -214,7 +214,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
 
     def run_incremental(
         self,
-        bronze_sources: Optional[Dict[str, Source]] | list = None,
+        bronze_sources: Union[Optional[Dict[str, Source]], list] = None,
         steps: Optional[
             list
         ] = None,  # Backward compatibility: old signature accepted steps as first arg
@@ -266,7 +266,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
 
     def run_full_refresh(
         self,
-        bronze_sources: Dict[str, DataFrame] | None = None,  # type: ignore[valid-type]
+        bronze_sources: Optional[Dict[str, DataFrame]] = None,  # type: ignore[valid-type]
     ) -> PipelineReport:
         """
         Run full refresh pipeline with all stored steps.
@@ -286,7 +286,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
 
     def run_validation_only(
         self,
-        bronze_sources: Dict[str, DataFrame] | None = None,  # type: ignore[valid-type]
+        bronze_sources: Optional[Dict[str, DataFrame]] = None,  # type: ignore[valid-type]
     ) -> PipelineReport:
         """
         Run validation-only pipeline with all stored steps.

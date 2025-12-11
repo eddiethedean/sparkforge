@@ -81,4 +81,3 @@ class ValidationResultProtocol(Protocol):
     def is_valid(self) -> bool:
         """Whether validation passed."""
         ...
-

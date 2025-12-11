@@ -20,7 +20,7 @@ except ImportError:
     exit(1)
 
 try:
-    from image_icons import get_icon_for_description, get_font_awesome_class
+    from image_icons import get_font_awesome_class, get_icon_for_description
 except ImportError:
     # Fallback if image_icons module not found
     def get_icon_for_description(description: str) -> str:

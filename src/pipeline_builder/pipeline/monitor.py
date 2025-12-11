@@ -12,7 +12,7 @@ This module provides basic monitoring and reporting for pipeline execution.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from pipeline_builder_base.logging import PipelineLogger
 from pipeline_builder_base.models import PipelineMetrics
@@ -28,10 +28,10 @@ class SimplePipelineMonitor:
     without complex metrics collection.
     """
 
-    def __init__(self, logger: PipelineLogger | None = None):
+    def __init__(self, logger: Optional[PipelineLogger] = None):
         """Initialize the simplified monitor."""
         self.logger = logger or PipelineLogger()
-        self._current_report: PipelineReport | None = None
+        self._current_report: Optional[PipelineReport] = None
 
     def start_execution(
         self,
@@ -71,7 +71,7 @@ class SimplePipelineMonitor:
         step_type: str,
         success: bool,
         duration: float,
-        error_message: str | None = None,
+        error_message: Optional[str] = None,
         rows_processed: int = 0,
         rows_written: int = 0,
     ) -> None:

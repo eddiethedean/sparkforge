@@ -16,7 +16,7 @@ import hashlib
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, Protocol
+from typing import Any, Dict, Optional, Protocol
 
 from ..logging import PipelineLogger
 from .exceptions import DependencyError
@@ -54,7 +54,7 @@ class StepProtocol(Protocol):
 class BronzeStepProtocol(StepProtocol, Protocol):
     """Protocol for bronze steps."""
 
-    incremental_col: str | None
+    incremental_col: Optional[str]
 
 
 class SilverStepProtocol(StepProtocol, Protocol):
@@ -66,7 +66,7 @@ class SilverStepProtocol(StepProtocol, Protocol):
 class GoldStepProtocol(StepProtocol, Protocol):
     """Protocol for gold steps."""
 
-    source_silvers: list[str] | None
+    source_silvers: Optional[list[str]]
 
 
 class DependencyAnalyzer:
@@ -87,7 +87,7 @@ class DependencyAnalyzer:
     def __init__(
         self,
         strategy: AnalysisStrategy = AnalysisStrategy.HYBRID,
-        logger: PipelineLogger | None = None,
+        logger: Optional[PipelineLogger] = None,
     ):
         self.strategy = strategy
         if logger is None:
@@ -98,9 +98,9 @@ class DependencyAnalyzer:
 
     def analyze_dependencies(
         self,
-        bronze_steps: Dict[str, BronzeStepProtocol] | None = None,
-        silver_steps: Dict[str, SilverStepProtocol] | None = None,
-        gold_steps: Dict[str, GoldStepProtocol] | None = None,
+        bronze_steps: Optional[Dict[str, BronzeStepProtocol]] = None,
+        silver_steps: Optional[Dict[str, SilverStepProtocol]] = None,
+        gold_steps: Optional[Dict[str, GoldStepProtocol]] = None,
         force_refresh: bool = False,
     ) -> DependencyAnalysisResult:
         """
@@ -177,9 +177,9 @@ class DependencyAnalyzer:
 
     def _build_dependency_graph(
         self,
-        bronze_steps: Dict[str, BronzeStepProtocol] | None,
-        silver_steps: Dict[str, SilverStepProtocol] | None,
-        gold_steps: Dict[str, GoldStepProtocol] | None,
+        bronze_steps: Optional[Dict[str, BronzeStepProtocol]],
+        silver_steps: Optional[Dict[str, SilverStepProtocol]],
+        gold_steps: Optional[Dict[str, GoldStepProtocol]],
     ) -> DependencyGraph:
         """Build the dependency graph from all step types."""
         graph = DependencyGraph()
@@ -328,9 +328,9 @@ class DependencyAnalyzer:
 
     def _create_cache_key(
         self,
-        bronze_steps: Dict[str, BronzeStepProtocol] | None,
-        silver_steps: Dict[str, SilverStepProtocol] | None,
-        gold_steps: Dict[str, GoldStepProtocol] | None,
+        bronze_steps: Optional[Dict[str, BronzeStepProtocol]],
+        silver_steps: Optional[Dict[str, SilverStepProtocol]],
+        gold_steps: Optional[Dict[str, GoldStepProtocol]],
     ) -> str:
         """Create a cache key for the analysis."""
         # Create a simple hash of the step configurations

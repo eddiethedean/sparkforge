@@ -36,21 +36,6 @@ class TestPipelineRunnerWriteMode:
     """Test cases for PipelineRunner write_mode behavior."""
 
     @pytest.fixture
-    def spark_session(self):
-        """Create a mock Spark session."""
-        session = SparkSession()
-        # Ensure test_schema exists (required in mock-spark 2.16.1+)
-        try:
-            session.storage.create_schema("test_schema")
-        except Exception:
-            # Try SQL approach if storage API doesn't work
-            try:
-                session.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
-            except Exception:
-                pass  # Schema might already exist
-        return session
-
-    @pytest.fixture
     def config(self):
         """Create a test pipeline config."""
         # NOTE: Parallel execution disabled for this test to ensure deterministic behavior

@@ -10,7 +10,7 @@ Step models for the Pipeline Builder.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from pipeline_builder_base.errors import PipelineValidationError, ValidationError
 
@@ -75,8 +75,8 @@ class BronzeStep(BaseModel):
 
     name: str
     rules: ColumnRules
-    incremental_col: str | None = None
-    schema: str | None = None
+    incremental_col: Optional[str] = None
+    schema: Optional[str] = None
 
     def __post_init__(self) -> None:
         """Validate required fields after initialization."""
@@ -177,11 +177,11 @@ class SilverStep(BaseModel):
     transform: SilverTransformFunction
     rules: ColumnRules
     table_name: str
-    watermark_col: str | None = None
+    watermark_col: Optional[str] = None
     existing: bool = False
-    schema: str | None = None
-    source_incremental_col: str | None = None
-    schema_override: StructType | None = None
+    schema: Optional[str] = None
+    source_incremental_col: Optional[str] = None
+    schema_override: Optional[StructType] = None
 
     def __post_init__(self) -> None:
         """Validate required fields after initialization."""
@@ -310,9 +310,9 @@ class GoldStep(BaseModel):
     transform: GoldTransformFunction
     rules: ColumnRules
     table_name: str
-    source_silvers: list[str] | None = None
-    schema: str | None = None
-    schema_override: StructType | None = None
+    source_silvers: Optional[list[str]] = None
+    schema: Optional[str] = None
+    schema_override: Optional[StructType] = None
 
     def __post_init__(self) -> None:
         """Validate required fields after initialization."""

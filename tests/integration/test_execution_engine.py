@@ -508,10 +508,11 @@ class TestExecutionEngine:
         # Verify that the DataFrame was returned
         assert result_df == mock_df
 
-    def test_execute_step_silver_without_dependencies(self, mock_spark, mock_config):
+    def test_execute_step_silver_without_dependencies(self, mock_spark, mock_config, spark_session):
         """Test silver step creation without valid dependencies should fail."""
         # A SilverStep without a valid source_bronze is logically invalid
         # and should be rejected during construction
+        # PySpark requires active SparkContext for F.col() calls
         with pytest.raises(
             ValidationError, match="Source bronze step name must be a non-empty string"
         ):
@@ -535,10 +536,11 @@ class TestExecutionEngine:
         ):
             engine.execute_step(sample_silver_step, {}, ExecutionMode.INITIAL)
 
-    def test_execute_step_silver_without_transform(self, mock_spark, mock_config):
+    def test_execute_step_silver_without_transform(self, mock_spark, mock_config, spark_session):
         """Test silver step creation without transform function should fail."""
         # A SilverStep without a transform function is logically invalid
         # and should be rejected during construction
+        # PySpark requires active SparkContext for F.col() calls
         with pytest.raises(
             ValidationError, match="Transform function is required and must be callable"
         ):
@@ -551,10 +553,11 @@ class TestExecutionEngine:
                 schema="test_schema",
             )
 
-    def test_execute_step_gold_without_dependencies(self, mock_spark, mock_config):
+    def test_execute_step_gold_without_dependencies(self, mock_spark, mock_config, spark_session):
         """Test gold step creation without valid dependencies should fail."""
         # A GoldStep without valid source_silvers is logically invalid
         # and should be rejected during construction
+        # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()]}
         with pytest.raises(
             ValidationError, match="Source silvers must be a non-empty list"
@@ -579,10 +582,11 @@ class TestExecutionEngine:
         ):
             engine.execute_step(sample_gold_step, {}, ExecutionMode.INITIAL)
 
-    def test_execute_step_gold_without_transform(self, mock_spark, mock_config):
+    def test_execute_step_gold_without_transform(self, mock_spark, mock_config, spark_session):
         """Test gold step creation without transform function should fail."""
         # A GoldStep without a transform function is logically invalid
         # and should be rejected during construction
+        # PySpark requires active SparkContext for F.col() calls
         with pytest.raises(
             ValidationError, match="Transform function is required and must be callable"
         ):
@@ -720,9 +724,10 @@ class TestExecutionEngine:
             in result.steps[0].error
         )
 
-    def test_execute_pipeline_with_different_step_types(self, mock_spark, mock_config):
+    def test_execute_pipeline_with_different_step_types(self, mock_spark, mock_config, spark_session):
         """Test pipeline execution with different step types."""
         # Create steps of different types
+        # PySpark requires active SparkContext for F.col() calls
         bronze_step = BronzeStep(
             name="bronze1",
             rules={"id": [F.col("id").isNotNull()]},
@@ -834,6 +839,7 @@ class TestExecutionEngine:
         mock_spark.table.return_value = mock_df
 
         # Make silver step fail by not providing dependency
+        # PySpark requires active SparkContext for F.col() calls
         silver_step = SilverStep(
             name="test_silver",
             source_bronze="nonexistent",
