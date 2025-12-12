@@ -9,7 +9,6 @@ the fluent API, validation, execution modes, error handling, and reporting.
 import os
 import unittest
 from datetime import datetime
-from unittest.mock import Mock
 
 from pipeline_builder.errors import StepError
 from pipeline_builder.logging import PipelineLogger
@@ -149,11 +148,13 @@ class TestPipelineBuilder(unittest.TestCase):
         # mock-spark 3.11.0+ requires active SparkSession for function calls (like PySpark)
         if MockF is not None:
             from mock_spark import SparkSession
+
             self.spark = SparkSession("TestApp")
         else:
             # For PySpark, create a real SparkSession
             from pyspark.sql import SparkSession
             import tempfile
+
             warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
             self.spark = (
                 SparkSession.builder.appName("TestApp")
@@ -517,11 +518,13 @@ class TestPipelineBuilderIntegration(unittest.TestCase):
         # mock-spark 3.11.0+ requires active SparkSession for function calls (like PySpark)
         if MockF is not None:
             from mock_spark import SparkSession
+
             self.spark = SparkSession("TestApp")
         else:
             # For PySpark, create a real SparkSession
             from pyspark.sql import SparkSession
             import tempfile
+
             warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
             self.spark = (
                 SparkSession.builder.appName("TestApp")

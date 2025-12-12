@@ -14,6 +14,10 @@ import pytest
 # Mark all tests in this module as requiring PySpark
 pytestmark = pytest.mark.pyspark_compat
 
+# Skip all tests in this module if SPARK_MODE is not "real"
+if os.environ.get("SPARK_MODE", "mock").lower() != "real":
+    pytestmark = pytest.mark.skip(reason="PySpark compatibility tests require SPARK_MODE=real")
+
 
 @pytest.fixture(scope="module")
 def pyspark_available():

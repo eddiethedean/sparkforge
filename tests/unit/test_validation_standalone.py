@@ -147,6 +147,7 @@ class TestConvertRuleToExpression:
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             from pyspark.sql import functions
+
             mock_functions = functions
         else:
             mock_functions = Functions()
@@ -159,6 +160,7 @@ class TestConvertRuleToExpression:
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             from pyspark.sql import functions
+
             mock_functions = functions
         else:
             mock_functions = Functions()
@@ -171,6 +173,7 @@ class TestConvertRuleToExpression:
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             from pyspark.sql import functions
+
             mock_functions = functions
         else:
             mock_functions = Functions()
@@ -183,16 +186,18 @@ class TestConvertRuleToExpression:
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             from pyspark.sql import functions
+
             mock_functions = functions
             # PySpark's F.expr() expects SQL, not Python code
             expr = _convert_rule_to_expression(
                 "user_id IS NOT NULL", "user_id", mock_functions
             )
         else:
-            mock_functions = Functions()
-            # For mock-spark, Python-like expression works
+            # Use functions module instead of Functions() class (deprecated in mock-spark 3.12.0+)
+            from mock_spark.sql import functions as mock_functions
+            # For mock-spark, use SQL expression (Python-like expressions may not work)
             expr = _convert_rule_to_expression(
-                "col('user_id').isNotNull()", "user_id", mock_functions
+                "user_id IS NOT NULL", "user_id", mock_functions
             )
         assert expr is not None
 
@@ -206,6 +211,7 @@ class TestConvertRulesToExpressions:
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             from pyspark.sql import functions
+
             mock_functions = functions
         else:
             mock_functions = Functions()
@@ -220,6 +226,7 @@ class TestConvertRulesToExpressions:
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             from pyspark.sql import functions
+
             mock_functions = functions
         else:
             mock_functions = Functions()
@@ -235,6 +242,7 @@ class TestConvertRulesToExpressions:
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             from pyspark.sql import functions
+
             mock_functions = functions
         else:
             mock_functions = Functions()
@@ -251,6 +259,7 @@ class TestAndAllRules:
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             from pyspark.sql import functions
+
             mock_functions = functions
         else:
             mock_functions = Functions()
@@ -263,6 +272,7 @@ class TestAndAllRules:
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             from pyspark.sql import functions
+
             mock_functions = functions
         else:
             mock_functions = Functions()
@@ -276,6 +286,7 @@ class TestAndAllRules:
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             from pyspark.sql import functions
+
             mock_functions = functions
         else:
             mock_functions = Functions()
@@ -295,6 +306,7 @@ class TestApplyColumnRules:
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             from pyspark.sql import functions
+
             mock_functions = functions
         else:
             mock_functions = Functions()
@@ -331,6 +343,7 @@ class TestApplyColumnRules:
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             from pyspark.sql import functions
+
             mock_functions = functions
         else:
             mock_functions = Functions()
@@ -367,6 +380,7 @@ class TestApplyColumnRules:
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             from pyspark.sql import functions
+
             mock_functions = functions
         else:
             mock_functions = Functions()
@@ -394,6 +408,7 @@ class TestAssessDataQuality:
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             from pyspark.sql import functions
+
             mock_functions = functions
         else:
             mock_functions = Functions()
@@ -428,6 +443,7 @@ class TestAssessDataQuality:
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             from pyspark.sql import functions
+
             mock_functions = functions
         else:
             mock_functions = Functions()
@@ -464,6 +480,7 @@ class TestAssessDataQuality:
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             from pyspark.sql import functions
+
             mock_functions = functions
         else:
             mock_functions = Functions()

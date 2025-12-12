@@ -335,9 +335,9 @@ class SqlLogWriter(BaseLogWriter):
             create_schema_if_not_exists(self.session, self.schema)
 
             # Create table
-            metadata.create_all(
-                self.session.bind if hasattr(self.session, "bind") else None
-            )
+            bind = self.session.bind if hasattr(self.session, "bind") else None
+            if bind is not None:
+                metadata.create_all(bind)
             self.session.commit()
 
             self.logger.info(f"Created log table {self.table_fqn}")

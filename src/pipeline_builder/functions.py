@@ -18,15 +18,15 @@ from .compat import Column
 class FunctionsProtocol(Protocol):
     """Protocol for PySpark functions interface."""
 
-    def col(self, col_name: str) -> Column:  # type: ignore[valid-type]
+    def col(self, col_name: str) -> Column:
         """Create a column reference."""
         ...
 
-    def expr(self, expr: str) -> Column:  # type: ignore[valid-type]
+    def expr(self, expr: str) -> Column:
         """Create an expression from a string."""
         ...
 
-    def lit(self, value: Union[str, int] | Union[float, Optional[bool]]) -> Column:  # type: ignore[valid-type]
+    def lit(self, value: Union[str, int] | Union[float, Optional[bool]]) -> Column:
         """Create a literal column."""
         ...
 
@@ -34,47 +34,47 @@ class FunctionsProtocol(Protocol):
         self,
         condition: Column,
         value: Union[str, int] | Union[float, Optional[bool]],
-    ) -> Column:  # type: ignore[valid-type]
+    ) -> Column:
         """Create a conditional expression."""
         ...
 
-    def count(self, col: Union[str, Column] = "*") -> Column:  # type: ignore[valid-type]
+    def count(self, col: Union[str, Column] = "*") -> Column:
         """Create a count aggregation."""
         ...
 
-    def countDistinct(self, *cols: Union[str, Column]) -> Column:  # type: ignore[valid-type]
+    def countDistinct(self, *cols: Union[str, Column]) -> Column:
         """Create a count distinct aggregation."""
         ...
 
-    def sum(self, col: Union[str, Column]) -> Column:  # type: ignore[valid-type]
+    def sum(self, col: Union[str, Column]) -> Column:
         """Create a sum aggregation."""
         ...
 
-    def max(self, col: Union[str, Column]) -> Column:  # type: ignore[valid-type]
+    def max(self, col: Union[str, Column]) -> Column:
         """Create a max aggregation."""
         ...
 
-    def min(self, col: Union[str, Column]) -> Column:  # type: ignore[valid-type]
+    def min(self, col: Union[str, Column]) -> Column:
         """Create a min aggregation."""
         ...
 
-    def avg(self, col: Union[str, Column]) -> Column:  # type: ignore[valid-type]
+    def avg(self, col: Union[str, Column]) -> Column:
         """Create an average aggregation."""
         ...
 
-    def length(self, col: Union[str, Column]) -> Column:  # type: ignore[valid-type]
+    def length(self, col: Union[str, Column]) -> Column:
         """Create a length function."""
         ...
 
-    def date_trunc(self, format: str, col: Union[str, Column]) -> Column:  # type: ignore[valid-type]
+    def date_trunc(self, format: str, col: Union[str, Column]) -> Column:
         """Create a date truncation function."""
         ...
 
-    def dayofweek(self, col: Union[str, Column]) -> Column:  # type: ignore[valid-type]
+    def dayofweek(self, col: Union[str, Column]) -> Column:
         """Create a day of week function."""
         ...
 
-    def current_timestamp(self) -> Column:  # type: ignore[valid-type]
+    def current_timestamp(self) -> Column:
         """Create a current timestamp function."""
         ...
 

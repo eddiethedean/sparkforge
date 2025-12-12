@@ -186,8 +186,14 @@ class TestStepExecutionFlow:
 
         # Create test data with explicit schema
         import os
+
         if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-            from pyspark.sql.types import IntegerType, StructField, StructType, StringType
+            from pyspark.sql.types import (
+                IntegerType,
+                StructField,
+                StructType,
+                StringType,
+            )
         else:
             from mock_spark import IntegerType, StructField, StructType, StringType
 

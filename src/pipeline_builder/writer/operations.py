@@ -55,7 +55,7 @@ class DataProcessor:
 
     def __init__(
         self,
-        spark: SparkSession,  # type: ignore[valid-type]
+        spark: SparkSession,
         functions: Optional[FunctionsProtocol] = None,
         logger: Optional[PipelineLogger] = None,
     ):
@@ -199,7 +199,7 @@ class DataProcessor:
             self.logger.error(f"Failed to process step results: {e}")
             raise
 
-    def create_dataframe_from_log_rows(self, log_rows: list[LogRow]) -> DataFrame:  # type: ignore[valid-type]
+    def create_dataframe_from_log_rows(self, log_rows: list[LogRow]) -> DataFrame:
         """
         Create DataFrame from log rows.
 
@@ -251,10 +251,10 @@ class DataProcessor:
 
             # Create DataFrame with explicit schema for type safety and None value handling
             schema = create_log_schema()
-            df = self.spark.createDataFrame(log_data, schema)  # type: ignore[attr-defined]
+            df = self.spark.createDataFrame(log_data, schema)
 
             self.logger.info("Successfully created DataFrame from log rows")
-            return cast(DataFrame, df)  # type: ignore[valid-type]
+            return df
 
         except Exception as e:
             self.logger.error(f"Failed to create DataFrame from log rows: {e}")
@@ -281,15 +281,15 @@ class DataProcessor:
             null_counts = {}
 
             for col_name in critical_columns:
-                if col_name in df.columns:  # type: ignore[attr-defined]
+                if col_name in df.columns:
                     null_count = df.filter(
-                        self.functions.col(col_name).isNull()  # type: ignore[attr-defined]
+                        self.functions.col(col_name).isNull()
                     ).count()
                     null_counts[col_name] = null_count
 
             # Check validation rates
             validation_issues = []
-            if "validation_rate" in df.columns:  # type: ignore[attr-defined]
+            if "validation_rate" in df.columns:
                 low_validation = df.filter(
                     self.functions.col("validation_rate") < 95.0
                 ).count()
@@ -300,8 +300,8 @@ class DataProcessor:
 
             # Check for failed executions
             failed_executions = 0
-            if "success" in df.columns:  # type: ignore[attr-defined]
-                failed_executions = df.filter(~self.functions.col("success")).count()  # type: ignore[attr-defined]
+            if "success" in df.columns:
+                failed_executions = df.filter(~self.functions.col("success")).count()
 
             validation_result = {
                 "is_valid": len(validation_issues) == 0 and failed_executions == 0,
@@ -361,7 +361,7 @@ class DataProcessor:
         except Exception:
             return 0.0
 
-    def apply_data_transformations(self, df: DataFrame) -> DataFrame:  # type: ignore[valid-type]
+    def apply_data_transformations(self, df: DataFrame) -> DataFrame:
         """
         Apply data transformations to the DataFrame.
 
@@ -397,7 +397,7 @@ class DataProcessor:
 
             from ..compat import DataFrame
 
-            return cast(DataFrame, df_transformed)  # type: ignore[valid-type]
+            return cast(DataFrame, df_transformed)
 
         except Exception as e:
             self.logger.error(f"Failed to apply data transformations: {e}")

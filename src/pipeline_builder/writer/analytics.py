@@ -221,11 +221,11 @@ class DataQualityAnalyzer:
 
             # Use query builder for quality trends
             quality_trends_df = QueryBuilder.build_quality_trends_query(df, days)
-            quality_trends = quality_trends_df.collect()  # type: ignore[attr-defined]
+            quality_trends = quality_trends_df.collect()
 
             # Use query builder for overall metrics
             overall_metrics_df = QueryBuilder.build_overall_metrics_query(df, days)
-            overall_metrics = overall_metrics_df.collect()[0]  # type: ignore[attr-defined]
+            overall_metrics = overall_metrics_df.collect()[0]
 
             # Detect quality degradation
             degradation_alerts = []
@@ -352,7 +352,7 @@ class DataQualityAnalyzer:
 
             # Detect temporal anomalies using query builder
             temporal_anomalies_df = QueryBuilder.build_temporal_anomaly_query(df)
-            temporal_anomalies = temporal_anomalies_df.collect()  # type: ignore[attr-defined]
+            temporal_anomalies = temporal_anomalies_df.collect()
 
             anomaly_result = {
                 "validation_anomalies": [
@@ -498,13 +498,13 @@ class TrendAnalyzer:
 
             # Use query builder for all trend analyses
             volume_trends_df = QueryBuilder.build_daily_trends_query(df, days)
-            volume_trends = volume_trends_df.collect()  # type: ignore[attr-defined]
+            volume_trends = volume_trends_df.collect()
 
             phase_trends_df = QueryBuilder.build_phase_trends_query(df, days)
-            phase_trends = phase_trends_df.collect()  # type: ignore[attr-defined]
+            phase_trends = phase_trends_df.collect()
 
             step_trends_df = QueryBuilder.build_step_trends_query(df, days)
-            step_trends = step_trends_df.collect()  # type: ignore[attr-defined]
+            step_trends = step_trends_df.collect()
 
             # Calculate trend indicators
             trend_indicators = self._calculate_trend_indicators(

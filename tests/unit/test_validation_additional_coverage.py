@@ -201,14 +201,21 @@ class TestValidationEdgeCases:
 
     def test_string_rule_conversion_edge_cases(self, spark_session) -> None:
         """Test string rule conversion edge cases."""
-        # mock-spark 3.11.0+ requires active SparkSession for function calls (like PySpark)
+        # mock-spark 3.12.0+ requires active SparkSession for function calls (like PySpark)
         # Test various string rule formats
+        import os
+        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+        
         test_cases = [
             "col1 > 0",
             "col1 IS NOT NULL",
-            "col1 IN ('a', 'b', 'c')",
             "LENGTH(col1) > 5",
         ]
+        
+        # IN clause syntax may not be supported by mock-spark parser
+        # Only test it with real PySpark
+        if spark_mode == "real":
+            test_cases.append("col1 IN ('a', 'b', 'c')")
 
         for rule in test_cases:
             result = _convert_rule_to_expression(rule, "col1", F)

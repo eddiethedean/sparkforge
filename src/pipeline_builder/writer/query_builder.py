@@ -44,15 +44,15 @@ class QueryBuilder:
             functions.col("created_at")
             >= functions.lit(start_date.strftime("%Y-%m-%d"))
         )
-        return cast(DataFrame, result)  # type: ignore[valid-type]
+        return result
 
     @staticmethod
     def add_date_column(
-        df: DataFrame,  # type: ignore[valid-type]
+        df: DataFrame,
         date_column: str = "created_at",
         output_column: str = "date",
         format: str = "yyyy-MM-dd",
-    ) -> DataFrame:  # type: ignore[valid-type]
+    ) -> DataFrame:
         """
         Add formatted date column to DataFrame.
 
@@ -68,7 +68,7 @@ class QueryBuilder:
         result = df.withColumn(
             output_column, functions.date_format(functions.col(date_column), format)
         )
-        return cast(DataFrame, result)  # type: ignore[valid-type]
+        return result
 
     @staticmethod
     def get_common_aggregations() -> Dict[str, Any]:
@@ -202,7 +202,7 @@ class QueryBuilder:
             .agg(**aggs)
             .orderBy("date")
         )
-        return cast(DataFrame, result)  # type: ignore[valid-type]
+        return result
 
     @staticmethod
     def build_phase_trends_query(
@@ -223,7 +223,7 @@ class QueryBuilder:
         aggs = QueryBuilder.get_performance_aggregations()
 
         result = filtered_df.groupBy("phase").agg(**aggs).orderBy("phase")
-        return cast(DataFrame, result)  # type: ignore[valid-type]
+        return result
 
     @staticmethod
     def build_step_trends_query(
@@ -248,7 +248,7 @@ class QueryBuilder:
             .agg(**aggs)
             .orderBy(functions.desc("avg_execution_time"))
         )
-        return cast(DataFrame, result)  # type: ignore[valid-type]
+        return result
 
     @staticmethod
     def build_quality_trends_query(
@@ -294,7 +294,7 @@ class QueryBuilder:
         aggs = QueryBuilder.get_quality_aggregations()
 
         result = filtered_df.agg(**aggs)
-        return cast(DataFrame, result)  # type: ignore[valid-type]
+        return result
 
     @staticmethod
     def build_anomaly_detection_query(
@@ -314,7 +314,7 @@ class QueryBuilder:
             DataFrame with anomalies
         """
         result = df.filter(functions.col(threshold_column) < threshold_value)  # type: ignore[attr-defined]
-        return cast(DataFrame, result)  # type: ignore[valid-type]
+        return result
 
     @staticmethod
     def build_performance_anomaly_query(
@@ -336,7 +336,7 @@ class QueryBuilder:
             | (functions.col("validation_rate") < 80.0)
             | (~functions.col("success"))
         )
-        return cast(DataFrame, result)  # type: ignore[valid-type]
+        return result
 
     @staticmethod
     def build_quality_anomaly_query(
@@ -354,7 +354,7 @@ class QueryBuilder:
             DataFrame with quality anomalies
         """
         result = df.filter(functions.col("validation_rate") < quality_threshold)  # type: ignore[attr-defined]
-        return cast(DataFrame, result)  # type: ignore[valid-type]
+        return result
 
     @staticmethod
     def build_temporal_anomaly_query(
@@ -396,7 +396,7 @@ class QueryBuilder:
             .filter(functions.col("quality_change") < change_threshold)
             .orderBy("quality_change")
         )
-        return cast(DataFrame, result)  # type: ignore[valid-type]
+        return result
 
     @staticmethod
     def calculate_statistics(
@@ -460,4 +460,4 @@ class QueryBuilder:
             .agg(**aggs)
             .orderBy("date")
         )
-        return cast(DataFrame, result)  # type: ignore[valid-type]
+        return result

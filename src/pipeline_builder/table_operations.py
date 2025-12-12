@@ -141,7 +141,7 @@ def read_table(
     try:
         df = spark.table(fqn)  # type: ignore[attr-defined]
         logger.info(f"Successfully read table {fqn}")
-        return cast(DataFrame, df)  # type: ignore[valid-type]
+        return df
     except AnalysisException as e:
         raise TableOperationError(f"Table {fqn} does not exist: {e}") from e
     except Exception as e:

@@ -89,7 +89,9 @@ class TestDataQualityPipeline:
                 df.withColumn(
                     "transaction_date_parsed",
                     F.to_timestamp(
-                        F.regexp_replace(F.col("transaction_date"), r"\.\d+", "").cast("string"),
+                        F.regexp_replace(F.col("transaction_date"), r"\.\d+", "").cast(
+                            "string"
+                        ),
                         "yyyy-MM-dd'T'HH:mm:ss",
                     ),
                 )
@@ -493,8 +495,15 @@ class TestDataQualityPipeline:
         )
 
         # Setup schemas
-        spark_session.storage.create_schema("bronze")
-        spark_session.storage.create_schema("silver")
+        def create_schema_if_not_exists(spark, schema_name: str):
+            """Create a schema using the appropriate method for mock-spark or PySpark."""
+            if hasattr(spark, "storage") and hasattr(spark.storage, "create_schema"):
+                spark.storage.create_schema(schema_name)
+            else:
+                spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+        
+        create_schema_if_not_exists(spark_session, "bronze")
+        create_schema_if_not_exists(spark_session, "silver")
 
         def normalized_source_a_transform(spark, df, silvers):
             return (
@@ -505,7 +514,8 @@ class TestDataQualityPipeline:
                 .withColumn(
                     "transaction_date_parsed",
                     F.to_timestamp(
-                        F.col("transaction_date_clean").cast("string"), "yyyy-MM-dd'T'HH:mm:ss"
+                        F.col("transaction_date_clean").cast("string"),
+                        "yyyy-MM-dd'T'HH:mm:ss",
                     ),
                 )
                 .drop("transaction_date_clean")

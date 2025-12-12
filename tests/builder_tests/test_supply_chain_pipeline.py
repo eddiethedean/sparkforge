@@ -107,7 +107,9 @@ class TestSupplyChainPipeline:
                 df.withColumn(
                     "order_date_parsed",
                     F.to_timestamp(
-                        F.regexp_replace(F.col("order_date"), r"\.\d+", "").cast("string"),
+                        F.regexp_replace(F.col("order_date"), r"\.\d+", "").cast(
+                            "string"
+                        ),
                         "yyyy-MM-dd'T'HH:mm:ss",
                     ),
                 )
@@ -156,14 +158,18 @@ class TestSupplyChainPipeline:
                 df.withColumn(
                     "shipping_date_parsed",
                     F.to_timestamp(
-                        F.regexp_replace(F.col("shipping_date"), r"\.\d+", "").cast("string"),
+                        F.regexp_replace(F.col("shipping_date"), r"\.\d+", "").cast(
+                            "string"
+                        ),
                         "yyyy-MM-dd'T'HH:mm:ss",
                     ),
                 )
                 .withColumn(
                     "delivery_date_parsed",
                     F.to_timestamp(
-                        F.regexp_replace(F.col("delivery_date"), r"\.\d+", "").cast("string"),
+                        F.regexp_replace(F.col("delivery_date"), r"\.\d+", "").cast(
+                            "string"
+                        ),
                         "yyyy-MM-dd'T'HH:mm:ss",
                     ),
                 )
@@ -222,7 +228,9 @@ class TestSupplyChainPipeline:
                 df.withColumn(
                     "snapshot_date_parsed",
                     F.to_timestamp(
-                        F.regexp_replace(F.col("snapshot_date"), r"\.\d+", "").cast("string"),
+                        F.regexp_replace(F.col("snapshot_date"), r"\.\d+", "").cast(
+                            "string"
+                        ),
                         "yyyy-MM-dd'T'HH:mm:ss",
                     ),
                 )
@@ -493,7 +501,10 @@ class TestSupplyChainPipeline:
                 )
                 .withColumn(
                     "order_date_parsed",
-                    F.to_timestamp(F.col("order_date_clean").cast("string"), "yyyy-MM-dd'T'HH:mm:ss"),
+                    F.to_timestamp(
+                        F.col("order_date_clean").cast("string"),
+                        "yyyy-MM-dd'T'HH:mm:ss",
+                    ),
                 )
                 .drop("order_date_clean")
             )
@@ -527,9 +538,7 @@ class TestSupplyChainPipeline:
         test_assertions.assert_pipeline_success(result2)
         assert result2.mode.value == "incremental"
 
-    def test_supply_chain_logging(
-        self, spark_session, data_generator, test_assertions
-    ):
+    def test_supply_chain_logging(self, spark_session, data_generator, test_assertions):
         """Test comprehensive logging for supply chain pipeline."""
 
         # Create test data
@@ -567,7 +576,10 @@ class TestSupplyChainPipeline:
                 )
                 .withColumn(
                     "order_date_parsed",
-                    F.to_timestamp(F.col("order_date_clean").cast("string"), "yyyy-MM-dd'T'HH:mm:ss"),
+                    F.to_timestamp(
+                        F.col("order_date_clean").cast("string"),
+                        "yyyy-MM-dd'T'HH:mm:ss",
+                    ),
                 )
                 .drop("order_date_clean")
             )

@@ -2,6 +2,14 @@
 Simple test to verify basic pipeline execution without complex validation.
 """
 
+import os
+
+import pytest
+
+# Skip all tests in this module if SPARK_MODE is not "real"
+if os.environ.get("SPARK_MODE", "mock").lower() != "real":
+    pytestmark = pytest.mark.skip(reason="PySpark-specific tests require SPARK_MODE=real")
+
 from pipeline_builder.pipeline import PipelineBuilder
 
 

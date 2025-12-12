@@ -33,7 +33,7 @@ def _convert_rule_to_expression(
     rule: Union[str, list],
     column_name: str,
     functions: Optional[FunctionsProtocol] = None,
-) -> Column:  # type: ignore[valid-type]
+) -> Column:
     """Convert a string rule to a PySpark Column expression."""
     if functions is None:
         functions = get_default_functions()
@@ -49,22 +49,22 @@ def _convert_rule_to_expression(
             op, value = rule
             if op == "gt":
                 result = functions.col(column_name) > value
-                return cast(Column, result)  # type: ignore[valid-type]
+                return result
             elif op == "gte":
                 result = functions.col(column_name) >= value
-                return cast(Column, result)  # type: ignore[valid-type]
+                return result
             elif op == "lt":
                 result = functions.col(column_name) < value
-                return cast(Column, result)  # type: ignore[valid-type]
+                return result
             elif op == "lte":
                 result = functions.col(column_name) <= value
-                return cast(Column, result)  # type: ignore[valid-type]
+                return result
             elif op == "eq":
                 result = functions.col(column_name) == value
-                return cast(Column, result)  # type: ignore[valid-type]
+                return result
             elif op == "ne":
                 result = functions.col(column_name) != value
-                return cast(Column, result)  # type: ignore[valid-type]
+                return result
             else:
                 # For unknown operators, assume it's a valid PySpark expression
                 return functions.expr(f"{column_name} {op} {value}")
@@ -72,7 +72,7 @@ def _convert_rule_to_expression(
             op, min_val, max_val = rule
             if op == "between":
                 result = functions.col(column_name).between(min_val, max_val)
-                return cast(Column, result)  # type: ignore[valid-type]
+                return result
             else:
                 # For unknown operators, assume it's a valid PySpark expression
                 return functions.expr(f"{column_name} {op} {min_val} {max_val}")
@@ -83,13 +83,13 @@ def _convert_rule_to_expression(
     # Handle string-based rules
     if rule == "not_null":
         result = functions.col(column_name).isNotNull()
-        return cast(Column, result)  # type: ignore[valid-type]
+        return result
     elif rule == "positive":
         result = functions.col(column_name) > 0
-        return cast(Column, result)  # type: ignore[valid-type]
+        return result
     elif rule == "non_negative":
         result = functions.col(column_name) >= 0
-        return cast(Column, result)  # type: ignore[valid-type]
+        return result
     elif rule == "non_zero":
         return functions.col(column_name) != 0
     else:
@@ -121,7 +121,7 @@ def _convert_rules_to_expressions(
 
 def and_all_rules(
     rules: ColumnRules,
-    functions: Optional[FunctionsProtocol] = None,  # type: ignore[valid-type]
+    functions: Optional[FunctionsProtocol] = None,
 ) -> Union[Column, bool]:
     """Combine all validation rules with AND logic."""
     if not rules:
@@ -142,16 +142,17 @@ def and_all_rules(
     column_expressions = []
     for expr in expressions:
         # Check if it's a Column-like object (has column operations)
-        if (
-            hasattr(expr, "__and__")
-            and hasattr(expr, "__invert__")
-            and not isinstance(expr, str)
-        ):
-            column_expressions.append(expr)
+        if isinstance(expr, str):
+            column_expressions.append(functions.expr(expr))
         elif isinstance(expr, Column):
             column_expressions.append(expr)
-        elif isinstance(expr, str):
-            column_expressions.append(functions.expr(expr))
+        elif (
+            hasattr(expr, "__and__")
+            and hasattr(expr, "__invert__")
+        ):
+            # This handles Column-like objects that aren't str or Column
+            # The isinstance(expr, str) check above already filtered out strings
+            column_expressions.append(expr)
 
     if not column_expressions:
         return True
@@ -164,8 +165,8 @@ def and_all_rules(
 
 
 def apply_column_rules(
-    df: DataFrame,  # type: ignore[valid-type]
-    rules: ColumnRules,  # type: ignore[valid-type]
+    df: DataFrame,
+    rules: ColumnRules,
     stage: str,
     step: str,
     filter_columns_by_rules: bool = True,
@@ -189,7 +190,7 @@ def apply_column_rules(
 
     # Handle empty rules - return all rows as valid
     if not rules:
-        total_rows = df.count()  # type: ignore[attr-defined]
+        total_rows = df.count()
         duration = time.time() - time.time()  # 0 duration
         stats = StageStats(
             stage=stage,
@@ -202,12 +203,12 @@ def apply_column_rules(
         )
         return (
             df,
-            df.limit(0),  # type: ignore[attr-defined]
+            df.limit(0),
             stats,
         )  # Return original df as valid, empty df as invalid
 
     # Validate that all columns referenced in rules exist in the DataFrame
-    df_columns = set(df.columns)  # type: ignore[attr-defined]
+    df_columns = set(df.columns)
     rule_columns = set(rules.keys())
     missing_columns = rule_columns - df_columns
 
@@ -230,8 +231,8 @@ def apply_column_rules(
     if validation_predicate is True:
         # No validation rules, return all data as valid
         valid_df = df
-        invalid_df = df.limit(0)  # type: ignore[attr-defined]  # Empty DataFrame with same schema
-        total_rows = df.count()  # type: ignore[attr-defined]
+        invalid_df = df.limit(0)  # Empty DataFrame with same schema
+        total_rows = df.count()
         valid_rows = total_rows
         invalid_rows = 0
     elif isinstance(validation_predicate, Column) or (
@@ -240,16 +241,16 @@ def apply_column_rules(
         and not isinstance(validation_predicate, bool)
     ):
         # Handle PySpark Column expressions
-        valid_df = df.filter(validation_predicate)  # type: ignore[attr-defined]
-        invalid_df = df.filter(~validation_predicate)  # type: ignore[attr-defined]
-        total_rows = df.count()  # type: ignore[attr-defined]
-        valid_rows = valid_df.count()  # type: ignore[attr-defined]
-        invalid_rows = invalid_df.count()  # type: ignore[attr-defined]
+        valid_df = df.filter(validation_predicate)
+        invalid_df = df.filter(~validation_predicate)
+        total_rows = df.count()
+        valid_rows = valid_df.count()
+        invalid_rows = invalid_df.count()
     else:
         # Handle boolean False case (shouldn't happen with current logic)
-        valid_df = df.limit(0)  # type: ignore[attr-defined]
+        valid_df = df.limit(0)
         invalid_df = df
-        total_rows = df.count()  # type: ignore[attr-defined]
+        total_rows = df.count()
         valid_rows = 0
         invalid_rows = total_rows
 
@@ -291,14 +292,14 @@ def validate_dataframe_schema(
     expected_columns: list[str],
 ) -> bool:
     """Validate that DataFrame has expected columns."""
-    actual_columns = set(df.columns)  # type: ignore[attr-defined]
+    actual_columns = set(df.columns)
     expected_set = set(expected_columns)
     missing_columns = expected_set - actual_columns
     return len(missing_columns) == 0
 
 
 def assess_data_quality(
-    df: DataFrame,  # type: ignore[valid-type]
+    df: DataFrame,
     rules: Optional[ColumnRules] = None,
     functions: Optional[FunctionsProtocol] = None,
 ) -> Dict[str, Any]:
@@ -313,7 +314,7 @@ def assess_data_quality(
         Dictionary with quality metrics
     """
     try:
-        total_rows = df.count()  # type: ignore[attr-defined]
+        total_rows = df.count()
 
         if total_rows == 0:
             return {

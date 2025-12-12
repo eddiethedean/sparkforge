@@ -29,12 +29,12 @@ class StepValidator:
         """
         self.logger = logger or PipelineLogger()
 
-    def validate_step_name(self, name: str, step_type: str = "step") -> List[str]:
+    def validate_step_name(self, name: Any, step_type: str = "step") -> List[str]:
         """
         Validate step name format.
 
         Args:
-            name: Step name to validate
+            name: Step name to validate (can be any type, will be validated)
             step_type: Type of step (bronze/silver/gold) for error messages
 
         Returns:
@@ -42,10 +42,10 @@ class StepValidator:
         """
         errors: List[str] = []
 
-        if not name:
-            errors.append(f"{step_type.capitalize()} step name cannot be empty")
-        elif not isinstance(name, str):
+        if not isinstance(name, str):
             errors.append(f"{step_type.capitalize()} step name must be a string")
+        elif not name:
+            errors.append(f"{step_type.capitalize()} step name cannot be empty")
         elif not name.strip():
             errors.append(
                 f"{step_type.capitalize()} step name cannot be whitespace only"

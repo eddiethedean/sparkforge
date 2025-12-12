@@ -50,12 +50,15 @@ def system_spark_session():
         )
 
         spark = configure_spark_with_delta_pip(builder).getOrCreate()
-        
+
         # Verify and set Delta catalog if not already set
         try:
             current_catalog = spark.conf.get("spark.sql.catalog.spark_catalog", None)  # type: ignore[attr-defined]
             if current_catalog != "org.apache.spark.sql.delta.catalog.DeltaCatalog":
-                spark.conf.set("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")  # type: ignore[attr-defined]
+                spark.conf.set(
+                    "spark.sql.catalog.spark_catalog",
+                    "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+                )  # type: ignore[attr-defined]
         except Exception:
             pass  # Ignore if we can't set it
     except Exception as e:

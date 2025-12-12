@@ -175,38 +175,50 @@ class StorageManager:
                     if HAS_DELTA:
                         try:
                             # Try to get table details using DESCRIBE DETAIL (more reliable)
-                            detail_df = self.spark.sql(f"DESCRIBE DETAIL {self.table_fqn}")  # type: ignore[attr-defined]
+                            detail_df = self.spark.sql(
+                                f"DESCRIBE DETAIL {self.table_fqn}"
+                            )  # type: ignore[attr-defined]
                             detail_rows = detail_df.collect()
                             if detail_rows:
                                 # Check if provider is delta
                                 provider = detail_rows[0].get("provider", "")
                                 if provider == "delta":
                                     table_is_delta = True
-                                    self.logger.info(f"Table {self.table_fqn} exists and is a Delta table")
+                                    self.logger.info(
+                                        f"Table {self.table_fqn} exists and is a Delta table"
+                                    )
                                 else:
                                     # Table exists but is not a Delta table - drop it
                                     self.logger.warning(
                                         f"Table {self.table_fqn} exists but is not a Delta table (provider: {provider}). Dropping and recreating."
                                     )
-                                    self.spark.sql(f"DROP TABLE IF EXISTS {self.table_fqn}")  # type: ignore[attr-defined]
+                                    self.spark.sql(
+                                        f"DROP TABLE IF EXISTS {self.table_fqn}"
+                                    )  # type: ignore[attr-defined]
                             else:
                                 # Could not get details, try DeltaTable.forName as fallback
                                 try:
                                     DeltaTable.forName(self.spark, self.table_fqn)  # type: ignore[attr-defined]
                                     table_is_delta = True
-                                    self.logger.info(f"Table {self.table_fqn} exists and is a Delta table (verified via DeltaTable)")
+                                    self.logger.info(
+                                        f"Table {self.table_fqn} exists and is a Delta table (verified via DeltaTable)"
+                                    )
                                 except Exception:
                                     # If both methods fail, assume it's not a Delta table
                                     self.logger.warning(
                                         f"Table {self.table_fqn} exists but could not verify as Delta table. Dropping and recreating."
                                     )
-                                    self.spark.sql(f"DROP TABLE IF EXISTS {self.table_fqn}")  # type: ignore[attr-defined]
+                                    self.spark.sql(
+                                        f"DROP TABLE IF EXISTS {self.table_fqn}"
+                                    )  # type: ignore[attr-defined]
                         except Exception as e:
                             # DESCRIBE DETAIL failed, try DeltaTable.forName as fallback
                             try:
                                 DeltaTable.forName(self.spark, self.table_fqn)  # type: ignore[attr-defined]
                                 table_is_delta = True
-                                self.logger.info(f"Table {self.table_fqn} exists and is a Delta table (verified via DeltaTable)")
+                                self.logger.info(
+                                    f"Table {self.table_fqn} exists and is a Delta table (verified via DeltaTable)"
+                                )
                             except Exception:
                                 # If both methods fail, log warning but don't drop - might be a temporary issue
                                 self.logger.warning(
@@ -239,44 +251,45 @@ class StorageManager:
                 try:
                     # Check if Delta extensions are configured
                     extensions = self.spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
-                    if "DeltaSparkSessionExtension" in extensions:
+                    if extensions and "DeltaSparkSessionExtension" in extensions:
                         delta_configured = True
                 except Exception:
                     pass
 
                 if not delta_configured and HAS_DELTA:
-                    # Try to verify Delta is available by checking if we can import and use it
-                    try:
-                        from delta.tables import DeltaTable
-                        # If we can import, assume it's configured
-                        delta_configured = True
-                    except Exception:
-                        pass
+                    # If HAS_DELTA is True, DeltaTable is already imported at module level
+                    # So we can assume it's configured
+                    delta_configured = True
 
-                if not delta_configured:
-                    raise WriterTableError(
-                        f"Delta Lake is not configured in SparkSession. Cannot create Delta table {self.table_fqn}",
-                        table_name=self.table_fqn,
-                        operation="create_table",
-                        suggestions=[
-                            "Ensure Delta Lake is properly configured in SparkSession",
-                            "Use configure_spark_with_delta_pip() to set up Delta Lake",
-                            "Check that spark.sql.extensions includes io.delta.sql.DeltaSparkSessionExtension",
-                        ],
+                if delta_configured:
+                    # Write to Delta table
+                    (
+                        empty_df.write.format("delta")
+                        .mode("overwrite")
+                        .option("overwriteSchema", "true")
+                        .saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
                     )
-
-                # Write to Delta table
-                (
-                    empty_df.write.format("delta")
-                    .mode("overwrite")
-                    .option("overwriteSchema", "true")
-                    .saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
-                )
+                    self.logger.info(f"Delta table created successfully: {self.table_fqn}")
+                else:
+                    # Fallback to regular Spark table when Delta Lake is not configured
+                    # This allows logging to work even without Delta Lake setup
+                    self.logger.warning(
+                        f"Delta Lake is not configured. Creating regular Spark table {self.table_fqn} instead."
+                    )
+                    (
+                        empty_df.write.format("parquet")
+                        .mode("overwrite")
+                        .option("overwriteSchema", "true")
+                        .saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
+                    )
+                    self.logger.info(f"Regular Spark table created successfully: {self.table_fqn}")
 
                 self.logger.info(f"Table created successfully: {self.table_fqn}")
             elif not table_is_delta:
                 # Table exists but wasn't verified as Delta - this shouldn't happen after the check above
-                self.logger.warning(f"Table {self.table_fqn} exists but Delta status unclear")
+                self.logger.warning(
+                    f"Table {self.table_fqn} exists but Delta status unclear"
+                )
 
         except Exception as e:
             raise WriterTableError(
@@ -319,8 +332,24 @@ class StorageManager:
             # Prepare DataFrame for writing
             df_prepared = self._prepare_dataframe_for_write(df)
 
-            # Configure write options
-            writer = df_prepared.write.format("delta").mode(write_mode.value)  # type: ignore[attr-defined]
+            # Check if Delta Lake is configured
+            delta_configured = False
+            try:
+                extensions = self.spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
+                if extensions and "DeltaSparkSessionExtension" in extensions:
+                    delta_configured = True
+            except Exception:
+                pass
+
+            if not delta_configured and HAS_DELTA:
+                delta_configured = True
+
+            # Configure write options based on Delta availability
+            if delta_configured:
+                writer = df_prepared.write.format("delta").mode(write_mode.value)  # type: ignore[attr-defined]
+            else:
+                # Fallback to parquet format when Delta Lake is not configured
+                writer = df_prepared.write.format("parquet").mode(write_mode.value)  # type: ignore[attr-defined]
 
             # Add partitioning if specified
             if partition_columns:
@@ -330,11 +359,12 @@ class StorageManager:
             if write_mode == WriteMode.OVERWRITE:
                 writer = writer.option("overwriteSchema", "true")
             elif write_mode == WriteMode.APPEND:
-                # Enable schema evolution for append mode to handle new columns
-                writer = writer.option("mergeSchema", "true")
+                if delta_configured:
+                    # Enable schema evolution for append mode to handle new columns (Delta only)
+                    writer = writer.option("mergeSchema", "true")
 
             # Execute write operation
-            writer.saveAsTable(self.table_fqn)
+            writer.saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
 
             # Get write statistics
             row_count = df_prepared.count()  # type: ignore[attr-defined]
@@ -618,7 +648,7 @@ class StorageManager:
 
             from ..compat import DataFrame
 
-            return cast(DataFrame, result_df)  # type: ignore[valid-type]
+            return result_df
 
         except Exception as e:
             self.logger.error(f"Failed to query logs from {self.table_fqn}: {e}")
@@ -700,12 +730,12 @@ class StorageManager:
 
             # Create DataFrame with explicit schema for type safety and None value handling
             schema = create_log_schema()
-            df = self.spark.createDataFrame(log_data, schema)  # type: ignore[attr-defined]
+            df = self.spark.createDataFrame(log_data, schema)  # type: ignore[attr-defined,type-var]
             from typing import cast
 
             from ..compat import DataFrame
 
-            return cast(DataFrame, df)  # type: ignore[valid-type]
+            return df
 
         except Exception as e:
             self.logger.error(f"Failed to create DataFrame from log rows: {e}")

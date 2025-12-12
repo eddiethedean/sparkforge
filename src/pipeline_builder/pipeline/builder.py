@@ -952,7 +952,7 @@ class PipelineBuilder(BasePipelineBuilder):
                 logger.error(error_msg)
                 raise TypeError(error_msg)
             return result
-        else:
+        else:  # type: ignore[misc]
             # Unexpected type - this is reachable at runtime even though
             # the type hint suggests it shouldn't be
             error_msg = (

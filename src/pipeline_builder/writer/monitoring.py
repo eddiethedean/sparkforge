@@ -19,7 +19,7 @@ from datetime import datetime
 from typing import Dict, Optional, TypedDict, cast
 
 try:
-    import psutil  # type: ignore[import-untyped]
+    import psutil
 
     HAS_PSUTIL = True
 except ImportError:
@@ -441,7 +441,7 @@ class AnalyticsEngine:
 
             # Success rate trend using query builder
             success_trend_df = QueryBuilder.build_daily_trends_query(df, 30)
-            success_trend = success_trend_df.collect()  # type: ignore[attr-defined]
+            success_trend = success_trend_df.collect()
 
             trends["success_rate_trend"] = [
                 {
@@ -458,7 +458,7 @@ class AnalyticsEngine:
 
             # Performance trends using query builder
             performance_trend_df = QueryBuilder.build_phase_trends_query(df, 30)
-            performance_trend = performance_trend_df.collect()  # type: ignore[attr-defined]
+            performance_trend = performance_trend_df.collect()
 
             trends["performance_by_phase"] = [
                 {
@@ -472,7 +472,7 @@ class AnalyticsEngine:
 
             # Data quality trends using query builder
             quality_trend_df = QueryBuilder.build_quality_trends_query(df, 30)
-            quality_trend = quality_trend_df.collect()  # type: ignore[attr-defined]
+            quality_trend = quality_trend_df.collect()
 
             trends["data_quality_trend"] = [
                 {
@@ -555,7 +555,7 @@ class AnalyticsEngine:
             ]
 
             # Calculate anomaly score
-            total_executions = df.count()  # type: ignore[attr-defined]
+            total_executions = df.count()
             anomaly_count = len(performance_anomalies) + len(quality_anomalies)
             anomaly_score = (
                 (anomaly_count / total_executions) * 100 if total_executions > 0 else 0
@@ -593,11 +593,11 @@ class AnalyticsEngine:
 
             # Phase-wise statistics using query builder
             phase_stats_df = QueryBuilder.build_phase_trends_query(df, 30)
-            phase_stats = phase_stats_df.collect()  # type: ignore[attr-defined]
+            phase_stats = phase_stats_df.collect()
 
             # Recent performance using query builder
             recent_performance_df = QueryBuilder.build_recent_performance_query(df, 7)
-            recent_performance = recent_performance_df.collect()  # type: ignore[attr-defined]
+            recent_performance = recent_performance_df.collect()
 
             report = {
                 "overall_statistics": {

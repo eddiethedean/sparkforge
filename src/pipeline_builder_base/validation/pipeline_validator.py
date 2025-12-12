@@ -251,7 +251,7 @@ class PipelineValidator:
 
         return errors
 
-    def validate_schema(self, schema: str) -> List[str]:
+    def validate_schema(self, schema: Any) -> List[str]:
         """
         Validate schema name format.
 

@@ -68,12 +68,14 @@ class StepStatus(Enum):
 # ============================================================================
 
 # Transform function types
+# Note: SparkSession, DataFrame, and Column are type aliases from compat.py
+# They work correctly at runtime and mypy understands them via TYPE_CHECKING
 TransformFunction = Callable[[SparkSession, DataFrame], DataFrame]
 BronzeTransformFunction = Callable[[SparkSession, DataFrame], DataFrame]
 SilverTransformFunction = Callable[
-    [SparkSession, DataFrame, Dict[str, DataFrame]], DataFrame  # type: ignore[valid-type]
+    [SparkSession, DataFrame, Dict[str, DataFrame]], DataFrame
 ]
-GoldTransformFunction = Callable[[SparkSession, Dict[str, DataFrame]], DataFrame]  # type: ignore[valid-type]
+GoldTransformFunction = Callable[[SparkSession, Dict[str, DataFrame]], DataFrame]
 
 # Filter function type
 FilterFunction = Callable[[DataFrame], DataFrame]

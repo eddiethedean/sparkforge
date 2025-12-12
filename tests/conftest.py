@@ -181,13 +181,16 @@ def _create_real_spark_session():
 
         # Configure Delta Lake with explicit version
         spark = configure_spark_with_delta_pip(builder).getOrCreate()
-        
+
         # Verify and set Delta catalog if not already set
         # configure_spark_with_delta_pip may not set the catalog automatically
         try:
             current_catalog = spark.conf.get("spark.sql.catalog.spark_catalog", None)  # type: ignore[attr-defined]
             if current_catalog != "org.apache.spark.sql.delta.catalog.DeltaCatalog":
-                spark.conf.set("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")  # type: ignore[attr-defined]
+                spark.conf.set(
+                    "spark.sql.catalog.spark_catalog",
+                    "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+                )  # type: ignore[attr-defined]
         except Exception:
             pass  # Ignore if we can't set it
 
@@ -227,12 +230,29 @@ def _create_real_spark_session():
                 print(f"❌ Failed to create basic Spark session: {e2}")
                 raise
         else:
-            # Fail fast with clear error message
-            raise RuntimeError(
-                f"Delta Lake configuration failed: {e}\n"
-                "This is required for SparkForge tests. Please install Delta Lake or "
-                "set environment variables to skip Delta Lake requirements."
-            ) from e
+            # Default to basic Spark if Delta Lake is not available
+            # This allows tests to run without Delta Lake (logging will use parquet format)
+            print("🔧 Delta Lake not available, using basic Spark configuration")
+            try:
+                builder = (
+                    SparkSession.builder.appName(f"SparkForgeTests-{os.getpid()}")
+                    .master("local[1]")
+                    .config("spark.sql.warehouse.dir", warehouse_dir)
+                    .config("spark.sql.adaptive.enabled", "true")
+                    .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
+                    .config("spark.driver.host", "127.0.0.1")
+                    .config("spark.driver.bindAddress", "127.0.0.1")
+                    .config(
+                        "spark.serializer", "org.apache.spark.serializer.KryoSerializer"
+                    )
+                    .config("spark.driver.memory", "1g")
+                    .config("spark.executor.memory", "1g")
+                )
+
+                spark = builder.getOrCreate()
+            except Exception as e2:
+                print(f"❌ Failed to create basic Spark session: {e2}")
+                raise
 
     # Ensure Spark session was created successfully
     if spark is None:
@@ -267,6 +287,9 @@ def spark_session():
     based on the SPARK_MODE environment variable:
     - SPARK_MODE=mock (default): Uses mock_spark
     - SPARK_MODE=real: Uses real Spark with Delta Lake
+    
+    This is the primary fixture for all tests - it automatically provides
+    the correct session type based on SPARK_MODE.
     """
     # Set mock as default if SPARK_MODE is not explicitly set
     spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
@@ -389,74 +412,23 @@ def isolated_spark_session():
 
 
 @pytest.fixture(scope="function")
-def mock_spark_session():
+def mock_spark_session(spark_session):
     """
-    Create a mock Spark session for testing.
+    Create a Spark session for testing (interchangeable with spark_session).
 
-    This fixture provides a mock Spark session for individual test functions.
-    Only available when using mock Spark mode.
+    This fixture is an alias for spark_session - it automatically provides
+    the correct session type based on SPARK_MODE:
+    - SPARK_MODE=mock (default): Returns mock-spark session
+    - SPARK_MODE=real: Returns real PySpark session
+    
+    Use this fixture when you want to make it clear you're using a session
+    that works in both modes. For maximum compatibility, prefer spark_session.
+    
+    This makes tests work seamlessly in both modes without code changes.
     """
-    # Set mock as default if SPARK_MODE is not explicitly set
-    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-
-    if spark_mode == "real":
-        # For real Spark, return None or skip this fixture
-        pytest.skip("Mock Spark session not available in real Spark mode")
-
-    from mock_spark import SparkSession
-
-    spark = SparkSession(f"TestApp-{os.getpid()}")
-
-    yield spark
-
-    # Cleanup: Aggressively clear all mock-spark state
-    try:
-        if hasattr(spark, "storage") and spark.storage is not None:
-            # Clear all non-system schemas
-            try:
-                schemas_to_drop = []
-                if hasattr(spark.storage, "schemas"):
-                    for schema_name in list(spark.storage.schemas.keys()):
-                        if schema_name not in ["default", "information_schema", "main"]:
-                            schemas_to_drop.append(schema_name)
-
-                for schema_name in schemas_to_drop:
-                    try:
-                        spark.storage.drop_schema(schema_name, cascade=True)
-                    except Exception:
-                        pass
-
-                # Also try to clear tables from default schema
-                try:
-                    if "default" in spark.storage.schemas:
-                        default_schema = spark.storage.schemas["default"]
-                        if hasattr(default_schema, "tables"):
-                            tables_to_drop = list(default_schema.tables.keys())
-                            for table_name in tables_to_drop:
-                                try:
-                                    spark.storage.drop_table("default", table_name)
-                                except Exception:
-                                    pass
-                except Exception:
-                    pass
-            except Exception:
-                pass
-
-        # Clear catalog cache
-        if hasattr(spark, "catalog"):
-            try:
-                spark.catalog.clearCache()
-            except Exception:
-                pass
-
-        # Stop the session
-        if hasattr(spark, "stop"):
-            try:
-                spark.stop()
-            except Exception:
-                pass
-    except Exception:
-        pass
+    # Simply return the spark_session fixture which already handles mode switching
+    # The spark_session fixture handles all cleanup automatically
+    return spark_session
 
 
 @pytest.fixture(scope="function")

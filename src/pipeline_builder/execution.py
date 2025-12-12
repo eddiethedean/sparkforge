@@ -300,7 +300,9 @@ class ExecutionEngine:
                         try:
                             _ = df.count()  # type: ignore[attr-defined]
                         except Exception:
-                            self.logger.debug(f"Could not materialize DataFrame for PySpark: {e}")
+                            self.logger.debug(
+                                f"Could not materialize DataFrame for PySpark: {e}"
+                            )
                             pass
                 else:
                     # For mock-spark, use the collect and recreate approach to fix CTE issues
@@ -460,7 +462,7 @@ class ExecutionEngine:
                             pass  # SQL might be enough, continue
                     # Method 3: Try catalog API as well
                     try:
-                        self.spark.catalog.createDatabase(schema, ignoreIfExists=True)
+                        self.spark.sql(f"CREATE DATABASE IF NOT EXISTS {schema}")
                     except Exception:
                         pass  # SQL might be enough, continue
                 except Exception as e:
@@ -682,7 +684,7 @@ class ExecutionEngine:
                                                 # For real PySpark, cast to the exact type from existing schema
                                                 merged_df = merged_df.withColumn(
                                                     col_name,
-                                                    F.lit(None).cast(field.dataType),
+                                                    F.lit(None).cast(field),
                                                 )
                                                 columns_added.append(col_name)
                                         except Exception as e:
@@ -1346,7 +1348,7 @@ class ExecutionEngine:
             f"Silver step {step.name}: filtering bronze rows where "
             f"{incremental_col} <= {cutoff_value}"
         )
-        return cast(DataFrame, filtered_df)  # type: ignore[valid-type]
+        return filtered_df
 
     def _using_mock_spark(self) -> bool:
         """Determine if current spark session is backed by mock-spark."""
@@ -1387,11 +1389,11 @@ class ExecutionEngine:
         if not filtered_rows:
             try:
                 result = bronze_df.limit(0)  # type: ignore[attr-defined]
-                return cast(DataFrame, result)  # type: ignore[valid-type,return-value]
+                return result
             except Exception:
                 pass
             result = self.spark.createDataFrame([], schema)  # type: ignore[attr-defined]
-            return cast(DataFrame, result)  # type: ignore[valid-type]  # type: ignore[valid-type,return-value]
+            return result
 
         try:
             column_order: list[str] = []
@@ -1415,7 +1417,7 @@ class ExecutionEngine:
             result = self.spark.createDataFrame(  # type: ignore[attr-defined]
                 structured_rows, schema, verifySchema=False
             )  # type: ignore[attr-defined]
-            return cast(DataFrame, result)  # type: ignore[valid-type]  # type: ignore[valid-type,return-value]
+            return result
         except Exception:
             return None
 

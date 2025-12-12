@@ -90,36 +90,49 @@ def create_empty_data(spark) -> List[tuple]:
     return []
 
 
-def create_empty_dataframe(spark, columns: List[str], column_types: Optional[List] = None):
+def create_empty_dataframe(
+    spark, columns: List[str], column_types: Optional[List] = None
+):
     """
     Create an empty DataFrame with explicit schema.
-    
+
     Both PySpark and mock-spark 3.10.4+ require explicit StructType schema for empty DataFrames.
-    
+
     Args:
         spark: SparkSession instance
         columns: List of column names
         column_types: Optional list of data types (defaults to StringType for all)
-    
+
     Returns:
         Empty DataFrame with specified schema
     """
     import os
+
     if os.environ.get("SPARK_MODE", "mock").lower() == "real":
         from pyspark.sql.types import (
-            StringType, IntegerType, LongType, DoubleType, FloatType,
-            StructField, StructType
+            StringType,
+            IntegerType,
+            LongType,
+            DoubleType,
+            FloatType,
+            StructField,
+            StructType,
         )
     else:
         from mock_spark.spark_types import (
-            StringType, IntegerType, LongType, DoubleType, FloatType,
-            StructField, StructType
+            StringType,
+            IntegerType,
+            LongType,
+            DoubleType,
+            FloatType,
+            StructField,
+            StructType,
         )
-    
+
     # Default to StringType if types not specified
     if column_types is None:
         column_types = [StringType()] * len(columns)
-    
+
     # Map string type names to actual types
     type_map = {
         "string": StringType(),
@@ -129,7 +142,7 @@ def create_empty_dataframe(spark, columns: List[str], column_types: Optional[Lis
         "double": DoubleType(),
         "float": FloatType(),
     }
-    
+
     # Convert string type names to actual types if needed
     actual_types = []
     for col_type in column_types:
@@ -137,11 +150,14 @@ def create_empty_dataframe(spark, columns: List[str], column_types: Optional[Lis
             actual_types.append(type_map.get(col_type.lower(), StringType()))
         else:
             actual_types.append(col_type)
-    
-    schema = StructType([
-        StructField(col, col_type, True) for col, col_type in zip(columns, actual_types)
-    ])
-    
+
+    schema = StructType(
+        [
+            StructField(col, col_type, True)
+            for col, col_type in zip(columns, actual_types)
+        ]
+    )
+
     return spark.createDataFrame([], schema)
 
 
@@ -238,6 +254,7 @@ def get_log_entries_by_run(log_df, run_id: str) -> List[Dict]:
     # Use F.col() for PySpark compatibility
     if os.environ.get("SPARK_MODE", "mock").lower() == "real":
         from pyspark.sql import functions as F
+
         filtered = log_df.filter(F.col("run_id") == run_id)
     else:
         filtered = log_df.filter(log_df.run_id == run_id)
@@ -510,7 +527,7 @@ class TestEdgeCases:
         df = create_empty_dataframe(
             spark_session,
             columns=["user_id", "action", "timestamp", "value"],
-            column_types=["string", "string", "string", "double"]
+            column_types=["string", "string", "string", "double"],
         )
 
         builder = PipelineBuilder(spark=spark_session, schema=schema_name)
@@ -537,7 +554,9 @@ class TestEdgeCases:
             if df and df.count() > 0:
                 return df.groupBy("user_id").count()
             # Both PySpark and mock-spark 3.10.4+ require explicit schema for empty DataFrame
-            return create_empty_dataframe(spark, columns=["user_id", "count"], column_types=["string", "int"])
+            return create_empty_dataframe(
+                spark, columns=["user_id", "count"], column_types=["string", "int"]
+            )
 
         builder.add_gold_transform(
             name="summary",
@@ -561,9 +580,7 @@ class TestEdgeCases:
         log_result = log_writer.write_log_rows(log_rows, run_id=run_id)
         assert log_result["success"] is True
 
-    def test_pipeline_with_partial_validation_failures(
-        self, spark_session, log_writer
-    ):
+    def test_pipeline_with_partial_validation_failures(self, spark_session, log_writer):
         """Test pipeline with mixed valid/invalid data."""
         schema = "test_schema"
 
@@ -1476,9 +1493,7 @@ class TestSchemaEvolution:
             spark_session, schema="test_schema", table_name="pipeline_logs"
         )
 
-    def test_pipeline_with_schema_evolution_logging(
-        self, spark_session, log_writer
-    ):
+    def test_pipeline_with_schema_evolution_logging(self, spark_session, log_writer):
         """Test schema evolution: initial run with columns A,B,C; incremental adds column D."""
         schema = "test_schema"
 
@@ -1552,9 +1567,7 @@ class TestSchemaEvolution:
 
         # Incremental run - schema should evolve if new columns are added
         # (In this case, we're using the same schema, but the test verifies schema evolution handling)
-        incremental_data = create_test_data_incremental(
-            spark_session, num_records=50
-        )
+        incremental_data = create_test_data_incremental(spark_session, num_records=50)
         incremental_df = spark_session.createDataFrame(
             incremental_data, ["user_id", "action", "timestamp", "value"]
         )
@@ -1698,9 +1711,7 @@ class TestValidationThresholds:
             spark_session, schema="test_schema", table_name="pipeline_logs"
         )
 
-    def test_pipeline_validation_thresholds_logging(
-        self, spark_session, log_writer
-    ):
+    def test_pipeline_validation_thresholds_logging(self, spark_session, log_writer):
         """Test validation threshold enforcement and logging."""
         schema = "test_schema"
 
@@ -1851,9 +1862,7 @@ class TestWriteModes:
         assert initial_result.status.value == "completed"
 
         # Incremental run (append mode due to watermark)
-        incremental_data = create_test_data_incremental(
-            spark_session, num_records=50
-        )
+        incremental_data = create_test_data_incremental(spark_session, num_records=50)
         incremental_df = spark_session.createDataFrame(
             incremental_data, ["user_id", "action", "timestamp", "value"]
         )

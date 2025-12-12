@@ -85,7 +85,7 @@ class SqlPipelineRunner(BaseRunner, Runner):
     def run_initial_load(
         self,
         bronze_sources: Optional[Dict[str, Any]] = None,  # Dict[str, Query]
-    ) -> ExecutionResult:
+    ) -> ExecutionResult:  # type: ignore[override]
         """
         Run initial load pipeline execution.
 

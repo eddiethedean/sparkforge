@@ -173,17 +173,18 @@ class TestConvertRuleToExpression:
     def test_custom_expression(self, mock_functions):
         """Test custom expression rule."""
         import os
+
         # PySpark's F.expr() expects SQL, not Python code
-        # Mock-spark is more lenient and accepts Python-like expressions
+        # Mock-spark 3.12.0+ also expects SQL expressions
         if os.environ.get("SPARK_MODE", "mock").lower() == "real":
             # For PySpark, use SQL expression
             expr = _convert_rule_to_expression(
                 "user_id IS NOT NULL", "user_id", mock_functions
             )
         else:
-            # For mock-spark, Python-like expression works
+            # For mock-spark 3.12.0+, use SQL expression (Python-like expressions deprecated)
             expr = _convert_rule_to_expression(
-                "col('user_id').isNotNull()", "user_id", mock_functions
+                "user_id IS NOT NULL", "user_id", mock_functions
             )
         assert expr is not None
 

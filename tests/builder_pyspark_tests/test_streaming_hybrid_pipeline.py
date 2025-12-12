@@ -6,8 +6,15 @@ Bronze → Silver → Gold medallion architecture with incremental streaming upd
 and batch backfill capabilities.
 """
 
+import os
 import tempfile
 from uuid import uuid4
+
+import pytest
+
+# Skip all tests in this module if SPARK_MODE is not "real"
+if os.environ.get("SPARK_MODE", "mock").lower() != "real":
+    pytestmark = pytest.mark.skip(reason="PySpark-specific tests require SPARK_MODE=real")
 
 from pyspark.sql import functions as F
 

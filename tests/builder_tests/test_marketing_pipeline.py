@@ -48,9 +48,7 @@ class TestMarketingPipeline:
         impressions_df = data_generator.create_marketing_impressions(
             spark_session, num_impressions=150
         )
-        clicks_df = data_generator.create_marketing_clicks(
-            spark_session, num_clicks=60
-        )
+        clicks_df = data_generator.create_marketing_clicks(spark_session, num_clicks=60)
         conversions_df = data_generator.create_marketing_conversions(
             spark_session, num_conversions=40
         )
@@ -107,7 +105,9 @@ class TestMarketingPipeline:
                 df.withColumn(
                     "impression_date_parsed",
                     F.to_timestamp(
-                        F.regexp_replace(F.col("impression_date"), r"\.\d+", "").cast("string"),
+                        F.regexp_replace(F.col("impression_date"), r"\.\d+", "").cast(
+                            "string"
+                        ),
                         "yyyy-MM-dd'T'HH:mm:ss",
                     ),
                 )
@@ -161,7 +161,9 @@ class TestMarketingPipeline:
                 df.withColumn(
                     "click_date_parsed",
                     F.to_timestamp(
-                        F.regexp_replace(F.col("click_date"), r"\.\d+", "").cast("string"),
+                        F.regexp_replace(F.col("click_date"), r"\.\d+", "").cast(
+                            "string"
+                        ),
                         "yyyy-MM-dd'T'HH:mm:ss",
                     ),
                 )
@@ -206,7 +208,9 @@ class TestMarketingPipeline:
                 df.withColumn(
                     "conversion_date_parsed",
                     F.to_timestamp(
-                        F.regexp_replace(F.col("conversion_date"), r"\.\d+", "").cast("string"),
+                        F.regexp_replace(F.col("conversion_date"), r"\.\d+", "").cast(
+                            "string"
+                        ),
                         "yyyy-MM-dd'T'HH:mm:ss",
                     ),
                 )

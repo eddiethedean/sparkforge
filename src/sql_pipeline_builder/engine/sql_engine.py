@@ -67,13 +67,14 @@ class SqlEngine(Engine):
         query: Any = source
 
         # Type check: step should be a concrete step type
-        if not isinstance(step, (SqlBronzeStep, SqlSilverStep, SqlGoldStep)):
+        # Note: step is typed as Step (Protocol), but at runtime it could be any concrete type
+        if not isinstance(step, (SqlBronzeStep, SqlSilverStep, SqlGoldStep)):  # type: ignore[unreachable]
             raise TypeError(
                 f"Step must be SqlBronzeStep, SqlSilverStep, or SqlGoldStep, got {type(step)}"
             )
 
         # Apply validation rules
-        try:
+        try:  # type: ignore[unreachable]
             rules: Any = step.rules
             valid_query, invalid_query, validation_stats = apply_sql_validation_rules(
                 query,
@@ -113,12 +114,13 @@ class SqlEngine(Engine):
             TransformReport with transformed source
         """
         # Type check: step should be a concrete step type
-        if not isinstance(step, (SqlBronzeStep, SqlSilverStep, SqlGoldStep)):
+        # Note: step is typed as Step (Protocol), but at runtime it could be any concrete type
+        if not isinstance(step, (SqlBronzeStep, SqlSilverStep, SqlGoldStep)):  # type: ignore[unreachable]
             raise TypeError(
                 f"Step must be SqlBronzeStep, SqlSilverStep, or SqlGoldStep, got {type(step)}"
             )
 
-        try:
+        try:  # type: ignore[unreachable]
             # Bronze steps: no transformation, just return source
             if isinstance(step, SqlBronzeStep):
                 return TransformReport(source=source, error=None)
@@ -178,13 +180,14 @@ class SqlEngine(Engine):
         query: Any = source
 
         # Type check: step should be a concrete step type
-        if not isinstance(step, (SqlBronzeStep, SqlSilverStep, SqlGoldStep)):
+        # Note: step is typed as Step (Protocol), but at runtime it could be any concrete type
+        if not isinstance(step, (SqlBronzeStep, SqlSilverStep, SqlGoldStep)):  # type: ignore[unreachable]
             raise TypeError(
                 f"Step must be SqlBronzeStep, SqlSilverStep, or SqlGoldStep, got {type(step)}"
             )
 
         # Bronze steps don't write to tables
-        if isinstance(step, SqlBronzeStep):
+        if isinstance(step, SqlBronzeStep):  # type: ignore[unreachable]
             rows_written = query.count() if hasattr(query, "count") else 0
             return WriteReport(
                 source=query,

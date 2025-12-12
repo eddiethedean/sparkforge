@@ -6,37 +6,48 @@ This module defines the types used for SQL transform functions and validation ru
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Optional, Protocol, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Protocol, Union
 
+# TypeAlias is available in Python 3.10+, use typing_extensions for 3.8/3.9
+if TYPE_CHECKING:
+    from typing_extensions import TypeAlias
+    
+    try:
+        from sqlalchemy.orm import Query, Session
+        from sqlalchemy.sql import ColumnElement
+        HAS_SQLALCHEMY = True
+    except ImportError:
+        HAS_SQLALCHEMY = False
+        Query = Any  # type: ignore[misc, assignment]
+        Session = Any  # type: ignore[misc, assignment]
+        ColumnElement = Any  # type: ignore[misc, assignment]
+
+    # Type for SQLAlchemy validation rules
+    # Can be ColumnElement expressions like User.email.is_not(None) or column('age').between(18, 65)
+    # Always use Union[ColumnElement, Any] to cover both cases - if SQLAlchemy not available, ColumnElement = Any
+    SqlValidationRule: TypeAlias = Union[ColumnElement, Any]
+    SilverTransformFunction: TypeAlias = Union[
+        Callable[[Session, Query, Dict[str, Query]], Query],
+        Callable[[Any, Any, Dict[str, Any]], Any]
+    ]
+    GoldTransformFunction: TypeAlias = Union[
+        Callable[[Session, Dict[str, Query]], Query],
+        Callable[[Any, Dict[str, Any]], Any]
+    ]
+# Note: These types are only used in type annotations, not at runtime
+# With `from __future__ import annotations`, type annotations are strings and don't need runtime values
+
+# Runtime check for SQLAlchemy availability
 try:
-    from sqlalchemy.orm import Query, Session
-    from sqlalchemy.sql import ColumnElement
-
+    from sqlalchemy.orm import Query as _Query, Session as _Session
+    from sqlalchemy.sql import ColumnElement as _ColumnElement
     HAS_SQLALCHEMY = True
 except ImportError:
     HAS_SQLALCHEMY = False
-    Query = None  # type: ignore[misc, assignment]
-    Session = None  # type: ignore[misc, assignment]
-    ColumnElement = None  # type: ignore[misc, assignment]
 
-
-# Type for SQLAlchemy validation rules
-# Can be ColumnElement expressions like User.email.is_not(None) or column('age').between(18, 65)
-if HAS_SQLALCHEMY:
-    SqlValidationRule = Union[ColumnElement, Any]
-else:
-    SqlValidationRule = Any
+# This uses SqlValidationRule which is defined above
+# At type checking time, it uses the TypeAlias from TYPE_CHECKING
 SqlColumnRules = Dict[str, List[SqlValidationRule]]
-
-# Type for SQL transform functions
-# Silver: (session, bronze_query, silvers_dict) -> Query
-# Gold: (session, silvers_dict) -> Query
-if HAS_SQLALCHEMY:
-    SilverTransformFunction = Callable[[Session, Query, Dict[str, Query]], Query]
-    GoldTransformFunction = Callable[[Session, Dict[str, Query]], Query]
-else:
-    SilverTransformFunction = Callable[[Any, Any, Dict[str, Any]], Any]
-    GoldTransformFunction = Callable[[Any, Dict[str, Any]], Any]
 
 
 # Protocol for SQL step objects

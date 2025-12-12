@@ -93,7 +93,9 @@ class TestStreamingHybridPipeline:
                 df.withColumn(
                     "event_timestamp_parsed",
                     F.to_timestamp(
-                        F.regexp_replace(F.col("event_timestamp"), r"\.\d+", "").cast("string"),
+                        F.regexp_replace(F.col("event_timestamp"), r"\.\d+", "").cast(
+                            "string"
+                        ),
                         "yyyy-MM-dd'T'HH:mm:ss",
                     ),
                 )
@@ -149,7 +151,9 @@ class TestStreamingHybridPipeline:
                 df.withColumn(
                     "event_timestamp_parsed",
                     F.to_timestamp(
-                        F.regexp_replace(F.col("event_timestamp"), r"\.\d+", "").cast("string"),
+                        F.regexp_replace(F.col("event_timestamp"), r"\.\d+", "").cast(
+                            "string"
+                        ),
                         "yyyy-MM-dd'T'HH:mm:ss",
                     ),
                 )

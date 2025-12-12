@@ -8,9 +8,14 @@ with comprehensive error handling, step-by-step processing, and async support.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, cast
 
 from pipeline_builder_base.dependencies import DependencyAnalyzer
+from pipeline_builder_base.dependencies.analyzer import (
+    BronzeStepProtocol,
+    GoldStepProtocol,
+    SilverStepProtocol,
+)
 from pipeline_builder_base.logging import PipelineLogger
 from pipeline_builder_base.models import (
     ExecutionContext,
@@ -339,10 +344,11 @@ class SqlExecutionEngine:
 
         # Analyze dependencies
         analyzer = DependencyAnalyzer(logger=self.logger)
+        # Cast to protocol types for type checking - SQL steps implement these protocols
         analysis = analyzer.analyze_dependencies(
-            bronze_steps=bronze_steps,
-            silver_steps=silver_steps,
-            gold_steps=gold_steps,
+            bronze_steps=cast(Optional[Dict[str, BronzeStepProtocol]], bronze_steps) if bronze_steps else None,
+            silver_steps=cast(Optional[Dict[str, SilverStepProtocol]], silver_steps) if silver_steps else None,
+            gold_steps=cast(Optional[Dict[str, GoldStepProtocol]], gold_steps) if gold_steps else None,
         )
 
         execution_groups = analysis.execution_groups

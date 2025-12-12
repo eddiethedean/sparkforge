@@ -51,9 +51,7 @@ class TestHealthcarePipeline:
         patients_df = data_generator.create_healthcare_patients(
             spark_session, num_patients=40
         )
-        labs_df = data_generator.create_healthcare_labs(
-            spark_session, num_results=150
-        )
+        labs_df = data_generator.create_healthcare_labs(spark_session, num_results=150)
         diagnoses_df = data_generator.create_healthcare_diagnoses(
             spark_session, num_diagnoses=120
         )
@@ -126,7 +124,8 @@ class TestHealthcarePipeline:
                 )
                 .drop("birth_date")
                 .withColumn(
-                    "full_name", F.concat(F.col("first_name"), F.lit(" "), F.col("last_name"))
+                    "full_name",
+                    F.concat(F.col("first_name"), F.lit(" "), F.col("last_name")),
                 )
                 .withColumn(
                     "age_group",

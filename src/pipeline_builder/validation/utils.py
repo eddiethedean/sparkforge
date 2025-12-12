@@ -28,14 +28,14 @@ def get_dataframe_info(df: DataFrame) -> Dict[str, Any]:
         Dictionary with DataFrame information
     """
     try:
-        row_count = df.count()  # type: ignore[attr-defined]
-        column_count = len(df.columns)  # type: ignore[attr-defined]
-        schema = df.schema  # type: ignore[attr-defined]
+        row_count = df.count()
+        column_count = len(df.columns)
+        schema = df.schema
 
         return {
             "row_count": row_count,
             "column_count": column_count,
-            "columns": df.columns,  # type: ignore[attr-defined]
+            "columns": df.columns,
             "schema": str(schema),
             "is_empty": row_count == 0,
         }

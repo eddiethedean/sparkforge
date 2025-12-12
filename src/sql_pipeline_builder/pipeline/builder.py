@@ -423,12 +423,12 @@ class SqlPipelineBuilder(BasePipelineBuilder):
                 )
                 missing.append(f"Silver step '{step.name}' (model: {model_name})")
 
-        for step in self.gold_steps.values():
-            if not _has_primary_key(step.model_class):
+        for gold_step in self.gold_steps.values():
+            if not _has_primary_key(gold_step.model_class):
                 model_name = getattr(
-                    step.model_class, "__name__", str(step.model_class)
+                    gold_step.model_class, "__name__", str(gold_step.model_class)
                 )
-                missing.append(f"Gold step '{step.name}' (model: {model_name})")
+                missing.append(f"Gold step '{gold_step.name}' (model: {model_name})")
 
         if missing:
             detail = "; ".join(missing)

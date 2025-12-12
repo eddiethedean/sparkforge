@@ -24,11 +24,16 @@ def validate_pipeline_config(config: PipelineConfig) -> List[str]:
     errors: List[str] = []
 
     # Validate schema
-    if not config.schema:
-        errors.append("Pipeline schema cannot be empty")
-    elif not isinstance(config.schema, str):
+    # Note: config.schema is typed as str in PipelineConfig, but we validate at runtime
+    # The isinstance check is for runtime validation, even though mypy knows it's a str
+    if not isinstance(config.schema, str):  # type: ignore[unreachable]
         errors.append("Pipeline schema must be a string")
-    elif len(config.schema) > 128:
+        return errors  # Early return to avoid unreachable code
+    # After isinstance check, mypy knows it's a str
+    # The empty check is for runtime validation (empty strings are valid str types)
+    if not config.schema.strip():  # type: ignore[unreachable]
+        errors.append("Pipeline schema cannot be empty")
+    if len(config.schema) > 128:
         errors.append("Pipeline schema name is too long (max 128 characters)")
 
     # Validate thresholds

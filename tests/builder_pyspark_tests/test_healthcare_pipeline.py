@@ -11,6 +11,11 @@ import tempfile
 from uuid import uuid4
 
 import pytest
+
+# Skip all tests in this module if SPARK_MODE is not "real"
+if os.environ.get("SPARK_MODE", "mock").lower() != "real":
+    pytestmark = pytest.mark.skip(reason="PySpark-specific tests require SPARK_MODE=real")
+
 from pyspark.sql import functions as F
 
 from pipeline_builder.pipeline import PipelineBuilder
@@ -532,7 +537,9 @@ class TestHealthcarePipeline:
         def normalize_labs_transform(spark, df, silvers):
             return df.withColumn(
                 "test_date_parsed",
-                F.to_timestamp(F.col("test_date").cast("string"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"),
+                F.to_timestamp(
+                    F.col("test_date").cast("string"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"
+                ),
             )
 
         builder.add_silver_transform(
@@ -621,7 +628,9 @@ class TestHealthcarePipeline:
         def normalize_labs_transform(spark, df, silvers):
             return df.withColumn(
                 "test_date_parsed",
-                F.to_timestamp(F.col("test_date").cast("string"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"),
+                F.to_timestamp(
+                    F.col("test_date").cast("string"), "yyyy-MM-dd'T'HH:mm:ss[.SSSSSS]"
+                ),
             )
 
         builder.add_silver_transform(

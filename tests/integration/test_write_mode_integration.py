@@ -24,10 +24,8 @@ from pipeline_builder.pipeline.runner import SimplePipelineRunner
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import SparkSession
     from mock_spark import functions as F
 else:
-    from pyspark.sql import SparkSession
     from pyspark.sql import functions as F
 
 
