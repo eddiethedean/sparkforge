@@ -16,13 +16,15 @@ from pipeline_builder.models import (
 )
 from pipeline_builder.pipeline.builder import PipelineBuilder
 
-# Use functions based on SPARK_MODE
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+# Import functions based on SPARK_MODE
+spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+if spark_mode == "real":
     from pyspark.sql import functions as F
-    MockF = F
 else:
     from mock_spark.functions import F
-    MockF = F
+
+# Use appropriate functions based on mode
+MockF = F  # Will be PySpark F in real mode, mock_spark F in mock mode
 
 
 class TestPipelineBuilderInitialization:
@@ -709,11 +711,8 @@ class TestHelperMethods:
 
     def test_validate_schema_existing(self, mock_spark_session):
         """Test _validate_schema with existing schema."""
-        # Create the schema - use SQL for compatibility with both mock-spark and pyspark
-        if hasattr(mock_spark_session.catalog, "createDatabase"):
-            mock_spark_session.catalog.createDatabase("test_schema")
-        else:
-            mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS test_schema")
+        # Create the schema using SQL (works for both mock-spark and PySpark)
+        mock_spark_session.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
 
         builder = PipelineBuilder(
             spark=mock_spark_session,

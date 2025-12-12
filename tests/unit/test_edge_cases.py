@@ -434,12 +434,12 @@ class TestEdgeCases:
         assert writer_max.config.batch_size == 10000
         assert writer_max.config.compression == "gzip"
 
-    @pytest.mark.skipif(
-        os.environ.get("SPARK_MODE", "mock").lower() == "real",
-        reason="spark.storage is mock-spark specific",
-    )
     def test_storage_edge_cases(self, mock_spark_session):
         """Test storage edge cases."""
+        # Skip this test in PySpark mode as it uses mock-spark-specific storage API
+        if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+            pytest.skip("Storage edge cases test requires mock-spark storage API")
+        
         # Test with long table names (DuckDB limit is 63 characters)
         long_table_name = "a" * 50
         schema = StructType([StructField("id", IntegerType())])
@@ -457,10 +457,6 @@ class TestEdgeCases:
 
         assert mock_spark_session.storage.table_exists("test", valid_special_name)
 
-    @pytest.mark.skipif(
-        os.environ.get("SPARK_MODE", "mock").lower() == "real",
-        reason="Mock-spark specific type checks",
-    )
     def test_function_edge_cases(self, mock_spark_session):
         """Test function edge cases."""
         # Test complex column expressions
@@ -475,16 +471,37 @@ class TestEdgeCases:
         lit1 = F.lit(42)
         lit2 = F.lit("hello")
 
-        assert isinstance(lit1, Literal)
-        assert isinstance(lit2, Literal)
+        # In PySpark, lit() returns a Column, not a Literal type
+        # In mock-spark, it might return a Literal type
+        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+        if spark_mode == "real":
+            # In PySpark, literals are Column objects
+            assert isinstance(lit1, Column)
+            assert isinstance(lit2, Column)
+        else:
+            # In mock-spark, check for Literal type
+            assert isinstance(lit1, Literal)
+            assert isinstance(lit2, Literal)
 
         # Test aggregate functions
         agg_func = F.count("id")
-        assert isinstance(agg_func, AggregateFunction)
+        # In PySpark, aggregate functions return Column objects
+        if spark_mode == "real":
+            assert isinstance(agg_func, Column)
+        else:
+            assert isinstance(agg_func, AggregateFunction)
 
         # Test window functions - mock-spark 0.3.1 requires window_spec argument
-        window_func = F.row_number().over("dummy_window_spec")
-        assert isinstance(window_func, WindowFunction)
+        # In PySpark, window functions return Column objects
+        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+        if spark_mode == "real":
+            # In PySpark, we need to use Window functions properly
+            from pyspark.sql.window import Window
+            window_func = F.row_number().over(Window.partitionBy())
+            assert isinstance(window_func, Column)
+        else:
+            window_func = F.row_number().over("dummy_window_spec")
+            assert isinstance(window_func, WindowFunction)
 
     def test_dataframe_edge_cases(self, mock_spark_session):
         """Test DataFrame edge cases."""
@@ -521,11 +538,8 @@ class TestEdgeCases:
         assert session4.appName == "TestApp4"
 
         # Test catalog operations
-        # Use SQL for compatibility - spark.storage is mock-spark specific
-        if hasattr(mock_spark_session, "storage"):
-            mock_spark_session.storage.create_schema("test_schema")
-        else:
-            mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS test_schema")
+        # Use SQL to create schema (works for both mock-spark and PySpark)
+        mock_spark_session.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
         databases = mock_spark_session.catalog.listDatabases()
         assert len(databases) >= 1
 

@@ -45,8 +45,16 @@ try:
 except ImportError:
     HAS_SQLALCHEMY = False
 
+# Define types at runtime (needed for imports and type annotations)
+# At runtime, they're just Any/Callable since we can't know the actual types without SQLAlchemy
+# At type checking time, the TypeAlias from TYPE_CHECKING block is used
+SqlValidationRule = Any  # type: ignore[misc, assignment]
+SilverTransformFunction = Callable[[Any, Any, Dict[str, Any]], Any]  # type: ignore[misc, assignment]
+GoldTransformFunction = Callable[[Any, Dict[str, Any]], Any]  # type: ignore[misc, assignment]
+
 # This uses SqlValidationRule which is defined above
 # At type checking time, it uses the TypeAlias from TYPE_CHECKING
+# At runtime, it uses the Any definition above
 SqlColumnRules = Dict[str, List[SqlValidationRule]]
 
 

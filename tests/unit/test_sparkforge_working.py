@@ -93,11 +93,8 @@ class TestSparkForgeWorking:
         assert builder.schema == "test_schema"
 
         # Test schema validation
-        # Use SQL for compatibility with both mock-spark and pyspark
-        if hasattr(mock_spark_session, "storage"):
-            mock_spark_session.storage.create_schema("test_schema")
-        else:
-            mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS test_schema")
+        # Use SQL to create schema (works for both mock-spark and PySpark)
+        mock_spark_session.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
         builder._validate_schema("test_schema")  # Should not raise
 
         # Test schema creation
@@ -227,29 +224,17 @@ class TestSparkForgeWorking:
         assert metrics["rows_written"] == 100
 
         # Test table_exists function with correct signature
-        # Use SQL for compatibility with both mock-spark and pyspark
-        if hasattr(mock_spark_session, "storage"):
-            mock_spark_session.storage.create_schema("test_schema")
-            schema = StructType(
-                [
-                    StructField("id", IntegerType()),
-                    StructField("name", StringType()),
-                ]
-            )
-            mock_spark_session.storage.create_table(
-                "test_schema", "test_table", schema.fields
-            )
-        else:
-            # For pyspark, create schema and table using SQL/DataFrame
-            mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS test_schema")
-            schema = StructType(
-                [
-                    StructField("id", IntegerType()),
-                    StructField("name", StringType()),
-                ]
-            )
-            df = mock_spark_session.createDataFrame([{"id": 1, "name": "test"}], schema)
-            df.write.mode("overwrite").saveAsTable("test_schema.test_table")
+        # Use SQL to create schema (works for both mock-spark and PySpark)
+        mock_spark_session.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
+        schema = StructType(
+            [
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
+            ]
+        )
+        # Create table using DataFrame (works for both mock-spark and PySpark)
+        empty_df = mock_spark_session.createDataFrame([], schema)
+        empty_df.write.mode("overwrite").saveAsTable("test_schema.test_table")
 
         # Use correct function signature
         assert pipeline_builder_table_exists(
@@ -333,30 +318,18 @@ class TestSparkForgeWorking:
 
     def test_table_operations_working(self, mock_spark_session):
         """Test table operations using actual API."""
-        # Create test schema and table
-        # Use SQL for compatibility with both mock-spark and pyspark
-        if hasattr(mock_spark_session, "storage"):
-            mock_spark_session.storage.create_schema("test_schema")
-            schema = StructType(
-                [
-                    StructField("id", IntegerType()),
-                    StructField("name", StringType()),
-                ]
-            )
-            mock_spark_session.storage.create_table(
-                "test_schema", "test_table", schema.fields
-            )
-        else:
-            # For pyspark, create schema and table using SQL/DataFrame
-            mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS test_schema")
-            schema = StructType(
-                [
-                    StructField("id", IntegerType()),
-                    StructField("name", StringType()),
-                ]
-            )
-            df = mock_spark_session.createDataFrame([{"id": 1, "name": "test"}], schema)
-            df.write.mode("overwrite").saveAsTable("test_schema.test_table")
+        # Create test schema and table using SQL (works for both mock-spark and PySpark)
+        mock_spark_session.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
+
+        # Create table with proper schema using DataFrame
+        schema = StructType(
+            [
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
+            ]
+        )
+        empty_df = mock_spark_session.createDataFrame([], schema)
+        empty_df.write.mode("overwrite").saveAsTable("test_schema.test_table")
 
         # Test table_exists with correct signature
         assert pipeline_builder_table_exists(
@@ -619,29 +592,17 @@ class TestSparkForgeWorking:
             raise ConfigurationError("Test error")
 
         # 8. Table Operations
-        # Use SQL for compatibility with both mock-spark and pyspark
-        if hasattr(mock_spark_session, "storage"):
-            mock_spark_session.storage.create_schema("test_schema")
-            schema = StructType(
-                [
-                    StructField("id", IntegerType()),
-                    StructField("name", StringType()),
-                ]
-            )
-            mock_spark_session.storage.create_table(
-                "test_schema", "test_table", schema.fields
-            )
-        else:
-            # For pyspark, create schema and table using SQL/DataFrame
-            mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS test_schema")
-            schema = StructType(
-                [
-                    StructField("id", IntegerType()),
-                    StructField("name", StringType()),
-                ]
-            )
-            df = mock_spark_session.createDataFrame([{"id": 1, "name": "test"}], schema)
-            df.write.mode("overwrite").saveAsTable("test_schema.test_table")
+        # Use SQL to create schema (works for both mock-spark and PySpark)
+        mock_spark_session.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
+        schema = StructType(
+            [
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
+            ]
+        )
+        # Create table using DataFrame (works for both mock-spark and PySpark)
+        empty_df = mock_spark_session.createDataFrame([], schema)
+        empty_df.write.mode("overwrite").saveAsTable("test_schema.test_table")
         assert pipeline_builder_table_exists(
             mock_spark_session, "test_schema.test_table"
         )

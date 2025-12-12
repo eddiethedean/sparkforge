@@ -34,11 +34,8 @@ class TestSupplyChainPipeline:
 
         # Helper function for schema creation
         def create_schema_if_not_exists(spark, schema_name: str):
-            """Create a schema using the appropriate method for mock-spark or PySpark."""
-            if hasattr(spark, "storage") and hasattr(spark.storage, "create_schema"):
-                spark.storage.create_schema(schema_name)
-            else:
-                spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+            """Create a schema using SQL (works for both mock-spark and PySpark)."""
+            spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
 
         # Setup schemas
         create_schema_if_not_exists(spark_session, "bronze")
@@ -464,9 +461,9 @@ class TestSupplyChainPipeline:
         self, spark_session, data_generator, test_assertions
     ):
         """Test incremental processing of new supply chain data."""
-        # Setup schemas
-        spark_session.storage.create_schema("bronze")
-        spark_session.storage.create_schema("silver")
+        # Setup schemas using SQL (works for both mock-spark and PySpark)
+        spark_session.sql("CREATE SCHEMA IF NOT EXISTS bronze")
+        spark_session.sql("CREATE SCHEMA IF NOT EXISTS silver")
 
         # Create initial data
         orders_initial = data_generator.create_supply_chain_orders(
@@ -546,9 +543,9 @@ class TestSupplyChainPipeline:
             spark_session, num_orders=25
         )
 
-        # Setup schemas
-        spark_session.storage.create_schema("bronze")
-        spark_session.storage.create_schema("analytics")
+        # Setup schemas using SQL (works for both mock-spark and PySpark)
+        spark_session.sql("CREATE SCHEMA IF NOT EXISTS bronze")
+        spark_session.sql("CREATE SCHEMA IF NOT EXISTS analytics")
 
         # Create LogWriter
         log_writer = LogWriter(

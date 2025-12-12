@@ -33,11 +33,8 @@ class TestMarketingPipeline:
 
         # Helper function for schema creation
         def create_schema_if_not_exists(spark, schema_name: str):
-            """Create a schema using the appropriate method for mock-spark or PySpark."""
-            if hasattr(spark, "storage") and hasattr(spark.storage, "create_schema"):
-                spark.storage.create_schema(schema_name)
-            else:
-                spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+            """Create a schema using SQL (works for both mock-spark and PySpark)."""
+            spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
 
         # Setup schemas
         create_schema_if_not_exists(spark_session, "bronze")

@@ -85,11 +85,7 @@ class TestWriterComprehensive:
         assert not table_exists(mock_spark_session, "test_schema.non_existent_table")
 
         # Test with existing table
-        # Create database - use SQL for compatibility with both mock-spark and pyspark
-        if hasattr(mock_spark_session.catalog, "createDatabase"):
-            mock_spark_session.catalog.createDatabase("test_schema")
-        else:
-            mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS test_schema")
+        mock_spark_session.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
         schema = StructType([StructField("id", IntegerType())])
         data = [{"id": 1}, {"id": 2}]
         df = mock_spark_session.createDataFrame(data, schema)

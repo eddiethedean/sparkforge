@@ -18,7 +18,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Dict, Optional, TypedDict, Union, cast
 
-from ..compat import DataFrame, SparkSession, types
+from ..compat import AnalysisException, DataFrame, SparkSession, types
 
 # Handle optional Delta Lake dependency
 try:
@@ -154,20 +154,13 @@ class StorageManager:
             # This is especially important for LogWriter which creates tables in different schemas
             if schema_name:
                 try:
-                    # Use SQL to ensure schema exists (more reliable than storage API in some contexts)
+                    # Use SQL to ensure schema exists (works for both PySpark and mock-spark)
                     self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")  # type: ignore[attr-defined]
                 except Exception as e:
-                    # If SQL fails, try storage API
-                    try:
-                        if hasattr(self.spark, "storage") and hasattr(
-                            self.spark.storage, "create_schema"
-                        ):
-                            self.spark.storage.create_schema(schema_name)
-                    except Exception:
-                        # If both fail, log warning but continue (schema might already exist)
-                        self.logger.debug(
-                            f"Could not create schema '{schema_name}': {e}"
-                        )
+                    # If SQL fails, log warning but continue (schema might already exist)
+                    self.logger.debug(
+                        f"Could not create schema '{schema_name}': {e}"
+                    )
 
             # Check if table exists and is a Delta table
             table_is_delta = False
@@ -265,26 +258,66 @@ class StorageManager:
 
                 if delta_configured:
                     # Write to Delta table
-                    (
-                        empty_df.write.format("delta")
-                        .mode("overwrite")
-                        .option("overwriteSchema", "true")
-                        .saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
-                    )
-                    self.logger.info(f"Delta table created successfully: {self.table_fqn}")
+                    # For Delta, use append mode with overwriteSchema for initial table creation
+                    # This avoids truncate issues during table creation
+                    try:
+                        (
+                            empty_df.write.format("delta")
+                            .mode("append")
+                            .option("overwriteSchema", "true")
+                            .saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
+                        )
+                        self.logger.info(f"Delta table created successfully: {self.table_fqn}")
+                    except Exception as create_error:
+                        # Handle race condition in parallel execution - table might already exist
+                        error_msg = str(create_error).lower()
+                        # Check for various "table already exists" error formats
+                        if (
+                            "already exists" in error_msg
+                            or "table_or_view_already_exists" in error_msg
+                            or isinstance(create_error, AnalysisException)
+                            and "already exists" in error_msg
+                        ):
+                            self.logger.debug(
+                                f"Table {self.table_fqn} already exists (likely created by parallel execution), continuing..."
+                            )
+                            # Verify table exists and has correct schema - if not, re-raise
+                            if not table_exists(self.spark, self.table_fqn):
+                                raise  # Table should exist but doesn't - re-raise
+                        else:
+                            raise  # Re-raise if it's a different error
                 else:
                     # Fallback to regular Spark table when Delta Lake is not configured
                     # This allows logging to work even without Delta Lake setup
                     self.logger.warning(
                         f"Delta Lake is not configured. Creating regular Spark table {self.table_fqn} instead."
                     )
-                    (
-                        empty_df.write.format("parquet")
-                        .mode("overwrite")
-                        .option("overwriteSchema", "true")
-                        .saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
-                    )
-                    self.logger.info(f"Regular Spark table created successfully: {self.table_fqn}")
+                    try:
+                        (
+                            empty_df.write.format("parquet")
+                            .mode("overwrite")
+                            .option("overwriteSchema", "true")
+                            .saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
+                        )
+                        self.logger.info(f"Regular Spark table created successfully: {self.table_fqn}")
+                    except Exception as create_error:
+                        # Handle race condition in parallel execution - table might already exist
+                        error_msg = str(create_error).lower()
+                        # Check for various "table already exists" error formats
+                        if (
+                            "already exists" in error_msg
+                            or "table_or_view_already_exists" in error_msg
+                            or isinstance(create_error, AnalysisException)
+                            and "already exists" in error_msg
+                        ):
+                            self.logger.debug(
+                                f"Table {self.table_fqn} already exists (likely created by parallel execution), continuing..."
+                            )
+                            # Verify table exists and has correct schema - if not, re-raise
+                            if not table_exists(self.spark, self.table_fqn):
+                                raise  # Table should exist but doesn't - re-raise
+                        else:
+                            raise  # Re-raise if it's a different error
 
                 self.logger.info(f"Table created successfully: {self.table_fqn}")
             elif not table_is_delta:
@@ -348,25 +381,75 @@ class StorageManager:
 
             # Configure write options based on Delta availability
             if delta_configured:
-                writer = df_prepared.write.format("delta").mode(write_mode.value)  # type: ignore[attr-defined]
+                # For Delta tables, handle overwrite mode specially to avoid truncate issues
+                if write_mode == WriteMode.OVERWRITE:
+                    # Delta tables don't support truncate in batch mode
+                    # Delete all existing data first, then append
+                    try:
+                        self.spark.sql(f"DELETE FROM {self.table_fqn}")  # type: ignore[attr-defined]
+                    except Exception:
+                        # Table might not exist or might not be Delta - that's okay
+                        pass
+                    # Now append with schema overwrite
+                    writer = (
+                        df_prepared.write.format("delta")
+                        .mode("append")
+                        .option("overwriteSchema", "true")
+                    )  # type: ignore[attr-defined]
+                else:
+                    # Append mode - use mergeSchema for schema evolution
+                    writer = (
+                        df_prepared.write.format("delta")
+                        .mode(write_mode.value)
+                        .option("mergeSchema", "true")
+                    )  # type: ignore[attr-defined]
             else:
                 # Fallback to parquet format when Delta Lake is not configured
                 writer = df_prepared.write.format("parquet").mode(write_mode.value)  # type: ignore[attr-defined]
+                # Add overwriteSchema for parquet overwrite mode
+                if write_mode == WriteMode.OVERWRITE:
+                    writer = writer.option("overwriteSchema", "true")
 
             # Add partitioning if specified
             if partition_columns:
                 writer = writer.partitionBy(*partition_columns)
 
-            # Add table-specific options
-            if write_mode == WriteMode.OVERWRITE:
-                writer = writer.option("overwriteSchema", "true")
-            elif write_mode == WriteMode.APPEND:
-                if delta_configured:
-                    # Enable schema evolution for append mode to handle new columns (Delta only)
-                    writer = writer.option("mergeSchema", "true")
-
             # Execute write operation
-            writer.saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
+            # Handle race condition where table might be created by another thread
+            try:
+                writer.saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
+            except Exception as write_error:
+                # Check if error is due to table already existing (race condition)
+                error_msg = str(write_error).lower()
+                if (
+                    "already exists" in error_msg
+                    or "table_or_view_already_exists" in error_msg
+                    or (isinstance(write_error, AnalysisException) and "already exists" in error_msg)
+                ):
+                    # Table was created by another thread - verify it exists and retry with append mode
+                    if table_exists(self.spark, self.table_fqn):
+                        self.logger.debug(
+                            f"Table {self.table_fqn} was created by another thread, retrying with append mode"
+                        )
+                        # Retry with append mode (table already exists)
+                        # Use the same format as the original writer
+                        if delta_configured:
+                            retry_writer = (
+                                df_prepared.write.format("delta")
+                                .mode("append")
+                                .option("mergeSchema", "true")
+                            )  # type: ignore[attr-defined]
+                        else:
+                            retry_writer = df_prepared.write.format("parquet").mode("append")  # type: ignore[attr-defined]
+                        if partition_columns:
+                            retry_writer = retry_writer.partitionBy(*partition_columns)
+                        retry_writer.saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
+                    else:
+                        # Table should exist but doesn't - re-raise original error
+                        raise
+                else:
+                    # Different error - re-raise
+                    raise
 
             # Get write statistics
             row_count = df_prepared.count()  # type: ignore[attr-defined]

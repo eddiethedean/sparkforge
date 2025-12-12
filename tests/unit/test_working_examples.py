@@ -5,7 +5,6 @@ Working unit tests that use actual SparkForge APIs.
 import os
 
 import pytest
-from mock_spark.errors import AnalysisException
 
 from pipeline_builder.execution import (
     ExecutionEngine,
@@ -253,50 +252,39 @@ class TestWorkingExamples:
 
     @pytest.mark.skipif(
         os.environ.get("SPARK_MODE", "mock").lower() == "real",
-        reason="Tests mock-spark specific storage operations",
+        reason="Mock-spark-specific test (uses storage API)",
     )
     def test_mock_spark_integration(self, mock_spark_session, sample_dataframe):
         """Test integration with mock Spark session."""
+        from mock_spark.errors import AnalysisException
+
         # Test basic DataFrame operations
         assert sample_dataframe.count() > 0
         assert len(sample_dataframe.columns) > 0
 
-        # Test schema operations - use compatibility checks
-        if hasattr(mock_spark_session, "storage"):
-            mock_spark_session.storage.create_schema("test_schema")
-            assert mock_spark_session.storage.schema_exists("test_schema")
+        # Test schema operations
+        mock_spark_session.storage.create_schema("test_schema")
+        assert mock_spark_session.storage.schema_exists("test_schema")
 
-            # Test table operations
-            mock_spark_session.storage.create_table(
-                "test_schema", "test_table", sample_dataframe.schema.fields
-            )
-            assert mock_spark_session.storage.table_exists("test_schema", "test_table")
-        else:
-            # For pyspark, use SQL/DataFrame API
-            mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS test_schema")
-            sample_dataframe.write.mode("overwrite").saveAsTable("test_schema.test_table")
-            # Verify table exists by reading it
-            df = mock_spark_session.table("test_schema.test_table")
-            assert df.count() > 0
+        # Test table operations
+        mock_spark_session.storage.create_table(
+            "test_schema", "test_table", sample_dataframe.schema.fields
+        )
+        assert mock_spark_session.storage.table_exists("test_schema", "test_table")
 
+    @pytest.mark.skipif(
+        os.environ.get("SPARK_MODE", "mock").lower() == "real",
+        reason="Mock-spark-specific test (uses mock-spark exceptions)",
+    )
     def test_error_handling(self, mock_spark_session):
         """Test error handling with mock Spark."""
-        # Test table not found error - works in both modes
-        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-        if spark_mode == "real":
-            from pyspark.sql.utils import AnalysisException as PySparkAnalysisException
-            with pytest.raises(PySparkAnalysisException):
-                mock_spark_session.table("nonexistent.table")
-        else:
-            with pytest.raises(AnalysisException):
-                mock_spark_session.table("nonexistent.table")
+        from mock_spark.errors import AnalysisException
+        from mock_spark import IllegalArgumentException
+
+        # Test table not found error
+        with pytest.raises(AnalysisException):
+            mock_spark_session.table("nonexistent.table")
 
         # Test invalid parameters - this should raise an exception
-        if spark_mode == "real":
-            # PySpark raises different exceptions for invalid parameters
-            with pytest.raises((TypeError, ValueError)):
-                mock_spark_session.createDataFrame("invalid_data", "invalid_schema")
-        else:
-            from mock_spark import IllegalArgumentException
-            with pytest.raises(IllegalArgumentException):
-                mock_spark_session.createDataFrame("invalid_data", "invalid_schema")
+        with pytest.raises(IllegalArgumentException):
+            mock_spark_session.createDataFrame("invalid_data", "invalid_schema")

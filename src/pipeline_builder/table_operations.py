@@ -48,7 +48,7 @@ def write_overwrite_table(
     **options: Union[str, int] | Union[float, bool],  # type: ignore[valid-type]
 ) -> int:
     """
-    Write DataFrame to table in overwrite mode.
+    Write DataFrame to table in overwrite mode using DELETE + INSERT pattern.
 
     Args:
         df: DataFrame to write
@@ -65,9 +65,24 @@ def write_overwrite_table(
         # Cache DataFrame for potential multiple operations
         df.cache()  # type: ignore[attr-defined]
         cnt: int = df.count()  # type: ignore[attr-defined]
+        
+        # Get SparkSession from DataFrame for DELETE operation
+        spark = df.sql_ctx.sparkSession  # type: ignore[attr-defined]
+        
+        # For overwrite mode, use DELETE + INSERT pattern
+        # Delete existing data if table exists
+        if table_exists(spark, fqn):
+            try:
+                spark.sql(f"DELETE FROM {fqn}")  # type: ignore[attr-defined]
+            except Exception as e:
+                logger.warning(
+                    f"Could not delete from table '{fqn}' before overwrite: {e}"
+                )
+        
+        # Write with append mode and overwriteSchema option
         writer = (  # type: ignore[attr-defined]
             df.write.format("parquet")
-            .mode("overwrite")
+            .mode("append")
             .option("overwriteSchema", "true")
         )
 

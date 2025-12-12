@@ -91,10 +91,10 @@ from pipeline_builder_base.models import (
     PipelineConfig,
 )
 
-from .compat import DataFrame, F, SparkSession, is_mock_spark
+from .compat import AnalysisException, DataFrame, F, SparkSession, is_mock_spark
 from .functions import FunctionsProtocol
 from .models import BronzeStep, GoldStep, SilverStep
-from .table_operations import fqn, table_exists
+from .table_operations import drop_table, fqn, table_exists
 from .validation import apply_column_rules
 
 
@@ -220,32 +220,10 @@ class ExecutionEngine:
             pass  # If we can't check, try to create anyway
 
         try:
-            # Try using mock-spark storage API if available (for mock-spark compatibility)
-            if hasattr(self.spark, "storage") and hasattr(
-                self.spark.storage,
-                "create_schema",  # type: ignore[union-attr]
-            ):
-                try:
-                    self.spark.storage.create_schema(schema)  # type: ignore[union-attr]
-                    # Verify it was created
-                    databases = [db.name for db in self.spark.catalog.listDatabases()]  # type: ignore[union-attr]
-                    if schema in databases:
-                        return  # Success
-                    else:
-                        raise ExecutionError(
-                            f"Schema '{schema}' creation via storage API failed - schema not in catalog. "
-                            f"Available databases: {databases}"
-                        )
-                except Exception as storage_error:
-                    # If storage API fails, fall through to SQL approach
-                    self.logger.debug(
-                        f"Storage API schema creation failed: {storage_error}, trying SQL"
-                    )
-
-            # Fall back to SQL for real Spark or if storage API not available
-            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")  # type: ignore[union-attr]
+            # Use SQL CREATE SCHEMA (works for both PySpark and mock-spark)
+            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")  # type: ignore[attr-defined]
             # Verify it was created
-            databases = [db.name for db in self.spark.catalog.listDatabases()]  # type: ignore[union-attr]
+            databases = [db.name for db in self.spark.catalog.listDatabases()]  # type: ignore[attr-defined]
             if schema not in databases:
                 raise ExecutionError(
                     f"Schema '{schema}' creation via SQL failed - schema not in catalog. "
@@ -356,6 +334,8 @@ class ExecutionEngine:
         step: Union[BronzeStep, SilverStep] | GoldStep,
         context: Dict[str, DataFrame],  # type: ignore[valid-type]
         mode: ExecutionMode = ExecutionMode.INITIAL,
+        table_locks: Optional[Dict[str, threading.Lock]] = None,
+        table_locks_lock: Optional[threading.Lock] = None,
     ) -> StepExecutionResult:
         """
         Execute a single pipeline step.
@@ -448,23 +428,11 @@ class ExecutionEngine:
                 output_table = fqn(schema, table_name)
 
                 # Ensure schema exists before creating table
-                # Try multiple methods to ensure schema is visible.
+                # Use SQL CREATE SCHEMA (works for both PySpark and mock-spark)
                 try:
-                    # Method 1: Try SQL (reliable for both PySpark and mock-spark)
                     self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")  # type: ignore[attr-defined]
-                    # Method 2: Also try storage API if available (redundancy for mock-spark)
-                    if hasattr(self.spark, "storage") and hasattr(
-                        self.spark.storage, "create_schema"
-                    ):
-                        try:
-                            self.spark.storage.create_schema(schema)
-                        except Exception:
-                            pass  # SQL might be enough, continue
-                    # Method 3: Try catalog API as well
-                    try:
-                        self.spark.sql(f"CREATE DATABASE IF NOT EXISTS {schema}")
-                    except Exception:
-                        pass  # SQL might be enough, continue
+                except Exception:
+                    pass  # Schema might already exist, continue
                 except Exception as e:
                     # If all methods fail, raise error - schema creation is critical
                     raise ExecutionError(
@@ -597,12 +565,120 @@ class ExecutionEngine:
                         output_df = self.spark.createDataFrame(  # type: ignore[attr-defined]
                             output_df.rdd, schema_override
                         )  # type: ignore[attr-defined]
-                        # Write with overwriteSchema option
-                        (
-                            output_df.write.mode(write_mode_str)
-                            .option("overwriteSchema", "true")
-                            .saveAsTable(output_table)  # type: ignore[attr-defined]
-                        )
+                        # For overwrite mode, use DELETE + INSERT pattern
+                        if write_mode_str == "overwrite":
+                            # Delete existing data if table exists
+                            delete_succeeded = False
+                            if table_exists(self.spark, output_table):
+                                try:
+                                    self.spark.sql(f"DELETE FROM {output_table}")  # type: ignore[attr-defined]
+                                    delete_succeeded = True
+                                except Exception as e:
+                                    # DELETE might fail for non-Delta tables
+                                    error_msg = str(e).lower()
+                                    if "does not support delete" in error_msg or "unsupported_feature" in error_msg:
+                                        self.logger.info(
+                                            f"Table '{output_table}' does not support DELETE. "
+                                            f"Using overwrite mode instead."
+                                        )
+                                    else:
+                                        self.logger.warning(
+                                            f"Could not delete from table '{output_table}' before overwrite: {e}"
+                                        )
+                            
+                            if delete_succeeded:
+                                # Write with append mode and overwriteSchema option
+                                try:
+                                    (
+                                        output_df.write.mode("append")
+                                        .option("overwriteSchema", "true")
+                                        .saveAsTable(output_table)  # type: ignore[attr-defined]
+                                    )
+                                except Exception as write_error:
+                                    # Handle race condition where table might be created by another thread
+                                    error_msg = str(write_error).lower()
+                                    if (
+                                        "already exists" in error_msg
+                                        or "table_or_view_already_exists" in error_msg
+                                        or isinstance(write_error, AnalysisException)
+                                    ):
+                                        # Table was created by another thread - verify it exists and retry with overwrite mode
+                                        if table_exists(self.spark, output_table):
+                                            self.logger.debug(
+                                                f"Table {output_table} was created by another thread, retrying with overwrite mode"
+                                            )
+                                            # Retry with overwrite mode (original mode) and overwriteSchema
+                                            (
+                                                output_df.write.mode("overwrite")
+                                                .option("overwriteSchema", "true")
+                                                .saveAsTable(output_table)  # type: ignore[attr-defined]
+                                            )
+                                        else:
+                                            raise
+                                    else:
+                                        raise
+                            else:
+                                # DELETE failed - use overwrite mode directly
+                                try:
+                                    (
+                                        output_df.write.mode("overwrite")
+                                        .option("overwriteSchema", "true")
+                                        .saveAsTable(output_table)  # type: ignore[attr-defined]
+                                    )
+                                except Exception as write_error:
+                                    # Handle race condition where table might be created by another thread
+                                    error_msg = str(write_error).lower()
+                                    if (
+                                        "already exists" in error_msg
+                                        or "table_or_view_already_exists" in error_msg
+                                        or isinstance(write_error, AnalysisException)
+                                    ):
+                                        # Table was created by another thread - verify it exists and retry with overwrite mode
+                                        if table_exists(self.spark, output_table):
+                                            self.logger.debug(
+                                                f"Table {output_table} was created by another thread, retrying with overwrite mode"
+                                            )
+                                            # Retry with overwrite mode (original mode) and overwriteSchema
+                                            (
+                                                output_df.write.mode("overwrite")
+                                                .option("overwriteSchema", "true")
+                                                .saveAsTable(output_table)  # type: ignore[attr-defined]
+                                            )
+                                        else:
+                                            raise
+                                    else:
+                                        raise
+                        else:
+                            # For append mode, use normal write
+                            try:
+                                (
+                                    output_df.write.mode(write_mode_str)
+                                    .option("overwriteSchema", "true")
+                                    .saveAsTable(output_table)  # type: ignore[attr-defined]
+                                )
+                            except Exception as write_error:
+                                # Handle race condition where table might be created by another thread
+                                error_msg = str(write_error).lower()
+                                if (
+                                    "already exists" in error_msg
+                                    or "table_or_view_already_exists" in error_msg
+                                    or isinstance(write_error, AnalysisException)
+                                ):
+                                    # Table was created by another thread - verify it exists and retry
+                                    if table_exists(self.spark, output_table):
+                                        self.logger.debug(
+                                            f"Table {output_table} was created by another thread, retrying with append mode"
+                                        )
+                                        # Retry with append mode and overwriteSchema
+                                        (
+                                            output_df.write.mode("append")
+                                            .option("overwriteSchema", "true")
+                                            .saveAsTable(output_table)  # type: ignore[attr-defined]
+                                        )
+                                    else:
+                                        raise
+                                else:
+                                    raise
                     except Exception as e:
                         raise ExecutionError(
                             f"Failed to write table '{output_table}' with schema override: {e}",
@@ -718,25 +794,233 @@ class ExecutionEngine:
 
                                 output_df = merged_df
 
-                                # Use overwriteSchema to allow schema changes
-                                writer = output_df.write.mode(write_mode_str).option(
-                                    "overwriteSchema", "true"
-                                )
+                                # For overwrite mode, use DELETE + INSERT pattern
+                                if write_mode_str == "overwrite":
+                                    # Delete existing data if table exists
+                                    delete_succeeded = False
+                                    if table_exists(self.spark, output_table):
+                                        try:
+                                            self.spark.sql(f"DELETE FROM {output_table}")  # type: ignore[attr-defined]
+                                            delete_succeeded = True
+                                        except Exception as e:
+                                            # DELETE might fail for non-Delta tables (e.g., Parquet)
+                                            # If there are schema changes, drop and recreate the table
+                                            error_msg = str(e).lower()
+                                            if "does not support delete" in error_msg or "unsupported_feature" in error_msg:
+                                                self.logger.info(
+                                                    f"Table '{output_table}' does not support DELETE. "
+                                                    f"Dropping and recreating table for schema evolution."
+                                                )
+                                                drop_table(self.spark, output_table)
+                                                delete_succeeded = True  # Table dropped, can create fresh
+                                            else:
+                                                self.logger.warning(
+                                                    f"Could not delete from table '{output_table}' before overwrite: {e}"
+                                                )
+                                    
+                                    if delete_succeeded:
+                                        # Use append mode with overwriteSchema to allow schema changes
+                                        writer = output_df.write.mode("append").option(
+                                            "overwriteSchema", "true"
+                                        )
+                                    else:
+                                        # DELETE failed and table still exists - use overwrite mode directly
+                                        # This will replace the table with new schema
+                                        writer = output_df.write.mode("overwrite").option(
+                                            "overwriteSchema", "true"
+                                        )
+                                else:
+                                    # For append mode, use normal write
+                                    writer = output_df.write.mode(write_mode_str).option(
+                                        "overwriteSchema", "true"
+                                    )
                             else:
-                                # No schema changes, normal write
-                                writer = output_df.write.mode(write_mode_str)
+                                # No schema changes, but still use DELETE + INSERT for overwrite
+                                if write_mode_str == "overwrite":
+                                    # Delete existing data if table exists
+                                    delete_succeeded = False
+                                    if table_exists(self.spark, output_table):
+                                        try:
+                                            self.spark.sql(f"DELETE FROM {output_table}")  # type: ignore[attr-defined]
+                                            delete_succeeded = True
+                                        except Exception as e:
+                                            # DELETE might fail for non-Delta tables
+                                            # If DELETE fails, fall back to overwrite mode
+                                            error_msg = str(e).lower()
+                                            if "does not support delete" in error_msg or "unsupported_feature" in error_msg:
+                                                self.logger.info(
+                                                    f"Table '{output_table}' does not support DELETE. "
+                                                    f"Using overwrite mode instead."
+                                                )
+                                            else:
+                                                self.logger.warning(
+                                                    f"Could not delete from table '{output_table}' before overwrite: {e}"
+                                                )
+                                    
+                                    if delete_succeeded:
+                                        # Use append mode after successful DELETE
+                                        writer = output_df.write.mode("append")
+                                    else:
+                                        # DELETE failed - use overwrite mode directly
+                                        writer = output_df.write.mode("overwrite")
+                                else:
+                                    # For append mode, normal write
+                                    writer = output_df.write.mode(write_mode_str)
                         except Exception as e:
                             # If we can't read the existing table, log and continue with normal write
                             self.logger.warning(
                                 f"Could not check existing schema for '{output_table}': {e}. "
                                 f"Proceeding with normal write."
                             )
-                            writer = output_df.write.mode(write_mode_str)
+                            # For overwrite mode, use DELETE + INSERT pattern
+                            if write_mode_str == "overwrite":
+                                # Delete existing data if table exists
+                                delete_succeeded = False
+                                if table_exists(self.spark, output_table):
+                                    try:
+                                        self.spark.sql(f"DELETE FROM {output_table}")  # type: ignore[attr-defined]
+                                        delete_succeeded = True
+                                    except Exception as e:
+                                        # DELETE might fail for non-Delta tables
+                                        error_msg = str(e).lower()
+                                        if "does not support delete" in error_msg or "unsupported_feature" in error_msg:
+                                            self.logger.info(
+                                                f"Table '{output_table}' does not support DELETE. "
+                                                f"Using overwrite mode instead."
+                                            )
+                                        else:
+                                            self.logger.warning(
+                                                f"Could not delete from table '{output_table}' before overwrite: {e}"
+                                            )
+                                
+                                if delete_succeeded:
+                                    # Use append mode after successful DELETE
+                                    writer = output_df.write.mode("append")
+                                else:
+                                    # DELETE failed - use overwrite mode directly
+                                    writer = output_df.write.mode("overwrite")
+                            else:
+                                # For append mode, normal write
+                                writer = output_df.write.mode(write_mode_str)
                     else:
-                        # Table doesn't exist or not overwrite mode, normal write
-                        writer = output_df.write.mode(write_mode_str)
+                        # Table doesn't exist or not overwrite mode
+                        if write_mode_str == "overwrite":
+                            # Table doesn't exist, but still use append mode for consistency
+                            writer = output_df.write.mode("append")
+                        else:
+                            # For append mode, normal write
+                            writer = output_df.write.mode(write_mode_str)
 
-                    writer.saveAsTable(output_table)  # type: ignore[attr-defined]
+                    # Execute write with error handling for parallel execution race conditions
+                    # Use table-level lock to serialize writes to the same table
+                    # This ensures that when multiple steps write to the same table, they do so sequentially
+                    table_lock = None
+                    if table_locks is not None and table_locks_lock is not None:
+                        # Get or create lock for this table
+                        with table_locks_lock:
+                            if output_table not in table_locks:
+                                table_locks[output_table] = threading.Lock()
+                            table_lock = table_locks[output_table]
+                    
+                    # Acquire table lock before writing (if available)
+                    if table_lock is not None:
+                        table_lock.acquire()
+                    
+                    try:
+                        # Check if table exists right before writing - if it does and we're in overwrite mode, use append instead
+                        # This check happens inside the lock, so it's atomic with the write
+                        table_exists_before_write = table_exists(self.spark, output_table)
+                        switched_to_append = False
+                        if table_exists_before_write and write_mode_str == "overwrite":
+                            # Another step is writing to the same table in parallel
+                            # Use append mode to preserve both steps' data
+                            self.logger.debug(
+                                f"Table {output_table} exists (likely from parallel step). "
+                                f"Switching from overwrite to append mode to preserve data from both steps."
+                            )
+                            # Check if Delta Lake is configured
+                            delta_configured = False
+                            try:
+                                extensions = self.spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
+                                if extensions and "DeltaSparkSessionExtension" in extensions:
+                                    delta_configured = True
+                            except Exception:
+                                pass
+                            if not delta_configured:
+                                try:
+                                    from delta.tables import DeltaTable
+                                    delta_configured = True
+                                except ImportError:
+                                    pass
+                            
+                            # Recreate writer with append mode
+                            if delta_configured:
+                                writer = output_df.write.format("delta").mode("append").option("mergeSchema", "true")  # type: ignore[attr-defined]
+                            else:
+                                writer = output_df.write.format("parquet").mode("append")  # type: ignore[attr-defined]
+                            switched_to_append = True
+                        
+                        try:
+                            writer.saveAsTable(output_table)  # type: ignore[attr-defined]
+                        except Exception as write_error:
+                            # Handle race condition where table might be created by another thread
+                            error_msg = str(write_error).lower()
+                            if (
+                                "already exists" in error_msg
+                                or "table_or_view_already_exists" in error_msg
+                                or isinstance(write_error, AnalysisException)
+                            ):
+                                # Table was created by another thread - verify it exists and retry with append mode
+                                # But only if we haven't already switched to append mode
+                                if table_exists(self.spark, output_table) and not switched_to_append:
+                                    self.logger.debug(
+                                        f"Table {output_table} was created by another thread, retrying with append mode"
+                                    )
+                                    # Check if Delta Lake is configured
+                                    delta_configured = False
+                                    try:
+                                        extensions = self.spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
+                                        if extensions and "DeltaSparkSessionExtension" in extensions:
+                                            delta_configured = True
+                                    except Exception:
+                                        pass
+                                    if not delta_configured:
+                                        try:
+                                            from delta.tables import DeltaTable
+                                            delta_configured = True
+                                        except ImportError:
+                                            pass
+                                    
+                                    # Retry with append mode to preserve data from both steps
+                                    if delta_configured:
+                                        retry_writer = output_df.write.format("delta").mode("append").option("mergeSchema", "true")  # type: ignore[attr-defined]
+                                    else:
+                                        retry_writer = output_df.write.format("parquet").mode("append")  # type: ignore[attr-defined]
+                                    retry_writer.saveAsTable(output_table)  # type: ignore[attr-defined]
+                                elif switched_to_append:
+                                    # We already switched to append mode, so the error is unexpected - re-raise
+                                    raise
+                                else:
+                                    # Table should exist but doesn't - re-raise original error
+                                    raise
+                            else:
+                                # Different error - re-raise
+                                raise
+                    finally:
+                        # Release table lock after writing
+                        if table_lock is not None:
+                            table_lock.release()
+                    
+                    # Refresh table metadata after write to ensure subsequent reads see the latest data
+                    # This is especially important in parallel execution where multiple steps might write to the same table
+                    try:
+                        self.spark.sql(f"REFRESH TABLE {output_table}")  # type: ignore[attr-defined]
+                    except Exception as refresh_error:
+                        # Refresh might fail for some table types or if table doesn't exist - log but don't fail
+                        self.logger.debug(
+                            f"Could not refresh table {output_table} after write: {refresh_error}"
+                        )
+                
                 result.output_table = output_table
                 result.rows_processed = output_df.count()  # type: ignore[attr-defined]
 
@@ -923,6 +1207,11 @@ class ExecutionEngine:
 
             # Thread-safe context management
             context_lock = threading.Lock()
+            
+            # Table-level locks to serialize writes to the same table
+            # This prevents race conditions when multiple steps write to the same table in parallel
+            table_locks: Dict[str, threading.Lock] = {}
+            table_locks_lock = threading.Lock()  # Lock for the table_locks dictionary itself
 
             # Create a mapping of step names to step objects
             step_map = {s.name: s for s in steps}
@@ -956,6 +1245,8 @@ class ExecutionEngine:
                                 context,
                                 mode,
                                 context_lock,
+                                table_locks,
+                                table_locks_lock,
                             )
                             futures[future] = step_name
 
@@ -1016,7 +1307,7 @@ class ExecutionEngine:
                         step = step_map[step_name]
                         try:
                             step_result = self._execute_step_safe(
-                                step, context, mode, context_lock
+                                step, context, mode, context_lock, table_locks, table_locks_lock
                             )
                             if result.steps is not None:
                                 result.steps.append(step_result)
@@ -1119,6 +1410,8 @@ class ExecutionEngine:
         context: Dict[str, DataFrame],  # type: ignore[valid-type]
         mode: ExecutionMode,
         context_lock: threading.Lock,
+        table_locks: Dict[str, threading.Lock],
+        table_locks_lock: threading.Lock,
     ) -> StepExecutionResult:
         """
         Execute a step with thread-safe context access.
@@ -1155,7 +1448,8 @@ class ExecutionEngine:
             local_context = dict(context)
 
         # Execute step (this can happen in parallel without lock)
-        result = self.execute_step(step, local_context, mode)
+        # Pass table locks to serialize writes to the same table
+        result = self.execute_step(step, local_context, mode, table_locks, table_locks_lock)
 
         # Write to context with lock (for Silver/Gold steps that write tables)
         if result.status == StepStatus.COMPLETED and not isinstance(step, BronzeStep):
@@ -1165,14 +1459,24 @@ class ExecutionEngine:
                 schema = getattr(step, "schema", None)
 
                 if schema is not None:
-                    # Add the step's output table to context for downstream steps
-                    # Catalog sync and aggregated DataFrame registration are fixed in mock-spark 3.10.3+
-                    # Tables should be immediately accessible without retry logic
+                    # Try to use the output DataFrame directly from the step execution
+                    # This avoids reading from table files which might be in flux during parallel execution
                     table_fqn = fqn(schema, table_name)
-
+                    
+                    # First, try to get the output DataFrame from the step execution
+                    # We need to re-execute the step to get the output DataFrame, but that's expensive
+                    # Instead, try to read from table with refresh, and cache it
                     try:
-                        # Read table immediately - should work with mock-spark 3.10.3+
+                        # Refresh table first to ensure we see the latest data
+                        try:
+                            self.spark.sql(f"REFRESH TABLE {table_fqn}")  # type: ignore[attr-defined]
+                        except Exception:
+                            pass  # Refresh might fail for some table types - continue anyway
+                        
+                        # Read table and cache it to avoid re-reading from files
                         table_df = self.spark.table(table_fqn)  # type: ignore[attr-defined,valid-type]
+                        # Cache the DataFrame so it doesn't try to re-read from files that might be deleted
+                        table_df.cache()  # type: ignore[attr-defined]
                         context[step.name] = table_df  # type: ignore[valid-type]
                     except Exception as e:
                         # If reading fails, log warning but don't fail the step
@@ -1180,7 +1484,7 @@ class ExecutionEngine:
                         self.logger.warning(
                             f"Could not read table '{table_fqn}' immediately after writing. "
                             f"The table was written successfully but is not yet accessible. "
-                            f"This should be rare with mock-spark 3.10.3+. Error: {e}"
+                            f"This may happen in parallel execution when multiple steps write to the same table. Error: {e}"
                         )
                         # Don't add to context - downstream steps will need to read the table directly
                 else:

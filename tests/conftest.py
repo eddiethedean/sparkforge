@@ -105,19 +105,6 @@ def get_unique_test_schema():
     return f"test_schema_{unique_id}"
 
 
-def _create_database(spark, schema_name: str):
-    """Helper to create database that works for both mock-spark and pyspark."""
-    try:
-        # Try mock-spark API first
-        if hasattr(spark.catalog, "createDatabase"):
-            spark.catalog.createDatabase(schema_name)
-        else:
-            # Use SQL for pyspark
-            spark.sql(f"CREATE DATABASE IF NOT EXISTS {schema_name}")
-    except Exception as e:
-        print(f"⚠️  Could not create database {schema_name}: {e}")
-
-
 def _create_mock_spark_session():
     """Create a mock Spark session."""
     from mock_spark import SparkSession
@@ -127,9 +114,12 @@ def _create_mock_spark_session():
     # Create mock Spark session
     spark = SparkSession(f"SparkForgeTests-{os.getpid()}")
 
-    # Create test database
-    _create_database(spark, "test_schema")
-    print("✅ Test database created successfully")
+    # Create test database using SQL (works for both mock-spark and PySpark)
+    try:
+        spark.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
+        print("✅ Test database created successfully")
+    except Exception as e:
+        print(f"❌ Could not create test_schema database: {e}")
 
     return spark
 
@@ -137,6 +127,13 @@ def _create_mock_spark_session():
 def _create_real_spark_session():
     """Create a real Spark session with Delta Lake support."""
     from pyspark.sql import SparkSession
+
+    # Set Python version for PySpark to match current interpreter
+    # This prevents Python version mismatch between driver and workers
+    python_executable = sys.executable
+    os.environ["PYSPARK_PYTHON"] = python_executable
+    os.environ["PYSPARK_DRIVER_PYTHON"] = python_executable
+    print(f"🔧 Using Python at: {python_executable}")
 
     # Set Java environment
     java_home = os.environ.get("JAVA_HOME", "/opt/homebrew/opt/java11")
@@ -337,20 +334,19 @@ def spark_session():
             if spark:
                 spark.stop()
         else:
-            # Mock Spark cleanup
-            if spark and hasattr(spark, "storage"):
-                # Clear all schemas except system ones
-                schemas = (
-                    list(spark.storage.schemas.keys())
-                    if hasattr(spark.storage, "schemas")
-                    else []
-                )
-                for schema_name in schemas:
-                    if schema_name not in ["default", "information_schema"]:
-                        try:
-                            spark.storage.drop_schema(schema_name, cascade=True)
-                        except Exception:
-                            pass
+            # Mock Spark cleanup - use SQL to drop schemas
+            if spark:
+                try:
+                    # Get list of databases/schemas
+                    databases = [db.name for db in spark.catalog.listDatabases()]
+                    for schema_name in databases:
+                        if schema_name not in ["default", "information_schema"]:
+                            try:
+                                spark.sql(f"DROP SCHEMA IF EXISTS {schema_name} CASCADE")
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
 
             # Stop the session
             if spark and hasattr(spark, "stop"):
@@ -408,9 +404,12 @@ def isolated_spark_session():
 
         spark = SparkSession(f"SparkForgeTests-{os.getpid()}-{unique_id}")
 
-        # Create isolated test database
-        _create_database(spark, schema_name)
-        print(f"✅ Isolated test database {schema_name} created successfully")
+        # Create isolated test database using SQL (works for both mock-spark and PySpark)
+        try:
+            spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+            print(f"✅ Isolated test database {schema_name} created successfully")
+        except Exception as e:
+            print(f"❌ Could not create isolated test database {schema_name}: {e}")
 
         yield spark
 
