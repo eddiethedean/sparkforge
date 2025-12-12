@@ -2,6 +2,8 @@
 System tests for complete pipeline execution using Mock Spark.
 """
 
+import os
+
 import pytest
 from mock_spark.errors import AnalysisException
 
@@ -16,6 +18,10 @@ from pipeline_builder.writer.models import LogLevel, WriteMode, WriterConfig
 class TestCompletePipeline:
     """System tests for complete pipeline execution with Mock Spark."""
 
+    @pytest.mark.skipif(
+        os.environ.get("SPARK_MODE", "mock").lower() == "real",
+        reason="Uses mock-spark specific storage operations (insert_data, query_table)",
+    )
     def test_bronze_to_silver_to_gold_pipeline(
         self, mock_spark_session, sample_dataframe
     ):
@@ -108,6 +114,10 @@ class TestCompletePipeline:
         assert len(bronze_data) == len(silver_data)
         assert len(silver_data) == len(gold_data)
 
+    @pytest.mark.skipif(
+        os.environ.get("SPARK_MODE", "mock").lower() == "real",
+        reason="Uses mock-spark specific storage operations (insert_data, query_table)",
+    )
     def test_pipeline_with_data_validation(self, mock_spark_session, sample_dataframe):
         """Test pipeline with data validation at each layer."""
         # Setup schemas
@@ -166,6 +176,10 @@ class TestCompletePipeline:
         assert validator.logger is not None
         assert engine.config.thresholds == thresholds
 
+    @pytest.mark.skipif(
+        os.environ.get("SPARK_MODE", "mock").lower() == "real",
+        reason="Uses mock-spark specific storage operations (insert_data, query_table)",
+    )
     def test_pipeline_with_logging_and_monitoring(
         self, mock_spark_session, sample_dataframe
     ):
@@ -237,6 +251,10 @@ class TestCompletePipeline:
         assert len(silver_data) > 0
         assert len(gold_data) > 0
 
+    @pytest.mark.skipif(
+        os.environ.get("SPARK_MODE", "mock").lower() == "real",
+        reason="Uses mock-spark specific storage operations (insert_data, query_table)",
+    )
     def test_pipeline_error_recovery(self, mock_spark_session, sample_dataframe):
         """Test pipeline error recovery and resilience."""
         # Setup schemas
@@ -291,6 +309,10 @@ class TestCompletePipeline:
         assert mock_spark_session.storage.table_exists("silver", "processed_data")
         assert mock_spark_session.storage.table_exists("gold", "aggregated_data")
 
+    @pytest.mark.skipif(
+        os.environ.get("SPARK_MODE", "mock").lower() == "real",
+        reason="Uses mock-spark specific storage operations (insert_data, query_table)",
+    )
     def test_pipeline_with_different_data_sizes(
         self, mock_spark_session, large_dataset
     ):

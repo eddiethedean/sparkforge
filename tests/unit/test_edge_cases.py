@@ -434,6 +434,10 @@ class TestEdgeCases:
         assert writer_max.config.batch_size == 10000
         assert writer_max.config.compression == "gzip"
 
+    @pytest.mark.skipif(
+        os.environ.get("SPARK_MODE", "mock").lower() == "real",
+        reason="spark.storage is mock-spark specific",
+    )
     def test_storage_edge_cases(self, mock_spark_session):
         """Test storage edge cases."""
         # Test with long table names (DuckDB limit is 63 characters)
@@ -453,6 +457,10 @@ class TestEdgeCases:
 
         assert mock_spark_session.storage.table_exists("test", valid_special_name)
 
+    @pytest.mark.skipif(
+        os.environ.get("SPARK_MODE", "mock").lower() == "real",
+        reason="Mock-spark specific type checks",
+    )
     def test_function_edge_cases(self, mock_spark_session):
         """Test function edge cases."""
         # Test complex column expressions
@@ -513,7 +521,11 @@ class TestEdgeCases:
         assert session4.appName == "TestApp4"
 
         # Test catalog operations
-        mock_spark_session.storage.create_schema("test_schema")
+        # Use SQL for compatibility - spark.storage is mock-spark specific
+        if hasattr(mock_spark_session, "storage"):
+            mock_spark_session.storage.create_schema("test_schema")
+        else:
+            mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS test_schema")
         databases = mock_spark_session.catalog.listDatabases()
         assert len(databases) >= 1
 

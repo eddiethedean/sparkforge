@@ -443,6 +443,10 @@ class TestFunctionsIntegration:
         assert "invalid_rows" in result
         assert "quality_rate" in result
 
+    @pytest.mark.skipif(
+        os.environ.get("SPARK_MODE", "mock").lower() == "real",
+        reason="Tests mock-spark specific functions performance",
+    )
     def test_mock_functions_performance(self):
         """Test Functions performance characteristics."""
         import time
@@ -470,6 +474,10 @@ class TestFunctionsIntegration:
                 end_time - start_time
             ) < 0.1  # Less than 100ms for 1000 calls with mock-spark
 
+    @pytest.mark.skipif(
+        os.environ.get("SPARK_MODE", "mock").lower() == "real",
+        reason="Tests mock-spark specific functions error handling",
+    )
     def test_mock_functions_error_handling(self):
         """Test Functions error handling."""
         # Test with invalid inputs

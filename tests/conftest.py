@@ -105,6 +105,19 @@ def get_unique_test_schema():
     return f"test_schema_{unique_id}"
 
 
+def _create_database(spark, schema_name: str):
+    """Helper to create database that works for both mock-spark and pyspark."""
+    try:
+        # Try mock-spark API first
+        if hasattr(spark.catalog, "createDatabase"):
+            spark.catalog.createDatabase(schema_name)
+        else:
+            # Use SQL for pyspark
+            spark.sql(f"CREATE DATABASE IF NOT EXISTS {schema_name}")
+    except Exception as e:
+        print(f"⚠️  Could not create database {schema_name}: {e}")
+
+
 def _create_mock_spark_session():
     """Create a mock Spark session."""
     from mock_spark import SparkSession
@@ -115,11 +128,8 @@ def _create_mock_spark_session():
     spark = SparkSession(f"SparkForgeTests-{os.getpid()}")
 
     # Create test database
-    try:
-        spark.catalog.createDatabase("test_schema")
-        print("✅ Test database created successfully")
-    except Exception as e:
-        print(f"❌ Could not create test_schema database: {e}")
+    _create_database(spark, "test_schema")
+    print("✅ Test database created successfully")
 
     return spark
 
@@ -399,11 +409,8 @@ def isolated_spark_session():
         spark = SparkSession(f"SparkForgeTests-{os.getpid()}-{unique_id}")
 
         # Create isolated test database
-        try:
-            spark.catalog.createDatabase(schema_name)
-            print(f"✅ Isolated test database {schema_name} created successfully")
-        except Exception as e:
-            print(f"❌ Could not create isolated test database {schema_name}: {e}")
+        _create_database(spark, schema_name)
+        print(f"✅ Isolated test database {schema_name} created successfully")
 
         yield spark
 

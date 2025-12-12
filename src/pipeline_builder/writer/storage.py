@@ -25,7 +25,9 @@ try:
     from delta.tables import DeltaTable
 
     HAS_DELTA = True
-except ImportError:
+except (ImportError, AttributeError, RuntimeError):
+    # Catch ImportError, AttributeError (delta-spark compatibility issues),
+    # and RuntimeError (Spark session not initialized)
     DeltaTable = None  # type: ignore[misc, assignment]
     HAS_DELTA = False
 
