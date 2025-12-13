@@ -97,6 +97,122 @@ from .models import BronzeStep, GoldStep, SilverStep
 from .table_operations import drop_table, fqn, table_exists
 from .validation import apply_column_rules
 
+# Handle optional Delta Lake dependency
+try:
+    from delta.tables import DeltaTable
+
+    HAS_DELTA = True
+except (ImportError, AttributeError, RuntimeError):
+    DeltaTable = None  # type: ignore[misc, assignment]
+    HAS_DELTA = False
+
+# Cache for Delta Lake availability per Spark session
+_delta_availability_cache_execution: Dict[str, bool] = {}
+
+
+def _is_delta_lake_available_execution(spark: SparkSession) -> bool:  # type: ignore[valid-type]
+    """
+    Check if Delta Lake is actually available and working in the Spark session.
+    
+    This function checks configuration and optionally tests Delta functionality.
+    Results are cached per Spark session for performance.
+    
+    Args:
+        spark: Spark session to test
+        
+    Returns:
+        True if Delta Lake is available and working, False otherwise
+    """
+    # Use Spark session's underlying SparkContext ID as cache key
+    try:
+        spark_id = str(id(spark._jsparkSession)) if hasattr(spark, "_jsparkSession") else str(id(spark))
+    except Exception:
+        spark_id = str(id(spark))
+    
+    # Check cache first
+    if spark_id in _delta_availability_cache_execution:
+        return _delta_availability_cache_execution[spark_id]
+    
+    # If delta package is not installed, can't be available
+    if not HAS_DELTA:
+        _delta_availability_cache_execution[spark_id] = False
+        return False
+    
+    # Check Spark configuration first (fast check)
+    try:
+        extensions = spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
+        catalog = spark.conf.get("spark.sql.catalog.spark_catalog", "")  # type: ignore[attr-defined]
+        
+        # If both extensions and catalog are configured for Delta, assume it works
+        if "DeltaSparkSessionExtension" in extensions and "DeltaCatalog" in catalog:
+            _delta_availability_cache_execution[spark_id] = True
+            return True
+    except Exception:
+        pass
+    
+    # If only extensions are configured, do a lightweight test
+    try:
+        extensions = spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
+        if "DeltaSparkSessionExtension" in extensions:
+            # Try a simple test - create a minimal DataFrame and try to write it
+            import tempfile
+            import os
+            test_df = spark.createDataFrame([(1, "test")], ["id", "name"])
+            # Use a unique temp directory to avoid conflicts
+            with tempfile.TemporaryDirectory() as temp_dir:
+                test_path = os.path.join(temp_dir, "delta_test")
+                try:
+                    test_df.write.format("delta").mode("overwrite").save(test_path)
+                    _delta_availability_cache_execution[spark_id] = True
+                    return True
+                except Exception:
+                    # Delta format failed - not available
+                    pass
+    except Exception:
+        pass
+    
+    # Delta is not available in this Spark session
+    _delta_availability_cache_execution[spark_id] = False
+    return False
+
+
+def _create_dataframe_writer(
+    df: DataFrame, 
+    spark: SparkSession,  # type: ignore[valid-type]
+    mode: str,
+    **options: Any
+) -> Any:
+    """
+    Create a DataFrameWriter with the appropriate format based on Delta availability.
+    
+    This ensures that writers always use the correct format (delta or parquet)
+    based on what's actually available in the Spark session.
+    
+    Args:
+        df: DataFrame to write
+        spark: Spark session
+        mode: Write mode ("overwrite", "append", etc.)
+        **options: Additional write options
+        
+    Returns:
+        Configured DataFrameWriter
+    """
+    delta_available = _is_delta_lake_available_execution(spark)
+    
+    writer = df.write.mode(mode)
+    
+    # Set format based on Delta availability
+    if delta_available:
+        writer = writer.format("delta")
+    else:
+        writer = writer.format("parquet")
+    
+    # Apply additional options
+    for key, value in options.items():
+        writer = writer.option(key, value)
+    
+    return writer
+
 
 class StepStatus(Enum):
     """Step execution status."""
@@ -608,11 +724,10 @@ class ExecutionEngine:
                                                 f"Table {output_table} was created by another thread, retrying with overwrite mode"
                                             )
                                             # Retry with overwrite mode (original mode) and overwriteSchema
-                                            (
-                                                output_df.write.mode("overwrite")
-                                                .option("overwriteSchema", "true")
-                                                .saveAsTable(output_table)  # type: ignore[attr-defined]
+                                            retry_writer = _create_dataframe_writer(
+                                                output_df, self.spark, "overwrite", overwriteSchema="true"
                                             )
+                                            retry_writer.saveAsTable(output_table)  # type: ignore[attr-defined]
                                         else:
                                             raise
                                     else:
@@ -620,11 +735,10 @@ class ExecutionEngine:
                             else:
                                 # DELETE failed - use overwrite mode directly
                                 try:
-                                    (
-                                        output_df.write.mode("overwrite")
-                                        .option("overwriteSchema", "true")
-                                        .saveAsTable(output_table)  # type: ignore[attr-defined]
+                                    writer = _create_dataframe_writer(
+                                        output_df, self.spark, "overwrite", overwriteSchema="true"
                                     )
+                                    writer.saveAsTable(output_table)  # type: ignore[attr-defined]
                                 except Exception as write_error:
                                     # Handle race condition where table might be created by another thread
                                     error_msg = str(write_error).lower()
@@ -639,11 +753,10 @@ class ExecutionEngine:
                                                 f"Table {output_table} was created by another thread, retrying with overwrite mode"
                                             )
                                             # Retry with overwrite mode (original mode) and overwriteSchema
-                                            (
-                                                output_df.write.mode("overwrite")
-                                                .option("overwriteSchema", "true")
-                                                .saveAsTable(output_table)  # type: ignore[attr-defined]
+                                            retry_writer = _create_dataframe_writer(
+                                                output_df, self.spark, "overwrite", overwriteSchema="true"
                                             )
+                                            retry_writer.saveAsTable(output_table)  # type: ignore[attr-defined]
                                         else:
                                             raise
                                     else:
@@ -651,11 +764,10 @@ class ExecutionEngine:
                         else:
                             # For append mode, use normal write
                             try:
-                                (
-                                    output_df.write.mode(write_mode_str)
-                                    .option("overwriteSchema", "true")
-                                    .saveAsTable(output_table)  # type: ignore[attr-defined]
+                                writer = _create_dataframe_writer(
+                                    output_df, self.spark, write_mode_str, overwriteSchema="true"
                                 )
+                                writer.saveAsTable(output_table)  # type: ignore[attr-defined]
                             except Exception as write_error:
                                 # Handle race condition where table might be created by another thread
                                 error_msg = str(write_error).lower()
@@ -670,11 +782,10 @@ class ExecutionEngine:
                                             f"Table {output_table} was created by another thread, retrying with append mode"
                                         )
                                         # Retry with append mode and overwriteSchema
-                                        (
-                                            output_df.write.mode("append")
-                                            .option("overwriteSchema", "true")
-                                            .saveAsTable(output_table)  # type: ignore[attr-defined]
+                                        retry_writer = _create_dataframe_writer(
+                                            output_df, self.spark, "append", overwriteSchema="true"
                                         )
+                                        retry_writer.saveAsTable(output_table)  # type: ignore[attr-defined]
                                     else:
                                         raise
                                 else:
@@ -820,19 +931,19 @@ class ExecutionEngine:
                                     
                                     if delete_succeeded:
                                         # Use append mode with overwriteSchema to allow schema changes
-                                        writer = output_df.write.mode("append").option(
-                                            "overwriteSchema", "true"
+                                        writer = _create_dataframe_writer(
+                                            output_df, self.spark, "append", overwriteSchema="true"
                                         )
                                     else:
                                         # DELETE failed and table still exists - use overwrite mode directly
                                         # This will replace the table with new schema
-                                        writer = output_df.write.mode("overwrite").option(
-                                            "overwriteSchema", "true"
+                                        writer = _create_dataframe_writer(
+                                            output_df, self.spark, "overwrite", overwriteSchema="true"
                                         )
                                 else:
                                     # For append mode, use normal write
-                                    writer = output_df.write.mode(write_mode_str).option(
-                                        "overwriteSchema", "true"
+                                    writer = _create_dataframe_writer(
+                                        output_df, self.spark, write_mode_str, overwriteSchema="true"
                                     )
                             else:
                                 # No schema changes, but still use DELETE + INSERT for overwrite
@@ -859,13 +970,13 @@ class ExecutionEngine:
                                     
                                     if delete_succeeded:
                                         # Use append mode after successful DELETE
-                                        writer = output_df.write.mode("append")
+                                        writer = _create_dataframe_writer(output_df, self.spark, "append")
                                     else:
                                         # DELETE failed - use overwrite mode directly
-                                        writer = output_df.write.mode("overwrite")
+                                        writer = _create_dataframe_writer(output_df, self.spark, "overwrite")
                                 else:
                                     # For append mode, normal write
-                                    writer = output_df.write.mode(write_mode_str)
+                                    writer = _create_dataframe_writer(output_df, self.spark, write_mode_str)
                         except Exception as e:
                             # If we can't read the existing table, log and continue with normal write
                             self.logger.warning(
@@ -895,21 +1006,21 @@ class ExecutionEngine:
                                 
                                 if delete_succeeded:
                                     # Use append mode after successful DELETE
-                                    writer = output_df.write.mode("append")
+                                    writer = _create_dataframe_writer(output_df, self.spark, "append")
                                 else:
                                     # DELETE failed - use overwrite mode directly
-                                    writer = output_df.write.mode("overwrite")
+                                    writer = _create_dataframe_writer(output_df, self.spark, "overwrite")
                             else:
                                 # For append mode, normal write
-                                writer = output_df.write.mode(write_mode_str)
+                                writer = _create_dataframe_writer(output_df, self.spark, write_mode_str)
                     else:
                         # Table doesn't exist or not overwrite mode
                         if write_mode_str == "overwrite":
                             # Table doesn't exist, but still use append mode for consistency
-                            writer = output_df.write.mode("append")
+                            writer = _create_dataframe_writer(output_df, self.spark, "append")
                         else:
                             # For append mode, normal write
-                            writer = output_df.write.mode(write_mode_str)
+                            writer = _create_dataframe_writer(output_df, self.spark, write_mode_str)
 
                     # Execute write with error handling for parallel execution race conditions
                     # Use table-level lock to serialize writes to the same table
@@ -938,26 +1049,13 @@ class ExecutionEngine:
                                 f"Table {output_table} exists (likely from parallel step). "
                                 f"Switching from overwrite to append mode to preserve data from both steps."
                             )
-                            # Check if Delta Lake is configured
-                            delta_configured = False
-                            try:
-                                extensions = self.spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
-                                if extensions and "DeltaSparkSessionExtension" in extensions:
-                                    delta_configured = True
-                            except Exception:
-                                pass
-                            if not delta_configured:
-                                try:
-                                    from delta.tables import DeltaTable
-                                    delta_configured = True
-                                except ImportError:
-                                    pass
+                            # Check if Delta Lake is actually available and working
+                            delta_configured = _is_delta_lake_available_execution(self.spark)
                             
                             # Recreate writer with append mode
-                            if delta_configured:
-                                writer = output_df.write.format("delta").mode("append").option("mergeSchema", "true")  # type: ignore[attr-defined]
-                            else:
-                                writer = output_df.write.format("parquet").mode("append")  # type: ignore[attr-defined]
+                            writer = _create_dataframe_writer(
+                                output_df, self.spark, "append", mergeSchema="true"
+                            )
                             switched_to_append = True
                         
                         try:
@@ -976,26 +1074,13 @@ class ExecutionEngine:
                                     self.logger.debug(
                                         f"Table {output_table} was created by another thread, retrying with append mode"
                                     )
-                                    # Check if Delta Lake is configured
-                                    delta_configured = False
-                                    try:
-                                        extensions = self.spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
-                                        if extensions and "DeltaSparkSessionExtension" in extensions:
-                                            delta_configured = True
-                                    except Exception:
-                                        pass
-                                    if not delta_configured:
-                                        try:
-                                            from delta.tables import DeltaTable
-                                            delta_configured = True
-                                        except ImportError:
-                                            pass
+                                    # Check if Delta Lake is actually available and working
+                                    delta_configured = _is_delta_lake_available_execution(self.spark)
                                     
                                     # Retry with append mode to preserve data from both steps
-                                    if delta_configured:
-                                        retry_writer = output_df.write.format("delta").mode("append").option("mergeSchema", "true")  # type: ignore[attr-defined]
-                                    else:
-                                        retry_writer = output_df.write.format("parquet").mode("append")  # type: ignore[attr-defined]
+                                    retry_writer = _create_dataframe_writer(
+                                        output_df, self.spark, "append", mergeSchema="true"
+                                    )
                                     retry_writer.saveAsTable(output_table)  # type: ignore[attr-defined]
                                 elif switched_to_append:
                                     # We already switched to append mode, so the error is unexpected - re-raise

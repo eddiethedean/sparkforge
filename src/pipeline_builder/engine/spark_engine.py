@@ -18,7 +18,7 @@ from abstracts.step import Step
 from pipeline_builder_base.logging import PipelineLogger
 
 from ..compat import DataFrame, SparkSession
-from ..execution import ExecutionEngine
+from ..execution import ExecutionEngine, _create_dataframe_writer
 from ..functions import FunctionsProtocol
 from ..models import BronzeStep, GoldStep, SilverStep
 from ..table_operations import fqn
@@ -253,7 +253,9 @@ class SparkEngine(Engine):
         # Write to table
         try:
             rows_before = df.count()  # type: ignore[attr-defined]
-            df.write.mode(write_mode).saveAsTable(output_table)  # type: ignore[attr-defined]
+            # Use helper function to ensure correct format (delta or parquet) based on availability
+            writer = _create_dataframe_writer(df, self.spark, write_mode)
+            writer.saveAsTable(output_table)  # type: ignore[attr-defined]
             rows_written = rows_before  # Assuming all rows were written successfully
             return WriteReport(
                 source=df,

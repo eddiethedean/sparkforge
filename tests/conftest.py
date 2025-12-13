@@ -13,6 +13,14 @@ import shutil
 import sys
 import time
 
+# Set PySpark Python environment variables early, before any Spark imports
+# This ensures workers use the same Python version as the driver
+# Use absolute path to ensure consistency
+python_executable = os.path.abspath(sys.executable)
+# Always set these to override any existing values and ensure consistency
+os.environ["PYSPARK_PYTHON"] = python_executable
+os.environ["PYSPARK_DRIVER_PYTHON"] = python_executable
+
 # Ensure project root and src directory are on sys.path before loading compatibility shims
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC_DIR = os.path.join(PROJECT_ROOT, "src")
@@ -130,10 +138,13 @@ def _create_real_spark_session():
 
     # Set Python version for PySpark to match current interpreter
     # This prevents Python version mismatch between driver and workers
-    python_executable = sys.executable
+    # Use the python_executable from module level (set early)
+    # Force update to ensure it's set before Spark initialization
     os.environ["PYSPARK_PYTHON"] = python_executable
     os.environ["PYSPARK_DRIVER_PYTHON"] = python_executable
     print(f"🔧 Using Python at: {python_executable}")
+    print(f"🔧 PYSPARK_PYTHON={os.environ.get('PYSPARK_PYTHON')}")
+    print(f"🔧 PYSPARK_DRIVER_PYTHON={os.environ.get('PYSPARK_DRIVER_PYTHON')}")
 
     # Set Java environment
     java_home = os.environ.get("JAVA_HOME", "/opt/homebrew/opt/java11")
@@ -169,46 +180,71 @@ def _create_real_spark_session():
 
         print("🔧 Configuring real Spark with Delta Lake support for all tests")
 
+        # Build Spark session builder with basic config
+        # Note: Do NOT set spark.sql.extensions or spark.sql.catalog here
+        # configure_spark_with_delta_pip will handle Delta Lake configuration
         builder = (
             SparkSession.builder.appName(f"SparkForgeTests-{os.getpid()}")
-            .master("local[1]")
+            .master("local[*]")  # Use all available cores for parallel execution
             .config("spark.sql.warehouse.dir", warehouse_dir)
             .config("spark.sql.adaptive.enabled", "true")
             .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
             .config("spark.driver.host", "127.0.0.1")
             .config("spark.driver.bindAddress", "127.0.0.1")
-            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-            # Note: spark.sql.catalog.spark_catalog is set by configure_spark_with_delta_pip()
-            # Don't set it here to avoid ClassNotFoundException if Delta Lake setup fails
             .config("spark.sql.adaptive.skewJoin.enabled", "true")
             .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
             .config("spark.driver.memory", "1g")
             .config("spark.executor.memory", "1g")
         )
 
-        # Configure Delta Lake with explicit version
+        # Configure Delta Lake - configure_spark_with_delta_pip handles extensions and catalog
         spark = configure_spark_with_delta_pip(builder).getOrCreate()
 
-        # Verify and set Delta catalog if not already set
-        # configure_spark_with_delta_pip may not set the catalog automatically
+        # Verify Delta Lake configuration was applied
         try:
-            current_catalog = spark.conf.get("spark.sql.catalog.spark_catalog", None)  # type: ignore[attr-defined]
-            if current_catalog != "org.apache.spark.sql.delta.catalog.DeltaCatalog":
-                spark.conf.set(
-                    "spark.sql.catalog.spark_catalog",
-                    "org.apache.spark.sql.delta.catalog.DeltaCatalog",
-                )  # type: ignore[attr-defined]
-        except Exception:
-            pass  # Ignore if we can't set it
+            # Check if extensions include Delta
+            extensions = spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
+            if "io.delta.sql.DeltaSparkSessionExtension" not in extensions:
+                print("⚠️ Warning: Delta extensions not automatically set, setting manually")
+                existing_extensions = extensions.split(",") if extensions else []
+                if "io.delta.sql.DeltaSparkSessionExtension" not in existing_extensions:
+                    new_extensions = ",".join(existing_extensions + ["io.delta.sql.DeltaSparkSessionExtension"])
+                    spark.conf.set("spark.sql.extensions", new_extensions)  # type: ignore[attr-defined]
+                else:
+                    print("   Delta extensions already present")
+            
+            # Check if catalog is set to Delta
+            current_catalog = spark.conf.get("spark.sql.catalog.spark_catalog", "")  # type: ignore[attr-defined]
+            if "DeltaCatalog" not in current_catalog:
+                print("⚠️ Warning: Delta catalog not automatically set, attempting to set manually")
+                try:
+                    spark.conf.set(
+                        "spark.sql.catalog.spark_catalog",
+                        "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+                    )  # type: ignore[attr-defined]
+                    print("   Delta catalog set successfully")
+                except Exception as catalog_error:
+                    print(f"   Could not set Delta catalog: {catalog_error}")
+                    print("   This may cause issues with Delta table operations")
+            else:
+                print("✅ Delta catalog configured correctly")
+            
+            print("✅ Delta Lake configuration completed")
+        except Exception as verify_error:
+            print(f"⚠️ Delta Lake verification issue (non-fatal): {verify_error}")
 
     except Exception as e:
+        import traceback
         print(f"❌ Delta Lake configuration failed: {e}")
-        print("💡 To fix this issue:")
+        print("💡 Error details:")
+        traceback.print_exc()
+        print("\n💡 To fix this issue:")
         print("   1. Install Delta Lake: pip install delta-spark")
-        print("   2. Or set SPARKFORGE_SKIP_DELTA=1 to skip Delta Lake tests")
-        print(
-            "   3. Or set SPARKFORGE_BASIC_SPARK=1 to use basic Spark without Delta Lake"
-        )
+        print("   2. Ensure PySpark is installed: pip install pyspark>=3.5.0")
+        print("   3. Check Java version: java -version (should be Java 8, 11, or 17)")
+        print("   4. Set JAVA_HOME environment variable if needed")
+        print("   5. Or set SPARKFORGE_SKIP_DELTA=1 to skip Delta Lake tests")
+        print("   6. Or set SPARKFORGE_BASIC_SPARK=1 to use basic Spark without Delta Lake")
 
         # Check if user explicitly wants to skip Delta Lake or use basic Spark
         skip_delta = os.environ.get("SPARKFORGE_SKIP_DELTA", "0") == "1"
@@ -219,7 +255,7 @@ def _create_real_spark_session():
             try:
                 builder = (
                     SparkSession.builder.appName(f"SparkForgeTests-{os.getpid()}")
-                    .master("local[1]")
+                    .master("local[*]")
                     .config("spark.sql.warehouse.dir", warehouse_dir)
                     .config("spark.sql.adaptive.enabled", "true")
                     .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
@@ -243,7 +279,7 @@ def _create_real_spark_session():
             try:
                 builder = (
                     SparkSession.builder.appName(f"SparkForgeTests-{os.getpid()}")
-                    .master("local[1]")
+                    .master("local[*]")
                     .config("spark.sql.warehouse.dir", warehouse_dir)
                     .config("spark.sql.adaptive.enabled", "true")
                     .config("spark.sql.adaptive.coalescePartitions.enabled", "true")

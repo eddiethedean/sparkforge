@@ -31,6 +31,76 @@ except (ImportError, AttributeError, RuntimeError):
     DeltaTable = None  # type: ignore[misc, assignment]
     HAS_DELTA = False
 
+# Cache for Delta Lake availability per Spark session
+# Key: Spark session id, Value: boolean indicating if Delta works
+_delta_availability_cache: Dict[str, bool] = {}
+
+
+def _is_delta_lake_available(spark: SparkSession) -> bool:  # type: ignore[valid-type]
+    """
+    Check if Delta Lake is actually available and working in the Spark session.
+    
+    This function checks configuration and optionally tests Delta functionality.
+    Results are cached per Spark session for performance.
+    
+    Args:
+        spark: Spark session to test
+        
+    Returns:
+        True if Delta Lake is available and working, False otherwise
+    """
+    # Use Spark session's underlying SparkContext ID as cache key
+    try:
+        spark_id = str(id(spark._jsparkSession)) if hasattr(spark, "_jsparkSession") else str(id(spark))
+    except Exception:
+        spark_id = str(id(spark))
+    
+    # Check cache first
+    if spark_id in _delta_availability_cache:
+        return _delta_availability_cache[spark_id]
+    
+    # If delta package is not installed, can't be available
+    if not HAS_DELTA:
+        _delta_availability_cache[spark_id] = False
+        return False
+    
+    # Check Spark configuration first (fast check)
+    try:
+        extensions = spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
+        catalog = spark.conf.get("spark.sql.catalog.spark_catalog", "")  # type: ignore[attr-defined]
+        
+        # If both extensions and catalog are configured for Delta, assume it works
+        if "DeltaSparkSessionExtension" in extensions and "DeltaCatalog" in catalog:
+            _delta_availability_cache[spark_id] = True
+            return True
+    except Exception:
+        pass
+    
+    # If only extensions are configured, do a lightweight test
+    try:
+        extensions = spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
+        if "DeltaSparkSessionExtension" in extensions:
+            # Try a simple test - create a minimal DataFrame and try to write it
+            import tempfile
+            import os
+            test_df = spark.createDataFrame([(1, "test")], ["id", "name"])
+            # Use a unique temp directory to avoid conflicts
+            with tempfile.TemporaryDirectory() as temp_dir:
+                test_path = os.path.join(temp_dir, "delta_test")
+                try:
+                    test_df.write.format("delta").mode("overwrite").save(test_path)
+                    _delta_availability_cache[spark_id] = True
+                    return True
+                except Exception:
+                    # Delta format failed - not available
+                    pass
+    except Exception:
+        pass
+    
+    # Delta is not available in this Spark session
+    _delta_availability_cache[spark_id] = False
+    return False
+
 from pipeline_builder_base.logging import PipelineLogger
 
 from ..functions import FunctionsProtocol, get_default_functions
@@ -241,20 +311,8 @@ class StorageManager:
                     except Exception:
                         pass  # Schema might already exist
 
-                # Check if Delta Lake is configured before creating Delta table
-                delta_configured = False
-                try:
-                    # Check if Delta extensions are configured
-                    extensions = self.spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
-                    if extensions and "DeltaSparkSessionExtension" in extensions:
-                        delta_configured = True
-                except Exception:
-                    pass
-
-                if not delta_configured and HAS_DELTA:
-                    # If HAS_DELTA is True, DeltaTable is already imported at module level
-                    # So we can assume it's configured
-                    delta_configured = True
+                # Check if Delta Lake is actually available and working
+                delta_configured = _is_delta_lake_available(self.spark)
 
                 if delta_configured:
                     # Write to Delta table
@@ -367,17 +425,8 @@ class StorageManager:
             # Prepare DataFrame for writing
             df_prepared = self._prepare_dataframe_for_write(df)
 
-            # Check if Delta Lake is configured
-            delta_configured = False
-            try:
-                extensions = self.spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
-                if extensions and "DeltaSparkSessionExtension" in extensions:
-                    delta_configured = True
-            except Exception:
-                pass
-
-            if not delta_configured and HAS_DELTA:
-                delta_configured = True
+            # Check if Delta Lake is actually available and working
+            delta_configured = _is_delta_lake_available(self.spark)
 
             # Configure write options based on Delta availability
             if delta_configured:
