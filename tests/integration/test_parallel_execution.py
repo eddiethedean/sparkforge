@@ -22,14 +22,14 @@ if _ENGINE in ("pyspark", "spark", "real"):
     try:
         from pyspark.sql.types import IntegerType, StringType, StructField, StructType
     except ImportError:
-        from mock_spark.spark_types import (
+        from sparkless.spark_types import (  # type: ignore[import]
             IntegerType,
             StringType,
             StructField,
             StructType,
         )
 else:
-    from mock_spark.spark_types import IntegerType, StringType, StructField, StructType
+    from sparkless.spark_types import IntegerType, StringType, StructField, StructType  # type: ignore[import]
 
 from pipeline_builder import PipelineBuilder
 from pipeline_builder.models import PipelineConfig

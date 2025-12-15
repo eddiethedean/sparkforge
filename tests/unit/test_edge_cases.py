@@ -29,7 +29,7 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "real":
     # AggregateFunction is a class, not a function import
     from pyspark.sql.functions import sum as AggregateFunction  # Using sum as example
 else:
-    from mock_spark import (
+    from sparkless import (  # type: ignore[import]
         ArrayType,
         BooleanType,
         DoubleType,
@@ -40,11 +40,11 @@ else:
         StructType,
         StringType,
     )
-    from mock_spark.errors import (
+    from sparkless.errors import (  # type: ignore[import]
         AnalysisException,
         PySparkValueError,
     )
-    from mock_spark.functions import (
+    from sparkless.functions import (  # type: ignore[import]
         F,
         AggregateFunction,
         Column,
@@ -440,7 +440,7 @@ class TestEdgeCases:
         if os.environ.get("SPARK_MODE", "mock").lower() == "real":
             pytest.skip("Storage edge cases test requires mock-spark storage API")
         
-        # Test with long table names (DuckDB limit is 63 characters)
+        # Test with long table names (storage backend limit is 63 characters)
         long_table_name = "a" * 50
         schema = StructType([StructField("id", IntegerType())])
 
@@ -526,19 +526,35 @@ class TestEdgeCases:
 
     def test_session_edge_cases(self, mock_spark_session):
         """Test SparkSession edge cases."""
-        # Test creating multiple sessions
-        session2 = SparkSession("TestApp2")
-        session3 = SparkSession("TestApp3")
+        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
 
-        assert session2.appName == "TestApp2"
-        assert session3.appName == "TestApp3"
+        # Test creating additional sessions.
+        #
+        # In mock-spark, SparkSession can be constructed directly with an app name.
+        # In real PySpark, SparkSession("TestApp2") is not a valid constructor and
+        # sessions are created via builder pattern instead.
+        if spark_mode == "real":
+            from pyspark.sql import SparkSession as PySparkSession  # type: ignore[import]
 
-        # Test session with different configurations
-        session4 = SparkSession("TestApp4")
-        assert session4.appName == "TestApp4"
+            # In real SparkForge tests, a shared SparkSession is typically reused
+            # and the appName may be controlled by the test harness. The main
+            # thing we care about here is that we can obtain a session object
+            # without errors, not the exact app name.
+            session2 = PySparkSession.builder.getOrCreate()
+            session3 = PySparkSession.builder.getOrCreate()
+            assert session2 is not None
+            assert session3 is not None
+        else:
+            session2 = SparkSession("TestApp2")
+            session3 = SparkSession("TestApp3")
+            assert session2.appName == "TestApp2"
+            assert session3.appName == "TestApp3"
 
-        # Test catalog operations
-        # Use SQL to create schema (works for both mock-spark and PySpark)
+            # Test session with different configurations (mock-spark specific)
+            session4 = SparkSession("TestApp4")
+            assert session4.appName == "TestApp4"
+
+        # Test catalog operations (works for both mock-spark and PySpark)
         mock_spark_session.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
         databases = mock_spark_session.catalog.listDatabases()
         assert len(databases) >= 1

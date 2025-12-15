@@ -15,7 +15,7 @@ import pytest
 if os.environ.get("SPARK_MODE", "mock").lower() == "real":
     from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 else:
-    from mock_spark import (
+    from sparkless.spark_types import (  # type: ignore[import]
         IntegerType,
         StructField,
         StructType,
@@ -41,7 +41,7 @@ from pipeline_builder.models import (
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F
+    from sparkless import functions as F  # type: ignore[import]
 
     MockF = F
 else:

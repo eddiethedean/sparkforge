@@ -1,9 +1,14 @@
 """
-Simple unit tests for data validation using Mock Spark.
+Simple unit tests for data validation using the sparkless mock engine or real PySpark.
+
+These tests are intentionally lightweight and should pass in both engines.
 """
 
+import os
+
 import pytest
-from mock_spark.errors import AnalysisException
+
+from pipeline_builder.compat import AnalysisException as CompatAnalysisException
 
 from pipeline_builder.models.enums import ValidationResult as ValidationResultEnum
 from pipeline_builder.validation.pipeline_validation import (
@@ -78,8 +83,14 @@ class TestDataValidationSimple:
         """Test unified validator error handling."""
         UnifiedValidator()
 
-        # Test with invalid table name
-        with pytest.raises(AnalysisException):
+        # Test with invalid table name - behaviour differs slightly between
+        # mock-spark and real PySpark, but both surface an AnalysisException
+        # through the compat layer.
+        #
+        # In mock-spark, this is mock_spark.errors.AnalysisException.
+        # In PySpark, this is pyspark.errors.exceptions.captured.AnalysisException.
+        # The compat alias collapses both into a single type for testing.
+        with pytest.raises(CompatAnalysisException):
             mock_spark_session.table("nonexistent.table")
 
     def test_unified_validator_metrics_collection(

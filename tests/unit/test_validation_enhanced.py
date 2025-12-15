@@ -25,16 +25,15 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "real":
     )
     from pyspark.sql import SparkSession, functions as Functions
 else:
-    from mock_spark import (
+    from sparkless.spark_types import (  # type: ignore[import]
         BooleanType,
         DoubleType,
         IntegerType,
-        Functions,
-        SparkSession,
         StructField,
         StructType,
         StringType,
     )
+    from sparkless import SparkSession, Functions  # type: ignore[import]
 
 # Import SparkForge validation modules
 from pipeline_builder.validation.data_validation import (

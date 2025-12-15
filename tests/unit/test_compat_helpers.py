@@ -39,7 +39,7 @@ class TestCreateDataframeCompat:
     def test_create_dataframe_with_structtype_schema(self, spark_session):
         """Test creating DataFrame with StructType schema."""
         if is_mock_spark():
-            from mock_spark.spark_types import (
+            from sparkless.spark_types import (  # type: ignore[import]
                 IntegerType,
                 StringType,
                 StructField,
@@ -67,7 +67,7 @@ class TestCreateDataframeCompat:
     def test_create_dataframe_with_tuple_and_structtype(self, spark_session):
         """Test creating DataFrame with tuple data and StructType schema."""
         if is_mock_spark():
-            from mock_spark.spark_types import (
+            from sparkless.spark_types import (  # type: ignore[import]
                 IntegerType,
                 StringType,
                 StructField,
@@ -165,7 +165,7 @@ class TestCreateTestDataframe:
     def test_create_test_dataframe_with_schema(self, spark_session):
         """Test creating test DataFrame with schema."""
         if is_mock_spark():
-            from mock_spark.spark_types import (
+            from sparkless.spark_types import (  # type: ignore[import]
                 IntegerType,
                 StringType,
                 StructField,

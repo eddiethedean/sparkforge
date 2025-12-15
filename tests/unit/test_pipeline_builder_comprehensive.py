@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark.functions import F
+    from sparkless import functions as F  # type: ignore[import]
 else:
     from pyspark.sql import functions as F
 

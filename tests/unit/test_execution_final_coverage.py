@@ -12,7 +12,7 @@ from unittest.mock import patch
 if os.environ.get("SPARK_MODE", "mock").lower() == "real":
     from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 else:
-    from mock_spark import IntegerType, StructField, StructType, StringType
+    from sparkless.spark_types import IntegerType, StructField, StructType, StringType  # type: ignore[import]
 
 from pipeline_builder.execution import (
     ExecutionEngine,

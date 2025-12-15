@@ -9,7 +9,7 @@ from datetime import datetime
 if os.environ.get("SPARK_MODE", "mock").lower() == "real":
     from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 else:
-    from mock_spark import (
+    from sparkless.spark_types import (  # type: ignore[import]
         IntegerType,
         StructField,
         StructType,

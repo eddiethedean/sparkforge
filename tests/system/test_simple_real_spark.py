@@ -12,24 +12,26 @@ import os
 
 import pytest
 
-# Real Spark tests - simplified for mock-spark
+# Real Spark tests - simplified for sparkless/mock engine
 # These tests focus on pipeline_builder functionality, not pyspark internals
 
-# Use mock functions when in mock mode
+# Use engine-specific functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F
+    from sparkless import functions as F  # type: ignore[import]
 else:
     from pyspark.sql import functions as F
+
 # Import types based on SPARK_MODE (preferred) or SPARKFORGE_ENGINE
 _SPARK_MODE = os.environ.get("SPARK_MODE", "mock").lower()
 _ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
 if _SPARK_MODE == "real" or _ENGINE in ("pyspark", "spark", "real"):
-    try:
-        from pyspark.sql.types import StringType, StructField, StructType
-    except ImportError:
-        from mock_spark.spark_types import StringType, StructField, StructType
+    from pyspark.sql.types import StringType, StructField, StructType
 else:
-    from mock_spark.spark_types import StringType, StructField, StructType
+    from sparkless.spark_types import (  # type ignore[import]
+        StringType,
+        StructField,
+        StructType,
+    )
 
 # Import the actual functions we're testing
 from pipeline_builder.validation import (

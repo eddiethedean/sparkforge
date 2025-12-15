@@ -115,7 +115,7 @@ def get_unique_test_schema():
 
 def _create_mock_spark_session():
     """Create a mock Spark session."""
-    from mock_spark import SparkSession
+    from sparkless import SparkSession  # type: ignore[import]
 
     print("🔧 Creating Mock Spark session for all tests")
 
@@ -342,6 +342,15 @@ def spark_session():
     else:
         spark = _create_mock_spark_session()
 
+    # Attach storage wrapper to SparkSession for all tests
+    try:
+        from tests.builder_tests.storage_wrapper import StorageWrapper
+        spark.storage = StorageWrapper(spark)  # type: ignore[attr-defined]
+    except ImportError:
+        # If storage wrapper is not available, skip attaching it
+        # This allows tests to work even if builder_tests is not available
+        pass
+
     yield spark
 
     # Cleanup
@@ -422,6 +431,13 @@ def isolated_spark_session():
         except Exception as e:
             print(f"❌ Could not create isolated test database {schema_name}: {e}")
 
+        # Attach storage wrapper
+        try:
+            from tests.builder_tests.storage_wrapper import StorageWrapper
+            spark.storage = StorageWrapper(spark)  # type: ignore[attr-defined]
+        except ImportError:
+            pass
+
         yield spark
 
         # Cleanup
@@ -430,22 +446,29 @@ def isolated_spark_session():
         except Exception:
             pass
     else:
-        # For mock Spark, create a new session
+        # For mock Spark, create a new session using sparkless
         unique_id = int(time.time() * 1000000) % 1000000
         schema_name = f"test_schema_{unique_id}"
 
         print(f"🔧 Creating isolated Mock Spark session for {schema_name}")
 
-        from mock_spark import SparkSession
+        from sparkless import SparkSession  # type: ignore[import]
 
         spark = SparkSession(f"SparkForgeTests-{os.getpid()}-{unique_id}")
 
-        # Create isolated test database using SQL (works for both mock-spark and PySpark)
+        # Create isolated test database using SQL
         try:
             spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
             print(f"✅ Isolated test database {schema_name} created successfully")
         except Exception as e:
             print(f"❌ Could not create isolated test database {schema_name}: {e}")
+
+        # Attach storage wrapper
+        try:
+            from tests.builder_tests.storage_wrapper import StorageWrapper
+            spark.storage = StorageWrapper(spark)  # type: ignore[attr-defined]
+        except ImportError:
+            pass
 
         yield spark
 
@@ -488,7 +511,7 @@ def mock_functions():
         # For real Spark, return None or skip this fixture
         pytest.skip("Mock functions not available in real Spark mode")
 
-    from mock_spark import Functions
+    from sparkless import Functions  # type: ignore[import]
 
     return Functions()
 
@@ -571,7 +594,7 @@ def sample_dataframe(spark_session):
 
         return spark_session.createDataFrame(data, schema)
     else:
-        from mock_spark import (
+        from sparkless.spark_types import (  # type: ignore[import]
             DoubleType,
             IntegerType,
             StructField,
@@ -621,7 +644,11 @@ def empty_dataframe(spark_session):
 
         return spark_session.createDataFrame([], schema)
     else:
-        from mock_spark import StructField, StructType, StringType
+        from sparkless.spark_types import (  # type: ignore[import]
+            StructField,
+            StructType,
+            StringType,
+        )
 
         schema = StructType(
             [
@@ -704,7 +731,7 @@ def mock_pyspark_functions():
     if spark_mode == "mock":
         import sys
 
-        from mock_spark import functions as mock_functions
+        from sparkless import functions as mock_functions  # type: ignore[import]
 
         # Store original module
         original_pyspark_functions = sys.modules.get("pyspark.sql.functions")

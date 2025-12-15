@@ -10,8 +10,8 @@ import os
 import pytest
 
 try:
-    from mock_spark.session.core.session import SparkSession as MockSparkSession
-except Exception:  # pragma: no cover - mock_spark not available
+    from sparkless.session.core.session import SparkSession as MockSparkSession  # type: ignore[import]
+except Exception:  # pragma: no cover - sparkless not available
     MockSparkSession = None
 
 # Check if Delta Lake is available

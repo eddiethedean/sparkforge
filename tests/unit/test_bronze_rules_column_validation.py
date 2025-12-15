@@ -12,17 +12,13 @@ import pytest
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import (
+    from sparkless.spark_types import (  # type: ignore[import]
         IntegerType,
         StringType,
+        StructField,
+        StructType,
     )
-    from mock_spark import (
-        StructField as StructField,
-    )
-    from mock_spark import (
-        StructType as StructType,
-    )
-    from mock_spark import functions as F
+    from sparkless import functions as F  # type: ignore[import]
 
     MockF = F
 else:

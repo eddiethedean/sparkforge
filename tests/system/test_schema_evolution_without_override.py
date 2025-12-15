@@ -14,7 +14,7 @@ import pytest
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F
+    from sparkless import functions as F  # type: ignore[import]
 else:
     from pyspark.sql import functions as F
 
@@ -358,6 +358,8 @@ class TestSchemaEvolutionWithoutOverride:
             transform=silver_v2,
             rules={
                 "user_id": [F.col("user_id").isNotNull()],
+                "name": [F.col("name").isNotNull()],  # Add rule to preserve column
+                "value": [F.col("value") > 0],  # Add rule to preserve column
                 "processed_at": [F.col("processed_at").isNotNull()],
                 "event_date": [F.col("event_date").isNotNull()],
                 "is_active": [F.col("is_active").isNotNull()],

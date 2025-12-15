@@ -11,7 +11,7 @@ import pytest
 if os.environ.get("SPARK_MODE", "mock").lower() == "real":
     from pyspark.sql.types import IntegerType, StructField, StructType
 else:
-    from mock_spark import (
+    from sparkless import (  # type: ignore[import]
         IntegerType,
         StructField,
         StructType,

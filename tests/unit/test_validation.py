@@ -29,13 +29,13 @@ if use_real_spark:
             StructType,
         )
     except ImportError:
-        from mock_spark.spark_types import (
+        from sparkless.spark_types import (  # type: ignore[import]
             StringType,
             StructField,
             StructType,
         )
 else:
-    from mock_spark.spark_types import (
+    from sparkless.spark_types import (  # type: ignore[import]
         StringType,
         StructField,
         StructType,
@@ -86,8 +86,8 @@ def sample_dataframe(spark_session):
             StructType,
         )
     else:
-        # Use mock_spark types for mock Spark
-        from mock_spark.spark_types import (
+        # Use sparkless types for mock Spark
+        from sparkless.spark_types import (  # type: ignore[import]
             DoubleType,
             IntegerType,
             StringType,

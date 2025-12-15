@@ -195,7 +195,7 @@ class TestStepExecutionFlow:
                 StringType,
             )
         else:
-            from mock_spark import IntegerType, StructField, StructType, StringType
+            from sparkless.spark_types import IntegerType, StructField, StructType, StringType  # type: ignore[import]
 
         schema = StructType(
             [

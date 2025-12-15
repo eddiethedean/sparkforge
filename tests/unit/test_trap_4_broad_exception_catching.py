@@ -108,7 +108,7 @@ class TestTrap4BroadExceptionCatching:
         import os
 
         if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-            from mock_spark import StringType, StructField, StructType
+            from sparkless.spark_types import StringType, StructField, StructType  # type: ignore[import]
         else:
             from pyspark.sql.types import StringType, StructField, StructType
 

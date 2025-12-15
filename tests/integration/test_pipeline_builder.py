@@ -23,7 +23,7 @@ from pipeline_builder.pipeline import (
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as MockF
+    from sparkless import functions as MockF  # type: ignore[import]
 else:
     MockF = None
 
@@ -145,9 +145,9 @@ class TestPipelineBuilder(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        # mock-spark 3.11.0+ requires active SparkSession for function calls (like PySpark)
+        # sparkless requires active SparkSession for function calls (like PySpark)
         if MockF is not None:
-            from mock_spark import SparkSession
+            from sparkless import SparkSession  # type: ignore[import]
 
             self.spark = SparkSession("TestApp")
         else:
@@ -515,9 +515,9 @@ class TestPipelineBuilderIntegration(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        # mock-spark 3.11.0+ requires active SparkSession for function calls (like PySpark)
+        # sparkless requires active SparkSession for function calls (like PySpark)
         if MockF is not None:
-            from mock_spark import SparkSession
+            from sparkless import SparkSession  # type: ignore[import]
 
             self.spark = SparkSession("TestApp")
         else:

@@ -252,11 +252,11 @@ class TestWorkingExamples:
 
     @pytest.mark.skipif(
         os.environ.get("SPARK_MODE", "mock").lower() == "real",
-        reason="Mock-spark-specific test (uses storage API)",
+        reason="Mock-mode-specific test (uses storage API)",
     )
     def test_mock_spark_integration(self, mock_spark_session, sample_dataframe):
         """Test integration with mock Spark session."""
-        from mock_spark.errors import AnalysisException
+        from sparkless.errors import AnalysisException  # type: ignore[import]
 
         # Test basic DataFrame operations
         assert sample_dataframe.count() > 0
@@ -277,9 +277,9 @@ class TestWorkingExamples:
         reason="Mock-spark-specific test (uses mock-spark exceptions)",
     )
     def test_error_handling(self, mock_spark_session):
-        """Test error handling with mock Spark."""
-        from mock_spark.errors import AnalysisException
-        from mock_spark import IllegalArgumentException
+        """Test error handling with mock Spark-like engine."""
+        from sparkless.errors import AnalysisException  # type: ignore[import]
+        from sparkless import IllegalArgumentException  # type: ignore[import]
 
         # Test table not found error
         with pytest.raises(AnalysisException):

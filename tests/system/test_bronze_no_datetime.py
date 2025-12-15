@@ -9,26 +9,24 @@ import os
 
 import pytest
 
-# Use mock functions when in mock mode
+# Use engine-specific functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F  # type: ignore
+    from sparkless import functions as F  # type: ignore[import]
 else:
     from pyspark.sql import functions as F  # type: ignore
+
 # Import types based on SPARK_MODE (preferred) or SPARKFORGE_ENGINE
 _SPARK_MODE = os.environ.get("SPARK_MODE", "mock").lower()
 _ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
 if _SPARK_MODE == "real" or _ENGINE in ("pyspark", "spark", "real"):
-    try:
-        from pyspark.sql.types import IntegerType, StringType, StructField, StructType
-    except ImportError:
-        from mock_spark.spark_types import (
-            IntegerType,
-            StringType,
-            StructField,
-            StructType,
-        )
+    from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 else:
-    from mock_spark.spark_types import IntegerType, StringType, StructField, StructType
+    from sparkless.spark_types import (  # type: ignore[import]
+        IntegerType,
+        StringType,
+        StructField,
+        StructType,
+    )
 
 from pipeline_builder import PipelineBuilder
 from pipeline_builder.execution import ExecutionEngine

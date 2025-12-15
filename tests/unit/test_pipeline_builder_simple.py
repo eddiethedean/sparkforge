@@ -21,10 +21,10 @@ spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
 if spark_mode == "real":
     from pyspark.sql import functions as F
 else:
-    from mock_spark.functions import F
+    from sparkless import functions as F  # type: ignore[import]
 
 # Use appropriate functions based on mode
-MockF = F  # Will be PySpark F in real mode, mock_spark F in mock mode
+MockF = F  # Will be PySpark F in real mode, sparkless F in mock mode
 
 
 class TestPipelineBuilderInitialization:

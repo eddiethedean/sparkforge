@@ -2,7 +2,7 @@
 Simple test to verify basic functionality.
 """
 
-from mock_spark import functions as F
+from sparkless import functions as F  # type: ignore[import]
 
 from pipeline_builder.pipeline import PipelineBuilder
 

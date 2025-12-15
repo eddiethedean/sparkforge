@@ -25,7 +25,7 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "real":
         StructType,
     )
 else:
-    from mock_spark import (
+    from sparkless.spark_types import (  # type: ignore[import]
         DoubleType,
         IntegerType,
         StringType,
@@ -38,13 +38,95 @@ from pipeline_builder.models import ParallelConfig, PipelineConfig, ValidationTh
 from pipeline_builder.writer import WriteMode, WriterConfig
 from pipeline_builder.writer.models import LogLevel
 
+from .storage_wrapper import StorageWrapper
+
+
+def _create_spark_with_storage():
+    """Helper function to create Spark session with storage wrapper."""
+    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+    
+    if spark_mode == "real":
+        # Use real PySpark session from main conftest
+        # Import here to avoid circular dependencies
+        import sys
+        import os as os_module
+        
+        # Get the spark_session fixture from the main conftest
+        # We'll use pytest's request fixture to get it
+        # But since we can't use request here, we'll create our own real session
+        try:
+            from pyspark.sql import SparkSession as PySparkSession
+            import tempfile
+            import shutil
+            
+            # Create temporary warehouse directory
+            warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-builder-tests-")
+            
+            # Try to configure with Delta Lake
+            try:
+                from delta import configure_spark_with_delta_pip
+                builder = (
+                    PySparkSession.builder.appName(f"BuilderTests-{os_module.getpid()}")
+                    .master("local[*]")
+                    .config("spark.sql.warehouse.dir", warehouse_dir)
+                    .config("spark.driver.memory", "1g")
+                    .config("spark.driver.bindAddress", "127.0.0.1")
+                    .config("spark.driver.host", "127.0.0.1")
+                )
+                spark = configure_spark_with_delta_pip(builder).getOrCreate()
+            except Exception:
+                # Fall back to basic Spark
+                spark = (
+                    PySparkSession.builder.appName(f"BuilderTests-{os_module.getpid()}")
+                    .master("local[*]")
+                    .config("spark.sql.warehouse.dir", warehouse_dir)
+                    .config("spark.driver.memory", "1g")
+                    .config("spark.driver.bindAddress", "127.0.0.1")
+                    .config("spark.driver.host", "127.0.0.1")
+                    .getOrCreate()
+                )
+            
+            # Store warehouse dir for cleanup
+            spark._warehouse_dir = warehouse_dir  # type: ignore[attr-defined]
+        except Exception as e:
+            # If PySpark is not available, fall back to sparkless
+            print(
+                f"Warning: Could not create real Spark session: {e}, falling back to sparkless"
+            )
+            from sparkless import SparkSession  # type: ignore[import]
+
+            spark = SparkSession()
+    else:
+        # Use sparkless as the mock engine
+        from sparkless import SparkSession  # type: ignore[import]
+
+        spark = SparkSession()
+    
+    # Attach storage wrapper to SparkSession
+    spark.storage = StorageWrapper(spark)  # type: ignore[attr-defined]
+    
+    return spark
+
 
 @pytest.fixture
 def mock_spark_session():
-    """Mock Spark session for testing."""
-    from mock_spark import SparkSession
+    """
+    Mock Spark session for testing with storage wrapper attached.
+    
+    Works with both mock-spark (default) and real PySpark (when SPARK_MODE=real).
+    """
+    return _create_spark_with_storage()
 
-    return SparkSession()
+
+@pytest.fixture
+def spark_session():
+    """
+    Spark session fixture with storage wrapper attached.
+    
+    This is an alias for mock_spark_session to ensure all tests in builder_tests
+    get a session with the storage wrapper, regardless of which fixture name they use.
+    """
+    return _create_spark_with_storage()
 
 
 @pytest.fixture

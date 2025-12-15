@@ -5,7 +5,7 @@ System tests for complete pipeline execution using Mock Spark.
 import os
 
 import pytest
-from mock_spark.errors import AnalysisException
+from sparkless.errors import AnalysisException  # type: ignore[import]
 
 from pipeline_builder.execution import ExecutionEngine
 from pipeline_builder.models import ParallelConfig, PipelineConfig, ValidationThresholds
@@ -338,7 +338,7 @@ class TestCompletePipeline:
         engine = ExecutionEngine(spark=mock_spark_session, config=config)
 
         # Create tables
-        from mock_spark import (
+        from sparkless.spark_types import (  # type: ignore[import]
             DoubleType,
             IntegerType,
             StringType,

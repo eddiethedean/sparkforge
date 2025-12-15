@@ -1,1120 +1,1230 @@
-# Mock-Spark Improvement Plan: PySpark Compatibility for Delta Lake Schema Evolution
+# Mock-Spark Improvement Plan
 
-**Document Version:** 1.0  
-**Date:** December 9, 2024  
-**Target Audience:** Mock-Spark Developers  
-**Purpose:** Detailed improvement plan to enhance mock-spark compatibility with PySpark, specifically for Delta Lake schema evolution features
-
----
+**Version:** 1.0  
+**Date:** December 2024  
+**Target Audience:** mock-spark developers  
+**Purpose:** Detailed improvement plan based on real-world usage in SparkForge project
 
 ## Executive Summary
 
-This document outlines critical improvements needed in mock-spark to achieve full compatibility with PySpark's Delta Lake schema evolution capabilities. The issues were discovered during testing of the PipelineBuilder framework, which relies on Delta Lake's automatic schema evolution when adding new columns to existing tables.
-
-**Key Issues Identified:**
-1. `F.lit(None)` fails with `'NoneType' object has no attribute '_jvm'` error
-2. `overwriteSchema` option not properly supported in `saveAsTable` operations
-3. Table catalog synchronization delays after `saveAsTable` operations
-4. Schema merging during overwrite mode doesn't preserve existing columns
-5. Type casting operations fail when JVM is not available
-
-**Impact:** These limitations prevent mock-spark from being a drop-in replacement for PySpark in Delta Lake-based data pipelines that require schema evolution.
-
----
+This document outlines critical improvements needed in mock-spark to better support PySpark compatibility, particularly for data pipeline frameworks like SparkForge. The improvements focus on schema evolution, type casting, SQL operations, and DataFrame writer options that are essential for testing complex data transformation pipelines.
 
 ## Table of Contents
 
-1. [Issue #1: F.lit(None) JVM Dependency](#issue-1-flitnone-jvm-dependency)
-2. [Issue #2: overwriteSchema Option Support](#issue-2-overwriteschema-option-support)
-3. [Issue #3: Table Catalog Synchronization](#issue-3-table-catalog-synchronization)
-4. [Issue #4: Schema Merging in Overwrite Mode](#issue-4-schema-merging-in-overwrite-mode)
-5. [Issue #5: Type Casting Without JVM](#issue-5-type-casting-without-jvm)
-6. [Test Cases for Validation](#test-cases-for-validation)
+1. [Schema Evolution Support](#schema-evolution-support)
+2. [Type Casting Improvements](#type-casting-improvements)
+3. [SQL DELETE Operation Support](#sql-delete-operation-support)
+4. [DataFrame Writer Options](#dataframe-writer-options)
+5. [Column Addition with Type Preservation](#column-addition-with-type-preservation)
+6. [Table Metadata Operations](#table-metadata-operations)
 7. [Implementation Priority](#implementation-priority)
-8. [References and Examples](#references-and-examples)
+8. [Testing Recommendations](#testing-recommendations)
 
 ---
 
-## Issue #1: F.lit(None) JVM Dependency
+## 1. Schema Evolution Support
 
-### Problem Description
+### Current Limitation
 
-When attempting to add null columns to a DataFrame using `F.lit(None)`, mock-spark raises:
-```
-'NoneType' object has no attribute '_jvm'
-```
+mock-spark does not support adding null columns with specific data types during schema evolution. This prevents proper schema merging when new columns are added to existing tables.
 
-This occurs because mock-spark's implementation of `F.lit()` attempts to access PySpark's JVM-based type system, which doesn't exist in mock-spark.
+### Problem Statement
 
-### Current Behavior
+When a DataFrame needs to be merged with an existing table schema (e.g., during schema evolution), PySpark allows adding missing columns with null values of the correct type:
 
-**PySpark (Working):**
 ```python
-from pyspark.sql import functions as F
+# PySpark - This works
+existing_schema = existing_table.schema
+for field in existing_schema.fields:
+    if field.name not in df.columns:
+        df = df.withColumn(
+            field.name,
+            F.lit(None).cast(field.dataType)  # Casts None to the exact type
+        )
+```
+
+In mock-spark, this operation fails or doesn't preserve the correct type, making schema evolution impossible.
+
+### Real-World Example from SparkForge
+
+**File:** `src/pipeline_builder/execution.py` (lines 856-884)
+
+```python
+# Current workaround in SparkForge
+if is_mock_spark():
+    # For mock-spark, we can't easily add null columns with specific types
+    # because mock-spark doesn't support the same casting operations.
+    # Instead, we'll skip adding these columns and let the schema
+    # evolution happen naturally through Delta Lake's mergeSchema.
+    # This is a known limitation of mock-spark.
+    self.logger.debug(
+        f"Skipping column '{col_name}' addition in mock-spark "
+        f"(mock-spark limitation with schema evolution)"
+    )
+else:
+    # For real PySpark, cast to the exact type from existing schema
+    merged_df = merged_df.withColumn(
+        col_name,
+        F.lit(None).cast(field),
+    )
+```
+
+### Proposed Solution
+
+**1.1: Support `F.lit(None).cast(dataType)`**
+
+Implement proper type casting for null literals:
+
+```python
+# Expected behavior
+from mock_spark import SparkSession, functions as F
+from mock_spark.spark_types import StringType, IntegerType, TimestampType
+
+spark = SparkSession()
+df = spark.createDataFrame([("Alice", 25)], ["name", "age"])
+
+# Should work: add a null column with specific type
+df_with_timestamp = df.withColumn(
+    "created_at",
+    F.lit(None).cast(TimestampType())
+)
+
+# Verify the schema
+assert "created_at" in df_with_timestamp.columns
+assert isinstance(df_with_timestamp.schema["created_at"].dataType, TimestampType)
+```
+
+**Implementation Details:**
+
+- When `F.lit(None)` is used with `.cast(dataType)`, create a column with the specified type
+- All rows should have `None` values, but the column type should be preserved
+- The schema should reflect the correct data type
+
+**1.2: Support `mergeSchema` Option in DataFrameWriter**
+
+Implement the `mergeSchema` option for append mode writes:
+
+```python
+# Expected behavior
+df.write.mode("append").option("mergeSchema", "true").saveAsTable("my_table")
+```
+
+When `mergeSchema="true"`:
+- If the table exists, merge the DataFrame schema with the existing table schema
+- Add missing columns from the DataFrame to the table (with nulls for existing rows)
+- Add missing columns from the table to the DataFrame (with nulls for new rows)
+- Preserve all existing columns
+
+**1.3: Support `overwriteSchema` Option**
+
+Implement the `overwriteSchema` option for append/overwrite mode:
+
+```python
+# Expected behavior
+df.write.mode("append").option("overwriteSchema", "true").saveAsTable("my_table")
+```
+
+When `overwriteSchema="true"`:
+- Allow writing DataFrames with different schemas
+- Automatically evolve the table schema to match the DataFrame
+- Preserve existing data where possible
+
+### Test Cases
+
+```python
+def test_schema_evolution_with_null_columns():
+    """Test adding null columns with specific types."""
+    spark = SparkSession()
+    
+    # Create initial table
+    df1 = spark.createDataFrame([("Alice", 25)], ["name", "age"])
+    df1.write.mode("overwrite").saveAsTable("test.evolution_test")
+    
+    # Add new column with null values of correct type
+    from mock_spark.spark_types import TimestampType
+    df2 = spark.createDataFrame([("Bob", 30)], ["name", "age"])
+    df2 = df2.withColumn("created_at", F.lit(None).cast(TimestampType()))
+    
+    # Should be able to append with schema evolution
+    df2.write.mode("append").option("mergeSchema", "true").saveAsTable("test.evolution_test")
+    
+    # Verify result
+    result = spark.table("test.evolution_test")
+    assert "created_at" in result.columns
+    assert result.count() == 2
+    # First row should have None for created_at
+    rows = result.collect()
+    assert rows[0]["created_at"] is None
+```
+
+---
+
+## 2. Type Casting Improvements
+
+### Current Limitation
+
+mock-spark's type casting system doesn't fully support all PySpark casting operations, particularly for complex types and null handling.
+
+### Problem Statement
+
+PySpark allows casting between compatible types and handles null values gracefully. mock-spark needs better support for:
+
+1. Casting null literals to specific types
+2. Casting between compatible numeric types
+3. Casting string to timestamp/date
+4. Preserving type information through transformations
+
+### Real-World Example
+
+**File:** `src/pipeline_builder/execution.py` (line 878)
+
+```python
+# This fails in mock-spark but works in PySpark
+merged_df = merged_df.withColumn(
+    col_name,
+    F.lit(None).cast(field.dataType),  # field.dataType could be any type
+)
+```
+
+### Proposed Solution
+
+**2.1: Enhanced `cast()` Method**
+
+Support casting for all basic types:
+
+```python
+# String to Integer
+df = df.withColumn("age_int", F.col("age_str").cast(IntegerType()))
+
+# String to Timestamp
+df = df.withColumn("ts", F.col("date_str").cast(TimestampType()))
+
+# Integer to Double
+df = df.withColumn("value_double", F.col("value_int").cast(DoubleType()))
+
+# Null to any type
 df = df.withColumn("new_col", F.lit(None).cast(StringType()))
-# Successfully adds a null column of StringType
 ```
 
-**Mock-Spark (Failing):**
-```python
-from mock_spark import functions as F
-df = df.withColumn("new_col", F.lit(None))
-# Raises: 'NoneType' object has no attribute '_jvm'
-```
+**2.2: Type Compatibility Matrix**
 
-### Root Cause Analysis
+Implement a type compatibility matrix similar to PySpark:
 
-1. **Location:** `mock_spark/functions.py` - `lit()` function implementation
-2. **Issue:** The function likely calls PySpark's internal JVM methods or attempts to infer types using JVM-based type system
-3. **Impact:** Prevents adding null columns, which is essential for schema evolution
+| From Type | To Type | Should Work |
+|-----------|---------|-------------|
+| StringType | IntegerType | ✅ (if parseable) |
+| StringType | DoubleType | ✅ (if parseable) |
+| StringType | TimestampType | ✅ (if parseable) |
+| IntegerType | DoubleType | ✅ |
+| IntegerType | StringType | ✅ |
+| Any | Any (via None) | ✅ (with cast) |
 
-### Detailed Fix Requirements
+**2.3: Error Handling**
 
-#### 1.1: Implement Native lit() Function
-
-**File:** `mock_spark/functions.py`
-
-**Current Implementation (Hypothetical):**
-```python
-def lit(value):
-    # Likely calls PySpark's lit() which requires JVM
-    from pyspark.sql.functions import lit as pyspark_lit
-    return pyspark_lit(value)  # This fails for None
-```
-
-**Required Implementation:**
-```python
-def lit(value):
-    """
-    Create a Column with literal value.
-    
-    Args:
-        value: Literal value (can be None, int, str, bool, etc.)
-    
-    Returns:
-        Column object with literal value
-    """
-    if value is None:
-        # Return a Column that represents NULL
-        # Should work without JVM dependency
-        return Column(Literal(None, NullType()))
-    elif isinstance(value, bool):
-        return Column(Literal(value, BooleanType()))
-    elif isinstance(value, int):
-        return Column(Literal(value, IntegerType()))
-    elif isinstance(value, float):
-        return Column(Literal(value, DoubleType()))
-    elif isinstance(value, str):
-        return Column(Literal(value, StringType()))
-    else:
-        # For other types, attempt to infer or use generic type
-        return Column(Literal(value, StringType()))  # Fallback
-```
-
-#### 1.2: Implement NullType Support
-
-**File:** `mock_spark/types.py` (or equivalent)
-
-**Required:**
-```python
-class NullType(DataType):
-    """Represents NULL type in mock-spark."""
-    
-    def __init__(self):
-        super().__init__()
-        self.typeName = "null"
-    
-    def __repr__(self):
-        return "NullType()"
-    
-    def __eq__(self, other):
-        return isinstance(other, NullType)
-```
-
-#### 1.3: Update Literal Class
-
-**File:** `mock_spark/functions.py` or `mock_spark/column.py`
-
-**Required:**
-```python
-class Literal:
-    """Represents a literal value in an expression."""
-    
-    def __init__(self, value, data_type=None):
-        self.value = value
-        if data_type is None:
-            # Infer type from value
-            if value is None:
-                self.data_type = NullType()
-            elif isinstance(value, bool):
-                self.data_type = BooleanType()
-            elif isinstance(value, int):
-                self.data_type = IntegerType()
-            elif isinstance(value, float):
-                self.data_type = DoubleType()
-            elif isinstance(value, str):
-                self.data_type = StringType()
-            else:
-                self.data_type = StringType()  # Default
-        else:
-            self.data_type = data_type
-    
-    def __repr__(self):
-        return f"Literal({self.value}, {self.data_type})"
-```
-
-### Test Case
+Provide clear error messages for invalid casts:
 
 ```python
-def test_lit_none():
-    """Test that F.lit(None) works without JVM."""
-    from mock_spark import SparkSession, functions as F
-    from mock_spark.types import StringType
-    
-    spark = SparkSession("test")
-    df = spark.createDataFrame([(1, "test")], ["id", "name"])
-    
-    # This should work without errors
-    result = df.withColumn("null_col", F.lit(None))
-    assert "null_col" in result.columns
-    
-    # Should also work with casting
-    result2 = df.withColumn("null_str", F.lit(None).cast(StringType()))
-    assert "null_str" in result2.columns
+# Should raise clear error
+try:
+    df.withColumn("bad", F.col("name").cast(IntegerType()))
+except AnalysisException as e:
+    assert "cannot cast" in str(e).lower()
+    assert "StringType" in str(e)
+    assert "IntegerType" in str(e)
 ```
 
-### Expected Outcome
+### Test Cases
 
-After fix:
-- `F.lit(None)` should work without JVM dependency
-- `F.lit(None).cast(dataType)` should work for all supported types
-- Null columns can be added to DataFrames for schema evolution
+```python
+def test_null_literal_casting():
+    """Test casting None to various types."""
+    spark = SparkSession()
+    df = spark.createDataFrame([("Alice",)], ["name"])
+    
+    # Cast None to different types
+    df = df.withColumn("str_col", F.lit(None).cast(StringType()))
+    df = df.withColumn("int_col", F.lit(None).cast(IntegerType()))
+    df = df.withColumn("ts_col", F.lit(None).cast(TimestampType()))
+    
+    # Verify types in schema
+    schema = df.schema
+    assert isinstance(schema["str_col"].dataType, StringType)
+    assert isinstance(schema["int_col"].dataType, IntegerType)
+    assert isinstance(schema["ts_col"].dataType, TimestampType)
+    
+    # Verify values are None
+    row = df.first()
+    assert row["str_col"] is None
+    assert row["int_col"] is None
+    assert row["ts_col"] is None
+
+def test_numeric_type_casting():
+    """Test casting between numeric types."""
+    spark = SparkSession()
+    df = spark.createDataFrame([(25, 3.14)], ["age", "pi"])
+    
+    # Integer to Double
+    df = df.withColumn("age_double", F.col("age").cast(DoubleType()))
+    assert isinstance(df.schema["age_double"].dataType, DoubleType)
+    
+    # Double to Integer (should truncate)
+    df = df.withColumn("pi_int", F.col("pi").cast(IntegerType()))
+    assert isinstance(df.schema["pi_int"].dataType, IntegerType)
+    assert df.first()["pi_int"] == 3
+```
 
 ---
 
-## Issue #2: overwriteSchema Option Support
+## 3. SQL DELETE Operation Support
 
-### Problem Description
+### Current Limitation
 
-Delta Lake's `overwriteSchema` option allows overwriting a table while preserving schema evolution (adding new columns, keeping existing ones). Mock-spark's `saveAsTable` doesn't properly handle this option, causing schema mismatches.
+mock-spark does not support SQL `DELETE` operations, which are essential for Delta Lake table operations and data pipeline patterns.
 
-### Current Behavior
+### Problem Statement
 
-**PySpark (Working):**
+Many data pipeline frameworks use `DELETE FROM table` to clear data before appending new data (DELETE + INSERT pattern). This is common in:
+
+- Delta Lake table maintenance
+- Incremental data processing
+- Schema evolution scenarios
+
+### Real-World Example from SparkForge
+
+**File:** `src/pipeline_builder/execution.py` (lines 940-959)
+
 ```python
-df.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("schema.table")
-# Successfully overwrites table with new schema, preserving existing columns
+# Current workaround
+try:
+    self.spark.sql(f"DELETE FROM {output_table}")
+    delete_succeeded = True
+except Exception as e:
+    # DELETE might fail for non-Delta tables (e.g., Parquet)
+    # If there are schema changes, drop and recreate the table
+    error_msg = str(e).lower()
+    if "does not support delete" in error_msg or "unsupported_feature" in error_msg:
+        self.logger.info(
+            f"Table '{output_table}' does not support DELETE. "
+            f"Dropping and recreating table for schema evolution."
+        )
+        drop_table(self.spark, output_table)
+        delete_succeeded = True
 ```
 
-**Mock-Spark (Failing):**
+### Proposed Solution
+
+**3.1: Basic DELETE Support**
+
+Implement `DELETE FROM table` without WHERE clause (deletes all rows):
+
 ```python
-df.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("schema.table")
-# Option is ignored, table is overwritten with only new columns, existing columns lost
+# Expected behavior
+spark = SparkSession()
+df = spark.createDataFrame([("Alice", 25), ("Bob", 30)], ["name", "age"])
+df.write.mode("overwrite").saveAsTable("test.people")
+
+# Verify data exists
+assert spark.table("test.people").count() == 2
+
+# Delete all rows
+spark.sql("DELETE FROM test.people")
+
+# Verify table is empty but schema remains
+result = spark.table("test.people")
+assert result.count() == 0
+assert "name" in result.columns
+assert "age" in result.columns
 ```
 
-### Root Cause Analysis
+**3.2: DELETE with WHERE Clause**
 
-1. **Location:** `mock_spark/writer.py` or `mock_spark/dataframe.py` - `saveAsTable` implementation
-2. **Issue:** The `overwriteSchema` option is not parsed or handled in the write operation
-3. **Impact:** Schema evolution fails, existing columns are lost during overwrite operations
+Support conditional deletes:
 
-### Detailed Fix Requirements
-
-#### 2.1: Parse Write Options
-
-**File:** `mock_spark/dataframe.py` or `mock_spark/writer.py`
-
-**Current Implementation (Hypothetical):**
 ```python
-class DataFrameWriter:
-    def saveAsTable(self, name):
-        # Only handles mode, ignores options
-        mode = self._mode  # "overwrite" or "append"
-        # Write logic doesn't check for overwriteSchema option
+# Delete specific rows
+spark.sql("DELETE FROM test.people WHERE age < 30")
+
+# Verify only Bob remains
+result = spark.table("test.people")
+assert result.count() == 1
+assert result.first()["name"] == "Bob"
 ```
 
-**Required Implementation:**
+**3.3: Error Handling**
+
+Provide appropriate errors for invalid DELETE operations:
+
 ```python
-class DataFrameWriter:
-    def __init__(self, df):
-        self._df = df
-        self._mode = "error"  # default
-        self._options = {}
-        self._partition_by = []
-    
-    def mode(self, mode):
-        """Set write mode."""
-        self._mode = mode
-        return self
-    
-    def option(self, key, value):
-        """Set write option."""
-        self._options[key] = value
-        return self
-    
-    def saveAsTable(self, name):
-        """
-        Save DataFrame as table with support for Delta Lake options.
-        
-        Args:
-            name: Fully qualified table name (schema.table)
-        """
-        # Parse schema and table name
-        if "." in name:
-            schema_name, table_name = name.split(".", 1)
-        else:
-            schema_name = "default"
-            table_name = name
-        
-        # Check if table exists
-        table_exists = self._check_table_exists(schema_name, table_name)
-        
-        # Handle overwriteSchema option
-        overwrite_schema = self._options.get("overwriteSchema", "false").lower() == "true"
-        merge_schema = self._options.get("mergeSchema", "false").lower() == "true"
-        
-        if self._mode == "overwrite":
-            if table_exists and (overwrite_schema or merge_schema):
-                # Read existing table schema
-                existing_table = self._spark.table(name)
-                existing_schema = existing_table.schema
-                current_schema = self._df.schema
-                
-                # Merge schemas
-                merged_df = self._merge_schemas(self._df, existing_schema, current_schema)
-                
-                # Write merged DataFrame
-                self._write_table(merged_df, schema_name, table_name, mode="overwrite")
-            else:
-                # Normal overwrite
-                self._write_table(self._df, schema_name, table_name, mode="overwrite")
-        elif self._mode == "append":
-            if table_exists and merge_schema:
-                # Merge schemas for append mode
-                existing_table = self._spark.table(name)
-                existing_schema = existing_table.schema
-                current_schema = self._df.schema
-                
-                merged_df = self._merge_schemas(self._df, existing_schema, current_schema)
-                self._write_table(merged_df, schema_name, table_name, mode="append")
-            else:
-                # Normal append (schema must match)
-                self._write_table(self._df, schema_name, table_name, mode="append")
-        else:
-            # error, ignore, etc.
-            self._write_table(self._df, schema_name, table_name, mode=self._mode)
+# Should raise error for non-existent table
+try:
+    spark.sql("DELETE FROM test.nonexistent")
+except AnalysisException as e:
+    assert "table or view not found" in str(e).lower()
+
+# Should raise error for views (if views don't support DELETE)
+try:
+    spark.sql("CREATE VIEW test.my_view AS SELECT * FROM test.people")
+    spark.sql("DELETE FROM test.my_view")
+except AnalysisException as e:
+    assert "delete" in str(e).lower()
 ```
 
-#### 2.2: Implement Schema Merging Logic
+### Implementation Details
 
-**File:** `mock_spark/writer.py` or `mock_spark/schema.py`
+1. **Table State Management:**
+   - DELETE should remove rows but preserve table schema
+   - Table metadata (columns, types) should remain unchanged
+   - Table should still be queryable after DELETE (returns empty result)
 
-**Required:**
+2. **Transaction-like Behavior:**
+   - DELETE should be atomic (all or nothing)
+   - If DELETE fails partway through, table should remain in original state
+
+3. **Performance Considerations:**
+   - For mock-spark, DELETE can be implemented by clearing the internal data store
+   - No need for complex transaction logs (unlike real Delta Lake)
+
+### Test Cases
+
 ```python
-def _merge_schemas(self, df, existing_schema, current_schema):
-    """
-    Merge existing table schema with current DataFrame schema.
+def test_delete_all_rows():
+    """Test DELETE FROM table removes all rows."""
+    spark = SparkSession()
+    df = spark.createDataFrame(
+        [("Alice", 25), ("Bob", 30), ("Charlie", 35)],
+        ["name", "age"]
+    )
+    df.write.mode("overwrite").saveAsTable("test.people")
     
-    This implements Delta Lake's schema evolution:
-    - Preserves all columns from existing schema
-    - Adds new columns from current schema
-    - Fills missing columns with null values
+    # Delete all
+    spark.sql("DELETE FROM test.people")
     
-    Args:
-        df: Current DataFrame to write
-        existing_schema: Schema of existing table
-        current_schema: Schema of current DataFrame
+    # Verify
+    result = spark.table("test.people")
+    assert result.count() == 0
+    assert len(result.columns) == 2
+
+def test_delete_with_where():
+    """Test DELETE FROM table WHERE condition."""
+    spark = SparkSession()
+    df = spark.createDataFrame(
+        [("Alice", 25), ("Bob", 30), ("Charlie", 35)],
+        ["name", "age"]
+    )
+    df.write.mode("overwrite").saveAsTable("test.people")
     
-    Returns:
-        DataFrame with merged schema
-    """
-    from mock_spark import functions as F
+    # Delete rows where age < 30
+    spark.sql("DELETE FROM test.people WHERE age < 30")
     
+    # Verify
+    result = spark.table("test.people")
+    assert result.count() == 2
+    rows = result.collect()
+    names = [row["name"] for row in rows]
+    assert "Alice" not in names
+    assert "Bob" in names
+    assert "Charlie" in names
+
+def test_delete_preserves_schema():
+    """Test DELETE preserves table schema."""
+    spark = SparkSession()
+    from mock_spark.spark_types import StringType, IntegerType
+    
+    df = spark.createDataFrame([("Alice", 25)], ["name", "age"])
+    df.write.mode("overwrite").saveAsTable("test.people")
+    
+    # Delete all
+    spark.sql("DELETE FROM test.people")
+    
+    # Verify schema is preserved
+    result = spark.table("test.people")
+    schema = result.schema
+    assert isinstance(schema["name"].dataType, StringType)
+    assert isinstance(schema["age"].dataType, IntegerType)
+```
+
+---
+
+## 4. DataFrame Writer Options
+
+### Current Limitation
+
+mock-spark's DataFrameWriter doesn't fully support all PySpark writer options, particularly `mergeSchema` and `overwriteSchema`.
+
+### Problem Statement
+
+PySpark DataFrameWriter supports several options that control how data is written:
+
+- `mergeSchema`: Merge DataFrame schema with existing table schema
+- `overwriteSchema`: Overwrite table schema to match DataFrame
+- `partitionBy`: Partition data by columns
+- `bucketBy`: Bucket data by columns
+
+mock-spark needs better support for these options to enable proper schema evolution testing.
+
+### Real-World Example from SparkForge
+
+**File:** `src/pipeline_builder/execution.py` (lines 933-935, 963-965)
+
+```python
+# Current workaround - mock-spark doesn't support overwriteSchema properly
+if is_mock_spark():
+    # Mock-spark: use overwrite mode to replace table with new schema
+    writer = _create_dataframe_writer(
+        output_df, self.spark, "overwrite", overwriteSchema="true"
+    )
+else:
+    # Real PySpark: try DELETE + INSERT pattern for Delta Lake
+    # ... uses append mode with overwriteSchema
+    writer = _create_dataframe_writer(
+        output_df, self.spark, "append", overwriteSchema="true"
+    )
+```
+
+### Proposed Solution
+
+**4.1: `mergeSchema` Option**
+
+```python
+# Expected behavior
+spark = SparkSession()
+
+# Create initial table
+df1 = spark.createDataFrame([("Alice", 25)], ["name", "age"])
+df1.write.mode("overwrite").saveAsTable("test.people")
+
+# Append with new column
+df2 = spark.createDataFrame([("Bob", 30, "engineer")], ["name", "age", "job"])
+df2.write.mode("append").option("mergeSchema", "true").saveAsTable("test.people")
+
+# Result should have all columns
+result = spark.table("test.people")
+assert "name" in result.columns
+assert "age" in result.columns
+assert "job" in result.columns
+assert result.count() == 2
+
+# Alice should have None for job
+rows = result.collect()
+alice_row = next(r for r in rows if r["name"] == "Alice")
+assert alice_row["job"] is None
+```
+
+**4.2: `overwriteSchema` Option**
+
+```python
+# Expected behavior
+spark = SparkSession()
+
+# Create initial table
+df1 = spark.createDataFrame([("Alice", 25)], ["name", "age"])
+df1.write.mode("overwrite").saveAsTable("test.people")
+
+# Overwrite with different schema
+df2 = spark.createDataFrame(
+    [("Bob", "engineer", 50000)],
+    ["name", "job", "salary"]
+)
+df2.write.mode("append").option("overwriteSchema", "true").saveAsTable("test.people")
+
+# Result should have new schema
+result = spark.table("test.people")
+assert "name" in result.columns
+assert "job" in result.columns
+assert "salary" in result.columns
+# age column should be gone (schema overwritten)
+assert "age" not in result.columns
+```
+
+**4.3: Option Validation**
+
+Provide clear errors for invalid option combinations:
+
+```python
+# Should raise error for invalid combination
+try:
+    df.write.mode("overwrite").option("mergeSchema", "true").saveAsTable("test.table")
+except AnalysisException as e:
+    # mergeSchema typically only works with append mode
+    assert "mergeSchema" in str(e).lower() or "mode" in str(e).lower()
+```
+
+### Implementation Details
+
+1. **Schema Merging Logic:**
+   - When `mergeSchema="true"`:
+     - Read existing table schema
+     - Merge with DataFrame schema
+     - Add missing columns from table to DataFrame (with nulls)
+     - Add missing columns from DataFrame to table (with nulls for existing rows)
+     - Write merged DataFrame
+
+2. **Schema Overwriting Logic:**
+   - When `overwriteSchema="true"`:
+     - Replace table schema with DataFrame schema
+     - Existing data may be lost if columns don't match
+     - Preserve data where column names and types match
+
+3. **Mode Combinations:**
+   - `append` + `mergeSchema`: Merge schemas, append data
+   - `append` + `overwriteSchema`: Overwrite schema, append data
+   - `overwrite` + `overwriteSchema`: Overwrite schema and data
+   - `overwrite` + `mergeSchema`: May not make sense (should error or ignore)
+
+### Test Cases
+
+```python
+def test_merge_schema_append():
+    """Test mergeSchema with append mode."""
+    spark = SparkSession()
+    
+    # Initial table
+    df1 = spark.createDataFrame([("Alice", 25)], ["name", "age"])
+    df1.write.mode("overwrite").saveAsTable("test.people")
+    
+    # Append with new column
+    df2 = spark.createDataFrame([("Bob", 30, "NYC")], ["name", "age", "city"])
+    df2.write.mode("append").option("mergeSchema", "true").saveAsTable("test.people")
+    
+    # Verify merged schema
+    result = spark.table("test.people")
+    assert set(result.columns) == {"name", "age", "city"}
+    assert result.count() == 2
+    
+    # Verify data
+    rows = result.collect()
+    alice = next(r for r in rows if r["name"] == "Alice")
+    bob = next(r for r in rows if r["name"] == "Bob")
+    assert alice["city"] is None
+    assert bob["city"] == "NYC"
+
+def test_overwrite_schema_append():
+    """Test overwriteSchema with append mode."""
+    spark = SparkSession()
+    
+    # Initial table
+    df1 = spark.createDataFrame([("Alice", 25)], ["name", "age"])
+    df1.write.mode("overwrite").saveAsTable("test.people")
+    
+    # Append with different schema
+    df2 = spark.createDataFrame([("Bob", "engineer")], ["name", "job"])
+    df2.write.mode("append").option("overwriteSchema", "true").saveAsTable("test.people")
+    
+    # Verify new schema
+    result = spark.table("test.people")
+    assert "name" in result.columns
+    assert "job" in result.columns
+    assert "age" not in result.columns  # Old column removed
+```
+
+---
+
+## 5. Column Addition with Type Preservation
+
+### Current Limitation
+
+mock-spark doesn't properly support adding columns with specific types, especially when the column needs to be added to match an existing table schema.
+
+### Problem Statement
+
+During schema evolution, it's common to need to add columns to a DataFrame to match an existing table schema. The columns should have the correct types and null values.
+
+### Real-World Example from SparkForge
+
+**File:** `src/pipeline_builder/execution.py` (lines 852-884)
+
+```python
+# This is the pattern we need to support
+for col_name, field in existing_columns.items():
+    if col_name not in merged_df.columns:
+        # Add missing column with null values of the correct type
+        merged_df = merged_df.withColumn(
+            col_name,
+            F.lit(None).cast(field.dataType),  # field.dataType is a StructField
+        )
+```
+
+### Proposed Solution
+
+**5.1: Support Adding Columns from StructField**
+
+Allow using `StructField` objects directly in casting:
+
+```python
+from mock_spark.spark_types import StructField, StringType, IntegerType
+
+# Create a field
+field = StructField("new_col", IntegerType(), nullable=True)
+
+# Add column using the field's dataType
+df = df.withColumn(field.name, F.lit(None).cast(field.dataType))
+
+# Verify
+assert "new_col" in df.columns
+assert isinstance(df.schema["new_col"].dataType, IntegerType)
+```
+
+**5.2: Preserve Nullability**
+
+When adding columns, preserve the nullability from the source schema:
+
+```python
+# If existing table has nullable column, new rows should have None
+# If existing table has non-nullable column, should handle appropriately
+existing_field = StructField("status", StringType(), nullable=False)
+df = df.withColumn(existing_field.name, F.lit(None).cast(existing_field.dataType))
+
+# Note: In real PySpark, adding None to non-nullable column might cause issues
+# mock-spark should either:
+# 1. Allow it (more permissive)
+# 2. Raise an error (strict)
+# 3. Use a default value (if specified)
+```
+
+### Test Cases
+
+```python
+def test_add_column_from_struct_field():
+    """Test adding column using StructField."""
+    from mock_spark.spark_types import StructField, TimestampType
+    
+    spark = SparkSession()
+    df = spark.createDataFrame([("Alice",)], ["name"])
+    
+    # Add column from StructField
+    field = StructField("created_at", TimestampType(), nullable=True)
+    df = df.withColumn(field.name, F.lit(None).cast(field.dataType))
+    
+    # Verify
+    assert "created_at" in df.columns
+    assert isinstance(df.schema["created_at"].dataType, TimestampType)
+    assert df.first()["created_at"] is None
+
+def test_schema_merge_with_type_preservation():
+    """Test merging schemas preserves types correctly."""
+    spark = SparkSession()
+    from mock_spark.spark_types import StringType, IntegerType, DoubleType
+    
+    # Existing table schema
+    existing_df = spark.createDataFrame(
+        [("Alice", 25, 50000.0)],
+        ["name", "age", "salary"]
+    )
+    existing_df.write.mode("overwrite").saveAsTable("test.employees")
+    
+    # New DataFrame with different columns
+    new_df = spark.createDataFrame(
+        [("Bob", "engineer")],
+        ["name", "job"]
+    )
+    
+    # Add missing columns to match existing schema
+    existing_schema = spark.table("test.employees").schema
+    for field in existing_schema.fields:
+        if field.name not in new_df.columns:
+            new_df = new_df.withColumn(
+                field.name,
+                F.lit(None).cast(field.dataType)
+            )
+    
+    # Verify types are preserved
+    assert isinstance(new_df.schema["age"].dataType, IntegerType)
+    assert isinstance(new_df.schema["salary"].dataType, DoubleType)
+    assert new_df.first()["age"] is None
+    assert new_df.first()["salary"] is None
+```
+
+---
+
+## 6. Table Metadata Operations
+
+### Current Limitation
+
+Some table metadata operations may not work consistently, particularly around schema inspection and table existence checks.
+
+### Problem Statement
+
+Data pipeline frameworks need to:
+
+1. Check if a table exists
+2. Read table schema without reading data
+3. Inspect column types and nullability
+4. Refresh table metadata after writes
+
+### Proposed Solution
+
+**6.1: Enhanced `table()` Method**
+
+Ensure `spark.table()` works reliably:
+
+```python
+# Should work immediately after write
+df.write.mode("overwrite").saveAsTable("test.my_table")
+table_df = spark.table("test.my_table")  # Should work without delay
+
+# Should work for empty tables
+empty_df = spark.createDataFrame([], schema)
+empty_df.write.mode("overwrite").saveAsTable("test.empty_table")
+result = spark.table("test.empty_table")
+assert result.count() == 0
+assert len(result.columns) > 0
+```
+
+**6.2: Schema Inspection**
+
+Provide reliable schema access:
+
+```python
+# Get schema without reading data
+table_df = spark.table("test.my_table")
+schema = table_df.schema
+
+# Access field information
+for field in schema.fields:
+    print(f"{field.name}: {field.dataType}, nullable={field.nullable}")
+
+# Access by name
+age_field = schema["age"]
+assert isinstance(age_field.dataType, IntegerType)
+```
+
+**6.3: REFRESH TABLE Support**
+
+Support `REFRESH TABLE` command for metadata updates:
+
+```python
+# After writing, refresh to ensure latest metadata
+df.write.mode("append").saveAsTable("test.my_table")
+spark.sql("REFRESH TABLE test.my_table")
+
+# Should see latest data
+result = spark.table("test.my_table")
+assert result.count() == expected_count
+```
+
+### Test Cases
+
+```python
+def test_table_immediate_access():
+    """Test table is accessible immediately after write."""
+    spark = SparkSession()
+    df = spark.createDataFrame([("Alice", 25)], ["name", "age"])
+    
+    df.write.mode("overwrite").saveAsTable("test.people")
+    
+    # Should work immediately
+    result = spark.table("test.people")
+    assert result.count() == 1
+    assert "name" in result.columns
+
+def test_schema_inspection():
+    """Test schema can be inspected reliably."""
+    spark = SparkSession()
+    from mock_spark.spark_types import StringType, IntegerType
+    
+    df = spark.createDataFrame([("Alice", 25)], ["name", "age"])
+    df.write.mode("overwrite").saveAsTable("test.people")
+    
+    # Inspect schema
+    table_df = spark.table("test.people")
+    schema = table_df.schema
+    
+    assert len(schema.fields) == 2
+    assert schema["name"].dataType == StringType()
+    assert schema["age"].dataType == IntegerType()
+```
+
+---
+
+## 7. Implementation Priority
+
+### High Priority (Critical for Schema Evolution)
+
+1. **`F.lit(None).cast(dataType)` support** - Enables schema merging
+2. **`mergeSchema` option** - Essential for schema evolution
+3. **`overwriteSchema` option** - Needed for schema changes
+4. **DELETE FROM table support** - Common pattern in data pipelines
+
+### Medium Priority (Important for Compatibility)
+
+5. **Enhanced type casting** - Better PySpark compatibility
+6. **Column addition from StructField** - Cleaner API
+7. **Table metadata operations** - Better reliability
+
+### Low Priority (Nice to Have)
+
+8. **Advanced writer options** (partitionBy, bucketBy)
+9. **Transaction-like behavior** for writes
+10. **Performance optimizations**
+
+---
+
+## 8. Testing Recommendations
+
+### Test Structure
+
+Create comprehensive test suites for each improvement:
+
+```python
+# tests/test_schema_evolution.py
+class TestSchemaEvolution:
+    def test_add_null_column_with_type()
+    def test_merge_schema_append()
+    def test_overwrite_schema()
+    def test_schema_evolution_preserves_existing_data()
+
+# tests/test_type_casting.py
+class TestTypeCasting:
+    def test_null_literal_casting()
+    def test_numeric_type_casting()
+    def test_string_to_timestamp()
+    def test_invalid_cast_errors()
+
+# tests/test_sql_operations.py
+class TestSQLOperations:
+    def test_delete_all_rows()
+    def test_delete_with_where()
+    def test_delete_preserves_schema()
+    def test_delete_nonexistent_table_error()
+```
+
+### Integration Tests
+
+Test with real-world scenarios:
+
+```python
+def test_complete_schema_evolution_scenario():
+    """Test a complete schema evolution scenario like SparkForge uses."""
+    spark = SparkSession()
+    
+    # Step 1: Create initial table
+    df1 = spark.createDataFrame(
+        [("user1", "Alice", 100)],
+        ["user_id", "name", "value"]
+    )
+    df1.write.mode("overwrite").saveAsTable("test.events")
+    
+    # Step 2: Add new column in transform
+    df2 = spark.createDataFrame(
+        [("user2", "Bob", 200)],
+        ["user_id", "name", "value"]
+    )
+    df2 = df2.withColumn("processed_at", F.current_timestamp())
+    
+    # Step 3: Merge with existing schema
+    existing_table = spark.table("test.events")
+    existing_schema = existing_table.schema
+    
+    # Add missing columns from existing schema
+    for field in existing_schema.fields:
+        if field.name not in df2.columns:
+            df2 = df2.withColumn(
+                field.name,
+                F.lit(None).cast(field.dataType)
+            )
+    
+    # Step 4: Write with schema evolution
+    df2.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("test.events")
+    
+    # Step 5: Verify result
+    result = spark.table("test.events")
+    assert "user_id" in result.columns
+    assert "name" in result.columns
+    assert "value" in result.columns
+    assert "processed_at" in result.columns
+    assert result.count() == 1
+```
+
+### Compatibility Tests
+
+Ensure improvements don't break existing functionality:
+
+```python
+def test_backward_compatibility():
+    """Ensure new features don't break existing code."""
+    # Test that existing mock-spark code still works
+    # Test that new features are opt-in where possible
+    pass
+```
+
+---
+
+## 9. Example: Complete Schema Evolution Flow
+
+This section shows how all improvements work together:
+
+```python
+from mock_spark import SparkSession, functions as F
+from mock_spark.spark_types import StringType, IntegerType, TimestampType
+
+def complete_schema_evolution_example():
+    """Complete example showing schema evolution with all improvements."""
+    spark = SparkSession()
+    
+    # ===== PHASE 1: Initial Load =====
+    print("Phase 1: Initial load with basic schema")
+    df1 = spark.createDataFrame(
+        [("user1", "Alice", 100), ("user2", "Bob", 200)],
+        ["user_id", "name", "value"]
+    )
+    df1.write.mode("overwrite").saveAsTable("analytics.events")
+    
+    result1 = spark.table("analytics.events")
+    print(f"Columns: {result1.columns}")
+    print(f"Count: {result1.count()}")
+    # Output: Columns: ['user_id', 'name', 'value'], Count: 2
+    
+    # ===== PHASE 2: Schema Evolution =====
+    print("\nPhase 2: Add new column 'processed_at'")
+    
+    # New DataFrame with additional column
+    df2 = spark.createDataFrame(
+        [("user3", "Charlie", 300)],
+        ["user_id", "name", "value"]
+    )
+    df2 = df2.withColumn("processed_at", F.current_timestamp())
+    
+    # Read existing schema
+    existing_table = spark.table("analytics.events")
+    existing_schema = existing_table.schema
+    
+    # Merge schemas: add missing columns from existing table
+    for field in existing_schema.fields:
+        if field.name not in df2.columns:
+            df2 = df2.withColumn(
+                field.name,
+                F.lit(None).cast(field.dataType)  # NEW: This should work!
+            )
+    
+    # Write with schema evolution
+    df2.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("analytics.events")
+    
+    result2 = spark.table("analytics.events")
+    print(f"Columns: {result2.columns}")
+    print(f"Count: {result2.count()}")
+    # Output: Columns: ['user_id', 'name', 'value', 'processed_at'], Count: 1
+    
+    # ===== PHASE 3: Append with Schema Merge =====
+    print("\nPhase 3: Append new data with schema merge")
+    
+    df3 = spark.createDataFrame(
+        [("user4", "Diana", 400, None)],  # processed_at is None
+        ["user_id", "name", "value", "processed_at"]
+    )
+    
+    # Use mergeSchema to preserve existing columns
+    df3.write.mode("append").option("mergeSchema", "true").saveAsTable("analytics.events")
+    
+    result3 = spark.table("analytics.events")
+    print(f"Columns: {result3.columns}")
+    print(f"Count: {result3.count()}")
+    # Output: Columns: ['user_id', 'name', 'value', 'processed_at'], Count: 2
+    
+    # ===== PHASE 4: DELETE + INSERT Pattern =====
+    print("\nPhase 4: Use DELETE + INSERT pattern")
+    
+    # Clear existing data
+    spark.sql("DELETE FROM analytics.events")  # NEW: This should work!
+    
+    # Insert fresh data
+    df4 = spark.createDataFrame(
+        [("user5", "Eve", 500, None)],
+        ["user_id", "name", "value", "processed_at"]
+    )
+    df4.write.mode("append").saveAsTable("analytics.events")
+    
+    result4 = spark.table("analytics.events")
+    print(f"Columns: {result4.columns}")
+    print(f"Count: {result4.count()}")
+    # Output: Columns: ['user_id', 'name', 'value', 'processed_at'], Count: 1
+    
+    print("\n✅ All schema evolution operations completed successfully!")
+
+if __name__ == "__main__":
+    complete_schema_evolution_example()
+```
+
+---
+
+## 10. Migration Guide for mock-spark Users
+
+### Before (Current Limitations)
+
+```python
+# ❌ This doesn't work in current mock-spark
+df = df.withColumn("new_col", F.lit(None).cast(TimestampType()))
+# Error: Cannot cast None to TimestampType
+
+# ❌ This doesn't work
+spark.sql("DELETE FROM my_table")
+# Error: DELETE operation not supported
+
+# ❌ This doesn't work properly
+df.write.mode("append").option("mergeSchema", "true").saveAsTable("my_table")
+# Schema merging doesn't work correctly
+```
+
+### After (With Improvements)
+
+```python
+# ✅ This will work
+df = df.withColumn("new_col", F.lit(None).cast(TimestampType()))
+# Successfully adds column with correct type
+
+# ✅ This will work
+spark.sql("DELETE FROM my_table")
+# Successfully deletes all rows, preserves schema
+
+# ✅ This will work
+df.write.mode("append").option("mergeSchema", "true").saveAsTable("my_table")
+# Successfully merges schemas and appends data
+```
+
+---
+
+## 11. Additional Considerations
+
+### Performance
+
+While performance is less critical for mock-spark (it's for testing), consider:
+
+- Efficient schema merging algorithms
+- Fast table lookups for schema inspection
+- Minimal overhead for type casting
+
+### Error Messages
+
+Provide clear, actionable error messages:
+
+```python
+# Good error message
+try:
+    df.withColumn("bad", F.col("name").cast(IntegerType()))
+except AnalysisException as e:
+    # Should say something like:
+    # "Cannot cast column 'name' of type StringType to IntegerType. 
+    #  Column contains non-numeric values: ['Alice', 'Bob']"
+    pass
+```
+
+### Documentation
+
+Update mock-spark documentation to include:
+
+- Schema evolution examples
+- Type casting reference
+- SQL operations guide
+- Migration guide from PySpark
+
+---
+
+## 12. Conclusion
+
+These improvements will significantly enhance mock-spark's compatibility with PySpark, making it a more reliable tool for testing data pipeline frameworks. The improvements are prioritized based on real-world usage patterns and can be implemented incrementally.
+
+### Key Benefits
+
+1. **Better PySpark Compatibility** - More code will work without modification
+2. **Schema Evolution Support** - Critical for modern data pipelines
+3. **Reduced Workarounds** - Less special-case code needed in frameworks
+4. **Better Testing** - More comprehensive test coverage possible
+
+### Next Steps
+
+1. Review and prioritize improvements
+2. Create detailed implementation specs for each item
+3. Implement high-priority items first
+4. Add comprehensive test coverage
+5. Update documentation
+6. Release incrementally with version bumps
+
+---
+
+## Appendix A: Reference Implementation Patterns
+
+### Pattern 1: Schema Merging
+
+```python
+def merge_schemas(existing_schema, new_df):
+    """Merge existing table schema with new DataFrame."""
     existing_columns = {f.name: f for f in existing_schema.fields}
-    current_columns = {f.name: f for f in current_schema.fields}
+    new_columns = set(new_df.columns)
     
-    # Find missing columns (in existing but not in current)
-    missing_columns = set(existing_columns.keys()) - set(current_columns.keys())
-    new_columns = set(current_columns.keys()) - set(existing_columns.keys())
-    
-    merged_df = df
-    
-    # Add missing columns with null values
+    # Add missing columns from existing schema
     for col_name, field in existing_columns.items():
-        if col_name not in merged_df.columns:
-            # Add null column of the correct type
-            merged_df = merged_df.withColumn(
+        if col_name not in new_columns:
+            new_df = new_df.withColumn(
                 col_name,
                 F.lit(None).cast(field.dataType)
             )
     
-    # Select columns in order: existing first, then new
-    all_columns = list(existing_columns.keys()) + sorted(new_columns)
-    merged_df = merged_df.select(*all_columns)
-    
-    return merged_df
+    # Note: Missing columns from new_df will be added by mergeSchema option
+    return new_df
 ```
 
-#### 2.3: Update Storage Backend
-
-**File:** `mock_spark/storage.py` or equivalent
-
-**Required Changes:**
-- When `overwriteSchema=true`, read existing table before overwriting
-- Merge schemas before writing
-- Ensure all existing columns are preserved in the new table
-
-### Test Case
+### Pattern 2: DELETE + INSERT
 
 ```python
-def test_overwrite_schema_option():
-    """Test that overwriteSchema option preserves existing columns."""
-    from mock_spark import SparkSession
-    
-    spark = SparkSession("test")
-    spark.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
-    
-    # Create initial table
-    df1 = spark.createDataFrame([(1, "Alice")], ["id", "name"])
-    df1.write.mode("overwrite").saveAsTable("test_schema.users")
-    
-    # Verify initial schema
-    table1 = spark.table("test_schema.users")
-    assert set(table1.columns) == {"id", "name"}
-    
-    # Add new column with overwriteSchema
-    df2 = spark.createDataFrame([(1, "Alice", 25)], ["id", "name", "age"])
-    df2.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("test_schema.users")
-    
-    # Verify schema evolution: existing columns preserved, new column added
-    table2 = spark.table("test_schema.users")
-    assert "id" in table2.columns
-    assert "name" in table2.columns
-    assert "age" in table2.columns
-    assert len(table2.columns) == 3
+def delete_and_insert(spark, table_name, new_df):
+    """Delete all rows and insert new data."""
+    try:
+        spark.sql(f"DELETE FROM {table_name}")
+        new_df.write.mode("append").saveAsTable(table_name)
+    except Exception as e:
+        if "does not support delete" in str(e).lower():
+            # Fallback: drop and recreate
+            spark.sql(f"DROP TABLE IF EXISTS {table_name}")
+            new_df.write.mode("overwrite").saveAsTable(table_name)
+        else:
+            raise
 ```
 
-### Expected Outcome
+### Pattern 3: Schema Evolution Detection
 
-After fix:
-- `overwriteSchema=true` option is recognized and processed
-- Existing table columns are preserved when overwriting
-- New columns are added to the schema
-- Schema merging works correctly for both overwrite and append modes
-
----
-
-## Issue #3: Table Catalog Synchronization
-
-### Problem Description
-
-After calling `saveAsTable()`, there's a delay before the table becomes available in the catalog via `spark.table()`. This causes "Table or view not found" errors when trying to read the table immediately after writing.
-
-### Current Behavior
-
-**PySpark (Working):**
 ```python
-df.write.mode("overwrite").saveAsTable("schema.table")
-table = spark.table("schema.table")  # Works immediately
-```
-
-**Mock-Spark (Failing):**
-```python
-df.write.mode("overwrite").saveAsTable("schema.table")
-table = spark.table("schema.table")  # Raises: Table or view not found
-# Works after a delay or retry
-```
-
-### Root Cause Analysis
-
-1. **Location:** `mock_spark/storage.py` - Table registration logic
-2. **Issue:** Table is written to storage but not immediately registered in the catalog
-3. **Impact:** Pipeline execution fails when trying to read tables immediately after writing
-
-### Detailed Fix Requirements
-
-#### 3.1: Synchronous Catalog Registration
-
-**File:** `mock_spark/storage.py`
-
-**Current Implementation (Hypothetical):**
-```python
-def save_table(self, schema, table, df, mode):
-    # Write DataFrame to storage
-    self._write_dataframe(schema, table, df, mode)
-    # Catalog registration happens asynchronously or with delay
-    # This causes the table to not be immediately available
-```
-
-**Required Implementation:**
-```python
-def save_table(self, schema, table, df, mode):
-    """
-    Save DataFrame as table with immediate catalog registration.
+def detect_schema_evolution(existing_table, new_df):
+    """Detect if schema evolution is needed."""
+    existing_cols = set(existing_table.columns)
+    new_cols = set(new_df.columns)
     
-    Args:
-        schema: Schema name
-        table: Table name
-        df: DataFrame to save
-        mode: Write mode (overwrite, append, etc.)
-    """
-    # Ensure schema exists
-    if not self.schema_exists(schema):
-        self.create_schema(schema)
+    new_columns = new_cols - existing_cols
+    missing_columns = existing_cols - new_cols
     
-    # Write DataFrame to storage
-    self._write_dataframe(schema, table, df, mode)
-    
-    # IMMEDIATELY register table in catalog
-    # This must happen synchronously, not asynchronously
-    self._register_table_in_catalog(schema, table, df.schema)
-    
-    # Verify table is immediately accessible
-    assert self.table_exists(schema, table), \
-        "Table should be immediately available after saveAsTable"
-```
-
-#### 3.2: Implement Catalog Registration
-
-**File:** `mock_spark/catalog.py` or `mock_spark/storage.py`
-
-**Required:**
-```python
-def _register_table_in_catalog(self, schema, table, schema_obj):
-    """
-    Register table in catalog immediately after writing.
-    
-    Args:
-        schema: Schema name
-        table: Table name
-        schema_obj: DataFrame schema
-    """
-    # Get or create catalog entry
-    if schema not in self._catalog:
-        self._catalog[schema] = {}
-    
-    # Register table with schema
-    self._catalog[schema][table] = {
-        "schema": schema_obj,
-        "path": self._get_table_path(schema, table),
-        "created_at": datetime.now(),
+    return {
+        "needs_evolution": len(new_columns) > 0 or len(missing_columns) > 0,
+        "new_columns": new_columns,
+        "missing_columns": missing_columns
     }
-    
-    # Ensure catalog is immediately queryable
-    # This should be a synchronous operation
-    self._flush_catalog()
-```
-
-#### 3.3: Update table() Method
-
-**File:** `mock_spark/session.py`
-
-**Required:**
-```python
-def table(self, table_name):
-    """
-    Get table as DataFrame with immediate availability.
-    
-    Args:
-        table_name: Fully qualified table name (schema.table)
-    
-    Returns:
-        DataFrame with table data
-    """
-    # Parse table name
-    if "." in table_name:
-        schema, table = table_name.split(".", 1)
-    else:
-        schema = self.storage.get_current_schema()
-        table = table_name
-    
-    # Check catalog first (should be immediately available)
-    if self.storage.table_exists(schema, table):
-        # Read from storage using catalog metadata
-        return self.storage.read_table(schema, table)
-    else:
-        # If not in catalog, try to discover from storage
-        # This handles edge cases but shouldn't be the primary path
-        if self.storage._table_exists_in_storage(schema, table):
-            # Register it in catalog for future access
-            df = self.storage._read_table_from_storage(schema, table)
-            self.storage._register_table_in_catalog(schema, table, df.schema)
-            return df
-        else:
-            raise AnalysisException(f"Table or view not found: {table_name}")
-```
-
-### Test Case
-
-```python
-def test_immediate_table_access():
-    """Test that table is immediately accessible after saveAsTable."""
-    from mock_spark import SparkSession
-    
-    spark = SparkSession("test")
-    spark.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
-    
-    df = spark.createDataFrame([(1, "test")], ["id", "name"])
-    
-    # Write table
-    df.write.mode("overwrite").saveAsTable("test_schema.test_table")
-    
-    # Should be immediately accessible (no delay, no retry needed)
-    table = spark.table("test_schema.test_table")
-    assert table is not None
-    assert table.count() == 1
-    assert "id" in table.columns
-    assert "name" in table.columns
-```
-
-### Expected Outcome
-
-After fix:
-- Tables are immediately available in catalog after `saveAsTable()`
-- No retry logic needed when reading tables after writing
-- Catalog registration is synchronous and atomic with write operation
-
----
-
-## Issue #4: Schema Merging in Overwrite Mode
-
-### Problem Description
-
-When overwriting a table with `mode("overwrite")`, mock-spark should merge schemas to preserve existing columns while adding new ones. Currently, it only writes the new schema, losing existing columns.
-
-### Current Behavior
-
-**PySpark with Delta Lake (Working):**
-```python
-# Initial table: [id, name]
-df1.write.mode("overwrite").saveAsTable("schema.table")
-
-# Overwrite with new columns: [id, name, age, city]
-# With overwriteSchema=true: Result is [id, name, age, city] (all columns preserved)
-df2.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("schema.table")
-```
-
-**Mock-Spark (Failing):**
-```python
-# Initial table: [id, name]
-df1.write.mode("overwrite").saveAsTable("schema.table")
-
-# Overwrite with new columns: [id, age]
-# Result: [id, age] (name column is lost)
-df2.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("schema.table")
-```
-
-### Root Cause Analysis
-
-1. **Location:** `mock_spark/writer.py` or `mock_spark/storage.py`
-2. **Issue:** Overwrite mode doesn't check for existing schema before writing
-3. **Impact:** Schema evolution fails, data loss occurs when columns are filtered by validation
-
-### Detailed Fix Requirements
-
-#### 4.1: Implement Schema-Aware Overwrite
-
-**File:** `mock_spark/writer.py`
-
-**Required:**
-```python
-def _write_table(self, df, schema, table, mode):
-    """
-    Write DataFrame to table with schema-aware overwrite.
-    
-    Args:
-        df: DataFrame to write
-        schema: Schema name
-        table: Table name
-        mode: Write mode
-    """
-    table_exists = self._table_exists(schema, table)
-    
-    if mode == "overwrite":
-        if table_exists:
-            # Read existing schema
-            existing_df = self._spark.table(f"{schema}.{table}")
-            existing_schema = existing_df.schema
-            
-            # Check if overwriteSchema option is set
-            if self._options.get("overwriteSchema", "false").lower() == "true":
-                # Merge schemas before overwriting
-                df = self._merge_schemas_for_overwrite(df, existing_schema)
-            
-            # Perform overwrite
-            self._storage.overwrite_table(schema, table, df)
-        else:
-            # Table doesn't exist, create new
-            self._storage.create_table(schema, table, df)
-    else:
-        # Other modes (append, error, etc.)
-        self._storage.write_table(schema, table, df, mode)
-```
-
-#### 4.2: Schema Merging Algorithm
-
-**File:** `mock_spark/schema.py`
-
-**Required:**
-```python
-def merge_schemas(existing_schema, new_schema, fill_missing_with_null=True):
-    """
-    Merge two schemas, preserving all columns.
-    
-    Algorithm:
-    1. Identify columns in existing but not in new (missing columns)
-    2. Identify columns in new but not in existing (new columns)
-    3. For missing columns: add with null values if fill_missing_with_null=True
-    4. Return merged schema with: existing columns + new columns
-    
-    Args:
-        existing_schema: Schema of existing table
-        new_schema: Schema of new DataFrame
-        fill_missing_with_null: If True, add missing columns with null values
-    
-    Returns:
-        Merged schema
-    """
-    existing_fields = {f.name: f for f in existing_schema.fields}
-    new_fields = {f.name: f for f in new_schema.fields}
-    
-    # All columns: existing first, then new (in sorted order)
-    all_field_names = list(existing_fields.keys()) + sorted(
-        set(new_fields.keys()) - set(existing_fields.keys())
-    )
-    
-    # Build merged schema
-    merged_fields = []
-    for field_name in all_field_names:
-        if field_name in existing_fields:
-            # Use existing field definition (preserves type, nullable, etc.)
-            merged_fields.append(existing_fields[field_name])
-        else:
-            # New field
-            merged_fields.append(new_fields[field_name])
-    
-    return StructType(merged_fields)
-```
-
-### Test Case
-
-```python
-def test_schema_merge_on_overwrite():
-    """Test that overwrite preserves existing columns when overwriteSchema=true."""
-    from mock_spark import SparkSession
-    
-    spark = SparkSession("test")
-    spark.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
-    
-    # Initial table with columns: [id, name, value]
-    df1 = spark.createDataFrame(
-        [(1, "Alice", 100), (2, "Bob", 200)],
-        ["id", "name", "value"]
-    )
-    df1.write.mode("overwrite").saveAsTable("test_schema.users")
-    
-    # Overwrite with new columns but missing some existing
-    # New DataFrame has: [id, age, city] (missing name and value)
-    df2 = spark.createDataFrame(
-        [(1, 25, "NYC"), (2, 30, "LA")],
-        ["id", "age", "city"]
-    )
-    
-    # With overwriteSchema=true, should preserve name and value (with nulls)
-    df2.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("test_schema.users")
-    
-    # Verify all columns exist
-    result = spark.table("test_schema.users")
-    assert "id" in result.columns
-    assert "name" in result.columns  # Preserved from original
-    assert "value" in result.columns  # Preserved from original
-    assert "age" in result.columns  # New column
-    assert "city" in result.columns  # New column
-    
-    # Verify null values for missing columns
-    rows = result.collect()
-    assert rows[0]["name"] is None  # Should be null (wasn't in new DataFrame)
-    assert rows[0]["value"] is None  # Should be null
-```
-
-### Expected Outcome
-
-After fix:
-- Overwrite mode with `overwriteSchema=true` preserves all existing columns
-- Missing columns are filled with null values
-- New columns are added to the schema
-- Schema evolution works as expected
-
----
-
-## Issue #5: Type Casting Without JVM
-
-### Problem Description
-
-Type casting operations like `.cast(StringType())` fail when they attempt to access PySpark's JVM-based type system, which doesn't exist in mock-spark.
-
-### Current Behavior
-
-**PySpark (Working):**
-```python
-from pyspark.sql.types import StringType
-df = df.withColumn("col", F.lit(None).cast(StringType()))
-# Works correctly
-```
-
-**Mock-Spark (Failing):**
-```python
-from mock_spark.types import StringType
-df = df.withColumn("col", F.lit(None).cast(StringType()))
-# May fail if cast() method tries to access JVM
-```
-
-### Root Cause Analysis
-
-1. **Location:** `mock_spark/column.py` - `cast()` method
-2. **Issue:** Cast operation may call PySpark internals that require JVM
-3. **Impact:** Prevents type-safe schema evolution
-
-### Detailed Fix Requirements
-
-#### 5.1: Implement Native Cast Operation
-
-**File:** `mock_spark/column.py`
-
-**Required:**
-```python
-class Column:
-    def cast(self, dataType):
-        """
-        Cast column to a different data type.
-        
-        Args:
-            dataType: Target data type (StringType, IntegerType, etc.)
-        
-        Returns:
-            New Column with cast operation
-        """
-        # Create a Cast expression without JVM dependency
-        return Column(CastExpression(self._expr, dataType))
-```
-
-#### 5.2: Implement Cast Expression
-
-**File:** `mock_spark/expressions.py` or `mock_spark/column.py`
-
-**Required:**
-```python
-class CastExpression:
-    """Represents a type cast operation."""
-    
-    def __init__(self, expression, target_type):
-        self.expression = expression
-        self.target_type = target_type
-    
-    def evaluate(self, row):
-        """Evaluate cast operation on a row."""
-        value = self.expression.evaluate(row)
-        
-        if value is None:
-            return None
-        
-        # Perform type conversion
-        if isinstance(self.target_type, StringType):
-            return str(value) if value is not None else None
-        elif isinstance(self.target_type, IntegerType):
-            return int(value) if value is not None else None
-        elif isinstance(self.target_type, DoubleType):
-            return float(value) if value is not None else None
-        elif isinstance(self.target_type, BooleanType):
-            return bool(value) if value is not None else None
-        elif isinstance(self.target_type, NullType):
-            return None
-        else:
-            # Default: convert to string
-            return str(value) if value is not None else None
-```
-
-### Test Case
-
-```python
-def test_type_casting():
-    """Test that type casting works without JVM."""
-    from mock_spark import SparkSession, functions as F
-    from mock_spark.types import StringType, IntegerType, DoubleType
-    
-    spark = SparkSession("test")
-    df = spark.createDataFrame([(1, "test")], ["id", "name"])
-    
-    # Test casting None to different types
-    df1 = df.withColumn("null_str", F.lit(None).cast(StringType()))
-    df2 = df.withColumn("null_int", F.lit(None).cast(IntegerType()))
-    df3 = df.withColumn("null_double", F.lit(None).cast(DoubleType()))
-    
-    assert "null_str" in df1.columns
-    assert "null_int" in df2.columns
-    assert "null_double" in df3.columns
-    
-    # Test casting actual values
-    df4 = df.withColumn("id_str", F.col("id").cast(StringType()))
-    assert df4.select("id_str").collect()[0]["id_str"] == "1"
-```
-
-### Expected Outcome
-
-After fix:
-- `.cast(dataType)` works without JVM dependency
-- All standard types (String, Integer, Double, Boolean, Null) are supported
-- Type conversions work correctly for both null and non-null values
-
----
-
-## Test Cases for Validation
-
-### Comprehensive Test Suite
-
-Create a test file `tests/test_delta_lake_schema_evolution.py`:
-
-```python
-"""
-Comprehensive tests for Delta Lake schema evolution in mock-spark.
-
-These tests validate that mock-spark behaves like PySpark for schema evolution.
-"""
-
-import pytest
-from mock_spark import SparkSession, functions as F
-from mock_spark.types import StringType, IntegerType
-
-
-class TestDeltaLakeSchemaEvolution:
-    """Test Delta Lake schema evolution features."""
-    
-    def test_basic_schema_evolution(self):
-        """Test basic schema evolution: add new columns."""
-        spark = SparkSession("test")
-        spark.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
-        
-        # Initial table
-        df1 = spark.createDataFrame([(1, "Alice")], ["id", "name"])
-        df1.write.mode("overwrite").saveAsTable("test_schema.users")
-        
-        # Add new column
-        df2 = spark.createDataFrame([(1, "Alice", 25)], ["id", "name", "age"])
-        df2.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("test_schema.users")
-        
-        result = spark.table("test_schema.users")
-        assert set(result.columns) == {"id", "name", "age"}
-    
-    def test_preserve_existing_columns(self):
-        """Test that existing columns are preserved when adding new ones."""
-        spark = SparkSession("test")
-        spark.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
-        
-        # Initial: [id, name, value]
-        df1 = spark.createDataFrame(
-            [(1, "Alice", 100)],
-            ["id", "name", "value"]
-        )
-        df1.write.mode("overwrite").saveAsTable("test_schema.data")
-        
-        # Overwrite with: [id, age] (missing name and value)
-        df2 = spark.createDataFrame([(1, 25)], ["id", "age"])
-        df2.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("test_schema.data")
-        
-        result = spark.table("test_schema.data")
-        assert "id" in result.columns
-        assert "name" in result.columns  # Should be preserved
-        assert "value" in result.columns  # Should be preserved
-        assert "age" in result.columns  # New column
-    
-    def test_immediate_table_access(self):
-        """Test that table is immediately accessible after saveAsTable."""
-        spark = SparkSession("test")
-        spark.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
-        
-        df = spark.createDataFrame([(1, "test")], ["id", "name"])
-        df.write.mode("overwrite").saveAsTable("test_schema.immediate")
-        
-        # Should work immediately, no retry needed
-        table = spark.table("test_schema.immediate")
-        assert table.count() == 1
-    
-    def test_lit_none_works(self):
-        """Test that F.lit(None) works without JVM."""
-        spark = SparkSession("test")
-        df = spark.createDataFrame([(1,)], ["id"])
-        
-        # Should not raise JVM error
-        result = df.withColumn("null_col", F.lit(None))
-        assert "null_col" in result.columns
-    
-    def test_type_casting_works(self):
-        """Test that type casting works without JVM."""
-        from mock_spark.types import StringType, IntegerType
-        
-        spark = SparkSession("test")
-        df = spark.createDataFrame([(1,)], ["id"])
-        
-        # Should work without JVM
-        result = df.withColumn("id_str", F.col("id").cast(StringType()))
-        assert result.select("id_str").collect()[0]["id_str"] == "1"
 ```
 
 ---
 
-## Implementation Priority
+## Appendix B: Related Issues and Workarounds
 
-### Priority 1: Critical (Blocks Schema Evolution)
+### Issue: Column Type Inference
 
-1. **Issue #1: F.lit(None) JVM Dependency**
-   - **Impact:** High - Prevents adding null columns
-   - **Effort:** Medium
-   - **Dependencies:** None
-   - **Estimated Time:** 2-3 days
+**Problem:** When adding null columns, type inference may fail.
 
-2. **Issue #3: Table Catalog Synchronization**
-   - **Impact:** High - Breaks pipeline execution flow
-   - **Effort:** Low-Medium
-   - **Dependencies:** None
-   - **Estimated Time:** 1-2 days
-
-### Priority 2: High (Required for Full Compatibility)
-
-3. **Issue #2: overwriteSchema Option Support**
-   - **Impact:** High - Core Delta Lake feature
-   - **Effort:** Medium-High
-   - **Dependencies:** Issue #1, Issue #5
-   - **Estimated Time:** 3-4 days
-
-4. **Issue #5: Type Casting Without JVM**
-   - **Impact:** Medium-High - Required for type-safe operations
-   - **Effort:** Medium
-   - **Dependencies:** None
-   - **Estimated Time:** 2-3 days
-
-### Priority 3: Medium (Enhancement)
-
-5. **Issue #4: Schema Merging in Overwrite Mode**
-   - **Impact:** Medium - Improves user experience
-   - **Effort:** Medium
-   - **Dependencies:** Issue #1, Issue #2, Issue #5
-   - **Estimated Time:** 2-3 days
-
-**Total Estimated Time:** 10-15 days of development work
-
----
-
-## References and Examples
-
-### PySpark Delta Lake Documentation
-
-- [Delta Lake Schema Evolution](https://docs.delta.io/latest/delta-update.html#schema-evolution)
-- [Delta Lake Overwrite Schema](https://docs.delta.io/latest/delta-batch.html#overwrite-schema)
-
-### Mock-Spark Code Locations (Hypothetical)
-
-Based on typical mock library structure:
-
-```
-mock_spark/
-├── functions.py          # F.lit(), F.col(), etc.
-├── column.py             # Column class, cast() method
-├── types.py              # DataType classes
-├── writer.py             # DataFrameWriter, saveAsTable()
-├── storage.py            # Table storage and catalog
-├── catalog.py             # Catalog management
-└── session.py             # SparkSession, table() method
-```
-
-### Example Working PySpark Code
-
+**Current Workaround:**
 ```python
-from pyspark.sql import SparkSession, functions as F
-from pyspark.sql.types import StringType, IntegerType
-
-spark = SparkSession.builder.appName("test").getOrCreate()
-spark.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
-
-# Initial table
-df1 = spark.createDataFrame([(1, "Alice", 100)], ["id", "name", "value"])
-df1.write.mode("overwrite").saveAsTable("test_schema.users")
-
-# Schema evolution: add new columns, preserve existing
-df2 = spark.createDataFrame(
-    [(1, "Alice", 100, 25, "NYC")],
-    ["id", "name", "value", "age", "city"]
-)
-df2.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("test_schema.users")
-
-# Table is immediately accessible
-table = spark.table("test_schema.users")
-assert set(table.columns) == {"id", "name", "value", "age", "city"}
+# Explicitly specify type
+df = df.withColumn("new_col", F.lit(None).cast(StringType()))
 ```
 
-### Expected Mock-Spark Behavior
+**Proposed Solution:** Support type inference from context or explicit casting.
 
-After all fixes, the same code should work identically:
+### Issue: Schema Validation
 
-```python
-from mock_spark import SparkSession, functions as F
-from mock_spark.types import StringType, IntegerType
+**Problem:** No validation that merged schemas are compatible.
 
-spark = SparkSession("test")
-spark.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
-
-# Same code, should work identically
-df1 = spark.createDataFrame([(1, "Alice", 100)], ["id", "name", "value"])
-df1.write.mode("overwrite").saveAsTable("test_schema.users")
-
-df2 = spark.createDataFrame(
-    [(1, "Alice", 100, 25, "NYC")],
-    ["id", "name", "value", "age", "city"]
-)
-df2.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("test_schema.users")
-
-# Should work immediately, no errors
-table = spark.table("test_schema.users")
-assert set(table.columns) == {"id", "name", "value", "age", "city"}
-```
+**Proposed Solution:** Add optional schema validation with clear error messages.
 
 ---
 
-## Additional Considerations
+## Contact and Feedback
 
-### Performance
+For questions or feedback on this improvement plan, please contact the SparkForge development team or open an issue in the mock-spark repository.
 
-- Catalog registration should be fast (synchronous, in-memory operation)
-- Schema merging should not significantly impact write performance
-- Consider caching schema information to avoid repeated reads
-
-### Backward Compatibility
-
-- All fixes should maintain backward compatibility with existing mock-spark code
-- New options should be optional (default behavior unchanged)
-- Existing tests should continue to pass
-
-### Testing Strategy
-
-1. **Unit Tests:** Test each component in isolation
-2. **Integration Tests:** Test full workflow (write → read → schema evolution)
-3. **Compatibility Tests:** Compare behavior with PySpark side-by-side
-4. **Regression Tests:** Ensure existing functionality still works
-
-### Documentation Updates
-
-After implementing fixes, update:
-- Mock-spark README with Delta Lake support notes
-- API documentation for new options and behaviors
-- Migration guide for users upgrading
-
----
-
-## Conclusion
-
-These improvements will make mock-spark a true drop-in replacement for PySpark in Delta Lake-based data pipelines. The fixes are focused, well-defined, and can be implemented incrementally. Priority should be given to Issues #1 and #3 as they block basic functionality, followed by Issues #2, #5, and #4 for full compatibility.
-
-**Contact:** For questions or clarifications about this improvement plan, please refer to the test cases in the PipelineBuilder repository or open an issue with the mock-spark project.
-
----
-
-**Document End**
+**Document Version:** 1.0  
+**Last Updated:** December 2024  
+**Maintained By:** SparkForge Project

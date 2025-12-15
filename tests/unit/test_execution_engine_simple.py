@@ -10,7 +10,7 @@ import pytest
 if os.environ.get("SPARK_MODE", "mock").lower() == "real":
     from pyspark.sql.utils import AnalysisException
 else:
-    from mock_spark.errors import AnalysisException
+    from sparkless.errors import AnalysisException  # type: ignore[import]
 
 from pipeline_builder.execution import (
     ExecutionEngine,
@@ -169,7 +169,7 @@ class TestExecutionEngineSimple:
                 StructType,
             )
         else:
-            from mock_spark import IntegerType, StructField, StructType, StringType
+            from sparkless.spark_types import IntegerType, StructField, StructType, StringType  # type: ignore[import]
 
         schema = StructType(
             [

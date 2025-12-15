@@ -6,7 +6,7 @@ Bronze → Silver → Gold medallion architecture with multiple source systems,
 schema evolution, and complex data dependencies.
 """
 
-from mock_spark import functions as F
+from sparkless import functions as F  # type: ignore[import]
 
 from pipeline_builder.pipeline import PipelineBuilder
 from pipeline_builder.writer import LogWriter

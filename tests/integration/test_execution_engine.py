@@ -15,10 +15,10 @@ import pytest
 # Use compatibility layer
 from pipeline_builder.compat import DataFrame, SparkSession
 
-# Use mock functions when in mock mode
+# Use engine-specific functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import DataFrame as DataFrame
-    from mock_spark import functions as F
+    from sparkless import DataFrame as DataFrame  # type: ignore[import]
+    from sparkless import functions as F  # type: ignore[import]
 else:
     from pyspark.sql import DataFrame
     from pyspark.sql import functions as F
@@ -741,8 +741,8 @@ class TestExecutionEngine:
             real_df = spark_session.createDataFrame([("1", "2024-01-01")], schema)
             context = {"failing_step": real_df}
         else:
-            # Use real mock-spark DataFrame instead of Mock object
-            from mock_spark import StructType, StructField, StringType
+            # Use real sparkless DataFrame instead of Mock object
+            from sparkless.spark_types import StructType, StructField, StringType  # type: ignore[import]
             
             schema = StructType(
                 [

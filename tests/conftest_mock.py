@@ -12,7 +12,7 @@ import sys
 import time
 
 import pytest
-from mock_spark import SparkSession
+from sparkless import SparkSession  # type: ignore[import]
 
 from tests.mock_functions_wrapper import Functions
 
@@ -173,7 +173,7 @@ def sample_dataframe(spark_session):
 
     This fixture creates a sample DataFrame with common test data.
     """
-    from mock_spark import (
+    from sparkless import (  # type: ignore[import]
         DoubleType,
         IntegerType,
         StructField,
@@ -208,7 +208,7 @@ def empty_dataframe(spark_session):
 
     This fixture creates an empty DataFrame with a defined schema.
     """
-    from mock_spark import StructField, StructType, StringType
+    from sparkless import StructField, StructType, StringType  # type: ignore[import]
 
     schema = StructType(
         [

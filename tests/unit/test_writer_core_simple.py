@@ -10,7 +10,7 @@ import pytest
 if os.environ.get("SPARK_MODE", "mock").lower() == "real":
     from pyspark.sql.utils import AnalysisException
 else:
-    from mock_spark.errors import AnalysisException
+    from sparkless.errors import AnalysisException  # type: ignore[import]
 
 from pipeline_builder.table_operations import table_exists
 from pipeline_builder.writer.core import LogWriter
@@ -106,8 +106,8 @@ class TestWriterCoreSimple:
             df = spark_session.createDataFrame(test_data, schema)
             df.write.saveAsTable("test_schema.test_table")
         else:
-            # Use mock-spark storage API
-            from mock_spark import IntegerType, StructField, StringType
+            # Use sparkless storage API
+            from sparkless.spark_types import IntegerType, StructField, StringType  # type: ignore[import]
 
             spark_session.storage.create_schema("test_schema")
             schema_fields = [

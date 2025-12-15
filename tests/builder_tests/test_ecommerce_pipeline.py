@@ -6,7 +6,7 @@ Bronze → Silver → Gold medallion architecture with order data, customer prof
 and sales analytics using mock-spark.
 """
 
-from mock_spark import functions as F
+from sparkless import functions as F  # type: ignore[import]
 
 from pipeline_builder.pipeline import PipelineBuilder
 from pipeline_builder.writer import LogWriter

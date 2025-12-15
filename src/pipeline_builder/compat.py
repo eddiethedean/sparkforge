@@ -60,18 +60,18 @@ def _select_engine() -> Tuple[str, Tuple[Any, Any, Any, Any, Any, Any], Any, Any
                 "Install with: pip install sparkforge[pyspark]"
             ) from e
     else:
-        # Use mock-spark
+        # Use sparkless as the mock engine backend
         try:
-            from mock_spark import (
+            from sparkless import (  # type: ignore[import]
                 Column as MockColumn,
                 DataFrame as MockDataFrame,
                 SparkSession as MockSparkSession,
             )
-            from mock_spark import functions as MockF
-            from mock_spark import spark_types as MockTypes
-            from mock_spark import AnalysisException as MockAnalysisException
-            from mock_spark import Window as MockWindow
-            from mock_spark.functions import desc as MockDesc
+            from sparkless import functions as MockF  # type: ignore[import]
+            from sparkless import spark_types as MockTypes  # type: ignore[import]
+            from sparkless import AnalysisException as MockAnalysisException  # type: ignore[import]
+            from sparkless import Window as MockWindow  # type: ignore[import]
+            from sparkless.functions import desc as MockDesc  # type: ignore[import]
 
             return (
                 "mock",
@@ -81,7 +81,7 @@ def _select_engine() -> Tuple[str, Tuple[Any, Any, Any, Any, Any, Any], Any, Any
             )
         except ImportError as e:
             raise ImportError(
-                "SPARK_MODE=mock but mock-spark is not installed. "
+                "SPARK_MODE=mock but sparkless is not installed. "
                 "Install with: pip install sparkforge[mock]"
             ) from e
 

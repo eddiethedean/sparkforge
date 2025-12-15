@@ -1,13 +1,14 @@
 # test_validation_mock.py
 """
-Unit tests for the validation module using mock_spark.
+Unit tests for the validation module using the sparkless mock engine.
 
 This module tests all data validation and quality assessment functions.
 """
 
 
-# NOTE: mock-spark patches removed - now using mock-spark 1.3.0 which doesn't need patches
-# The apply_mock_spark_patches() call was causing test pollution
+# NOTE: original mock-spark patches removed when migrating to sparkless;
+# sparkless does not require the old patching approach and behaves as a
+# drop-in mock engine for these tests.
 
 import os
 
@@ -24,7 +25,7 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "real":
     )
     from pyspark.sql import SparkSession, functions as Functions
 else:
-    from mock_spark import (
+    from sparkless import (  # type: ignore[import]
         DoubleType,
         Functions,
         IntegerType,

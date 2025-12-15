@@ -20,9 +20,9 @@ if _SPARK_MODE == "real" or _ENGINE in ("pyspark", "spark", "real"):
     try:
         from pyspark.sql.types import StringType, StructField, StructType
     except ImportError:
-        from mock_spark.spark_types import StringType, StructField, StructType
+        from sparkless.spark_types import StringType, StructField, StructType  # type: ignore[import]
 else:
-    from mock_spark.spark_types import StringType, StructField, StructType
+    from sparkless.spark_types import StringType, StructField, StructType  # type: ignore[import]
 
 # Add the project root to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -173,13 +173,13 @@ class TestTrap5DefaultSchemaFallbacks:
                 try:
                     from pyspark.sql.types import StringType, StructField, StructType
                 except ImportError:
-                    from mock_spark.spark_types import (
+                    from sparkless.spark_types import (  # type: ignore[import]
                         StringType,
                         StructField,
                         StructType,
                     )
             else:
-                from mock_spark.spark_types import StringType, StructField, StructType
+                from sparkless.spark_types import StringType, StructField, StructType  # type: ignore[import]
 
             schema = StructType([StructField("id", StringType(), True)])
             return (

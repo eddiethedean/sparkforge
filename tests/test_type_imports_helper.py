@@ -34,7 +34,7 @@ def get_spark_types():
             "StructType": StructType,
         }
     else:
-        from mock_spark.spark_types import (
+        from sparkless.spark_types import (  # type: ignore[import]
             DoubleType,
             IntegerType,
             StringType,

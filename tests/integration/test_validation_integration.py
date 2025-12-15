@@ -12,7 +12,7 @@ import pytest
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F
+    from sparkless import functions as F  # type: ignore[import]
 else:
     from pyspark.sql import functions as F
 # Import types based on engine
@@ -25,9 +25,9 @@ if _SPARK_MODE == "real" or _ENGINE in ("pyspark", "spark", "real"):
     try:
         from pyspark.sql.types import StringType, StructField, StructType
     except ImportError:
-        from mock_spark.spark_types import StringType, StructField, StructType
+        from sparkless.spark_types import StringType, StructField, StructType  # type: ignore[import]
 else:
-    from mock_spark.spark_types import StringType, StructField, StructType
+    from sparkless.spark_types import StringType, StructField, StructType  # type: ignore[import]
 
 from pipeline_builder.models import (
     BronzeStep,

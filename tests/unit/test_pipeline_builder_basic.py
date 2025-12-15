@@ -16,7 +16,7 @@ from pipeline_builder.pipeline.builder import PipelineBuilder
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as MockF
+    from sparkless import functions as MockF  # type: ignore[import]
 else:
     MockF = None
 

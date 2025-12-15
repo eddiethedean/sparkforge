@@ -9,24 +9,19 @@ import os
 
 import pytest
 
-# Use mock functions when in mock mode
+# Use engine-specific functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from mock_spark import functions as F
+    from sparkless import functions as F  # type: ignore[import]
 else:
     from pyspark.sql import functions as F
-# Import Window based on engine
-import os
 
 # Import Window based on SPARK_MODE (preferred) or SPARKFORGE_ENGINE
 _SPARK_MODE = os.environ.get("SPARK_MODE", "mock").lower()
 _ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
 if _SPARK_MODE == "real" or _ENGINE in ("pyspark", "spark", "real"):
-    try:
-        from pyspark.sql.window import Window
-    except ImportError:
-        from mock_spark import Window
+    from pyspark.sql.window import Window
 else:
-    from mock_spark import Window
+    from sparkless import Window  # type: ignore[import]
 
 from pipeline_builder import PipelineBuilder
 from pipeline_builder.execution import ExecutionEngine
