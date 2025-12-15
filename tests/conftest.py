@@ -205,18 +205,25 @@ def _create_real_spark_session():
             # Check if extensions include Delta
             extensions = spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
             if "io.delta.sql.DeltaSparkSessionExtension" not in extensions:
-                print("⚠️ Warning: Delta extensions not automatically set, setting manually")
+                print(
+                    "⚠️ Warning: Delta extensions not automatically set, setting manually"
+                )
                 existing_extensions = extensions.split(",") if extensions else []
                 if "io.delta.sql.DeltaSparkSessionExtension" not in existing_extensions:
-                    new_extensions = ",".join(existing_extensions + ["io.delta.sql.DeltaSparkSessionExtension"])
+                    new_extensions = ",".join(
+                        existing_extensions
+                        + ["io.delta.sql.DeltaSparkSessionExtension"]
+                    )
                     spark.conf.set("spark.sql.extensions", new_extensions)  # type: ignore[attr-defined]
                 else:
                     print("   Delta extensions already present")
-            
+
             # Check if catalog is set to Delta
             current_catalog = spark.conf.get("spark.sql.catalog.spark_catalog", "")  # type: ignore[attr-defined]
             if "DeltaCatalog" not in current_catalog:
-                print("⚠️ Warning: Delta catalog not automatically set, attempting to set manually")
+                print(
+                    "⚠️ Warning: Delta catalog not automatically set, attempting to set manually"
+                )
                 try:
                     spark.conf.set(
                         "spark.sql.catalog.spark_catalog",
@@ -228,13 +235,14 @@ def _create_real_spark_session():
                     print("   This may cause issues with Delta table operations")
             else:
                 print("✅ Delta catalog configured correctly")
-            
+
             print("✅ Delta Lake configuration completed")
         except Exception as verify_error:
             print(f"⚠️ Delta Lake verification issue (non-fatal): {verify_error}")
 
     except Exception as e:
         import traceback
+
         print(f"❌ Delta Lake configuration failed: {e}")
         print("💡 Error details:")
         traceback.print_exc()
@@ -244,7 +252,9 @@ def _create_real_spark_session():
         print("   3. Check Java version: java -version (should be Java 8, 11, or 17)")
         print("   4. Set JAVA_HOME environment variable if needed")
         print("   5. Or set SPARKFORGE_SKIP_DELTA=1 to skip Delta Lake tests")
-        print("   6. Or set SPARKFORGE_BASIC_SPARK=1 to use basic Spark without Delta Lake")
+        print(
+            "   6. Or set SPARKFORGE_BASIC_SPARK=1 to use basic Spark without Delta Lake"
+        )
 
         # Check if user explicitly wants to skip Delta Lake or use basic Spark
         skip_delta = os.environ.get("SPARKFORGE_SKIP_DELTA", "0") == "1"
@@ -330,7 +340,7 @@ def spark_session():
     based on the SPARK_MODE environment variable:
     - SPARK_MODE=mock (default): Uses mock_spark
     - SPARK_MODE=real: Uses real Spark with Delta Lake
-    
+
     This is the primary fixture for all tests - it automatically provides
     the correct session type based on SPARK_MODE.
     """
@@ -345,6 +355,7 @@ def spark_session():
     # Attach storage wrapper to SparkSession for all tests
     try:
         from tests.builder_tests.storage_wrapper import StorageWrapper
+
         spark.storage = StorageWrapper(spark)  # type: ignore[attr-defined]
     except ImportError:
         # If storage wrapper is not available, skip attaching it
@@ -387,7 +398,9 @@ def spark_session():
                     for schema_name in databases:
                         if schema_name not in ["default", "information_schema"]:
                             try:
-                                spark.sql(f"DROP SCHEMA IF EXISTS {schema_name} CASCADE")
+                                spark.sql(
+                                    f"DROP SCHEMA IF EXISTS {schema_name} CASCADE"
+                                )
                             except Exception:
                                 pass
                 except Exception:
@@ -434,6 +447,7 @@ def isolated_spark_session():
         # Attach storage wrapper
         try:
             from tests.builder_tests.storage_wrapper import StorageWrapper
+
             spark.storage = StorageWrapper(spark)  # type: ignore[attr-defined]
         except ImportError:
             pass
@@ -466,6 +480,7 @@ def isolated_spark_session():
         # Attach storage wrapper
         try:
             from tests.builder_tests.storage_wrapper import StorageWrapper
+
             spark.storage = StorageWrapper(spark)  # type: ignore[attr-defined]
         except ImportError:
             pass
@@ -485,10 +500,10 @@ def mock_spark_session(spark_session):
     the correct session type based on SPARK_MODE:
     - SPARK_MODE=mock (default): Returns mock-spark session
     - SPARK_MODE=real: Returns real PySpark session
-    
+
     Use this fixture when you want to make it clear you're using a session
     that works in both modes. For maximum compatibility, prefer spark_session.
-    
+
     This makes tests work seamlessly in both modes without code changes.
     """
     # Simply return the spark_session fixture which already handles mode switching

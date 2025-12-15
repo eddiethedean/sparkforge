@@ -169,7 +169,12 @@ class TestExecutionEngineSimple:
                 StructType,
             )
         else:
-            from sparkless.spark_types import IntegerType, StructField, StructType, StringType  # type: ignore[import]
+            from sparkless.spark_types import (
+                IntegerType,
+                StructField,
+                StructType,
+                StringType,
+            )  # type: ignore[import]
 
         schema = StructType(
             [

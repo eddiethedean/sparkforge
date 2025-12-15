@@ -136,4 +136,3 @@ class SparkSessionProtocol(Protocol):
     def conf(self) -> Any:
         """Get SparkConf."""
         ...
-

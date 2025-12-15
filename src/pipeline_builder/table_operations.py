@@ -13,7 +13,7 @@ in the data lake.
 from __future__ import annotations
 
 import logging
-from typing import Union, cast
+from typing import Union
 
 from .compat import AnalysisException, DataFrame, SparkSession
 from .errors import TableOperationError
@@ -65,10 +65,10 @@ def write_overwrite_table(
         # Cache DataFrame for potential multiple operations
         df.cache()  # type: ignore[attr-defined]
         cnt: int = df.count()  # type: ignore[attr-defined]
-        
+
         # Get SparkSession from DataFrame for DELETE operation
         spark = df.sql_ctx.sparkSession  # type: ignore[attr-defined]
-        
+
         # For overwrite mode, use DELETE + INSERT pattern
         # Delete existing data if table exists
         if table_exists(spark, fqn):
@@ -78,12 +78,10 @@ def write_overwrite_table(
                 logger.warning(
                     f"Could not delete from table '{fqn}' before overwrite: {e}"
                 )
-        
+
         # Write with append mode and overwriteSchema option
         writer = (  # type: ignore[attr-defined]
-            df.write.format("parquet")
-            .mode("append")
-            .option("overwriteSchema", "true")
+            df.write.format("parquet").mode("append").option("overwriteSchema", "true")
         )
 
         # Apply additional options

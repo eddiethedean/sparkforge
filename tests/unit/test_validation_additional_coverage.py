@@ -204,14 +204,15 @@ class TestValidationEdgeCases:
         # mock-spark 3.12.0+ requires active SparkSession for function calls (like PySpark)
         # Test various string rule formats
         import os
+
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-        
+
         test_cases = [
             "col1 > 0",
             "col1 IS NOT NULL",
             "LENGTH(col1) > 5",
         ]
-        
+
         # IN clause syntax may not be supported by mock-spark parser
         # Only test it with real PySpark
         if spark_mode == "real":

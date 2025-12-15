@@ -15,10 +15,18 @@ integration, table management, and data persistence.
 
 from __future__ import annotations
 
+import os
+import tempfile
 from datetime import datetime
 from typing import Dict, Optional, TypedDict, Union, cast
 
+from pipeline_builder_base.logging import PipelineLogger
+
 from ..compat import AnalysisException, DataFrame, SparkSession, types
+from ..functions import FunctionsProtocol, get_default_functions
+from ..table_operations import table_exists
+from .exceptions import WriterTableError
+from .models import LogRow, WriteMode, WriterConfig, create_log_schema
 
 # Handle optional Delta Lake dependency
 try:
@@ -39,50 +47,52 @@ _delta_availability_cache: Dict[str, bool] = {}
 def _is_delta_lake_available(spark: SparkSession) -> bool:  # type: ignore[valid-type]
     """
     Check if Delta Lake is actually available and working in the Spark session.
-    
+
     This function checks configuration and optionally tests Delta functionality.
     Results are cached per Spark session for performance.
-    
+
     Args:
         spark: Spark session to test
-        
+
     Returns:
         True if Delta Lake is available and working, False otherwise
     """
     # Use Spark session's underlying SparkContext ID as cache key
     try:
-        spark_id = str(id(spark._jsparkSession)) if hasattr(spark, "_jsparkSession") else str(id(spark))
+        spark_id = (
+            str(id(spark._jsparkSession))
+            if hasattr(spark, "_jsparkSession")
+            else str(id(spark))
+        )
     except Exception:
         spark_id = str(id(spark))
-    
+
     # Check cache first
     if spark_id in _delta_availability_cache:
         return _delta_availability_cache[spark_id]
-    
+
     # If delta package is not installed, can't be available
     if not HAS_DELTA:
         _delta_availability_cache[spark_id] = False
         return False
-    
+
     # Check Spark configuration first (fast check)
     try:
         extensions = spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
         catalog = spark.conf.get("spark.sql.catalog.spark_catalog", "")  # type: ignore[attr-defined]
-        
+
         # If both extensions and catalog are configured for Delta, assume it works
         if "DeltaSparkSessionExtension" in extensions and "DeltaCatalog" in catalog:
             _delta_availability_cache[spark_id] = True
             return True
     except Exception:
         pass
-    
+
     # If only extensions are configured, do a lightweight test
     try:
         extensions = spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
         if "DeltaSparkSessionExtension" in extensions:
             # Try a simple test - create a minimal DataFrame and try to write it
-            import tempfile
-            import os
             test_df = spark.createDataFrame([(1, "test")], ["id", "name"])
             # Use a unique temp directory to avoid conflicts
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -96,17 +106,11 @@ def _is_delta_lake_available(spark: SparkSession) -> bool:  # type: ignore[valid
                     pass
     except Exception:
         pass
-    
+
     # Delta is not available in this Spark session
     _delta_availability_cache[spark_id] = False
     return False
 
-from pipeline_builder_base.logging import PipelineLogger
-
-from ..functions import FunctionsProtocol, get_default_functions
-from ..table_operations import table_exists
-from .exceptions import WriterTableError
-from .models import LogRow, WriteMode, WriterConfig, create_log_schema
 
 # ============================================================================
 # TypedDict Definitions
@@ -228,9 +232,7 @@ class StorageManager:
                     self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")  # type: ignore[attr-defined]
                 except Exception as e:
                     # If SQL fails, log warning but continue (schema might already exist)
-                    self.logger.debug(
-                        f"Could not create schema '{schema_name}': {e}"
-                    )
+                    self.logger.debug(f"Could not create schema '{schema_name}': {e}")
 
             # Check if table exists and is a Delta table
             table_is_delta = False
@@ -325,7 +327,9 @@ class StorageManager:
                             .option("overwriteSchema", "true")
                             .saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
                         )
-                        self.logger.info(f"Delta table created successfully: {self.table_fqn}")
+                        self.logger.info(
+                            f"Delta table created successfully: {self.table_fqn}"
+                        )
                     except Exception as create_error:
                         # Handle race condition in parallel execution - table might already exist
                         error_msg = str(create_error).lower()
@@ -357,7 +361,9 @@ class StorageManager:
                             .option("overwriteSchema", "true")
                             .saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
                         )
-                        self.logger.info(f"Regular Spark table created successfully: {self.table_fqn}")
+                        self.logger.info(
+                            f"Regular Spark table created successfully: {self.table_fqn}"
+                        )
                     except Exception as create_error:
                         # Handle race condition in parallel execution - table might already exist
                         error_msg = str(create_error).lower()
@@ -473,7 +479,10 @@ class StorageManager:
                 if (
                     "already exists" in error_msg
                     or "table_or_view_already_exists" in error_msg
-                    or (isinstance(write_error, AnalysisException) and "already exists" in error_msg)
+                    or (
+                        isinstance(write_error, AnalysisException)
+                        and "already exists" in error_msg
+                    )
                 ):
                     # Table was created by another thread - verify it exists and retry with append mode
                     if table_exists(self.spark, self.table_fqn):
@@ -489,7 +498,9 @@ class StorageManager:
                                 .option("mergeSchema", "true")
                             )  # type: ignore[attr-defined]
                         else:
-                            retry_writer = df_prepared.write.format("parquet").mode("append")  # type: ignore[attr-defined]
+                            retry_writer = df_prepared.write.format("parquet").mode(
+                                "append"
+                            )  # type: ignore[attr-defined]
                         if partition_columns:
                             retry_writer = retry_writer.partitionBy(*partition_columns)
                         retry_writer.saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
@@ -778,9 +789,7 @@ class StorageManager:
                 result_df = result_df.limit(limit)  # type: ignore[attr-defined]
 
             self.logger.info(f"Query executed successfully: {result_df.count()} rows")  # type: ignore[attr-defined]
-            from typing import cast
 
-            from ..compat import DataFrame
 
             return result_df
 
@@ -865,9 +874,7 @@ class StorageManager:
             # Create DataFrame with explicit schema for type safety and None value handling
             schema = create_log_schema()
             df = self.spark.createDataFrame(log_data, schema)  # type: ignore[attr-defined,type-var]
-            from typing import cast
 
-            from ..compat import DataFrame
 
             return df
 

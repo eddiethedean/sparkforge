@@ -346,9 +346,15 @@ class SqlExecutionEngine:
         analyzer = DependencyAnalyzer(logger=self.logger)
         # Cast to protocol types for type checking - SQL steps implement these protocols
         analysis = analyzer.analyze_dependencies(
-            bronze_steps=cast(Optional[Dict[str, BronzeStepProtocol]], bronze_steps) if bronze_steps else None,
-            silver_steps=cast(Optional[Dict[str, SilverStepProtocol]], silver_steps) if silver_steps else None,
-            gold_steps=cast(Optional[Dict[str, GoldStepProtocol]], gold_steps) if gold_steps else None,
+            bronze_steps=cast(Optional[Dict[str, BronzeStepProtocol]], bronze_steps)
+            if bronze_steps
+            else None,
+            silver_steps=cast(Optional[Dict[str, SilverStepProtocol]], silver_steps)
+            if silver_steps
+            else None,
+            gold_steps=cast(Optional[Dict[str, GoldStepProtocol]], gold_steps)
+            if gold_steps
+            else None,
         )
 
         execution_groups = analysis.execution_groups

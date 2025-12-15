@@ -16,7 +16,7 @@ including string rule conversion, column validation, and data quality assessment
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, Optional, Union, cast
+from typing import Any, Dict, Optional, Union
 
 from pipeline_builder_base.errors import ValidationError
 from pipeline_builder_base.logging import PipelineLogger
@@ -146,10 +146,7 @@ def and_all_rules(
             column_expressions.append(functions.expr(expr))
         elif isinstance(expr, Column):
             column_expressions.append(expr)
-        elif (
-            hasattr(expr, "__and__")
-            and hasattr(expr, "__invert__")
-        ):
+        elif hasattr(expr, "__and__") and hasattr(expr, "__invert__"):
             # This handles Column-like objects that aren't str or Column
             # The isinstance(expr, str) check above already filtered out strings
             column_expressions.append(expr)

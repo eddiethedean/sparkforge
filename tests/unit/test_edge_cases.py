@@ -439,7 +439,7 @@ class TestEdgeCases:
         # Skip this test in PySpark mode as it uses mock-spark-specific storage API
         if os.environ.get("SPARK_MODE", "mock").lower() == "real":
             pytest.skip("Storage edge cases test requires mock-spark storage API")
-        
+
         # Test with long table names (storage backend limit is 63 characters)
         long_table_name = "a" * 50
         schema = StructType([StructField("id", IntegerType())])
@@ -497,6 +497,7 @@ class TestEdgeCases:
         if spark_mode == "real":
             # In PySpark, we need to use Window functions properly
             from pyspark.sql.window import Window
+
             window_func = F.row_number().over(Window.partitionBy())
             assert isinstance(window_func, Column)
         else:

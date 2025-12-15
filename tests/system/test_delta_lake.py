@@ -16,8 +16,9 @@ except Exception:  # pragma: no cover - sparkless not available
 
 # Check if Delta Lake is available
 try:
-    from delta.tables import DeltaTable
-    HAS_DELTA_PYTHON = True
+    import importlib.util
+
+    HAS_DELTA_PYTHON = importlib.util.find_spec("delta.tables") is not None
 except ImportError:
     HAS_DELTA_PYTHON = False
 
@@ -27,7 +28,9 @@ def _is_delta_lake_available(spark_session):
     try:
         # Try to use Delta format - if it fails, Delta Lake isn't configured
         test_df = spark_session.createDataFrame([(1, "test")], ["id", "name"])
-        test_df.write.format("delta").mode("overwrite").saveAsTable("test_schema._delta_check")
+        test_df.write.format("delta").mode("overwrite").saveAsTable(
+            "test_schema._delta_check"
+        )
         spark_session.sql("DROP TABLE IF EXISTS test_schema._delta_check")
         return True
     except Exception:
@@ -45,7 +48,9 @@ else:
 
 
 @pytest.mark.delta
-@pytest.mark.skipif(not HAS_DELTA_PYTHON, reason="Delta Lake Python package not available")
+@pytest.mark.skipif(
+    not HAS_DELTA_PYTHON, reason="Delta Lake Python package not available"
+)
 class TestDeltaLakeComprehensive:
     """Comprehensive Delta Lake functionality tests."""
 
@@ -54,7 +59,7 @@ class TestDeltaLakeComprehensive:
         # Skip if Delta Lake isn't actually available in Spark
         if not _is_delta_lake_available(spark_session):
             pytest.skip("Delta Lake JAR not available in Spark session")
-        
+
         # Create initial data
         data = [(1, "Alice", "2024-01-01"), (2, "Bob", "2024-01-02")]
         df = spark_session.createDataFrame(data, ["id", "name", "date"])
@@ -90,7 +95,7 @@ class TestDeltaLakeComprehensive:
         # Skip if Delta Lake isn't actually available in Spark
         if not _is_delta_lake_available(spark_session):
             pytest.skip("Delta Lake JAR not available in Spark session")
-        
+
         # Create initial schema
         initial_data = [(1, "Alice"), (2, "Bob")]
         initial_df = spark_session.createDataFrame(initial_data, ["id", "name"])
@@ -120,7 +125,7 @@ class TestDeltaLakeComprehensive:
         # Skip if Delta Lake isn't actually available in Spark
         if not _is_delta_lake_available(spark_session):
             pytest.skip("Delta Lake JAR not available in Spark session")
-        
+
         # Create initial data
         data = [(1, "Alice", "2024-01-01"), (2, "Bob", "2024-01-02")]
         df = spark_session.createDataFrame(data, ["id", "name", "date"])
@@ -152,7 +157,7 @@ class TestDeltaLakeComprehensive:
         # Skip if Delta Lake isn't actually available in Spark
         if not _is_delta_lake_available(spark_session):
             pytest.skip("Delta Lake JAR not available in Spark session")
-        
+
         # Create target table
         target_data = [(1, "Alice", 100), (2, "Bob", 200)]
         target_df = spark_session.createDataFrame(target_data, ["id", "name", "score"])
@@ -184,7 +189,7 @@ class TestDeltaLakeComprehensive:
         # Skip if Delta Lake isn't actually available in Spark
         if not _is_delta_lake_available(spark_session):
             pytest.skip("Delta Lake JAR not available in Spark session")
-        
+
         # Create minimal table
         data = []
         for i in range(5):
@@ -211,7 +216,7 @@ class TestDeltaLakeComprehensive:
         # Skip if Delta Lake isn't actually available in Spark
         if not _is_delta_lake_available(spark_session):
             pytest.skip("Delta Lake JAR not available in Spark session")
-        
+
         # Create table
         data = [(1, "Alice"), (2, "Bob")]
         df = spark_session.createDataFrame(data, ["id", "name"])
@@ -235,7 +240,7 @@ class TestDeltaLakeComprehensive:
         # Skip if Delta Lake isn't actually available in Spark
         if not _is_delta_lake_available(spark_session):
             pytest.skip("Delta Lake JAR not available in Spark session")
-        
+
         # Note: Threading/concurrent writes not fully tested in mock-spark
         # Just verify basic append operations work
 
@@ -264,7 +269,7 @@ class TestDeltaLakeComprehensive:
         # Skip if Delta Lake isn't actually available in Spark
         if not _is_delta_lake_available(spark_session):
             pytest.skip("Delta Lake JAR not available in Spark session")
-        
+
         # Create dataset
         data = []
         for i in range(100):
@@ -291,7 +296,7 @@ class TestDeltaLakeComprehensive:
         # Skip if Delta Lake isn't actually available in Spark
         if not _is_delta_lake_available(spark_session):
             pytest.skip("Delta Lake JAR not available in Spark session")
-        
+
         # Create table with constraints
         table_name = "test_schema.delta_constraints"
 

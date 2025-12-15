@@ -44,27 +44,26 @@ from .storage_wrapper import StorageWrapper
 def _create_spark_with_storage():
     """Helper function to create Spark session with storage wrapper."""
     spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-    
+
     if spark_mode == "real":
         # Use real PySpark session from main conftest
         # Import here to avoid circular dependencies
-        import sys
         import os as os_module
-        
+
         # Get the spark_session fixture from the main conftest
         # We'll use pytest's request fixture to get it
         # But since we can't use request here, we'll create our own real session
         try:
             from pyspark.sql import SparkSession as PySparkSession
             import tempfile
-            import shutil
-            
+
             # Create temporary warehouse directory
             warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-builder-tests-")
-            
+
             # Try to configure with Delta Lake
             try:
                 from delta import configure_spark_with_delta_pip
+
                 builder = (
                     PySparkSession.builder.appName(f"BuilderTests-{os_module.getpid()}")
                     .master("local[*]")
@@ -85,7 +84,7 @@ def _create_spark_with_storage():
                     .config("spark.driver.host", "127.0.0.1")
                     .getOrCreate()
                 )
-            
+
             # Store warehouse dir for cleanup
             spark._warehouse_dir = warehouse_dir  # type: ignore[attr-defined]
         except Exception as e:
@@ -101,10 +100,10 @@ def _create_spark_with_storage():
         from sparkless import SparkSession  # type: ignore[import]
 
         spark = SparkSession()
-    
+
     # Attach storage wrapper to SparkSession
     spark.storage = StorageWrapper(spark)  # type: ignore[attr-defined]
-    
+
     return spark
 
 
@@ -112,7 +111,7 @@ def _create_spark_with_storage():
 def mock_spark_session():
     """
     Mock Spark session for testing with storage wrapper attached.
-    
+
     Works with both mock-spark (default) and real PySpark (when SPARK_MODE=real).
     """
     return _create_spark_with_storage()
@@ -122,7 +121,7 @@ def mock_spark_session():
 def spark_session():
     """
     Spark session fixture with storage wrapper attached.
-    
+
     This is an alias for mock_spark_session to ensure all tests in builder_tests
     get a session with the storage wrapper, regardless of which fixture name they use.
     """

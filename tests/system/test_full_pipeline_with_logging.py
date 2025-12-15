@@ -14,7 +14,6 @@ from uuid import uuid4
 
 import os
 
-import pytest
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
@@ -129,18 +128,18 @@ class TestFullPipelineWithLogging:
         # Use unique schema per test to avoid conflicts in parallel execution
         schema = f"test_schema_{uuid4().hex[:8]}"
         schema_suffix = schema.split("_")[-1]
-        
+
         # Create schema in Spark session using SQL (works for both mock-spark and PySpark)
         try:
             mock_spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
         except Exception:
             pass  # Schema might already exist or be created automatically
-        
+
         # Create LogWriter with unique schema
         log_writer = LogWriter(
             mock_spark_session, schema=schema, table_name="pipeline_logs"
         )
-        
+
         # Define unique table names for each silver step to avoid conflicts
         silver_table_1 = f"silver_processed_events_1_{schema_suffix}"
         silver_table_2 = f"silver_processed_events_2_{schema_suffix}"
@@ -344,10 +343,10 @@ class TestFullPipelineWithLogging:
         # Each silver step writes to its own unique table to avoid conflicts
         silver_df_1 = mock_spark_session.table(f"{schema}.{silver_table_1}")
         silver_df_2 = mock_spark_session.table(f"{schema}.{silver_table_2}")
-        
+
         silver_count_1 = silver_df_1.count()
         silver_count_2 = silver_df_2.count()
-        
+
         assert silver_count_1 == 100, (
             f"Expected 100 rows in silver table 1, got {silver_count_1}"
         )
@@ -359,9 +358,13 @@ class TestFullPipelineWithLogging:
         # Note: Validation rules filter columns, so we only see columns with rules
         silver_columns_1 = silver_df_1.columns
         silver_columns_2 = silver_df_2.columns
-        assert "user_id" in silver_columns_1, "Silver table 1 should have user_id column"
+        assert "user_id" in silver_columns_1, (
+            "Silver table 1 should have user_id column"
+        )
         assert "value" in silver_columns_1, "Silver table 1 should have value column"
-        assert "user_id" in silver_columns_2, "Silver table 2 should have user_id column"
+        assert "user_id" in silver_columns_2, (
+            "Silver table 2 should have user_id column"
+        )
         assert "value" in silver_columns_2, "Silver table 2 should have value column"
 
         # Assert gold step
@@ -437,7 +440,7 @@ class TestFullPipelineWithLogging:
         assert "event_summary" in step_names, "Should have log for event_summary"
 
         # Verify bronze step logs
-        bronze1_log = next(l for l in step_logs if l["step_name"] == "events_source1")
+        bronze1_log = next(log for log in step_logs if log["step_name"] == "events_source1")
         assert_log_entry(
             bronze1_log, "events_source1", initial_run_id, "initial", expected_rows=None
         )
@@ -445,7 +448,7 @@ class TestFullPipelineWithLogging:
         assert bronze1_log.get("rows_processed", 0) >= 0, (
             "Bronze step 1 should have rows_processed"
         )
-        bronze2_log = next(l for l in step_logs if l["step_name"] == "events_source2")
+        bronze2_log = next(log for log in step_logs if log["step_name"] == "events_source2")
         assert_log_entry(
             bronze2_log, "events_source2", initial_run_id, "initial", expected_rows=None
         )
@@ -455,7 +458,7 @@ class TestFullPipelineWithLogging:
 
         # Verify silver step logs
         silver1_log = next(
-            l for l in step_logs if l["step_name"] == "processed_events_1"
+            log for log in step_logs if log["step_name"] == "processed_events_1"
         )
         assert_log_entry(
             silver1_log,
@@ -468,7 +471,7 @@ class TestFullPipelineWithLogging:
             "Silver step 1 should have rows_written"
         )
         silver2_log = next(
-            l for l in step_logs if l["step_name"] == "processed_events_2"
+            log for log in step_logs if log["step_name"] == "processed_events_2"
         )
         assert_log_entry(
             silver2_log,
@@ -482,7 +485,7 @@ class TestFullPipelineWithLogging:
         )
 
         # Verify gold step log
-        gold_log = next(l for l in step_logs if l["step_name"] == "event_summary")
+        gold_log = next(log for log in step_logs if log["step_name"] == "event_summary")
         assert gold_log["phase"] == "gold", "Gold step should have phase='gold'"
         # Note: create_log_rows_from_pipeline_report doesn't extract rows_processed from step results
         # We verify the actual step result instead
@@ -540,16 +543,12 @@ class TestFullPipelineWithLogging:
 
         # Note: Bronze steps don't write tables, but silver steps do
         # Verify both silver tables have incremental data added (each writes to its own table)
-        silver_table_1_after = mock_spark_session.table(
-            f"{schema}.{silver_table_1}"
-        )
-        silver_table_2_after = mock_spark_session.table(
-            f"{schema}.{silver_table_2}"
-        )
-        
+        silver_table_1_after = mock_spark_session.table(f"{schema}.{silver_table_1}")
+        silver_table_2_after = mock_spark_session.table(f"{schema}.{silver_table_2}")
+
         silver_count_1_after = silver_table_1_after.count()
         silver_count_2_after = silver_table_2_after.count()
-        
+
         # Check what write mode is actually being used
         # If append mode: 100 initial + 50 incremental = 150 rows
         # If overwrite mode: 50 incremental rows (overwrites initial)
@@ -624,7 +623,7 @@ class TestFullPipelineWithLogging:
 
         # Verify incremental step logs (use step_logs_inc which excludes main pipeline row)
         inc_bronze1_log = next(
-            l for l in step_logs_inc if l["step_name"] == "events_source1"
+            log for log in step_logs_inc if log["step_name"] == "events_source1"
         )
         assert_log_entry(
             inc_bronze1_log,
@@ -637,7 +636,7 @@ class TestFullPipelineWithLogging:
             "Incremental bronze step 1 should have rows_processed"
         )
         inc_bronze2_log = next(
-            l for l in step_logs_inc if l["step_name"] == "events_source2"
+            log for log in step_logs_inc if log["step_name"] == "events_source2"
         )
         assert_log_entry(
             inc_bronze2_log,
@@ -668,16 +667,12 @@ class TestFullPipelineWithLogging:
 
         # Verify cumulative data in tables
         # Both silver tables should have data from incremental runs (overwrite mode replaces initial data)
-        final_silver_table_1 = mock_spark_session.table(
-            f"{schema}.{silver_table_1}"
-        )
-        final_silver_table_2 = mock_spark_session.table(
-            f"{schema}.{silver_table_2}"
-        )
-        
+        final_silver_table_1 = mock_spark_session.table(f"{schema}.{silver_table_1}")
+        final_silver_table_2 = mock_spark_session.table(f"{schema}.{silver_table_2}")
+
         final_silver_count_1 = final_silver_table_1.count()
         final_silver_count_2 = final_silver_table_2.count()
-        
+
         # Verify final counts match the counts after incremental run
         # (they should be the same since we're checking the same tables)
         assert final_silver_count_1 == silver_count_1_after, (
@@ -695,7 +690,6 @@ class TestFullPipelineWithLogging:
         )
 
         # Verify log table structure and data integrity
-        log_schema = log_df_after.schema
         required_columns = [
             "step_name",
             "run_id",

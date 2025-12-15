@@ -11,9 +11,7 @@ import os
 from typing import (
     TYPE_CHECKING,
     Any,
-    Optional,
     Tuple,
-    Type,
 )
 
 # TypeAlias is available in Python 3.10+, use typing_extensions for 3.8/3.9
@@ -39,18 +37,29 @@ def _select_engine() -> Tuple[str, Tuple[Any, Any, Any, Any, Any, Any], Any, Any
         try:
             from pyspark.sql import (
                 Column as PySparkColumn,
+            )
+            from pyspark.sql import (
                 DataFrame as PySparkDataFrame,
+            )
+            from pyspark.sql import (
                 SparkSession as PySparkSparkSession,
             )
             from pyspark.sql import functions as PySparkF
             from pyspark.sql import types as PySparkTypes
+            from pyspark.sql.functions import desc as PySparkDesc
             from pyspark.sql.utils import AnalysisException as PySparkAnalysisException
             from pyspark.sql.window import Window as PySparkWindow
-            from pyspark.sql.functions import desc as PySparkDesc
 
             return (
                 "pyspark",
-                (PySparkDataFrame, PySparkSparkSession, PySparkColumn, PySparkF, PySparkTypes, PySparkAnalysisException),
+                (
+                    PySparkDataFrame,
+                    PySparkSparkSession,
+                    PySparkColumn,
+                    PySparkF,
+                    PySparkTypes,
+                    PySparkAnalysisException,
+                ),
                 PySparkWindow,
                 PySparkDesc,
             )
@@ -62,20 +71,33 @@ def _select_engine() -> Tuple[str, Tuple[Any, Any, Any, Any, Any, Any], Any, Any
     else:
         # Use sparkless as the mock engine backend
         try:
+            from sparkless import (
+                AnalysisException as MockAnalysisException,  # type: ignore[import]
+            )
             from sparkless import (  # type: ignore[import]
                 Column as MockColumn,
+            )
+            from sparkless import (
                 DataFrame as MockDataFrame,
+            )
+            from sparkless import (
                 SparkSession as MockSparkSession,
             )
+            from sparkless import Window as MockWindow  # type: ignore[import]
             from sparkless import functions as MockF  # type: ignore[import]
             from sparkless import spark_types as MockTypes  # type: ignore[import]
-            from sparkless import AnalysisException as MockAnalysisException  # type: ignore[import]
-            from sparkless import Window as MockWindow  # type: ignore[import]
             from sparkless.functions import desc as MockDesc  # type: ignore[import]
 
             return (
                 "mock",
-                (MockDataFrame, MockSparkSession, MockColumn, MockF, MockTypes, MockAnalysisException),
+                (
+                    MockDataFrame,
+                    MockSparkSession,
+                    MockColumn,
+                    MockF,
+                    MockTypes,
+                    MockAnalysisException,
+                ),
                 MockWindow,
                 MockDesc,
             )
@@ -86,7 +108,12 @@ def _select_engine() -> Tuple[str, Tuple[Any, Any, Any, Any, Any, Any], Any, Any
             ) from e
 
 
-_ENGINE_NAME, (_DataFrame, _SparkSession, _Column, F, types, AnalysisException), Window, desc = _select_engine()
+(
+    _ENGINE_NAME,
+    (_DataFrame, _SparkSession, _Column, F, types, AnalysisException),
+    Window,
+    desc,
+) = _select_engine()
 
 # Type aliases for mypy - defined in TYPE_CHECKING block
 if TYPE_CHECKING:
@@ -100,7 +127,7 @@ if TYPE_CHECKING:
         _PySparkColumnType = Any  # type: ignore[assignment,misc]
         _PySparkDataFrameType = Any  # type: ignore[assignment,misc]
         _PySparkSparkSessionType = Any  # type: ignore[assignment,misc]
-    
+
     # Define type aliases for mypy
     # Using TypeAlias from typing_extensions (available in Python 3.8+)
     DataFrame: TypeAlias = _PySparkDataFrameType

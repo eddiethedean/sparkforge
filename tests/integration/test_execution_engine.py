@@ -266,13 +266,13 @@ class TestExecutionEngine:
     def mock_spark(self):
         """
         Create a Mock SparkSession for tests that need specific mocking behavior.
-        
+
         This fixture provides a Mock object that can be configured for specific
         test scenarios (e.g., mocking read.format().load()).
-        
+
         For tests that want interchangeable behavior (works with both mock-spark
         and PySpark), use the `spark_session` fixture instead.
-        
+
         This fixture is kept for backward compatibility with tests that need
         specific Mock behavior.
         """
@@ -743,7 +743,7 @@ class TestExecutionEngine:
         else:
             # Use real sparkless DataFrame instead of Mock object
             from sparkless.spark_types import StructType, StructField, StringType  # type: ignore[import]
-            
+
             schema = StructType(
                 [
                     StructField("id", StringType(), True),

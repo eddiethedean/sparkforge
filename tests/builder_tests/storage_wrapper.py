@@ -14,7 +14,7 @@ from pipeline_builder.compat import DataFrame, SparkSession, types
 class StorageWrapper:
     """
     Storage wrapper that provides convenient methods for schema and table operations.
-    
+
     This wrapper works with both mock-spark and real PySpark sessions,
     providing a consistent API for test code.
     """
@@ -22,7 +22,7 @@ class StorageWrapper:
     def __init__(self, spark: SparkSession):  # type: ignore[valid-type]
         """
         Initialize the storage wrapper.
-        
+
         Args:
             spark: SparkSession instance (mock or real)
         """
@@ -31,9 +31,9 @@ class StorageWrapper:
     def create_schema(self, schema_name: str) -> None:
         """
         Create database/schema if it doesn't exist.
-        
+
         Works with both mock-spark (uses SCHEMA) and PySpark (uses DATABASE).
-        
+
         Args:
             schema_name: Name of the schema/database to create
         """
@@ -54,10 +54,10 @@ class StorageWrapper:
     def schema_exists(self, schema_name: str) -> bool:
         """
         Check if schema/database exists.
-        
+
         Args:
             schema_name: Name of the schema/database to check
-            
+
         Returns:
             True if schema exists, False otherwise
         """
@@ -75,14 +75,14 @@ class StorageWrapper:
     ) -> None:
         """
         Create table with optional schema fields.
-        
+
         Args:
             schema: Schema/database name
             table: Table name
             fields: Optional list of StructField objects defining the table schema
         """
         table_fqn = f"{schema}.{table}"
-        
+
         if fields:
             # Convert StructField objects to SQL DDL
             # For mock-spark compatibility, we'll create the table using DataFrame
@@ -104,14 +104,17 @@ class StorageWrapper:
                         field_defs.append(f"{field.name} {data_type_str}")
                     else:
                         field_defs.append(f"{field.name} {data_type_str} NOT NULL")
-                
-                ddl = f"CREATE TABLE IF NOT EXISTS {table_fqn} ({', '.join(field_defs)})"
+
+                ddl = (
+                    f"CREATE TABLE IF NOT EXISTS {table_fqn} ({', '.join(field_defs)})"
+                )
                 self.spark.sql(ddl)  # type: ignore[attr-defined]
         else:
             # Create empty table with a dummy column (tests may populate later)
             try:
                 # Try using DataFrame approach first (works better with mock-spark)
                 from pipeline_builder.compat import IntegerType, StructField, StructType
+
                 schema_obj = StructType([StructField("dummy", IntegerType(), True)])
                 empty_df = self.spark.createDataFrame([], schema_obj)  # type: ignore[attr-defined]
                 empty_df.write.mode("overwrite").saveAsTable(table_fqn)  # type: ignore[attr-defined]
@@ -124,15 +127,15 @@ class StorageWrapper:
     def _field_type_to_sql(self, data_type: Any) -> str:
         """
         Convert Spark data type to SQL string.
-        
+
         Args:
             data_type: Spark data type object
-            
+
         Returns:
             SQL type string
         """
         type_name = str(data_type).lower()
-        
+
         # Map common types
         type_mapping = {
             "stringtype": "STRING",
@@ -145,22 +148,22 @@ class StorageWrapper:
             "timestamptype": "TIMESTAMP",
             "decimaltype": "DECIMAL",
         }
-        
+
         for spark_type, sql_type in type_mapping.items():
             if spark_type in type_name:
                 return sql_type
-        
+
         # Default to STRING if unknown
         return "STRING"
 
     def table_exists(self, schema: str, table: str) -> bool:
         """
         Check if table exists.
-        
+
         Args:
             schema: Schema/database name
             table: Table name
-            
+
         Returns:
             True if table exists, False otherwise
         """
@@ -178,14 +181,14 @@ class StorageWrapper:
     def query_table(self, schema: str, table: str) -> List[dict]:
         """
         Query table and return list of dictionaries.
-        
+
         This method returns a list of dicts to be compatible with tests
         that expect len() to work on the result.
-        
+
         Args:
             schema: Schema/database name
             table: Table name
-            
+
         Returns:
             List of dictionaries containing table data
         """
@@ -202,21 +205,21 @@ class StorageWrapper:
     ) -> None:
         """
         Insert data into table.
-        
+
         Args:
             schema: Schema/database name
             table: Table name
             data: Data to insert - can be list of dicts or DataFrame
         """
         table_fqn = f"{schema}.{table}"
-        
+
         if isinstance(data, list):
             # Convert list of dicts to DataFrame
             df = self.spark.createDataFrame(data)  # type: ignore[attr-defined]
         else:
             # Assume DataFrame
             df = data
-        
+
         # Write to table using append mode
         try:
             df.write.mode("append").saveAsTable(table_fqn)  # type: ignore[attr-defined]
@@ -234,4 +237,3 @@ class StorageWrapper:
                 raise RuntimeError(
                     f"Failed to insert data into {table_fqn}: {e}"
                 ) from e
-

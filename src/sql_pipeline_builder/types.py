@@ -11,10 +11,11 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Protocol,
 # TypeAlias is available in Python 3.10+, use typing_extensions for 3.8/3.9
 if TYPE_CHECKING:
     from typing_extensions import TypeAlias
-    
+
     try:
         from sqlalchemy.orm import Query, Session
         from sqlalchemy.sql import ColumnElement
+
         HAS_SQLALCHEMY = True
     except ImportError:
         HAS_SQLALCHEMY = False
@@ -28,20 +29,20 @@ if TYPE_CHECKING:
     SqlValidationRule: TypeAlias = Union[ColumnElement, Any]
     SilverTransformFunction: TypeAlias = Union[
         Callable[[Session, Query, Dict[str, Query]], Query],
-        Callable[[Any, Any, Dict[str, Any]], Any]
+        Callable[[Any, Any, Dict[str, Any]], Any],
     ]
     GoldTransformFunction: TypeAlias = Union[
         Callable[[Session, Dict[str, Query]], Query],
-        Callable[[Any, Dict[str, Any]], Any]
+        Callable[[Any, Dict[str, Any]], Any],
     ]
 # Note: These types are only used in type annotations, not at runtime
 # With `from __future__ import annotations`, type annotations are strings and don't need runtime values
 
 # Runtime check for SQLAlchemy availability
 try:
-    from sqlalchemy.orm import Query as _Query, Session as _Session
-    from sqlalchemy.sql import ColumnElement as _ColumnElement
-    HAS_SQLALCHEMY = True
+    import importlib.util
+
+    HAS_SQLALCHEMY = importlib.util.find_spec("sqlalchemy") is not None
 except ImportError:
     HAS_SQLALCHEMY = False
 

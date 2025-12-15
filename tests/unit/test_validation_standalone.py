@@ -31,7 +31,7 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "real":
         StructField,
         StructType,
     )
-    from pyspark.sql import SparkSession, functions as Functions
+    from pyspark.sql import functions as Functions
 else:
     from sparkless.spark_types import (  # type: ignore[import]
         DoubleType,
@@ -40,7 +40,7 @@ else:
         StructType,
         StringType,
     )
-    from sparkless import SparkSession, Functions  # type: ignore[import]
+    from sparkless import Functions  # type: ignore[import]
 
 from pipeline_builder.validation import (
     _convert_rule_to_expression,
@@ -194,6 +194,7 @@ class TestConvertRuleToExpression:
         else:
             # Use functions module instead of Functions() class (deprecated in sparkless)
             from sparkless.sql import functions as mock_functions  # type: ignore[import]
+
             # For mock-spark, use SQL expression (Python-like expressions may not work)
             expr = _convert_rule_to_expression(
                 "user_id IS NOT NULL", "user_id", mock_functions

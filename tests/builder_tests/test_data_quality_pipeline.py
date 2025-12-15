@@ -495,7 +495,7 @@ class TestDataQualityPipeline:
         def create_schema_if_not_exists(spark, schema_name: str):
             """Create a schema using SQL (works for both mock-spark and PySpark)."""
             spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
-        
+
         create_schema_if_not_exists(spark_session, "bronze")
         create_schema_if_not_exists(spark_session, "silver")
 

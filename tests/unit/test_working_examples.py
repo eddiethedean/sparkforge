@@ -256,7 +256,6 @@ class TestWorkingExamples:
     )
     def test_mock_spark_integration(self, mock_spark_session, sample_dataframe):
         """Test integration with mock Spark session."""
-        from sparkless.errors import AnalysisException  # type: ignore[import]
 
         # Test basic DataFrame operations
         assert sample_dataframe.count() > 0

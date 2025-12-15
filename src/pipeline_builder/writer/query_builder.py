@@ -11,7 +11,7 @@ to reduce code duplication across the writer modules.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, cast
+from typing import Any, Dict
 
 from ..compat import DataFrame
 
