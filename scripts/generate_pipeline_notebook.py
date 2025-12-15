@@ -527,6 +527,37 @@ def topological_sort(modules: Dict[str, Dict]) -> List[str]:
     return result
 
 
+def _collapse_blank_lines(code: str, max_consecutive: int = 1) -> str:
+    """
+    Collapse runs of blank lines so that there are at most `max_consecutive`.
+
+    This helps avoid large vertical gaps in the generated notebook, especially
+    when it is imported or run from another notebook (e.g. in Databricks).
+    """
+    lines = code.split("\n")
+    result_lines: List[str] = []
+    empty_count = 0
+
+    for line in lines:
+        if line.strip() == "":
+            empty_count += 1
+            if empty_count <= max_consecutive:
+                # Preserve at most `max_consecutive` empty lines in a row
+                result_lines.append("")
+        else:
+            empty_count = 0
+            # Strip trailing whitespace but keep indentation
+            result_lines.append(line.rstrip())
+
+    # Trim leading and trailing empty lines
+    while result_lines and result_lines[0].strip() == "":
+        result_lines.pop(0)
+    while result_lines and result_lines[-1].strip() == "":
+        result_lines.pop()
+
+    return "\n".join(result_lines)
+
+
 def remove_sparkforge_imports(code: str) -> str:
     """
     Remove sparkforge imports and references, adjust code to work standalone.
@@ -693,6 +724,11 @@ def remove_sparkforge_imports(code: str) -> str:
     code = re.sub(r'name\s*=\s*["\']SparkForge["\']', 'name="PipelineFramework"', code)
     code = re.sub(r'"SparkForge"', '"PipelineFramework"', code)
     code = re.sub(r"'SparkForge'", "'PipelineFramework'", code)
+
+    # Finally, normalize excessive blank lines to avoid large gaps in the
+    # generated notebook when it is executed via `%run` in environments like
+    # Databricks.
+    code = _collapse_blank_lines(code, max_consecutive=1)
 
     return code
 
