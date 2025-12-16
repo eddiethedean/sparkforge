@@ -18,6 +18,8 @@ class ExecutionMode(Enum):
 
     INITIAL = "initial"
     INCREMENTAL = "incremental"
+    FULL_REFRESH = "full_refresh"
+    VALIDATION_ONLY = "validation_only"
 
 
 class WriteMode(Enum):
