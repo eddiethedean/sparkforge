@@ -31,6 +31,13 @@ else:
     from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
 
+# Skip all tests in this file when running in real mode
+pytestmark = pytest.mark.skipif(
+    os.environ.get("SPARK_MODE", "mock").lower() == "real",
+    reason="This test module is designed for sparkless/mock mode only",
+)
+
+
 class TestExecutionEngineWriteMode:
     """Test cases for ExecutionEngine write_mode behavior."""
 

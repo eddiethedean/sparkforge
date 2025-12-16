@@ -38,6 +38,13 @@ from pipeline_builder.validation.pipeline_validation import (
 from pipeline_builder.validation.utils import get_dataframe_info, safe_divide
 
 
+# Skip all tests in this file when running in real mode
+pytestmark = pytest.mark.skipif(
+    os.environ.get("SPARK_MODE", "mock").lower() == "real",
+    reason="This test module is designed for sparkless/mock mode only",
+)
+
+
 @pytest.fixture(scope="function", autouse=True)
 def reset_test_environment(spark_session):
     """Reset test environment before each test in this file."""

@@ -27,6 +27,14 @@ from pipeline_builder.models import (
     ValidationThresholds,
 )
 
+import os
+
+# Skip all tests in this file when running in real mode
+pytestmark = pytest.mark.skipif(
+    os.environ.get("SPARK_MODE", "mock").lower() == "real",
+    reason="This test module is designed for sparkless/mock mode only",
+)
+
 
 @pytest.fixture(scope="function", autouse=True)
 def reset_test_environment(spark_session):

@@ -21,6 +21,13 @@ from pipeline_builder.errors import ValidationError
 from pipeline_builder.validation.data_validation import assess_data_quality
 
 
+# Skip all tests in this file when running in real mode
+pytestmark = pytest.mark.skipif(
+    os.environ.get("SPARK_MODE", "mock").lower() == "real",
+    reason="This test module is designed for sparkless/mock mode only",
+)
+
+
 class TestTrap1SilentExceptionHandling:
     """Test that exceptions are properly raised instead of silently handled."""
 

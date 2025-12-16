@@ -30,6 +30,13 @@ else:
     from pyspark.sql import functions as F
 
 
+# Skip all tests in this file when running in real mode
+pytestmark = pytest.mark.skipif(
+    os.environ.get("SPARK_MODE", "mock").lower() == "real",
+    reason="This test module is designed for sparkless/mock mode only",
+)
+
+
 class TestPipelineRunnerWriteMode:
     """Test cases for PipelineRunner write_mode behavior."""
 

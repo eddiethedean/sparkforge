@@ -35,6 +35,13 @@ from pipeline_builder.execution import ExecutionEngine, ExecutionMode
 from pipeline_builder.models.steps import GoldStep, SilverStep
 
 
+# Skip all tests in this file when running in real mode
+pytestmark = pytest.mark.skipif(
+    os.environ.get("SPARK_MODE", "mock").lower() == "real",
+    reason="This test module is designed for sparkless/mock mode only",
+)
+
+
 class TestTrap5DefaultSchemaFallbacks:
     """Test that schema validation prevents silent fallback to 'default'."""
 
