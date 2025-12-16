@@ -313,7 +313,7 @@ class QueryBuilder:
         Returns:
             DataFrame with anomalies
         """
-        result = df.filter(functions.col(threshold_column) < threshold_value)  # type: ignore[attr-defined]
+        result = df.filter(functions.col(threshold_column) < threshold_value)
         return result
 
     @staticmethod
@@ -353,7 +353,7 @@ class QueryBuilder:
         Returns:
             DataFrame with quality anomalies
         """
-        result = df.filter(functions.col("validation_rate") < quality_threshold)  # type: ignore[attr-defined]
+        result = df.filter(functions.col("validation_rate") < quality_threshold)
         return result
 
     @staticmethod

@@ -25,7 +25,7 @@ from pipeline_builder.pipeline.builder import PipelineBuilder
 class TestSchemaEvolutionWithoutOverride:
     """Test schema evolution without requiring schema_override."""
 
-    def test_silver_schema_evolution_on_initial_load_rerun(self, spark_session):
+    def test_silver_schema_evolution_on_initial_load_rerun(self, spark_session, unique_schema):
         """
         Test that changing silver transform to add a new column works
         without schema_override when rerunning initial load.
@@ -36,15 +36,9 @@ class TestSchemaEvolutionWithoutOverride:
         3. Add rule for new column
         4. Run initial load again - should work without schema_override
         """
-        schema_name = "test_schema_evolution"
+        schema_name = unique_schema
 
-        # Clean up any existing schema
-        try:
-            spark_session.sql(f"DROP SCHEMA IF EXISTS {schema_name} CASCADE")
-        except Exception:
-            pass
-
-        # Create schema
+        # Create schema (unique name ensures no conflicts)
         spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
 
         # Create initial data
@@ -148,13 +142,9 @@ class TestSchemaEvolutionWithoutOverride:
         ).count()
         assert rows_with_processed_at == 3
 
-        # Clean up
-        try:
-            spark_session.sql(f"DROP SCHEMA IF EXISTS {schema_name} CASCADE")
-        except Exception:
-            pass
+        # No cleanup needed - unique schema ensures isolation
 
-    def test_silver_schema_evolution_incremental_should_error(self, spark_session):
+    def test_silver_schema_evolution_incremental_should_error(self, spark_session, unique_schema):
         """
         Test that schema mismatch errors in incremental mode without schema_override.
 
@@ -164,14 +154,9 @@ class TestSchemaEvolutionWithoutOverride:
         3. Change silver transform to add new column
         4. Run incremental again - should ERROR because schema doesn't match existing table
         """
-        schema_name = "test_schema_evolution_inc"
+        schema_name = unique_schema
 
-        # Clean up
-        try:
-            spark_session.sql(f"DROP SCHEMA IF EXISTS {schema_name} CASCADE")
-        except Exception:
-            pass
-
+        # Create schema (unique name ensures no conflicts)
         spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
 
         # Initial data
@@ -276,13 +261,9 @@ class TestSchemaEvolutionWithoutOverride:
         # Should still have 3 rows (no new data appended due to error)
         assert table3.count() == 3
 
-        # Clean up
-        try:
-            spark_session.sql(f"DROP SCHEMA IF EXISTS {schema_name} CASCADE")
-        except Exception:
-            pass
+        # No cleanup needed - unique schema ensures isolation
 
-    def test_silver_schema_evolution_with_multiple_new_columns(self, spark_session):
+    def test_silver_schema_evolution_with_multiple_new_columns(self, spark_session, unique_schema):
         """
         Test that adding multiple new columns works without schema_override.
 
@@ -292,14 +273,9 @@ class TestSchemaEvolutionWithoutOverride:
         3. Add rules for all new columns
         4. Run again - should work without schema_override
         """
-        schema_name = "test_schema_evolution_multi"
+        schema_name = unique_schema
 
-        # Clean up
-        try:
-            spark_session.sql(f"DROP SCHEMA IF EXISTS {schema_name} CASCADE")
-        except Exception:
-            pass
-
+        # Create schema (unique name ensures no conflicts)
         spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
 
         # Initial data
@@ -389,13 +365,9 @@ class TestSchemaEvolutionWithoutOverride:
 
         assert table2.count() == 2
 
-        # Clean up
-        try:
-            spark_session.sql(f"DROP SCHEMA IF EXISTS {schema_name} CASCADE")
-        except Exception:
-            pass
+        # No cleanup needed - unique schema ensures isolation
 
-    def test_gold_schema_evolution_without_override(self, spark_session):
+    def test_gold_schema_evolution_without_override(self, spark_session, unique_schema):
         """
         Test that gold table schema evolution works without schema_override.
 
@@ -405,14 +377,9 @@ class TestSchemaEvolutionWithoutOverride:
         3. Add rule for new column
         4. Run again - should work without schema_override
         """
-        schema_name = "test_gold_evolution"
+        schema_name = unique_schema
 
-        # Clean up
-        try:
-            spark_session.sql(f"DROP SCHEMA IF EXISTS {schema_name} CASCADE")
-        except Exception:
-            pass
-
+        # Create schema (unique name ensures no conflicts)
         spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
 
         # Initial data
@@ -534,8 +501,4 @@ class TestSchemaEvolutionWithoutOverride:
         assert "total_value" in table2.columns  # New column
         assert table2.count() == 2
 
-        # Clean up
-        try:
-            spark_session.sql(f"DROP SCHEMA IF EXISTS {schema_name} CASCADE")
-        except Exception:
-            pass
+        # No cleanup needed - unique schema ensures isolation

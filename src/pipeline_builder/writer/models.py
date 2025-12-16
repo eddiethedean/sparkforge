@@ -16,7 +16,7 @@ import os
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Literal, Optional, TypedDict
+from typing import Any, Dict, Literal, Optional, TypedDict, cast
 
 from pipeline_builder_base.models import ExecutionContext, ExecutionResult, StepResult
 
@@ -405,7 +405,9 @@ def create_log_row_from_step_result(
         duration_secs=step_result.duration_secs,
         # Table information
         table_fqn=step_result.table_fqn,
-        write_mode=step_result.write_mode,  # type: ignore[attr-defined,typeddict-item]
+        write_mode=cast(
+            Optional[Literal["overwrite", "append"]], step_result.write_mode
+        ),
         # Data metrics
         input_rows=step_result.input_rows,
         output_rows=step_result.rows_processed,

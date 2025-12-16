@@ -16,7 +16,7 @@ including string rule conversion, column validation, and data quality assessment
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, cast
 
 from pipeline_builder_base.errors import ValidationError
 from pipeline_builder_base.logging import PipelineLogger
@@ -49,22 +49,22 @@ def _convert_rule_to_expression(
             op, value = rule
             if op == "gt":
                 result = functions.col(column_name) > value
-                return result
+                return cast(Column, result)
             elif op == "gte":
                 result = functions.col(column_name) >= value
-                return result
+                return cast(Column, result)
             elif op == "lt":
                 result = functions.col(column_name) < value
-                return result
+                return cast(Column, result)
             elif op == "lte":
                 result = functions.col(column_name) <= value
-                return result
+                return cast(Column, result)
             elif op == "eq":
                 result = functions.col(column_name) == value
-                return result
+                return cast(Column, result)
             elif op == "ne":
                 result = functions.col(column_name) != value
-                return result
+                return cast(Column, result)
             else:
                 # For unknown operators, assume it's a valid PySpark expression
                 return functions.expr(f"{column_name} {op} {value}")
@@ -98,7 +98,7 @@ def _convert_rule_to_expression(
 
 
 def _convert_rules_to_expressions(
-    rules: ColumnRules,  # type: ignore[valid-type]
+    rules: ColumnRules,
     functions: Optional[FunctionsProtocol] = None,
 ) -> Dict[str, list[Union[str, Column]]]:
     """Convert string rules to PySpark Column expressions."""
@@ -146,10 +146,11 @@ def and_all_rules(
             column_expressions.append(functions.expr(expr))
         elif isinstance(expr, Column):
             column_expressions.append(expr)
-        elif hasattr(expr, "__and__") and hasattr(expr, "__invert__"):
+        else:
             # This handles Column-like objects that aren't str or Column
-            # The isinstance(expr, str) check above already filtered out strings
-            column_expressions.append(expr)
+            # Check if it has Column-like methods
+            if hasattr(expr, "__and__") and hasattr(expr, "__invert__"):
+                column_expressions.append(cast(Column, expr))
 
     if not column_expressions:
         return True

@@ -7,6 +7,8 @@ including bronze, silver, and gold step execution in sequence.
 
 import os
 
+import pytest
+
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
     from sparkless import functions as F  # type: ignore[import]
@@ -21,6 +23,34 @@ from pipeline_builder.models import (
     ValidationThresholds,
 )
 from pipeline_builder.pipeline.builder import PipelineBuilder
+
+
+@pytest.fixture(scope="function", autouse=True)
+def reset_test_environment(spark_session):
+    """Reset test environment before each test in this file."""
+    import gc
+
+    # Reset global state before test
+    try:
+        from tests.test_helpers.isolation import reset_global_state
+
+        reset_global_state()
+    except Exception:
+        pass
+
+    # Force garbage collection to clear any lingering references
+    gc.collect()
+    yield
+    # Cleanup after test
+    gc.collect()
+
+    # Reset global state after test
+    try:
+        from tests.test_helpers.isolation import reset_global_state
+
+        reset_global_state()
+    except Exception:
+        pass
 
 
 class TestPipelineExecutionFlow:

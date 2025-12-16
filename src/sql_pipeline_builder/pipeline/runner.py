@@ -7,8 +7,9 @@ execution to the SQL execution engine.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, cast
 
+from abstracts.reports.run import Report
 from abstracts.runner import Runner
 from abstracts.source import Source
 from pipeline_builder_base.logging import PipelineLogger
@@ -85,7 +86,7 @@ class SqlPipelineRunner(BaseRunner, Runner):
     def run_initial_load(
         self,
         bronze_sources: Optional[Dict[str, Any]] = None,  # Dict[str, Query]
-    ) -> ExecutionResult:  # type: ignore[override]
+    ) -> Report:
         """
         Run initial load pipeline execution.
 
@@ -98,13 +99,15 @@ class SqlPipelineRunner(BaseRunner, Runner):
         if bronze_sources is None:
             bronze_sources = {}
 
-        return self.execution_engine.execute_pipeline(
+        result = self.execution_engine.execute_pipeline(
             bronze_steps=self.bronze_steps,
             silver_steps=self.silver_steps,
             gold_steps=self.gold_steps,
             bronze_sources=bronze_sources,
             mode=ExecutionMode.INITIAL,
         )
+        # ExecutionResult implements Report protocol
+        return cast(Report, result)
 
     def run_incremental(
         self,

@@ -5,6 +5,8 @@ Simplified tests for pipeline_builder.validation modules that work with mock_spa
 import os
 from datetime import datetime
 
+import pytest
+
 # Import types based on SPARK_MODE
 if os.environ.get("SPARK_MODE", "mock").lower() == "real":
     from pyspark.sql.types import IntegerType, StringType, StructField, StructType
@@ -34,6 +36,34 @@ from pipeline_builder.validation.pipeline_validation import (
     ValidationResult,
 )
 from pipeline_builder.validation.utils import get_dataframe_info, safe_divide
+
+
+@pytest.fixture(scope="function", autouse=True)
+def reset_test_environment(spark_session):
+    """Reset test environment before each test in this file."""
+    import gc
+
+    # Reset global state before test
+    try:
+        from tests.test_helpers.isolation import reset_global_state
+
+        reset_global_state()
+    except Exception:
+        pass
+
+    # Force garbage collection to clear any lingering references
+    gc.collect()
+    yield
+    # Cleanup after test
+    gc.collect()
+
+    # Reset global state after test
+    try:
+        from tests.test_helpers.isolation import reset_global_state
+
+        reset_global_state()
+    except Exception:
+        pass
 
 
 class TestValidationUtils:

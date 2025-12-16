@@ -47,6 +47,34 @@ from pipeline_builder.validation import (
 )
 
 
+@pytest.fixture(scope="function", autouse=True)
+def reset_test_environment(spark_session):
+    """Reset test environment before each test in this file."""
+    import gc
+
+    # Reset global state before test
+    try:
+        from tests.test_helpers.isolation import reset_global_state
+
+        reset_global_state()
+    except Exception:
+        pass
+
+    # Force garbage collection to clear any lingering references
+    gc.collect()
+    yield
+    # Cleanup after test
+    gc.collect()
+
+    # Reset global state after test
+    try:
+        from tests.test_helpers.isolation import reset_global_state
+
+        reset_global_state()
+    except Exception:
+        pass
+
+
 @pytest.fixture
 def mock_spark_session(spark_session):
     """Create mock Spark session for testing."""

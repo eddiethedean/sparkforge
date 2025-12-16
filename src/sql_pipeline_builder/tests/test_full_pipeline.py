@@ -5,8 +5,11 @@ These tests verify complete pipeline execution from Bronze → Silver → Gold
 with real SQLAlchemy operations.
 """
 
+from typing import Any, cast
+
 import pytest
-from pipeline_builder_base.models import ExecutionMode
+from abstracts.reports.run import Report
+from pipeline_builder_base.models import ExecutionMode, ExecutionResult
 from sqlalchemy import (
     Column,
     Integer,
@@ -22,7 +25,7 @@ from sqlalchemy.orm import Session
 
 from sql_pipeline_builder import SqlPipelineBuilder
 
-Base = declarative_base()
+Base: Any = declarative_base()
 
 
 class UserEvent(Base):
@@ -73,7 +76,7 @@ class DependencyMetric(Base):
 
 
 def create_builder_with_events(
-    session, schema: str = "analytics", incremental: bool = True
+    session: Session, schema: str = "analytics", incremental: bool = True
 ) -> SqlPipelineBuilder:
     """Create a SqlPipelineBuilder with a default bronze 'events' step."""
     builder = SqlPipelineBuilder(session=session, schema=schema)
@@ -184,27 +187,30 @@ def test_full_pipeline_initial_load(sqlite_session):
     pipeline = builder.to_pipeline()
     bronze_source = sqlite_session.query(UserEvent)
 
-    result = pipeline.run_initial_load(bronze_sources={"events": bronze_source})
+    result: Report = pipeline.run_initial_load(bronze_sources={"events": bronze_source})
+    exec_result = cast(ExecutionResult, result)
 
     # Verify execution succeeded
-    assert result.success, f"Pipeline failed: {result.step_results}"
-    assert len(result.step_results) == 3  # Bronze, Silver, Gold
+    assert exec_result.success, f"Pipeline failed: {exec_result.step_results}"
+    assert len(exec_result.step_results) == 3  # Bronze, Silver, Gold
 
     # Verify bronze step
-    bronze_result = next(r for r in result.step_results if r.step_name == "events")
+    bronze_result = next(r for r in exec_result.step_results if r.step_name == "events")
     assert bronze_result.success
     assert bronze_result.rows_processed > 0
 
     # Verify silver step
     silver_result = next(
-        r for r in result.step_results if r.step_name == "clean_events"
+        r for r in exec_result.step_results if r.step_name == "clean_events"
     )
     assert silver_result.success
     assert silver_result.rows_written > 0
     assert silver_result.table_fqn == "analytics.clean_events"
 
     # Verify gold step
-    gold_result = next(r for r in result.step_results if r.step_name == "daily_metrics")
+    gold_result = next(
+        r for r in exec_result.step_results if r.step_name == "daily_metrics"
+    )
     assert gold_result.success
     assert gold_result.rows_written > 0
     assert gold_result.table_fqn == "analytics.daily_metrics"
@@ -254,13 +260,14 @@ def test_pipeline_with_validation_failure(sqlite_session):
     pipeline = builder.to_pipeline()
     bronze_source = sqlite_session.query(UserEvent)
 
-    result = pipeline.run_initial_load(bronze_sources={"events": bronze_source})
+    result: Report = pipeline.run_initial_load(bronze_sources={"events": bronze_source})
+    exec_result = cast(ExecutionResult, result)
 
     # Pipeline should still succeed, but validation should filter out invalid rows
-    assert result.success
+    assert exec_result.success
 
     # Check that invalid rows were filtered
-    bronze_result = next(r for r in result.step_results if r.step_name == "events")
+    bronze_result = next(r for r in exec_result.step_results if r.step_name == "events")
     # Validation rate should be less than 100% due to invalid row
     assert bronze_result.validation_rate < 100.0
 
@@ -338,15 +345,18 @@ def test_pipeline_with_multiple_silver_steps(sqlite_session):
     pipeline = builder.to_pipeline()
     bronze_source = sqlite_session.query(UserEvent)
 
-    result = pipeline.run_initial_load(bronze_sources={"events": bronze_source})
+    result: Report = pipeline.run_initial_load(bronze_sources={"events": bronze_source})
+    exec_result = cast(ExecutionResult, result)
 
-    assert result.success
-    assert len(result.step_results) == 4  # 1 bronze + 2 silver + 1 gold
+    assert exec_result.success
+    assert len(exec_result.step_results) == 4  # 1 bronze + 2 silver + 1 gold
 
     # Verify both silver steps executed
-    click_result = next(r for r in result.step_results if r.step_name == "click_events")
+    click_result = next(
+        r for r in exec_result.step_results if r.step_name == "click_events"
+    )
     purchase_result = next(
-        r for r in result.step_results if r.step_name == "purchase_events"
+        r for r in exec_result.step_results if r.step_name == "purchase_events"
     )
     assert click_result.success
     assert purchase_result.success
@@ -702,12 +712,13 @@ def test_pipeline_dependency_order(sqlite_session):
     )
 
     pipeline = builder.to_pipeline()
-    result = pipeline.run_initial_load(
+    result: Report = pipeline.run_initial_load(
         bronze_sources={"events": sqlite_session.query(UserEvent)}
     )
-    assert result.success
+    exec_result = cast(ExecutionResult, result)
+    assert exec_result.success
 
-    step_names = [step.step_name for step in result.step_results]
+    step_names = [step.step_name for step in exec_result.step_results]
     assert step_names == ["events", "clean_events", "daily_metrics"]
 
 
@@ -738,14 +749,15 @@ def test_pipeline_error_handling(sqlite_session):
     pipeline = builder.to_pipeline()
     bronze_source = sqlite_session.query(UserEvent)
 
-    result = pipeline.run_initial_load(bronze_sources={"events": bronze_source})
+    result: Report = pipeline.run_initial_load(bronze_sources={"events": bronze_source})
+    exec_result = cast(ExecutionResult, result)
 
     # Pipeline should report failure
-    assert not result.success
+    assert not exec_result.success
 
     # Find the failing step
     failing_result = next(
-        r for r in result.step_results if r.step_name == "failing_step"
+        r for r in exec_result.step_results if r.step_name == "failing_step"
     )
     assert not failing_result.success
     assert failing_result.error_message is not None

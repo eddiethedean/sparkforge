@@ -182,7 +182,7 @@ class PipelineBuilder(BasePipelineBuilder):
     def __init__(
         self,
         *,
-        spark: SparkSession,  # type: ignore[valid-type]
+        spark: SparkSession,
         schema: str,
         min_bronze_rate: float = 95.0,
         min_silver_rate: float = 98.0,
@@ -499,10 +499,10 @@ class PipelineBuilder(BasePipelineBuilder):
         # Create SilverStep for existing table
         # Create a dummy transform function for existing tables
         def dummy_transform_func(
-            spark: SparkSession,  # type: ignore[valid-type]
-            bronze_df: DataFrame,  # type: ignore[valid-type]
-            prior_silvers: Dict[str, DataFrame],  # type: ignore[valid-type]
-        ) -> DataFrame:  # type: ignore[valid-type]
+            spark: SparkSession,
+            bronze_df: DataFrame,
+            prior_silvers: Dict[str, DataFrame],
+        ) -> DataFrame:
             return bronze_df
 
         # Type the function properly
@@ -580,7 +580,7 @@ class PipelineBuilder(BasePipelineBuilder):
                           If not provided, will automatically infer from the most recent
                           with_bronze_rules() call. If no bronze steps exist, will raise an error.
             transform: Transformation function with signature:
-                     (spark: SparkSession  # type: ignore[valid-type], bronze_df: DataFrame  # type: ignore[valid-type], prior_silvers: Dict[str, DataFrame]  # type: ignore[valid-type]) -> DataFrame
+                     (spark: SparkSession, bronze_df: DataFrame, prior_silvers: Dict[str, DataFrame]) -> DataFrame
                      Must be callable and cannot be None.
             rules: Dictionary mapping column names to validation rule lists.
                    Supports both PySpark Column expressions and string rules:
@@ -756,7 +756,7 @@ class PipelineBuilder(BasePipelineBuilder):
         Args:
             name: Unique identifier for this Gold step
             transform: Transformation function with signature:
-                     (spark: SparkSession  # type: ignore[valid-type], silvers: Dict[str, DataFrame]  # type: ignore[valid-type]) -> DataFrame
+                     (spark: SparkSession, silvers: Dict[str, DataFrame]) -> DataFrame
                      Must be callable and cannot be None.
             rules: Dictionary mapping column names to validation rule lists.
                    Supports both PySpark Column expressions and string rules:
@@ -952,9 +952,9 @@ class PipelineBuilder(BasePipelineBuilder):
                 logger.error(error_msg)
                 raise TypeError(error_msg)
             return result
-        else:  # type: ignore[misc]
+        else:
             # Unexpected type - this is reachable at runtime even though
-            # the type hint suggests it shouldn't be
+            # the type hint suggests it shouldn't be (defensive programming)
             error_msg = (
                 f"Unexpected return type from {validator_name}: {type(result)}. "
                 f"Expected ValidationResult or List[str]. Got: {result}"
@@ -1025,7 +1025,7 @@ class PipelineBuilder(BasePipelineBuilder):
     @classmethod
     def for_development(
         cls,
-        spark: SparkSession,  # type: ignore[valid-type]
+        spark: SparkSession,
         schema: str,
         functions: Optional[FunctionsProtocol] = None,
         **kwargs: Any,
@@ -1061,7 +1061,7 @@ class PipelineBuilder(BasePipelineBuilder):
     @classmethod
     def for_production(
         cls,
-        spark: SparkSession,  # type: ignore[valid-type]
+        spark: SparkSession,
         schema: str,
         functions: Optional[FunctionsProtocol] = None,
         **kwargs: Any,
@@ -1097,7 +1097,7 @@ class PipelineBuilder(BasePipelineBuilder):
     @classmethod
     def for_testing(
         cls,
-        spark: SparkSession,  # type: ignore[valid-type]
+        spark: SparkSession,
         schema: str,
         functions: Optional[FunctionsProtocol] = None,
         **kwargs: Any,
@@ -1186,7 +1186,7 @@ class PipelineBuilder(BasePipelineBuilder):
         if functions is None:
             functions = get_default_functions()
         return {
-            col: [functions.col(col).isNotNull(), functions.col(col) > 0]  # type: ignore[list-item]
+            col: [functions.col(col).isNotNull(), functions.col(col) > 0]
             for col in columns
         }
 
@@ -1217,7 +1217,7 @@ class PipelineBuilder(BasePipelineBuilder):
         return {
             col: [
                 functions.col(col).isNotNull(),
-                functions.length(functions.col(col)) > 0,  # type: ignore[list-item]
+                functions.length(functions.col(col)) > 0,
             ]
             for col in columns
         }
@@ -1360,7 +1360,7 @@ class PipelineBuilder(BasePipelineBuilder):
         """
         try:
             # Use SQL to create schema
-            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")  # type: ignore[attr-defined]
+            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
             self.logger.info(f"✅ Schema '{schema}' created or already exists")
         except Exception as e:
             raise StepError(

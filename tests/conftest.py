@@ -71,6 +71,18 @@ def reset_global_state():
     except Exception:
         pass
 
+    # Reset execution state and global caches
+    try:
+        from tests.test_helpers.isolation import (
+            reset_execution_state,
+            reset_global_state as reset_globals,
+        )
+
+        reset_globals()
+        reset_execution_state()
+    except Exception:
+        pass
+
     # Clear any cached Spark modules
     import sys
 
@@ -101,6 +113,66 @@ def reset_global_state():
     except Exception:
         pass
 
+    # Reset execution state and global caches after test
+    try:
+        from tests.test_helpers.isolation import (
+            reset_execution_state,
+            reset_global_state as reset_globals,
+        )
+
+        reset_globals()
+        reset_execution_state()
+    except Exception:
+        pass
+
+
+@pytest.fixture(scope="function", autouse=True)
+def cleanup_before_test():
+    """Reset global state before and after each test."""
+    # Only reset global state - no table cleanup needed since we use unique names
+    try:
+        from tests.test_helpers.isolation import (
+            reset_execution_state,
+            reset_global_state,
+        )
+
+        reset_global_state()
+        reset_execution_state()
+    except Exception:
+        pass
+
+    yield
+
+    # Only reset global state after test
+    try:
+        from tests.test_helpers.isolation import (
+            reset_execution_state,
+            reset_global_state,
+        )
+
+        reset_global_state()
+        reset_execution_state()
+    except Exception:
+        pass
+
+
+@pytest.fixture(scope="function")
+def unique_schema():
+    """Provide a unique schema name for each test."""
+    return get_unique_test_schema()
+
+
+@pytest.fixture(scope="function")
+def unique_table_name():
+    """Provide a function to generate unique table names for each test."""
+    import time
+    
+    def _get_unique_table(base_name: str) -> str:
+        unique_id = int(time.time() * 1000000) % 1000000
+        return f"{base_name}_{unique_id}"
+    
+    return _get_unique_table
+
 
 def get_test_schema():
     """Get the test schema name."""
@@ -111,6 +183,14 @@ def get_unique_test_schema():
     """Get a unique test schema name for isolated tests."""
     unique_id = int(time.time() * 1000000) % 1000000
     return f"test_schema_{unique_id}"
+
+
+def get_unique_table_name(base_name: str) -> str:
+    """Generate a unique table name by appending a timestamp-based ID."""
+    import time
+    
+    unique_id = int(time.time() * 1000000) % 1000000
+    return f"{base_name}_{unique_id}"
 
 
 def _create_mock_spark_session():
@@ -181,8 +261,7 @@ def _create_real_spark_session():
         print("🔧 Configuring real Spark with Delta Lake support for all tests")
 
         # Build Spark session builder with basic config
-        # Note: Do NOT set spark.sql.extensions or spark.sql.catalog here
-        # configure_spark_with_delta_pip will handle Delta Lake configuration
+        # Set Delta Lake extensions BEFORE creating the session
         builder = (
             SparkSession.builder.appName(f"SparkForgeTests-{os.getpid()}")
             .master("local[*]")  # Use all available cores for parallel execution
@@ -195,9 +274,14 @@ def _create_real_spark_session():
             .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
             .config("spark.driver.memory", "1g")
             .config("spark.executor.memory", "1g")
+            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+            .config(
+                "spark.sql.catalog.spark_catalog",
+                "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+            )
         )
 
-        # Configure Delta Lake - configure_spark_with_delta_pip handles extensions and catalog
+        # Configure Delta Lake - configure_spark_with_delta_pip handles JAR dependencies
         spark = configure_spark_with_delta_pip(builder).getOrCreate()
 
         # Verify Delta Lake configuration was applied
@@ -364,8 +448,21 @@ def spark_session():
 
     yield spark
 
-    # Cleanup
+    # Cleanup using comprehensive isolation helpers
     try:
+        # Import isolation helpers
+        from tests.test_helpers.isolation import (
+            clear_all_tables,
+            clear_all_test_state,
+            clear_spark_views,
+            reset_execution_state,
+            reset_global_state,
+        )
+
+        # Reset global caches first (before Spark cleanup)
+        reset_global_state()
+        reset_execution_state()
+
         if spark_mode == "real":
             # Real Spark cleanup
             if (
@@ -373,36 +470,19 @@ def spark_session():
                 and hasattr(spark, "sparkContext")
                 and spark.sparkContext._jsc is not None
             ):
-                # Clear all cached tables and temp views
-                spark.catalog.clearCache()
-
-                # Drop all tables in test schema
+                # Minimal cleanup - just clear cache since we use unique table names
                 try:
-                    tables = spark.catalog.listTables("test_schema")
-                    for table in tables:
-                        spark.sql(f"DROP TABLE IF EXISTS test_schema.{table.name}")
+                    spark.catalog.clearCache()
                 except Exception:
-                    pass  # Ignore errors when dropping tables
-
-                # Drop test schema
-                spark.sql("DROP DATABASE IF EXISTS test_schema CASCADE")
+                    pass
 
             if spark:
                 spark.stop()
         else:
-            # Mock Spark cleanup - use SQL to drop schemas
+            # Mock Spark cleanup - minimal since we use unique table names
             if spark:
                 try:
-                    # Get list of databases/schemas
-                    databases = [db.name for db in spark.catalog.listDatabases()]
-                    for schema_name in databases:
-                        if schema_name not in ["default", "information_schema"]:
-                            try:
-                                spark.sql(
-                                    f"DROP SCHEMA IF EXISTS {schema_name} CASCADE"
-                                )
-                            except Exception:
-                                pass
+                    spark.catalog.clearCache()
                 except Exception:
                     pass
 
@@ -432,10 +512,8 @@ def isolated_spark_session():
 
         print(f"🔧 Creating isolated real Spark session for {schema_name}")
 
-        # Create the spark session using the main fixture
-        from conftest import spark_session_fixture
-
-        spark = spark_session_fixture()
+        # Create the spark session using the helper function
+        spark = _create_real_spark_session()
 
         # Create isolated test database
         try:
@@ -454,9 +532,10 @@ def isolated_spark_session():
 
         yield spark
 
-        # Cleanup
+        # Minimal cleanup - unique schema names ensure isolation
         try:
-            spark.sql(f"DROP DATABASE IF EXISTS {schema_name} CASCADE")
+            if spark:
+                spark.catalog.clearCache()
         except Exception:
             pass
     else:
@@ -487,7 +566,7 @@ def isolated_spark_session():
 
         yield spark
 
-        # Cleanup
+        # Minimal cleanup - unique schema names ensure isolation
         print(f"🧹 Isolated Mock Spark session cleanup completed for {schema_name}")
 
 

@@ -29,15 +29,43 @@ else:
     from pyspark.sql import functions as F
 
 
+@pytest.fixture(scope="function", autouse=True)
+def reset_test_environment(spark_session):
+    """Reset test environment before each test in this file."""
+    import gc
+
+    # Reset global state before test
+    try:
+        from tests.test_helpers.isolation import reset_global_state
+
+        reset_global_state()
+    except Exception:
+        pass
+
+    # Force garbage collection to clear any lingering references
+    gc.collect()
+    yield
+    # Cleanup after test
+    gc.collect()
+
+    # Reset global state after test
+    try:
+        from tests.test_helpers.isolation import reset_global_state
+
+        reset_global_state()
+    except Exception:
+        pass
+
+
 class TestWriteModeIntegration:
     """Integration tests for write_mode behavior."""
 
     @pytest.fixture
-    def config(self):
-        """Create a test pipeline config."""
+    def config(self, unique_schema):
+        """Create a test pipeline config with unique schema."""
         # NOTE: Parallel execution disabled for this test to ensure deterministic behavior
         return PipelineConfig(
-            schema="test_schema",
+            schema=unique_schema,
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(
                 max_workers=1, enabled=False
@@ -50,8 +78,8 @@ class TestWriteModeIntegration:
         return PipelineLogger("test")
 
     @pytest.fixture
-    def silver_step(self, spark_session):
-        """Create a test silver step."""
+    def silver_step(self, isolated_spark_session, unique_schema, unique_table_name):
+        """Create a test silver step with unique table name."""
         # PySpark requires active SparkContext for F.col() calls
 
         def simple_transform(spark, bronze_df, prior_silvers):
@@ -62,15 +90,15 @@ class TestWriteModeIntegration:
             source_bronze="test_bronze",
             transform=simple_transform,
             rules={"id": [F.col("id").isNotNull()]},
-            table_name="test_silver_table",
-            schema="test_schema",
+            table_name=unique_table_name("test_silver_table"),
+            schema=unique_schema,
             watermark_col="id",
             source_incremental_col="id",
         )
 
     @pytest.fixture
-    def gold_step(self, spark_session):
-        """Create a test gold step."""
+    def gold_step(self, isolated_spark_session, unique_schema, unique_table_name):
+        """Create a test gold step with unique table name."""
         # PySpark requires active SparkContext for F.col() calls
 
         def simple_transform(spark, silvers):
@@ -80,13 +108,13 @@ class TestWriteModeIntegration:
             name="test_gold",
             transform=simple_transform,
             rules={"id": [F.col("id").isNotNull()]},
-            table_name="test_gold_table",
+            table_name=unique_table_name("test_gold_table"),
             source_silvers=["test_silver"],
-            schema="test_schema",
+            schema=unique_schema,
         )
 
     @pytest.fixture
-    def bronze_step(self, spark_session):
+    def bronze_step(self, isolated_spark_session):
         """Create a test bronze step."""
         # PySpark requires active SparkContext for F.col() calls
         return BronzeStep(
@@ -96,10 +124,10 @@ class TestWriteModeIntegration:
         )
 
     @pytest.fixture
-    def bronze_sources(self, spark_session):
+    def bronze_sources(self, isolated_spark_session):
         """Create test bronze sources."""
         return {
-            "test_bronze": spark_session.createDataFrame(
+            "test_bronze": isolated_spark_session.createDataFrame(
                 [(1, "test")], ["id", "company"]
             )
         }
@@ -108,7 +136,7 @@ class TestWriteModeIntegration:
     def test_incremental_pipeline_preserves_data(
         self,
         mock_fqn,
-        spark_session,
+        isolated_spark_session,
         config,
         logger,
         bronze_step,
@@ -122,7 +150,7 @@ class TestWriteModeIntegration:
 
         # Create pipeline runner
         runner = SimplePipelineRunner(
-            spark=spark_session,
+            spark=isolated_spark_session,
             config=config,
             logger=logger,
             bronze_steps={"test_bronze": bronze_step},
@@ -147,7 +175,7 @@ class TestWriteModeIntegration:
     def test_initial_pipeline_overwrites_data(
         self,
         mock_fqn,
-        spark_session,
+        isolated_spark_session,
         config,
         logger,
         bronze_step,
@@ -161,7 +189,7 @@ class TestWriteModeIntegration:
 
         # Create pipeline runner
         runner = SimplePipelineRunner(
-            spark=spark_session,
+            spark=isolated_spark_session,
             config=config,
             logger=logger,
             bronze_steps={"test_bronze": bronze_step},
@@ -181,7 +209,7 @@ class TestWriteModeIntegration:
 
     def test_write_mode_consistency_across_pipeline_runs(
         self,
-        spark_session,
+        isolated_spark_session,
         config,
         logger,
         bronze_step,
@@ -192,7 +220,7 @@ class TestWriteModeIntegration:
         """Test that write_mode is consistent across multiple pipeline runs."""
         # Create pipeline runner
         runner = SimplePipelineRunner(
-            spark=spark_session,
+            spark=isolated_spark_session,
             config=config,
             logger=logger,
             bronze_steps={"test_bronze": bronze_step},
@@ -235,7 +263,7 @@ class TestWriteModeIntegration:
 
     def test_mixed_pipeline_modes_have_correct_write_modes(
         self,
-        spark_session,
+        isolated_spark_session,
         config,
         logger,
         bronze_step,
@@ -246,7 +274,7 @@ class TestWriteModeIntegration:
         """Test that mixing different pipeline modes results in correct write_modes."""
         # Create pipeline runner
         runner = SimplePipelineRunner(
-            spark=spark_session,
+            spark=isolated_spark_session,
             config=config,
             logger=logger,
             bronze_steps={"test_bronze": bronze_step},
@@ -298,7 +326,7 @@ class TestWriteModeIntegration:
 
     def test_write_mode_regression_prevention(
         self,
-        spark_session,
+        isolated_spark_session,
         config,
         logger,
         bronze_step,
@@ -309,7 +337,7 @@ class TestWriteModeIntegration:
         """Test specifically designed to prevent the write_mode regression bug."""
         # Create pipeline runner
         runner = SimplePipelineRunner(
-            spark=spark_session,
+            spark=isolated_spark_session,
             config=config,
             logger=logger,
             bronze_steps={"test_bronze": bronze_step},
@@ -334,7 +362,7 @@ class TestWriteModeIntegration:
 
     def test_log_writer_receives_correct_write_mode(
         self,
-        spark_session,
+        isolated_spark_session,
         config,
         logger,
         bronze_step,
@@ -345,7 +373,7 @@ class TestWriteModeIntegration:
         """Test that LogWriter receives the correct write_mode from step results."""
         # Create pipeline runner
         runner = SimplePipelineRunner(
-            spark=spark_session,
+            spark=isolated_spark_session,
             config=config,
             logger=logger,
             bronze_steps={"test_bronze": bronze_step},

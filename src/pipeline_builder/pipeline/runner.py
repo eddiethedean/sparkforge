@@ -17,7 +17,7 @@ execution to the simplified execution engine.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, cast
 
 from abstracts.reports.run import Report
 from abstracts.runner import Runner
@@ -199,7 +199,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
                     raise TypeError(
                         f"bronze_sources must contain DataFrame-like objects, got {type(source)}"
                     )
-                bronze_sources_df[name] = source
+                bronze_sources_df[name] = cast(DataFrame, source)
 
         # Use provided steps or stored steps
         if steps is None:
@@ -251,7 +251,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
                     raise TypeError(
                         f"bronze_sources must contain DataFrame-like objects, got {type(source)}"
                     )
-                bronze_sources_df[name] = source
+                bronze_sources_df[name] = cast(DataFrame, source)
 
         # Use provided steps or stored steps
         if steps is None:

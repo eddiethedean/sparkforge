@@ -119,26 +119,53 @@ def integration_spark_session():
 
 @pytest.fixture(autouse=True, scope="function")
 def cleanup_integration_tables(integration_spark_session):
-    """Clean up test tables after each integration test."""
-    yield
-    # Cleanup after each test
+    """Reset global state before and after each integration test."""
+    # Only reset global state - use unique table names for isolation
     try:
-        if (
-            hasattr(integration_spark_session, "sparkContext")
-            and integration_spark_session.sparkContext._jsc is not None
-        ):
-            # Drop any tables that might have been created
-            tables = integration_spark_session.sql(
-                "SHOW TABLES IN test_schema"
-            ).collect()
-            for table in tables:
-                table_name = table.tableName
-                integration_spark_session.sql(
-                    f"DROP TABLE IF EXISTS test_schema.{table_name}"
-                )
+        from tests.test_helpers.isolation import (
+            reset_execution_state,
+            reset_global_state,
+        )
+
+        reset_global_state()
+        reset_execution_state()
     except Exception:
-        # Ignore cleanup errors
         pass
+
+    yield
+
+    # Only reset global state after test
+    try:
+        from tests.test_helpers.isolation import (
+            reset_execution_state,
+            reset_global_state,
+        )
+
+        reset_global_state()
+        reset_execution_state()
+    except Exception:
+        pass
+
+
+@pytest.fixture(scope="function")
+def unique_schema():
+    """Provide a unique schema name for each integration test."""
+    import time
+    
+    unique_id = int(time.time() * 1000000) % 1000000
+    return f"test_schema_{unique_id}"
+
+
+@pytest.fixture(scope="function")
+def unique_table_name():
+    """Provide a function to generate unique table names for each integration test."""
+    import time
+    
+    def _get_unique_table(base_name: str) -> str:
+        unique_id = int(time.time() * 1000000) % 1000000
+        return f"{base_name}_{unique_id}"
+    
+    return _get_unique_table
 
 
 @pytest.fixture

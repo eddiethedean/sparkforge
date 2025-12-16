@@ -99,7 +99,7 @@ def performance_monitor(
 @time_operation("write operation")
 def time_write_operation(
     mode: str,
-    df: DataFrame,  # type: ignore[valid-type]
+    df: DataFrame,
     fqn: str,
     **options: Any,
 ) -> tuple[int, float, datetime, datetime]:

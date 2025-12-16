@@ -4,6 +4,8 @@ Unit tests for SQL validation utilities and table operations.
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -12,7 +14,7 @@ from sqlalchemy.orm import Session
 from sql_pipeline_builder.table_operations import write_table
 from sql_pipeline_builder.validation.sql_validation import apply_sql_validation_rules
 
-Base = declarative_base()
+Base: Any = declarative_base()
 
 
 class Item(Base):

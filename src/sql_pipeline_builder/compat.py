@@ -60,11 +60,11 @@ def get_session_type(engine: Any) -> Type[Union[Session, AsyncSession]]:
     if is_async_engine(engine):
         from sqlalchemy.ext.asyncio import AsyncSession
 
-        return AsyncSession
+        return AsyncSession  # type: ignore[return-value]
     else:
         from sqlalchemy.orm import Session
 
-        return Session
+        return Session  # type: ignore[return-value]
 
 
 def create_session(engine: Any) -> Union[Session, AsyncSession]:

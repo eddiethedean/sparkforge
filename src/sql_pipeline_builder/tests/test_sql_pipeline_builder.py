@@ -5,6 +5,8 @@ These tests verify that the SQL pipeline builder can be imported and
 basic functionality works with SQLite.
 """
 
+from typing import Any
+
 import pytest
 from pipeline_builder_base.errors import ValidationError
 from sqlalchemy import Column, Integer, String, Table, create_engine
@@ -15,7 +17,7 @@ from sql_pipeline_builder import SqlPipelineBuilder
 from sql_pipeline_builder.compat import is_async_engine
 from sql_pipeline_builder.models import SqlBronzeStep, SqlGoldStep, SqlSilverStep
 
-Base = declarative_base()
+Base: Any = declarative_base()
 
 
 class User(Base):

@@ -82,7 +82,12 @@ def _is_delta_lake_available(spark: SparkSession) -> bool:  # type: ignore[valid
         catalog = spark.conf.get("spark.sql.catalog.spark_catalog", "")  # type: ignore[attr-defined]
 
         # If both extensions and catalog are configured for Delta, assume it works
-        if "DeltaSparkSessionExtension" in extensions and "DeltaCatalog" in catalog:
+        if (
+            extensions
+            and catalog
+            and "DeltaSparkSessionExtension" in extensions
+            and "DeltaCatalog" in catalog
+        ):
             _delta_availability_cache[spark_id] = True
             return True
     except Exception:
@@ -91,7 +96,7 @@ def _is_delta_lake_available(spark: SparkSession) -> bool:  # type: ignore[valid
     # If only extensions are configured, do a lightweight test
     try:
         extensions = spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
-        if "DeltaSparkSessionExtension" in extensions:
+        if extensions and "DeltaSparkSessionExtension" in extensions:
             # Try a simple test - create a minimal DataFrame and try to write it
             test_df = spark.createDataFrame([(1, "test")], ["id", "name"])
             # Use a unique temp directory to avoid conflicts
@@ -790,7 +795,6 @@ class StorageManager:
 
             self.logger.info(f"Query executed successfully: {result_df.count()} rows")  # type: ignore[attr-defined]
 
-
             return result_df
 
         except Exception as e:
@@ -874,7 +878,6 @@ class StorageManager:
             # Create DataFrame with explicit schema for type safety and None value handling
             schema = create_log_schema()
             df = self.spark.createDataFrame(log_data, schema)  # type: ignore[attr-defined,type-var]
-
 
             return df
 

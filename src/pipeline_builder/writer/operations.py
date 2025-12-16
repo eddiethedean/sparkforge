@@ -379,7 +379,7 @@ class DataProcessor:
                 "processing_efficiency",
                 self.functions.when(
                     self.functions.col("input_rows") > 0,
-                    self.functions.col("output_rows")
+                    self.functions.col("output_rows")  # type: ignore[arg-type]
                     / self.functions.col("input_rows")
                     * 100,
                 ).otherwise(0),
@@ -393,11 +393,7 @@ class DataProcessor:
             )
 
             self.logger.info("Data transformations applied successfully")
-            from typing import cast
-
-            from ..compat import DataFrame
-
-            return cast(DataFrame, df_transformed)
+            return df_transformed
 
         except Exception as e:
             self.logger.error(f"Failed to apply data transformations: {e}")

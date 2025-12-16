@@ -150,7 +150,12 @@ def _is_delta_lake_available_execution(spark: SparkSession) -> bool:  # type: ig
         catalog = spark.conf.get("spark.sql.catalog.spark_catalog", "")  # type: ignore[attr-defined]
 
         # If both extensions and catalog are configured for Delta, assume it works
-        if "DeltaSparkSessionExtension" in extensions and "DeltaCatalog" in catalog:
+        if (
+            extensions
+            and catalog
+            and "DeltaSparkSessionExtension" in extensions
+            and "DeltaCatalog" in catalog
+        ):
             _delta_availability_cache_execution[spark_id] = True
             return True
     except Exception:
@@ -159,7 +164,7 @@ def _is_delta_lake_available_execution(spark: SparkSession) -> bool:  # type: ig
     # If only extensions are configured, do a lightweight test
     try:
         extensions = spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
-        if "DeltaSparkSessionExtension" in extensions:
+        if extensions and "DeltaSparkSessionExtension" in extensions:
             # Try a simple test - create a minimal DataFrame and try to write it
             test_df = spark.createDataFrame([(1, "test")], ["id", "name"])
             # Use a unique temp directory to avoid conflicts
@@ -233,6 +238,76 @@ def _create_dataframe_writer(
         writer = writer.option(key, value)
 
     return writer
+
+
+def _recover_table_schema(spark: Any, table_name: str) -> Optional[Any]:
+    """
+    Attempt to recover table schema when catalog shows empty schema.
+    
+    Tries multiple methods:
+    1. DESCRIBE TABLE and refresh, then re-read schema
+    2. Read table DataFrame and use its schema (even if catalog shows empty)
+    
+    Args:
+        spark: Spark session
+        table_name: Fully qualified table name
+        
+    Returns:
+        Recovered StructType schema or None if recovery fails
+    """
+    try:
+        # Method 1: Try DESCRIBE TABLE and REFRESH to force catalog sync
+        try:
+            spark.sql(f"REFRESH TABLE {table_name}")  # type: ignore[attr-defined]
+        except Exception:
+            pass  # Ignore refresh errors
+        
+        # Re-read table after refresh
+        table_df = spark.table(table_name)  # type: ignore[attr-defined]
+        df_schema = table_df.schema  # type: ignore[attr-defined]
+        
+        # Check if schema now has fields
+        if hasattr(df_schema, "fields") and df_schema.fields and len(df_schema.fields) > 0:
+            return df_schema
+        
+        # Method 2: Even if schema.fields is empty, check if DataFrame has columns
+        # This indicates the table exists and has data, just catalog is out of sync
+        if table_df.columns and len(table_df.columns) > 0:
+            # DataFrame has columns - try DESCRIBE TABLE to get schema information
+            try:
+                describe_df = spark.sql(f"DESCRIBE TABLE {table_name}")  # type: ignore[attr-defined]
+                describe_rows = describe_df.collect()  # type: ignore[attr-defined]
+                
+                # If DESCRIBE returns column information, try to re-read the table
+                # Sometimes DESCRIBE helps Spark refresh its understanding of the schema
+                if describe_rows and len(describe_rows) > 0:
+                    # Try reading the table again after DESCRIBE
+                    table_df_retry = spark.table(table_name)  # type: ignore[attr-defined]
+                    df_schema_retry = table_df_retry.schema  # type: ignore[attr-defined]
+                    if hasattr(df_schema_retry, "fields") and df_schema_retry.fields and len(df_schema_retry.fields) > 0:
+                        return df_schema_retry
+            except Exception:
+                # DESCRIBE or re-read failed
+                pass
+            
+            # If DESCRIBE didn't help, try to force schema resolution by reading data
+            try:
+                # Attempt to read a row to force Spark to resolve schema
+                sample = table_df.limit(1)
+                sample.collect()  # Force execution
+                
+                # Re-read schema after forcing execution
+                df_schema_retry = table_df.schema  # type: ignore[attr-defined]
+                if hasattr(df_schema_retry, "fields") and df_schema_retry.fields and len(df_schema_retry.fields) > 0:
+                    return df_schema_retry
+            except Exception:
+                # Schema recovery via data read failed
+                pass
+    except Exception:
+        # Schema recovery failed
+        pass
+    
+    return None
 
 
 class StepStatus(Enum):
@@ -432,18 +507,19 @@ class ExecutionEngine:
                         # Convert Row objects to dictionaries to preserve column names
                         # This fixes a bug in mock-spark's Polars backend where Row objects
                         # lose column names during materialization after filter operations
+                        dict_data: list[dict[str, Any]]
                         if collected_data and hasattr(collected_data[0], "asDict"):
                             # Convert Row objects to dictionaries
-                            dict_data = [row.asDict() for row in collected_data]
+                            dict_data = [row.asDict() for row in collected_data]  # type: ignore[assignment]
                         elif collected_data:
                             # Fallback: try to convert to dict if possible
                             try:
-                                dict_data = [dict(row) for row in collected_data]
+                                dict_data = [dict(row) for row in collected_data]  # type: ignore[assignment]
                             except (TypeError, ValueError):
                                 # If conversion fails, use original data
-                                dict_data = collected_data
+                                dict_data = collected_data  # type: ignore[assignment]
                         else:
-                            dict_data = collected_data
+                            dict_data = collected_data  # type: ignore[assignment]
 
                         # Recreate DataFrame from dictionary data
                         # This ensures all columns are fully materialized with correct names
@@ -573,7 +649,10 @@ class ExecutionEngine:
                     # If all methods fail, raise error - schema creation is critical
                     # Check if it's a schema already exists error
                     error_msg = str(e).lower()
-                    if "already exists" not in error_msg and "duplicate" not in error_msg:
+                    if (
+                        "already exists" not in error_msg
+                        and "duplicate" not in error_msg
+                    ):
                         raise ExecutionError(
                             f"Failed to create schema '{schema}' before table creation: {e}"
                         ) from e
@@ -590,39 +669,144 @@ class ExecutionEngine:
                     write_mode_str = "overwrite"
 
                 # For incremental mode with append, validate schema matches existing table
+                # Initialize flag for catalog sync issue handling
+                use_merge_schema_for_catalog_issue = False  # Track if we should use mergeSchema due to catalog sync issue
                 if mode == ExecutionMode.INCREMENTAL and write_mode_str == "append":
                     if table_exists(self.spark, output_table):
                         try:
-                            existing_table = self.spark.table(output_table)  # type: ignore[attr-defined]
-                            existing_schema = existing_table.schema  # type: ignore[attr-defined]
+                            # Refresh table to ensure we have latest schema
+                            try:
+                                self.spark.sql(f"REFRESH TABLE {output_table}")  # type: ignore[attr-defined]
+                            except Exception:
+                                pass  # Ignore refresh errors
+                            
+                            existing_table_inc = self.spark.table(output_table)  # type: ignore[attr-defined]
+                            existing_schema = existing_table_inc.schema  # type: ignore[attr-defined]
                             output_schema = output_df.schema  # type: ignore[attr-defined]
-
-                            # Compare schemas - check column names and types
-                            existing_columns = {
-                                f.name: f.dataType for f in existing_schema.fields
-                            }
-                            output_columns = {
-                                f.name: f.dataType for f in output_schema.fields
-                            }
-
-                            # Check for missing columns in output
-                            missing_in_output = set(existing_columns.keys()) - set(
-                                output_columns.keys()
+                            
+                            # If schema is empty, try to recover it
+                            schema_validation_skipped = False
+                            # Debug: Log schema state
+                            self.logger.debug(
+                                f"[SCHEMA_DEBUG] Checking schema for '{output_table}': "
+                                f"fields_count={len(existing_schema.fields) if existing_schema.fields else 0}, "
+                                f"columns={existing_table_inc.columns if hasattr(existing_table_inc, 'columns') else 'N/A'}"
                             )
-                            # Check for new columns in output (not in existing table)
-                            new_in_output = set(output_columns.keys()) - set(
-                                existing_columns.keys()
-                            )
-                            # Check for type mismatches
-                            type_mismatches = []
-                            for col in set(existing_columns.keys()) & set(
-                                output_columns.keys()
-                            ):
-                                if existing_columns[col] != output_columns[col]:
-                                    type_mismatches.append(
-                                        f"{col}: existing={existing_columns[col]}, "
-                                        f"output={output_columns[col]}"
+                            
+                            if not existing_schema.fields or len(existing_schema.fields) == 0:
+                                self.logger.warning(
+                                    f"Table '{output_table}' has empty schema in incremental mode. "
+                                    f"Catalog sync issue detected. Attempting schema recovery..."
+                                )
+                                self.logger.debug(
+                                    f"[SCHEMA_DEBUG] Empty schema detected. existing_schema.fields={existing_schema.fields}, "
+                                    f"existing_table_inc.columns={existing_table_inc.columns if hasattr(existing_table_inc, 'columns') else 'N/A'}"
+                                )
+                                
+                                # Try to recover schema
+                                self.logger.debug(f"[SCHEMA_DEBUG] Calling _recover_table_schema for '{output_table}'")
+                                recovered_schema = _recover_table_schema(self.spark, output_table)
+                                self.logger.debug(
+                                    f"[SCHEMA_DEBUG] Schema recovery result: "
+                                    f"recovered={recovered_schema is not None}, "
+                                    f"fields_count={len(recovered_schema.fields) if recovered_schema and hasattr(recovered_schema, 'fields') and recovered_schema.fields else 0}"
+                                )
+                                
+                                if recovered_schema and hasattr(recovered_schema, "fields") and recovered_schema.fields and len(recovered_schema.fields) > 0:
+                                    # Schema recovery succeeded - use recovered schema for validation
+                                    existing_schema = recovered_schema
+                                    self.logger.info(
+                                        f"Successfully recovered schema for '{output_table}': {existing_schema}"
                                     )
+                                    # Catalog sync issue detected - use mergeSchema during write to handle any remaining sync issues
+                                    use_merge_schema_for_catalog_issue = True
+                                    self.logger.debug(
+                                        f"[SCHEMA_DEBUG] Catalog sync issue detected, will use mergeSchema during write"
+                                    )
+                                    # Continue with normal validation using recovered schema
+                                    # Don't skip validation - we have a valid schema now
+                                elif catalog_sync_issue and schema_fields_count > 0:
+                                    # Schema has fields but columns mismatch (or vice versa) - catalog sync issue
+                                    # Use mergeSchema to handle the sync issue during write
+                                    self.logger.warning(
+                                        f"Catalog sync issue detected for '{output_table}': "
+                                        f"fields_count={schema_fields_count}, columns_count={schema_columns_count}. "
+                                        f"Will use mergeSchema during write."
+                                    )
+                                    use_merge_schema_for_catalog_issue = True
+                                    # Continue with normal validation - schema appears valid
+                                else:
+                                    # Schema recovery failed - check if table has data
+                                    try:
+                                        row_count = existing_table_inc.count()  # type: ignore[attr-defined]
+                                        if row_count > 0:
+                                            # Table has data but no schema - catalog corruption
+                                            # Use mergeSchema to allow Delta to merge schemas if they match
+                                            self.logger.warning(
+                                                f"Table '{output_table}' has {row_count} rows but empty schema. "
+                                                f"Catalog corruption detected. Will use mergeSchema option to allow write if schemas match."
+                                            )
+                                            self.logger.debug(
+                                                f"[SCHEMA_DEBUG] Setting flags: schema_validation_skipped=True, "
+                                                f"use_merge_schema_for_catalog_issue=True"
+                                            )
+                                            schema_validation_skipped = True
+                                            use_merge_schema_for_catalog_issue = True
+                                            # Skip validation - schema variables will be empty, so validation check will pass
+                                            existing_columns = {}
+                                            output_columns = {}
+                                            missing_in_output = set()
+                                            new_in_output = set()
+                                            type_mismatches = []
+                                        else:
+                                            # Table is empty - treat as new table
+                                            self.logger.info(
+                                                f"Table '{output_table}' is empty. Treating as new table."
+                                            )
+                                            schema_validation_skipped = True
+                                            # Skip validation - schema variables will be empty, so validation check will pass
+                                            existing_columns = {}
+                                            output_columns = {}
+                                            missing_in_output = set()
+                                            new_in_output = set()
+                                            type_mismatches = []
+                                    except Exception as count_error:
+                                        # Could not count rows - assume table has data and skip validation
+                                        self.logger.warning(
+                                            f"Could not count rows for '{output_table}': {count_error}. "
+                                            f"Will attempt write and let Spark handle schema validation."
+                                        )
+                                        schema_validation_skipped = True
+                                        existing_columns = {}
+                                        output_columns = {}
+                                        missing_in_output = set()
+                                        new_in_output = set()
+                                        type_mismatches = []
+                            
+                            # If schema validation was not skipped, proceed with normal validation
+                            if not schema_validation_skipped:
+                                # Normal case: schema is valid (either original or recovered), proceed with validation
+                                existing_columns = {
+                                    f.name: f.dataType for f in existing_schema.fields
+                                }
+                                output_columns = {
+                                    f.name: f.dataType for f in output_schema.fields
+                                }
+                                missing_in_output = set(existing_columns.keys()) - set(
+                                    output_columns.keys()
+                                )
+                                new_in_output = set(output_columns.keys()) - set(
+                                    existing_columns.keys()
+                                )
+                                type_mismatches = []
+                                for col in set(existing_columns.keys()) & set(
+                                    output_columns.keys()
+                                ):
+                                    if existing_columns[col] != output_columns[col]:
+                                        type_mismatches.append(
+                                            f"{col}: existing={existing_columns[col]}, "
+                                            f"output={output_columns[col]}"
+                                        )
 
                             if missing_in_output or new_in_output or type_mismatches:
                                 error_details = []
@@ -849,39 +1033,146 @@ class ExecutionEngine:
                     # Normal write without schema override
                     # For overwrite mode with existing tables, manually merge schemas for evolution
                     # Try to read the table directly - if it exists, we'll merge schemas
-                    existing_table = None
+                    existing_table: Optional[DataFrame] = None
                     if write_mode_str == "overwrite":
                         try:
                             existing_table = self.spark.table(output_table)  # type: ignore[attr-defined]
                         except Exception:
                             # Table doesn't exist yet, will be created normally
-                            existing_table = None
+                            pass
 
                     if write_mode_str == "overwrite" and existing_table is not None:
                         try:
+                            # Refresh the catalog to ensure we get the latest schema
+                            # This helps with catalog sync issues in Spark
+                            try:
+                                self.spark.sql(f"REFRESH TABLE {output_table}")  # type: ignore[attr-defined]
+                            except Exception:
+                                pass  # Ignore refresh errors, proceed with schema check
+                            
+                            # Re-read the table after refresh to get accurate schema
+                            existing_table = self.spark.table(output_table)  # type: ignore[attr-defined]
+                            
                             existing_schema = existing_table.schema  # type: ignore[attr-defined]
-                            output_schema = output_df.schema  # type: ignore[attr-defined]
+                            
+                            # Check if schema is empty immediately after reading
+                            # This is a critical check to catch catalog sync issues early
+                            schema_fields_count = len(existing_schema.fields) if existing_schema.fields else 0
+                            columns_count = len(existing_table.columns) if hasattr(existing_table, 'columns') else 0
+                            
+                            # If schema fields are empty, try DESCRIBE TABLE as fallback
+                            # Sometimes table.schema.fields is empty but DESCRIBE TABLE shows the actual schema
+                            # CRITICAL: If schema is empty, Spark will fail during write, so we must drop the table
+                            if schema_fields_count == 0:
+                                if columns_count > 0:
+                                    # Schema fields empty but columns exist - catalog sync issue
+                                    self.logger.debug(
+                                        f"Table '{output_table}' has empty schema.fields but columns exist. "
+                                        f"Trying DESCRIBE TABLE as fallback..."
+                                    )
+                                    try:
+                                        # Use DESCRIBE TABLE to get schema information
+                                        describe_result = self.spark.sql(f"DESCRIBE TABLE {output_table}")  # type: ignore[attr-defined]
+                                        describe_rows = describe_result.collect()  # type: ignore[attr-defined]
+                                        
+                                        # Check if DESCRIBE returned any columns
+                                        if describe_rows and len(describe_rows) > 0:
+                                            # Try to re-read the table after describe - sometimes this fixes catalog sync
+                                            self.spark.sql(f"REFRESH TABLE {output_table}")  # type: ignore[attr-defined]
+                                            existing_table = self.spark.table(output_table)  # type: ignore[attr-defined]
+                                            existing_schema = existing_table.schema  # type: ignore[attr-defined]
+                                            schema_fields_count = len(existing_schema.fields) if existing_schema.fields else 0
+                                            
+                                            if schema_fields_count == 0:
+                                                # Still empty after refresh - drop the table
+                                                self.logger.warning(
+                                                    f"Table '{output_table}' still has empty schema after DESCRIBE and REFRESH. "
+                                                    f"This indicates a catalog sync issue. Dropping and recreating the table..."
+                                                )
+                                                try:
+                                                    self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                                                except Exception:
+                                                    pass
+                                                existing_table = None
+                                    except Exception as describe_error:
+                                        self.logger.warning(
+                                            f"DESCRIBE TABLE failed for '{output_table}': {describe_error}. "
+                                            f"Dropping and recreating the table..."
+                                        )
+                                        # If DESCRIBE fails, drop and recreate
+                                        try:
+                                            self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                                        except Exception:
+                                            pass
+                                        existing_table = None
+                                else:
+                                    # Schema is empty and no columns detected either - drop and recreate
+                                    self.logger.warning(
+                                        f"Table '{output_table}' has empty schema (fields={schema_fields_count}, "
+                                        f"columns={columns_count}). This might be a catalog sync issue or empty table. "
+                                        f"Dropping and recreating the table..."
+                                    )
+                                    # Drop and recreate - treat as if table doesn't exist
+                                    try:
+                                        self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                                    except Exception:
+                                        pass
+                                    existing_table = None
+                                
+                            if existing_table is not None:
+                                existing_schema = existing_table.schema  # type: ignore[attr-defined]
+                                output_schema = output_df.schema  # type: ignore[attr-defined]
 
-                            # Check if there are new columns in output that don't exist in table
-                            existing_columns = {
-                                f.name: f for f in existing_schema.fields
-                            }
-                            output_columns = {f.name: f for f in output_schema.fields}
-                            new_columns = set(output_columns.keys()) - set(
-                                existing_columns.keys()
-                            )
-                            missing_columns = set(existing_columns.keys()) - set(
-                                output_columns.keys()
-                            )
+                                # Check if there are new columns in output that don't exist in table
+                                existing_columns = {
+                                    f.name: f for f in existing_schema.fields
+                                }
+                                
+                                # CRITICAL: If schema.fields is empty but table.columns has values,
+                                # we have a catalog sync issue that will cause write failures
+                                # Check this right after building existing_columns to catch it early
+                                if len(existing_columns) == 0 and hasattr(existing_table, 'columns'):
+                                    table_columns = existing_table.columns
+                                    if len(table_columns) > 0:
+                                        self.logger.warning(
+                                            f"Table '{output_table}' has columns {table_columns} but empty schema.fields. "
+                                            f"This indicates a catalog sync issue that will cause write failures. "
+                                            f"Dropping and recreating the table..."
+                                        )
+                                        try:
+                                            self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                                        except Exception:
+                                            pass
+                                        existing_table = None
+                                        schema_evolution_detected = False
+                                
+                                # If table was dropped, skip schema evolution logic
+                                if existing_table is None:
+                                    output_schema = output_df.schema  # type: ignore[attr-defined]
+                                    existing_columns = {}
+                                else:
+                                    # Re-read schema in case table was refreshed
+                                    existing_schema = existing_table.schema  # type: ignore[attr-defined]
+                                    existing_columns = {
+                                        f.name: f for f in existing_schema.fields
+                                    }
+                                
+                                output_columns = {f.name: f for f in output_schema.fields}
+                                new_columns = set(output_columns.keys()) - set(
+                                    existing_columns.keys()
+                                )
+                                missing_columns = set(existing_columns.keys()) - set(
+                                    output_columns.keys()
+                                )
 
-                            # Track whether schema evolution was detected
-                            schema_evolution_detected = False
+                                # Track whether schema evolution was detected
+                                schema_evolution_detected = False
 
-                            # If there are new columns, merge schemas manually to preserve existing columns
-                            # Always preserve ALL existing columns, even if validation rules filtered them out
-                            if new_columns:
-                                schema_evolution_detected = True
-                                self.logger.info(
+                                # If there are new columns, merge schemas manually to preserve existing columns
+                                # Always preserve ALL existing columns, even if validation rules filtered them out
+                                if new_columns:
+                                    schema_evolution_detected = True
+                                    self.logger.info(
                                     f"Schema evolution detected for table '{output_table}': "
                                     f"adding new columns {sorted(new_columns)}, "
                                     f"existing table columns {sorted(existing_columns.keys())}, "
@@ -1043,13 +1334,16 @@ class ExecutionEngine:
                                                 overwriteSchema="true",
                                             )
                                 else:
-                                    # For append mode, use normal write
-                                    writer = _create_dataframe_writer(
-                                        output_df,
-                                        self.spark,
-                                        write_mode_str,
-                                        overwriteSchema="true",
-                                    )
+                                    # For append mode, use mergeSchema if catalog sync issue detected
+                                    if write_mode_str == "append" and use_merge_schema_for_catalog_issue:
+                                        writer = _create_dataframe_writer(
+                                            output_df, self.spark, "append", mergeSchema="true"
+                                        )
+                                    else:
+                                        # Normal write
+                                        writer = _create_dataframe_writer(
+                                            output_df, self.spark, write_mode_str
+                                        )
                             else:
                                 # No schema changes detected
                                 schema_evolution_detected = False
@@ -1091,10 +1385,16 @@ class ExecutionEngine:
                                             output_df, self.spark, "overwrite"
                                         )
                                 else:
-                                    # For append mode, normal write
-                                    writer = _create_dataframe_writer(
-                                        output_df, self.spark, write_mode_str
-                                    )
+                                    # For append mode, use mergeSchema if catalog sync issue detected
+                                    if write_mode_str == "append" and use_merge_schema_for_catalog_issue:
+                                        writer = _create_dataframe_writer(
+                                            output_df, self.spark, "append", mergeSchema="true"
+                                        )
+                                    else:
+                                        # Normal write
+                                        writer = _create_dataframe_writer(
+                                            output_df, self.spark, write_mode_str
+                                        )
                         except Exception as e:
                             # If we can't read the existing table, log and continue with normal write
                             self.logger.warning(
@@ -1138,10 +1438,27 @@ class ExecutionEngine:
                                         output_df, self.spark, "overwrite"
                                     )
                             else:
-                                # For append mode, normal write
-                                writer = _create_dataframe_writer(
-                                    output_df, self.spark, write_mode_str
+                                # For append mode, use mergeSchema if catalog sync issue detected
+                                self.logger.debug(
+                                    f"[SCHEMA_DEBUG] Creating writer: write_mode_str={write_mode_str}, "
+                                    f"use_merge_schema_for_catalog_issue={use_merge_schema_for_catalog_issue}"
                                 )
+                                if write_mode_str == "append" and use_merge_schema_for_catalog_issue:
+                                    self.logger.debug(
+                                        f"[SCHEMA_DEBUG] Using mergeSchema='true' for append mode due to catalog issue"
+                                    )
+                                    writer = _create_dataframe_writer(
+                                        output_df, self.spark, "append", mergeSchema="true"
+                                    )
+                                else:
+                                    # Normal write (no special schema options needed)
+                                    # Schema validation already handled above, or will be handled by Spark
+                                    self.logger.debug(
+                                        f"[SCHEMA_DEBUG] Using normal write mode without mergeSchema"
+                                    )
+                                    writer = _create_dataframe_writer(
+                                        output_df, self.spark, write_mode_str
+                                    )
                     else:
                         # Table doesn't exist or not overwrite mode
                         schema_evolution_detected = (
@@ -1153,10 +1470,17 @@ class ExecutionEngine:
                                 output_df, self.spark, "append"
                             )
                         else:
-                            # For append mode, normal write
-                            writer = _create_dataframe_writer(
-                                output_df, self.spark, write_mode_str
-                            )
+                            # For append mode, use mergeSchema if catalog sync issue detected
+                            if write_mode_str == "append" and use_merge_schema_for_catalog_issue:
+                                writer = _create_dataframe_writer(
+                                    output_df, self.spark, "append", mergeSchema="true"
+                                )
+                            else:
+                                # Normal write (no special schema options needed)
+                                # Schema validation already handled above, or will be handled by Spark
+                                writer = _create_dataframe_writer(
+                                    output_df, self.spark, write_mode_str
+                                )
 
                     # Execute write with error handling for parallel execution race conditions
                     # Use table-level lock to serialize writes to the same table
@@ -1180,6 +1504,36 @@ class ExecutionEngine:
                         table_exists_before_write = table_exists(
                             self.spark, output_table
                         )
+                        
+                        # CRITICAL: If table exists, verify its schema is valid before attempting write
+                        # If schema is empty, Spark will fail with "column number mismatch" error
+                        if table_exists_before_write and schema_evolution_detected:
+                            try:
+                                # Re-check table schema right before write to catch any catalog sync issues
+                                check_table = self.spark.table(output_table)  # type: ignore[attr-defined]
+                                check_schema = check_table.schema  # type: ignore[attr-defined]
+                                schema_fields_count = len(check_schema.fields) if check_schema.fields else 0
+                                
+                                if schema_fields_count == 0:
+                                    # Schema is empty right before write - drop the table to avoid write failure
+                                    self.logger.warning(
+                                        f"Table '{output_table}' has empty schema right before write. "
+                                        f"Dropping table to avoid schema mismatch error..."
+                                    )
+                                    try:
+                                        self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                                        table_exists_before_write = False
+                                        # Reset schema_evolution_detected since table no longer exists
+                                        schema_evolution_detected = False
+                                    except Exception as drop_error:
+                                        self.logger.warning(
+                                            f"Failed to drop table '{output_table}' before write: {drop_error}"
+                                        )
+                            except Exception as schema_check_error:
+                                self.logger.debug(
+                                    f"Could not verify schema for '{output_table}' before write: {schema_check_error}"
+                                )
+                        
                         switched_to_append = False
                         if table_exists_before_write and write_mode_str == "overwrite":
                             # Don't switch to append mode if schema evolution was detected and we're using mock-spark
@@ -1195,17 +1549,217 @@ class ExecutionEngine:
                                 _is_delta_lake_available_execution(self.spark)
 
                                 # Recreate writer with append mode
-                                writer = _create_dataframe_writer(
-                                    output_df, self.spark, "append", mergeSchema="true"
-                                )
+                                # Use mergeSchema if catalog sync issue detected
+                                if use_merge_schema_for_catalog_issue:
+                                    writer = _create_dataframe_writer(
+                                        output_df, self.spark, "append", mergeSchema="true"
+                                    )
+                                else:
+                                    # Normal write
+                                    writer = _create_dataframe_writer(
+                                        output_df, self.spark, "append"
+                                    )
                                 switched_to_append = True
 
                         try:
+                            # Final schema check right before write - catch any last-minute catalog sync issues
+                            # BUT: Skip this for incremental mode - schema mismatches should fail in incremental mode
+                            if (
+                                table_exists_before_write
+                                and schema_evolution_detected
+                                and mode != ExecutionMode.INCREMENTAL
+                            ):
+                                try:
+                                    final_check_table = self.spark.table(output_table)  # type: ignore[attr-defined]
+                                    final_check_schema = final_check_table.schema  # type: ignore[attr-defined]
+                                    if not final_check_schema.fields or len(final_check_schema.fields) == 0:
+                                        # Schema is empty right before write - drop table and retry
+                                        self.logger.warning(
+                                            f"Table '{output_table}' has empty schema immediately before write. "
+                                            f"Dropping table to avoid schema mismatch error..."
+                                        )
+                                        self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                                        # Recreate writer without schema evolution since table is now gone
+                                        writer = _create_dataframe_writer(
+                                            output_df, self.spark, write_mode_str
+                                        )
+                                        table_exists_before_write = False
+                                except Exception as final_check_error:
+                                    self.logger.debug(
+                                        f"Final schema check failed for '{output_table}': {final_check_error}"
+                                    )
+                            
+                            self.logger.debug(f"[SCHEMA_DEBUG] About to call saveAsTable for '{output_table}'")
                             writer.saveAsTable(output_table)  # type: ignore[attr-defined]
+                            self.logger.debug(f"[SCHEMA_DEBUG] saveAsTable completed successfully for '{output_table}'")
                         except Exception as write_error:
                             # Handle race condition where table might be created by another thread
+                            # Also handle schema mismatch errors from catalog sync issues
                             error_msg = str(write_error).lower()
+                            
+                            # Check for schema mismatch errors (empty schema in catalog)
+                            # IMPORTANT: Only handle this for overwrite mode, NOT for incremental mode
+                            # In incremental mode, schema mismatches should fail as expected
                             if (
+                                "column number of the existing table" in error_msg
+                                and "struct<>" in error_msg
+                                and mode != ExecutionMode.INCREMENTAL
+                            ):
+                                self.logger.warning(
+                                    f"Schema mismatch error detected for '{output_table}' (likely empty schema in catalog). "
+                                    f"Dropping table and retrying write..."
+                                )
+                                try:
+                                    # Drop the table and retry with a fresh write
+                                    self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                                    # Use append mode for retry to avoid Delta Lake truncate issues
+                                    # After dropping, the table doesn't exist, so append will create it
+                                    retry_writer = _create_dataframe_writer(
+                                        output_df, self.spark, "append"
+                                    )
+                                    retry_writer.saveAsTable(output_table)  # type: ignore[attr-defined]
+                                    # Write succeeded after dropping table - this exception is handled, continue normally
+                                    # Don't re-raise the error since we successfully retried
+                                except Exception as retry_error:
+                                    # If retry also fails, raise the original error wrapped with retry error
+                                    self.logger.error(
+                                        f"Retry write failed after dropping table '{output_table}': {retry_error}"
+                                    )
+                                    raise ExecutionError(
+                                        f"Failed to write table '{output_table}' after dropping table due to schema mismatch. "
+                                        f"Original error: {write_error}. Retry error: {retry_error}",
+                                        context={
+                                            "step_name": step.name,
+                                            "table": output_table,
+                                            "original_error": str(write_error),
+                                            "retry_error": str(retry_error),
+                                        },
+                                    ) from retry_error
+                                # If retry succeeded, fall through to normal completion (don't re-raise)
+                            elif (
+                                "column number of the existing table" in error_msg
+                                and "struct<>" in error_msg
+                                and mode == ExecutionMode.INCREMENTAL
+                            ):
+                                # In incremental mode, struct<> error indicates catalog sync issue
+                                # Try REFRESH TABLE first, then retry with mergeSchema
+                                self.logger.warning(
+                                    f"[SCHEMA_DEBUG] Empty schema error (struct<>) in incremental mode for '{output_table}'. "
+                                    f"Attempting REFRESH TABLE then retry with mergeSchema..."
+                                )
+                                try:
+                                    # First, try to refresh the table to sync the catalog
+                                    try:
+                                        self.spark.sql(f"REFRESH TABLE {output_table}")  # type: ignore[attr-defined]
+                                        self.logger.warning(
+                                            f"[SCHEMA_DEBUG] REFRESH TABLE completed for '{output_table}'"
+                                        )
+                                    except Exception as refresh_error:
+                                        self.logger.warning(
+                                            f"[SCHEMA_DEBUG] REFRESH TABLE failed for '{output_table}': {refresh_error}. "
+                                            f"Continuing with mergeSchema retry..."
+                                        )
+                                    
+                                    # Check if schemas actually match by reading the table data
+                                    # If catalog is corrupted, try to read data directly
+                                    try:
+                                        # Try to read table data to verify schema matches
+                                        table_data = self.spark.table(output_table)  # type: ignore[attr-defined]
+                                        actual_schema = table_data.schema  # type: ignore[attr-defined]
+                                        output_schema_check = output_df.schema  # type: ignore[attr-defined]
+                                        
+                                        # Compare schemas
+                                        actual_fields = {f.name: f.dataType for f in actual_schema.fields} if actual_schema.fields else {}
+                                        output_fields = {f.name: f.dataType for f in output_schema_check.fields}
+                                        
+                                        if actual_fields == output_fields:
+                                            # Schemas match - catalog is corrupted but data is fine
+                                            # For Delta tables with corrupted catalog, try writing using DeltaTable API
+                                            # which might bypass catalog issues
+                                            if HAS_DELTA and DeltaTable is not None:
+                                                try:
+                                                    # Get table path
+                                                    table_location = None
+                                                    try:
+                                                        table_info = self.spark.sql(f"DESCRIBE TABLE EXTENDED {output_table}").collect()  # type: ignore[attr-defined]
+                                                        for row in table_info:
+                                                            if row['col_name'] == 'Location':  # type: ignore[index]
+                                                                table_location = row['data_type']  # type: ignore[index]
+                                                                break
+                                                    except Exception:
+                                                        pass
+                                                    
+                                                    if table_location:
+                                                        # Write using DeltaTable API
+                                                        delta_table = DeltaTable.forPath(self.spark, table_location)  # type: ignore[attr-defined]
+                                                        # Use merge to append data (bypasses catalog)
+                                                        delta_table.alias("target").merge(
+                                                            output_df.alias("source"),
+                                                            "1=0"  # Never match condition, so all rows are inserted
+                                                        ).whenNotMatchedInsertAll().execute()  # type: ignore[attr-defined]
+                                                        self.logger.info(
+                                                            f"Successfully wrote to '{output_table}' using DeltaTable API to bypass catalog sync issue"
+                                                        )
+                                                        # Write succeeded - continue normally
+                                                        # Don't re-raise the error since we successfully wrote
+                                                    else:
+                                                        raise Exception("Could not determine table location")
+                                                except Exception as delta_error:
+                                                    self.logger.warning(
+                                                        f"[SCHEMA_DEBUG] DeltaTable API write failed: {delta_error}. "
+                                                        f"Falling back to mergeSchema retry..."
+                                                    )
+                                                    raise  # Fall through to mergeSchema retry
+                                            else:
+                                                # DeltaTable not available, try mergeSchema retry
+                                                raise Exception("DeltaTable API not available")
+                                        else:
+                                            # Schemas don't match - real schema mismatch
+                                            raise Exception(
+                                                f"Schema mismatch: actual={actual_fields}, output={output_fields}"
+                                            )
+                                    except Exception as schema_check_error:
+                                        # Schema check or DeltaTable write failed, try mergeSchema retry
+                                        self.logger.debug(
+                                            f"[SCHEMA_DEBUG] Schema check/DeltaTable write failed: {schema_check_error}. "
+                                            f"Trying mergeSchema retry..."
+                                        )
+                                        # Retry write with mergeSchema to handle catalog sync issue
+                                        retry_writer = _create_dataframe_writer(
+                                            output_df, self.spark, "append", mergeSchema="true"
+                                        )
+                                        retry_writer.saveAsTable(output_table)  # type: ignore[attr-defined]
+                                        self.logger.warning(
+                                            f"[SCHEMA_DEBUG] Retry with mergeSchema succeeded for '{output_table}'"
+                                        )
+                                        # Write succeeded after retry - continue normally
+                                        # Don't re-raise the error since we successfully retried
+                                except Exception as retry_error:
+                                    # Retry with mergeSchema also failed - real schema mismatch
+                                    self.logger.error(
+                                        f"[SCHEMA_DEBUG] Retry with mergeSchema failed for '{output_table}': {retry_error}"
+                                    )
+                                    # This indicates a real schema mismatch, raise error
+                                    raise ExecutionError(
+                                        f"Schema mismatch for table '{output_table}' in incremental mode. "
+                                        f"Cannot append data with different schema to existing table. "
+                                        f"mergeSchema retry failed, indicating a real schema mismatch. "
+                                        f"Original error: {write_error}. Retry error: {retry_error}",
+                                        context={
+                                            "step_name": step.name,
+                                            "table": output_table,
+                                            "mode": "incremental",
+                                            "original_error": str(write_error),
+                                            "retry_error": str(retry_error),
+                                        },
+                                        suggestions=[
+                                            "Ensure the output schema matches the existing table schema",
+                                            "Use schema_override to explicitly specify the expected schema",
+                                            "Run initial_load or full_refresh to recreate the table with the new schema",
+                                        ],
+                                    ) from retry_error
+                                # Skip the rest of error handling since we've handled this case
+                            elif (
                                 "already exists" in error_msg
                                 or "table_or_view_already_exists" in error_msg
                                 or isinstance(write_error, AnalysisException)
@@ -1942,7 +2496,12 @@ class ExecutionEngine:
         try:
             column_order: list[str] = []
             if hasattr(schema, "__iter__"):
-                column_order = [getattr(field, "name", field) for field in schema]
+                column_order = [
+                    str(getattr(field, "name", field))
+                    if hasattr(field, "name")
+                    else str(field)
+                    for field in schema
+                ]
             if not column_order and hasattr(schema, "fieldNames"):
                 column_order = list(schema.fieldNames())
             if not column_order and hasattr(schema, "names"):

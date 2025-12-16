@@ -130,24 +130,53 @@ def system_spark_session():
 
 @pytest.fixture(autouse=True, scope="function")
 def cleanup_system_tables(system_spark_session):
-    """Clean up test tables after each system test."""
-    yield
-    # Cleanup after each test
+    """Reset global state before and after each system test."""
+    # Only reset global state - use unique table names for isolation
     try:
-        if (
-            hasattr(system_spark_session, "sparkContext")
-            and system_spark_session.sparkContext._jsc is not None
-        ):
-            # Drop any tables that might have been created
-            tables = system_spark_session.sql("SHOW TABLES IN test_schema").collect()
-            for table in tables:
-                table_name = table.tableName
-                system_spark_session.sql(
-                    f"DROP TABLE IF EXISTS test_schema.{table_name}"
-                )
+        from tests.test_helpers.isolation import (
+            reset_execution_state,
+            reset_global_state,
+        )
+
+        reset_global_state()
+        reset_execution_state()
     except Exception:
-        # Ignore cleanup errors
         pass
+
+    yield
+
+    # Only reset global state after test
+    try:
+        from tests.test_helpers.isolation import (
+            reset_execution_state,
+            reset_global_state,
+        )
+
+        reset_global_state()
+        reset_execution_state()
+    except Exception:
+        pass
+
+
+@pytest.fixture(scope="function")
+def unique_schema():
+    """Provide a unique schema name for each system test."""
+    import time
+    
+    unique_id = int(time.time() * 1000000) % 1000000
+    return f"test_schema_{unique_id}"
+
+
+@pytest.fixture(scope="function")
+def unique_table_name():
+    """Provide a function to generate unique table names for each system test."""
+    import time
+    
+    def _get_unique_table(base_name: str) -> str:
+        unique_id = int(time.time() * 1000000) % 1000000
+        return f"{base_name}_{unique_id}"
+    
+    return _get_unique_table
 
 
 @pytest.fixture
