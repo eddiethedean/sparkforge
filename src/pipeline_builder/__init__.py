@@ -17,7 +17,7 @@ using the proven Medallion Architecture (Bronze → Silver → Gold). Features i
 Quick Start:
     # Install: pip install pipeline_builder[pyspark]  # or pipeline_builder[mock]
     from pipeline_builder import PipelineBuilder
-    from pyspark.sql import functions as F
+    from pipeline_builder.functions import get_default_functions as F
 
     # Initialize Spark (works with PySpark or mock-spark)
     spark = SparkSession.builder.appName("MyPipeline").getOrCreate()
@@ -79,13 +79,20 @@ __author__ = "Odos Matthews"
 __email__ = "odosmattthewsm@gmail.com"
 __description__ = "A simplified, production-ready data pipeline builder for Apache Spark and Delta Lake"
 
-# Import security and performance modules
-# Step executor functionality moved to execution module
+
+# Lazy import to avoid engine configuration during package import
+def __getattr__(name: str):
+    if name in {"PipelineBuilder", "PipelineRunner"}:
+        from .pipeline import builder as _builder, runner as _runner
+
+        if name == "PipelineBuilder":
+            return _builder.PipelineBuilder
+        return _runner.PipelineRunner
+    if name == "LogWriter":
+        from .writer import core as _core
+
+        return _core.LogWriter
+    raise AttributeError(f"module {__name__} has no attribute {name}")
 
 
-# Make key classes available at package level
-__all__ = [
-    "PipelineBuilder",
-    "PipelineRunner",
-    "LogWriter",
-]
+__all__ = ["PipelineBuilder", "PipelineRunner", "LogWriter"]

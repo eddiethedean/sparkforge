@@ -24,8 +24,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
-if TYPE_CHECKING:
-    from pyspark.sql.types import StructType
+# Engine-specific StructType should satisfy the TypesProtocol.StructType
 
 from abstracts.builder import PipelineBuilder as AbstractsPipelineBuilder
 from pipeline_builder_base.builder import BasePipelineBuilder
@@ -84,40 +83,34 @@ class PipelineBuilder(BasePipelineBuilder):
         during construction with clear error messages.
 
     Example:
-        from the framework import PipelineBuilder
-        from pyspark.sql import functions as F
-
-        # Initialize builder
-        builder = PipelineBuilder(spark=spark, schema="analytics")
-
-        # Bronze: Raw data validation (required)
-        builder.with_bronze_rules(
-            name="events",
-            rules={"user_id": ["not_null"], "timestamp": ["not_null"]},  # String rules
-            incremental_col="timestamp"
-        )
-
-        # Silver: Data transformation (required)
-        builder.add_silver_transform(
-            name="clean_events",
-            source_bronze="events",
-            transform=lambda spark, df, silvers: df.filter(F.col("value")  # type: ignore[attr-defined] > 0),
-            rules={"value": ["gt", 0]},  # String rules
-            table_name="clean_events"
-        )
-
-        # Gold: Business analytics (required)
-        builder.add_gold_transform(
-            name="daily_metrics",
-            transform=lambda spark, silvers: silvers["clean_events"].groupBy("date").agg(F.count("*").alias("count")),
-            rules={"count": ["gt", 0]},  # String rules
-            table_name="daily_metrics",
-            source_silvers=["clean_events"]
-        )
-
-        # Build and execute pipeline
-        pipeline = builder.to_pipeline()
-        result = pipeline.run_initial_load(bronze_sources={"events": source_df})
+        >>> from pipeline_builder import PipelineBuilder
+        >>> from pipeline_builder.functions import get_default_functions
+        >>> # After engine configure_engine(...):
+        >>> F = get_default_functions()
+        >>> builder = PipelineBuilder(spark=spark, schema="analytics")
+        >>> builder.with_bronze_rules(
+        ...     name="events",
+        ...     rules={"user_id": ["not_null"], "timestamp": ["not_null"]},
+        ...     incremental_col="timestamp",
+        ... )
+        >>> builder.add_silver_transform(
+        ...     name="clean_events",
+        ...     source_bronze="events",
+        ...     transform=lambda spark, df, silvers: df.filter(F.col("value") > 0),
+        ...     rules={"value": ["gt", 0]},
+        ...     table_name="clean_events",
+        ... )
+        >>> builder.add_gold_transform(
+        ...     name="daily_metrics",
+        ...     transform=lambda spark, silvers: silvers["clean_events"]
+        ...     .groupBy("date")
+        ...     .agg(F.count("*").alias("count")),
+        ...     rules={"count": ["gt", 0]},
+        ...     table_name="daily_metrics",
+        ...     source_silvers=["clean_events"],
+        ... )
+        >>> pipeline = builder.to_pipeline()
+        >>> result = pipeline.run_initial_load(bronze_sources={"events": source_df})
 
     String Rules Support:
         You can use human-readable string rules that are automatically converted to PySpark expressions:
@@ -142,30 +135,24 @@ class PipelineBuilder(BasePipelineBuilder):
         StepError: If step dependencies cannot be resolved
 
     Example:
-        >>> from the framework import PipelineBuilder
-        >>> from pyspark.sql import SparkSession, functions as F
-        >>>
-        >>> spark = SparkSession.builder.appName("My Pipeline").getOrCreate()
+        >>> from pipeline_builder import PipelineBuilder
+        >>> from pipeline_builder.functions import get_default_functions
+        >>> # After engine configure_engine(...):
+        >>> F = get_default_functions()
         >>> builder = PipelineBuilder(spark=spark, schema="my_schema")
-        >>>
-        >>> # Bronze layer - raw data validation
         >>> builder.with_bronze_rules(
         ...     name="events",
         ...     rules={"user_id": [F.col("user_id").isNotNull()]},
         ...     incremental_col="timestamp"
         ... )
-        >>>
-        >>> # Silver layer - data transformation
         >>> builder.add_silver_transform(
         ...     name="clean_events",
         ...     source_bronze="events",
-        ...     transform=lambda spark, df, silvers: df.filter(F.col("status")  # type: ignore[attr-defined] == "active"),
+        ...     transform=lambda spark, df, silvers: df.filter(F.col("status") == "active"),
         ...     rules={"status": [F.col("status").isNotNull()]},
         ...     table_name="clean_events",
         ...     watermark_col="timestamp"
         ... )
-        >>>
-        >>> # Gold layer - business analytics
         >>> builder.add_gold_transform(
         ...     name="user_analytics",
         ...     transform=lambda spark, silvers: silvers["clean_events"].groupBy("user_id").count(),
@@ -173,8 +160,6 @@ class PipelineBuilder(BasePipelineBuilder):
         ...     table_name="user_analytics",
         ...     source_silvers=["clean_events"]
         ... )
-        >>>
-        >>> # Build and execute pipeline
         >>> pipeline = builder.to_pipeline()
         >>> result = pipeline.initial_load(bronze_sources={"events": source_df})
     """

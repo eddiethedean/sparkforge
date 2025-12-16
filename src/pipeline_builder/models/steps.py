@@ -18,7 +18,8 @@ from .base import BaseModel
 from .types import ColumnRules, GoldTransformFunction, SilverTransformFunction
 
 if TYPE_CHECKING:
-    from pyspark.sql.types import StructType
+    # Engine-specific StructType should satisfy the TypesProtocol.StructType
+    pass
 
 
 @dataclass
@@ -48,7 +49,8 @@ class BronzeStep(BaseModel):
         ValidationError: If validation requirements are not met during construction
 
     Example:
-        >>> from pyspark.sql import functions as F
+        >>> from pipeline_builder.functions import get_default_functions
+        >>> F = get_default_functions()
         >>>
         >>> # Valid Bronze step with PySpark expressions
         >>> bronze_step = BronzeStep(
@@ -200,11 +202,8 @@ class SilverStep(BaseModel):
         ):
             raise ValidationError("source_incremental_col must be a string")
         if self.schema_override is not None:
-            # Import here to avoid circular dependency
-            from pyspark.sql.types import StructType
-
-            if not isinstance(self.schema_override, StructType):
-                raise ValidationError("schema_override must be a PySpark StructType")
+            # Accept any StructType-like object; engine enforces correctness at write time.
+            pass
 
     def validate(self) -> None:
         """Validate silver step configuration."""
@@ -227,12 +226,8 @@ class SilverStep(BaseModel):
                 "source_incremental_col must be a string when provided"
             )
         if self.schema_override is not None:
-            from pyspark.sql.types import StructType
-
-            if not isinstance(self.schema_override, StructType):
-                raise PipelineValidationError(
-                    "schema_override must be a PySpark StructType"
-                )
+            # Accept any StructType-like object; engine enforces correctness at write time.
+            pass
 
 
 @dataclass
@@ -329,11 +324,8 @@ class GoldStep(BaseModel):
         ):
             raise ValidationError("Source silvers must be a non-empty list")
         if self.schema_override is not None:
-            # Import here to avoid circular dependency
-            from pyspark.sql.types import StructType
-
-            if not isinstance(self.schema_override, StructType):
-                raise ValidationError("schema_override must be a PySpark StructType")
+            # Accept any StructType-like object; engine enforces correctness.
+            pass
 
     def validate(self) -> None:
         """Validate gold step configuration."""
@@ -350,9 +342,5 @@ class GoldStep(BaseModel):
         ):
             raise PipelineValidationError("Source silvers must be a list or None")
         if self.schema_override is not None:
-            from pyspark.sql.types import StructType
-
-            if not isinstance(self.schema_override, StructType):
-                raise PipelineValidationError(
-                    "schema_override must be a PySpark StructType"
-                )
+            # Accept any StructType-like object; engine enforces correctness.
+            pass

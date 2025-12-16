@@ -34,6 +34,53 @@ import sitecustomize  # type: ignore  # noqa: E402,F401
 
 import pytest
 
+# Configure engine early based on SPARK_MODE
+from pipeline_builder.engine_config import configure_engine
+
+spark_mode_env = os.environ.get("SPARK_MODE", "mock").lower()
+if spark_mode_env == "mock":
+    from sparkless import functions as mock_functions  # type: ignore[import]
+    from sparkless import spark_types as mock_types  # type: ignore[import]
+    from sparkless import AnalysisException as MockAnalysisException  # type: ignore[import]
+    from sparkless import Window as MockWindow  # type: ignore[import]
+    from sparkless.functions import desc as mock_desc  # type: ignore[import]
+    from sparkless import DataFrame as MockDataFrame  # type: ignore[import]
+    from sparkless import SparkSession as MockSparkSession  # type: ignore[import]
+    from sparkless import Column as MockColumn  # type: ignore[import]
+
+    configure_engine(
+        functions=mock_functions,
+        types=mock_types,
+        analysis_exception=MockAnalysisException,
+        window=MockWindow,
+        desc=mock_desc,
+        engine_name="mock",
+        dataframe_cls=MockDataFrame,
+        spark_session_cls=MockSparkSession,
+        column_cls=MockColumn,
+    )
+else:
+    from pyspark.sql import functions as pyspark_functions
+    from pyspark.sql import types as pyspark_types
+    from pyspark.sql.functions import desc as pyspark_desc
+    from pyspark.sql.utils import AnalysisException as PySparkAnalysisException
+    from pyspark.sql.window import Window as PySparkWindow
+    from pyspark.sql import DataFrame as PySparkDataFrame
+    from pyspark.sql import SparkSession as PySparkSparkSession
+    from pyspark.sql import Column as PySparkColumn
+
+    configure_engine(
+        functions=pyspark_functions,
+        types=pyspark_types,
+        analysis_exception=PySparkAnalysisException,
+        window=PySparkWindow,
+        desc=pyspark_desc,
+        engine_name="pyspark",
+        dataframe_cls=PySparkDataFrame,
+        spark_session_cls=PySparkSparkSession,
+        column_cls=PySparkColumn,
+    )
+
 # Add the tests directory to the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -195,7 +242,12 @@ def get_unique_table_name(base_name: str) -> str:
 
 def _create_mock_spark_session():
     """Create a mock Spark session."""
-    from sparkless import SparkSession  # type: ignore[import]
+    from sparkless import SparkSession, functions as mock_functions  # type: ignore[import]
+    from sparkless import spark_types as mock_types  # type: ignore[import]
+    from sparkless import AnalysisException as MockAnalysisException  # type: ignore[import]
+    from sparkless import Window as MockWindow  # type: ignore[import]
+    from sparkless.functions import desc as mock_desc  # type: ignore[import]
+    from pipeline_builder.engine import configure_engine
 
     print("🔧 Creating Mock Spark session for all tests")
 
@@ -209,12 +261,26 @@ def _create_mock_spark_session():
     except Exception as e:
         print(f"❌ Could not create test_schema database: {e}")
 
+    # Configure pipeline_builder engine for sparkless
+    configure_engine(
+        functions=mock_functions,
+        types=mock_types,
+        analysis_exception=MockAnalysisException,
+        window=MockWindow,
+        desc=mock_desc,
+    )
+
     return spark
 
 
 def _create_real_spark_session():
     """Create a real Spark session with Delta Lake support."""
-    from pyspark.sql import SparkSession
+    from pyspark.sql import SparkSession, functions as pyspark_functions
+    from pyspark.sql import types as pyspark_types
+    from pyspark.sql.functions import desc as pyspark_desc
+    from pyspark.sql.utils import AnalysisException as PySparkAnalysisException
+    from pyspark.sql.window import Window as PySparkWindow
+    from pipeline_builder.engine import configure_engine
 
     # Set Python version for PySpark to match current interpreter
     # This prevents Python version mismatch between driver and workers
@@ -409,6 +475,15 @@ def _create_real_spark_session():
         print("✅ Test database created successfully")
     except Exception as e:
         print(f"❌ Could not create test_schema database: {e}")
+
+    # Configure pipeline_builder engine for PySpark
+    configure_engine(
+        functions=pyspark_functions,
+        types=pyspark_types,
+        analysis_exception=PySparkAnalysisException,
+        window=PySparkWindow,
+        desc=pyspark_desc,
+    )
 
     return spark
 

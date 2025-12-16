@@ -22,7 +22,8 @@ String Rules Support:
 
 Example:
     >>> from the framework.validation import _convert_rules_to_expressions
-    >>> from pyspark.sql import functions as F
+    >>> from pipeline_builder.functions import get_default_functions
+    >>> F = get_default_functions()
     >>>
     >>> # Convert string rules to PySpark expressions
     >>> rules = {"user_id": ["not_null"], "age": ["gt", 0], "status": ["in", ["active", "inactive"]]}

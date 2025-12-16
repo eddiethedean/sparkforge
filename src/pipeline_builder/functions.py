@@ -12,79 +12,76 @@ from __future__ import annotations
 
 from typing import Optional, Protocol, Union, cast
 
-from .compat import Column
+from .protocols import ColumnProtocol
 
 
 class FunctionsProtocol(Protocol):
-    """Protocol for PySpark functions interface."""
+    """Protocol for functions interface."""
 
-    def col(self, col_name: str) -> Column:
+    def col(self, col_name: str) -> ColumnProtocol:
         """Create a column reference."""
         ...
 
-    def expr(self, expr: str) -> Column:
+    def expr(self, expr: str) -> ColumnProtocol:
         """Create an expression from a string."""
         ...
 
-    def lit(self, value: Union[str, int] | Union[float, Optional[bool]]) -> Column:
+    def lit(self, value: Union[str, int] | Union[float, Optional[bool]]) -> ColumnProtocol:
         """Create a literal column."""
         ...
 
     def when(
         self,
-        condition: Column,
+        condition: ColumnProtocol,
         value: Union[str, int] | Union[float, Optional[bool]],
-    ) -> Column:
+    ) -> ColumnProtocol:
         """Create a conditional expression."""
         ...
 
-    def count(self, col: Union[str, Column] = "*") -> Column:
+    def count(self, col: Union[str, ColumnProtocol] = "*") -> ColumnProtocol:
         """Create a count aggregation."""
         ...
 
-    def countDistinct(self, *cols: Union[str, Column]) -> Column:
+    def countDistinct(self, *cols: Union[str, ColumnProtocol]) -> ColumnProtocol:
         """Create a count distinct aggregation."""
         ...
 
-    def sum(self, col: Union[str, Column]) -> Column:
+    def sum(self, col: Union[str, ColumnProtocol]) -> ColumnProtocol:
         """Create a sum aggregation."""
         ...
 
-    def max(self, col: Union[str, Column]) -> Column:
+    def max(self, col: Union[str, ColumnProtocol]) -> ColumnProtocol:
         """Create a max aggregation."""
         ...
 
-    def min(self, col: Union[str, Column]) -> Column:
+    def min(self, col: Union[str, ColumnProtocol]) -> ColumnProtocol:
         """Create a min aggregation."""
         ...
 
-    def avg(self, col: Union[str, Column]) -> Column:
+    def avg(self, col: Union[str, ColumnProtocol]) -> ColumnProtocol:
         """Create an average aggregation."""
         ...
 
-    def length(self, col: Union[str, Column]) -> Column:
+    def length(self, col: Union[str, ColumnProtocol]) -> ColumnProtocol:
         """Create a length function."""
         ...
 
-    def date_trunc(self, format: str, col: Union[str, Column]) -> Column:
+    def date_trunc(self, format: str, col: Union[str, ColumnProtocol]) -> ColumnProtocol:
         """Create a date truncation function."""
         ...
 
-    def dayofweek(self, col: Union[str, Column]) -> Column:
+    def dayofweek(self, col: Union[str, ColumnProtocol]) -> ColumnProtocol:
         """Create a day of week function."""
         ...
 
-    def current_timestamp(self) -> Column:
+    def current_timestamp(self) -> ColumnProtocol:
         """Create a current timestamp function."""
         ...
 
 
 def get_default_functions() -> FunctionsProtocol:
-    """Get the default PySpark functions implementation.
+    """Get the injected functions implementation."""
 
-    Returns the functions from the current compatibility layer.
-    """
     from .compat import F
 
-    # F is dynamically selected at runtime, so we cast to FunctionsProtocol
     return cast(FunctionsProtocol, F)

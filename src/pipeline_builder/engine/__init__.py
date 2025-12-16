@@ -1,10 +1,11 @@
 """
-Engine implementations for the pipeline builder.
+Engine helpers for pipeline_builder.
 
-This module provides engine implementations that satisfy the abstracts.Engine interface,
-enabling different execution backends (Spark, SQL, etc.).
+Kept minimal to avoid import cycles with compat. Use configure_engine/get_engine
+from this package to inject engine components.
 """
 
+from ..engine_config import EngineConfig, configure_engine, get_engine
 from .spark_engine import SparkEngine
 
-__all__ = ["SparkEngine"]
+__all__ = ["EngineConfig", "configure_engine", "get_engine", "SparkEngine"]

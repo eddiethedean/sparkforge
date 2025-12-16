@@ -17,7 +17,7 @@ from abstracts.source import Source
 from abstracts.step import Step
 from pipeline_builder_base.logging import PipelineLogger
 
-from ..compat import DataFrame, SparkSession
+from ..protocols import DataFrameProtocol as DataFrame, SparkSessionProtocol as SparkSession
 from ..execution import ExecutionEngine, _create_dataframe_writer
 from ..functions import FunctionsProtocol
 from ..models import BronzeStep, GoldStep, SilverStep
@@ -66,22 +66,13 @@ class SparkEngine(Engine):
         Returns:
             ValidationReport with validation results
         """
-        # Type check: source should be a DataFrame
-        if not isinstance(source, DataFrame):
-            raise TypeError(f"Source must be a DataFrame, got {type(source)}")
+        # Duck-type: must expose DataFrameProtocol surface
+        if not hasattr(source, "schema") or not hasattr(source, "count"):
+            raise TypeError(f"Source must be DataFrame-like, got {type(source)}")
 
         df: DataFrame = source  # type: ignore[valid-type]
 
-        # Type check: step should be a concrete step type
-        # Cast to Any first to avoid Protocol isinstance issues with mypy
-        step_any: Any = step
-        if not isinstance(step_any, (BronzeStep, SilverStep, GoldStep)):
-            raise TypeError(
-                f"Step must be BronzeStep, SilverStep, or GoldStep, got {type(step)}"
-            )
-        # Cast to help mypy - we know it's one of the concrete types after isinstance
-        # Use step_any directly since isinstance already narrowed the type
-        concrete_step: Union[BronzeStep, SilverStep, GoldStep] = step_any
+        concrete_step: Union[BronzeStep, SilverStep, GoldStep] = step  # type: ignore[assignment]
 
         # Apply validation rules
         try:
@@ -124,29 +115,18 @@ class SparkEngine(Engine):
         Returns:
             TransformReport with transformed source
         """
-        # Type check: source should be a DataFrame
-        if not isinstance(source, DataFrame):
-            raise TypeError(f"Source must be a DataFrame, got {type(source)}")
+        if not hasattr(source, "schema") or not hasattr(source, "count"):
+            raise TypeError(f"Source must be DataFrame-like, got {type(source)}")
 
         df: DataFrame = source  # type: ignore[valid-type]
 
-        # Type check: step should be a concrete step type
-        # Cast to Any first to avoid Protocol isinstance issues with mypy
-        step_any: Any = step
-        if not isinstance(step_any, (BronzeStep, SilverStep, GoldStep)):
-            raise TypeError(
-                f"Step must be BronzeStep, SilverStep, or GoldStep, got {type(step)}"
-            )
-        # Cast to help mypy - we know it's one of the concrete types after isinstance
-        # Use step_any directly since isinstance already narrowed the type
-        concrete_step: Union[BronzeStep, SilverStep, GoldStep] = step_any
+        concrete_step: Union[BronzeStep, SilverStep, GoldStep] = step  # type: ignore[assignment]
 
         try:
             # Bronze steps: no transformation, just return source
             if isinstance(concrete_step, BronzeStep):
                 return TransformReport(source=df, error=None)
 
-            # Silver steps: transform with bronze data and empty silvers dict
             elif isinstance(concrete_step, SilverStep):
                 if concrete_step.transform is None:
                     raise ValueError(

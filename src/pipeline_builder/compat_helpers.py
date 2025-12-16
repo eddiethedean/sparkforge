@@ -1,16 +1,12 @@
 """
-Compatibility helpers for working with PySpark and mock-spark.
-
-This module provides centralized helper functions that abstract over differences
-between PySpark and mock-spark, eliminating code duplication and improving
-maintainability.
+Compatibility helpers for working with protocol-based Spark sessions.
 """
 
 from __future__ import annotations
 
 from typing import Any, Optional
 
-from .compat import SparkSession, is_mock_spark
+from .compat import SparkSession
 
 
 def create_dataframe_compat(
@@ -21,13 +17,13 @@ def create_dataframe_compat(
     **kwargs: Any,
 ) -> Any:
     """
-    Create DataFrame with compatibility for both PySpark and mock-spark.
+    Create DataFrame with compatibility for PySpark.
 
     Supports all schema formats: list of strings, StructType, None.
     Handles PySpark 3.5+ schema argument position differences.
 
     Args:
-        spark: SparkSession instance (PySpark or mock-spark)
+        spark: SparkSession instance
         data: Data to create DataFrame from (list of tuples, list of dicts, etc.)
         schema: Schema definition (list of strings, StructType, or None)
         original_method: Original createDataFrame method (to avoid recursion when monkey-patched)
@@ -95,27 +91,19 @@ def is_dataframe_like(obj: Any) -> bool:
 
 def detect_spark_type(spark: SparkSession) -> str:
     """
-    Detect if spark session is PySpark or mock-spark.
+    Detect if spark session is PySpark.
 
     Args:
         spark: SparkSession instance to check
 
     Returns:
-        'pyspark', 'mock', or 'unknown'
+        'pyspark' or 'unknown'
     """
-    # First check using compat layer
-    if is_mock_spark():
-        return "mock"
-
-    # Fallback: check session attributes
     if hasattr(spark, "sparkContext") and hasattr(spark.sparkContext, "_jsc"):
         return "pyspark"
 
-    # Check module name as last resort
     try:
         spark_module = type(spark).__module__
-        if "mock_spark" in spark_module:
-            return "mock"
         if "pyspark" in spark_module:
             return "pyspark"
     except Exception:
