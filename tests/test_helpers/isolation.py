@@ -5,7 +5,6 @@ This module provides helper functions to clear Spark state, Delta Lake metadata,
 and global caches to prevent test pollution.
 """
 
-import os
 from typing import Any
 
 
@@ -161,7 +160,9 @@ def clear_all_tables(spark: Any, schema_pattern: str = "*") -> None:
                     table_name = table.name if hasattr(table, "name") else str(table)
                     try:
                         # Use CASCADE to handle foreign key dependencies
-                        spark.sql(f"DROP TABLE IF EXISTS {db_name}.{table_name} CASCADE")
+                        spark.sql(
+                            f"DROP TABLE IF EXISTS {db_name}.{table_name} CASCADE"
+                        )
                     except Exception:
                         pass
             except Exception:
@@ -268,4 +269,3 @@ def clear_all_test_state(spark: Any, schema: str = "test_schema") -> None:
     clear_all_tables(spark, schema_pattern="*")
     clear_spark_state(spark)
     clear_delta_tables(spark, schema)
-

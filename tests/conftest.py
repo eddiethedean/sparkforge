@@ -166,11 +166,11 @@ def unique_schema():
 def unique_table_name():
     """Provide a function to generate unique table names for each test."""
     import time
-    
+
     def _get_unique_table(base_name: str) -> str:
         unique_id = int(time.time() * 1000000) % 1000000
         return f"{base_name}_{unique_id}"
-    
+
     return _get_unique_table
 
 
@@ -188,7 +188,7 @@ def get_unique_test_schema():
 def get_unique_table_name(base_name: str) -> str:
     """Generate a unique table name by appending a timestamp-based ID."""
     import time
-    
+
     unique_id = int(time.time() * 1000000) % 1000000
     return f"{base_name}_{unique_id}"
 
@@ -275,10 +275,8 @@ def _create_real_spark_session():
             .config("spark.driver.memory", "1g")
             .config("spark.executor.memory", "1g")
             .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-            .config(
-                "spark.sql.catalog.spark_catalog",
-                "org.apache.spark.sql.delta.catalog.DeltaCatalog",
-            )
+            # Note: spark.sql.catalog.spark_catalog is set by configure_spark_with_delta_pip()
+            # Don't set it here to avoid ClassNotFoundException if Delta Lake setup fails
         )
 
         # Configure Delta Lake - configure_spark_with_delta_pip handles JAR dependencies
@@ -452,9 +450,6 @@ def spark_session():
     try:
         # Import isolation helpers
         from tests.test_helpers.isolation import (
-            clear_all_tables,
-            clear_all_test_state,
-            clear_spark_views,
             reset_execution_state,
             reset_global_state,
         )

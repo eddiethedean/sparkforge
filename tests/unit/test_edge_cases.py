@@ -27,7 +27,6 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "real":
     from pyspark.sql.functions import Column, lit as Literal, window as WindowFunction
 
     # AggregateFunction is a class, not a function import
-    from pyspark.sql.functions import sum as AggregateFunction  # Using sum as example
 else:
     from sparkless import (  # type: ignore[import]
         ArrayType,
@@ -45,12 +44,13 @@ else:
         PySparkValueError,
     )
     from sparkless.functions import (  # type: ignore[import]
-        F,
-        AggregateFunction,
         Column,
         Literal,
         WindowFunction,
     )
+
+    # Use compat layer's F to get wrapped aggregate functions that return Column
+    from pipeline_builder.compat import F
 
 from pipeline_builder.execution import ExecutionEngine
 from pipeline_builder.models import ParallelConfig, PipelineConfig, ValidationThresholds
@@ -486,10 +486,8 @@ class TestEdgeCases:
         # Test aggregate functions
         agg_func = F.count("id")
         # In PySpark, aggregate functions return Column objects
-        if spark_mode == "real":
-            assert isinstance(agg_func, Column)
-        else:
-            assert isinstance(agg_func, AggregateFunction)
+        # sparkless 3.16.0+ also returns Column-compatible objects via compatibility wrapper
+        assert isinstance(agg_func, Column)
 
         # Test window functions - mock-spark 0.3.1 requires window_spec argument
         # In PySpark, window functions return Column objects

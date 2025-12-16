@@ -440,7 +440,9 @@ class TestFullPipelineWithLogging:
         assert "event_summary" in step_names, "Should have log for event_summary"
 
         # Verify bronze step logs
-        bronze1_log = next(log for log in step_logs if log["step_name"] == "events_source1")
+        bronze1_log = next(
+            log for log in step_logs if log["step_name"] == "events_source1"
+        )
         assert_log_entry(
             bronze1_log, "events_source1", initial_run_id, "initial", expected_rows=None
         )
@@ -448,7 +450,9 @@ class TestFullPipelineWithLogging:
         assert bronze1_log.get("rows_processed", 0) >= 0, (
             "Bronze step 1 should have rows_processed"
         )
-        bronze2_log = next(log for log in step_logs if log["step_name"] == "events_source2")
+        bronze2_log = next(
+            log for log in step_logs if log["step_name"] == "events_source2"
+        )
         assert_log_entry(
             bronze2_log, "events_source2", initial_run_id, "initial", expected_rows=None
         )

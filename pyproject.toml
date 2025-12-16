@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pipeline_builder"
-version = "2.4.0"
+version = "2.5.0"
 description = "A simplified, production-ready data pipeline builder for Apache Spark and Delta Lake"
 readme = "README.md"
 license = {text = "MIT"}
@@ -47,7 +47,7 @@ pyspark = [
     "delta-spark>=3.0.0,<3.1.0",
 ]
 mock = [
-    "sparkless",
+    "sparkless==3.17.2",
 ]
 dev = [
     "black>=23.0.0",
@@ -64,7 +64,7 @@ dev = [
     "pytest-cov>=4.0.0",
     "pytest-xdist>=3.0.0",
     "tox>=4.0.0",
-    "sparkless"
+    "sparkless==3.17.2"
 ]
 docs = [
     "sphinx>=4.0.0",
@@ -72,7 +72,7 @@ docs = [
     "myst-parser>=0.17.0",
 ]
 test = [
-    "sparkless",
+    "sparkless==3.17.2",
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "pytest-xdist>=3.0.0",

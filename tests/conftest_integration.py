@@ -151,7 +151,7 @@ def cleanup_integration_tables(integration_spark_session):
 def unique_schema():
     """Provide a unique schema name for each integration test."""
     import time
-    
+
     unique_id = int(time.time() * 1000000) % 1000000
     return f"test_schema_{unique_id}"
 
@@ -160,11 +160,11 @@ def unique_schema():
 def unique_table_name():
     """Provide a function to generate unique table names for each integration test."""
     import time
-    
+
     def _get_unique_table(base_name: str) -> str:
         unique_id = int(time.time() * 1000000) % 1000000
         return f"{base_name}_{unique_id}"
-    
+
     return _get_unique_table
 
 

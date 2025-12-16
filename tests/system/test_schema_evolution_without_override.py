@@ -25,7 +25,9 @@ from pipeline_builder.pipeline.builder import PipelineBuilder
 class TestSchemaEvolutionWithoutOverride:
     """Test schema evolution without requiring schema_override."""
 
-    def test_silver_schema_evolution_on_initial_load_rerun(self, spark_session, unique_schema):
+    def test_silver_schema_evolution_on_initial_load_rerun(
+        self, spark_session, unique_schema
+    ):
         """
         Test that changing silver transform to add a new column works
         without schema_override when rerunning initial load.
@@ -144,7 +146,9 @@ class TestSchemaEvolutionWithoutOverride:
 
         # No cleanup needed - unique schema ensures isolation
 
-    def test_silver_schema_evolution_incremental_should_error(self, spark_session, unique_schema):
+    def test_silver_schema_evolution_incremental_should_error(
+        self, spark_session, unique_schema
+    ):
         """
         Test that schema mismatch errors in incremental mode without schema_override.
 
@@ -263,7 +267,9 @@ class TestSchemaEvolutionWithoutOverride:
 
         # No cleanup needed - unique schema ensures isolation
 
-    def test_silver_schema_evolution_with_multiple_new_columns(self, spark_session, unique_schema):
+    def test_silver_schema_evolution_with_multiple_new_columns(
+        self, spark_session, unique_schema
+    ):
         """
         Test that adding multiple new columns works without schema_override.
 

@@ -159,6 +159,8 @@ def and_all_rules(
     for e in column_expressions[1:]:
         pred = pred & e
 
+    # Note: sparkless 3.17.1+ fixes the bug where combined ColumnOperation expressions
+    # were treated as column names, so we can return the combined expression directly
     return pred
 
 
@@ -239,6 +241,14 @@ def apply_column_rules(
         and not isinstance(validation_predicate, bool)
     ):
         # Handle PySpark Column expressions
+        # Note: sparkless 3.17.1+ fixes the bug where combined ColumnOperation expressions
+        # were treated as column names, so we can use the combined predicate for both
+        # sparkless and PySpark
+        if isinstance(validation_predicate, str):
+            validation_predicate = functions.expr(validation_predicate)
+        elif not isinstance(validation_predicate, Column):
+            validation_predicate = cast(Column, validation_predicate)
+        
         valid_df = df.filter(validation_predicate)
         invalid_df = df.filter(~validation_predicate)
         total_rows = df.count()

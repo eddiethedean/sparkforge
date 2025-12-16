@@ -4,7 +4,6 @@ Simple unit tests for data validation using the sparkless mock engine or real Py
 These tests are intentionally lightweight and should pass in both engines.
 """
 
-
 import pytest
 
 from pipeline_builder.compat import AnalysisException as CompatAnalysisException

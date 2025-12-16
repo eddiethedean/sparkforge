@@ -251,7 +251,7 @@ class DataProcessor:
 
             # Create DataFrame with explicit schema for type safety and None value handling
             schema = create_log_schema()
-            df = self.spark.createDataFrame(log_data, schema)
+            df = self.spark.createDataFrame(log_data, schema)  # type: ignore[type-var]
 
             self.logger.info("Successfully created DataFrame from log rows")
             return df

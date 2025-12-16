@@ -31,6 +31,7 @@ def _select_engine() -> Tuple[str, Tuple[Any, Any, Any, Any, Any, Any], Any, Any
         Tuple of (engine_name, (DataFrame, SparkSession, Column, F, types, AnalysisException))
     """
     spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+    spark_mode_explicit = "SPARK_MODE" in os.environ  # Check if user explicitly set it
 
     if spark_mode == "real":
         # Use real PySpark
@@ -87,6 +88,112 @@ def _select_engine() -> Tuple[str, Tuple[Any, Any, Any, Any, Any, Any], Any, Any
             from sparkless import functions as MockF  # type: ignore[import]
             from sparkless import spark_types as MockTypes  # type: ignore[import]
             from sparkless.functions import desc as MockDesc  # type: ignore[import]
+            from sparkless.functions.core.column import (
+                ColumnOperation,  # type: ignore[import]
+            )
+
+            # Compatibility wrapper to make aggregate functions return Column-compatible objects
+            # This fixes the issue where sparkless aggregate functions return ColumnOperation
+            # instead of Column, making them incompatible with isinstance() checks.
+            # Make ColumnCompatibleWrapper actually inherit from Column so isinstance() works
+            class ColumnCompatibleWrapper(MockColumn):  # type: ignore[misc,valid-type]
+                """
+                Wrapper that makes ColumnOperation instances compatible with Column.
+
+                This class inherits from Column to pass isinstance() checks,
+                while delegating all operations to the wrapped ColumnOperation.
+                """
+
+                def __new__(cls, column_op: Any) -> Any:
+                    """Create a new instance that is also a Column."""
+                    # Create instance without calling Column.__init__
+                    instance = object.__new__(cls)
+                    object.__setattr__(instance, "_column_op", column_op)
+                    return instance
+
+                def __getattr__(self, name: str) -> Any:
+                    """Delegate all attribute access to the wrapped ColumnOperation."""
+                    if name == "_column_op":
+                        raise AttributeError(name)
+                    return getattr(self._column_op, name)
+
+                def __setattr__(self, name: str, value: Any) -> None:
+                    """Handle attribute setting."""
+                    if name == "_column_op":
+                        object.__setattr__(self, name, value)
+                    elif hasattr(self, "_column_op"):
+                        setattr(self._column_op, name, value)
+                    else:
+                        object.__setattr__(self, name, value)
+
+                def __repr__(self) -> str:
+                    """Return representation of wrapped object."""
+                    return repr(self._column_op)
+
+                def __str__(self) -> str:
+                    """Return string representation of wrapped object."""
+                    return str(self._column_op)
+
+            # Create a wrapper for functions to ensure aggregate functions return Column
+            class FunctionsWrapper:
+                """
+                Wrapper for sparkless functions to ensure PySpark compatibility.
+
+                This wrapper ensures that aggregate functions like count(), sum(), etc.
+                return Column-compatible objects like PySpark does.
+                """
+
+                def __init__(self, original_functions: Any) -> None:
+                    """Initialize the wrapper with the original functions module."""
+                    self._original = original_functions
+                    # Aggregate functions that should return Column
+                    self._aggregate_functions = {
+                        "count",
+                        "sum",
+                        "avg",
+                        "mean",
+                        "max",
+                        "min",
+                        "countDistinct",
+                        "stddev",
+                        "stddev_pop",
+                        "stddev_samp",
+                        "variance",
+                        "var_pop",
+                        "var_samp",
+                        "collect_list",
+                        "collect_set",
+                        "first",
+                        "last",
+                        "kurtosis",
+                        "skewness",
+                        "corr",
+                        "covar_pop",
+                        "covar_samp",
+                        "grouping",
+                        "grouping_id",
+                    }
+
+                def __getattr__(self, name: str) -> Any:
+                    """Get attribute from original functions, wrapping aggregate functions."""
+                    attr = getattr(self._original, name)
+
+                    # If it's an aggregate function, wrap it to return Column-compatible object
+                    if name in self._aggregate_functions and callable(attr):
+
+                        def wrapped_agg(*args: Any, **kwargs: Any) -> Any:
+                            result = attr(*args, **kwargs)
+                            # If result is ColumnOperation, wrap it to be Column-compatible
+                            if isinstance(result, ColumnOperation):
+                                return ColumnCompatibleWrapper(result)  # type: ignore[return-value]
+                            return result
+
+                        return wrapped_agg
+
+                    return attr
+
+            # Wrap the functions module
+            wrapped_functions = FunctionsWrapper(MockF)
 
             return (
                 "mock",
@@ -94,7 +201,7 @@ def _select_engine() -> Tuple[str, Tuple[Any, Any, Any, Any, Any, Any], Any, Any
                     MockDataFrame,
                     MockSparkSession,
                     MockColumn,
-                    MockF,
+                    wrapped_functions,  # Use wrapped functions
                     MockTypes,
                     MockAnalysisException,
                 ),
@@ -102,10 +209,61 @@ def _select_engine() -> Tuple[str, Tuple[Any, Any, Any, Any, Any, Any], Any, Any
                 MockDesc,
             )
         except ImportError as e:
-            raise ImportError(
-                "SPARK_MODE=mock but sparkless is not installed. "
-                "Install with: pip install sparkforge[mock]"
-            ) from e
+            # If sparkless is not available, fall back to PySpark if:
+            # 1. User didn't explicitly set SPARK_MODE=mock (default is mock but not explicit)
+            # 2. PySpark is available
+            if not spark_mode_explicit:
+                # Try to fall back to PySpark
+                try:
+                    from pyspark.sql import (
+                        Column as PySparkColumn,
+                    )
+                    from pyspark.sql import (
+                        DataFrame as PySparkDataFrame,
+                    )
+                    from pyspark.sql import (
+                        SparkSession as PySparkSparkSession,
+                    )
+                    from pyspark.sql import functions as PySparkF
+                    from pyspark.sql import types as PySparkTypes
+                    from pyspark.sql.functions import desc as PySparkDesc
+                    from pyspark.sql.utils import AnalysisException as PySparkAnalysisException
+                    from pyspark.sql.window import Window as PySparkWindow
+
+                    # Log a warning that we're falling back to PySpark
+                    import warnings
+                    warnings.warn(
+                        "sparkless is not installed. Falling back to PySpark. "
+                        "To use mock mode, install with: pip install sparkforge[mock]",
+                        UserWarning,
+                        stacklevel=2
+                    )
+
+                    return (
+                        "pyspark",
+                        (
+                            PySparkDataFrame,
+                            PySparkSparkSession,
+                            PySparkColumn,
+                            PySparkF,
+                            PySparkTypes,
+                            PySparkAnalysisException,
+                        ),
+                        PySparkWindow,
+                        PySparkDesc,
+                    )
+                except ImportError:
+                    # Neither sparkless nor PySpark available
+                    raise ImportError(
+                        "Neither sparkless (for mock mode) nor PySpark (for real mode) is installed. "
+                        "Install with: pip install sparkforge[mock] or pip install sparkforge[pyspark]"
+                    ) from e
+            else:
+                # User explicitly set SPARK_MODE=mock, so raise error
+                raise ImportError(
+                    "SPARK_MODE=mock but sparkless is not installed. "
+                    "Install with: pip install sparkforge[mock]"
+                ) from e
 
 
 (

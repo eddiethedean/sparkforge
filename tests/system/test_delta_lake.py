@@ -30,7 +30,7 @@ def _is_delta_lake_available(spark_session):
         extensions = spark_session.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
         if "io.delta.sql.DeltaSparkSessionExtension" not in extensions:
             return False
-        
+
         # Try to use Delta format - if it fails, Delta Lake isn't configured
         # Create schema if it doesn't exist
         spark_session.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
@@ -67,11 +67,11 @@ else:
 def unique_table_name():
     """Provide a function to generate unique table names for each test."""
     import time
-    
+
     def _get_unique_table(base_name: str) -> str:
         unique_id = int(time.time() * 1000000) % 1000000
         return f"{base_name}_{unique_id}"
-    
+
     return _get_unique_table
 
 
@@ -293,7 +293,9 @@ class TestDeltaLakeComprehensive:
 
         # No cleanup needed - unique table name ensures isolation
 
-    def test_delta_lake_performance_characteristics(self, spark_session, unique_table_name):
+    def test_delta_lake_performance_characteristics(
+        self, spark_session, unique_table_name
+    ):
         """Test basic Delta Lake operations."""
         # Skip if Delta Lake isn't actually available in Spark
         if not _is_delta_lake_available(spark_session):
@@ -322,7 +324,9 @@ class TestDeltaLakeComprehensive:
         # Clean up
         spark_session.sql(f"DROP TABLE IF EXISTS {delta_table}")
 
-    def test_delta_lake_data_quality_constraints(self, spark_session, unique_table_name):
+    def test_delta_lake_data_quality_constraints(
+        self, spark_session, unique_table_name
+    ):
         """Test data quality constraints and validation."""
         # Skip if Delta Lake isn't actually available in Spark
         if not _is_delta_lake_available(spark_session):
