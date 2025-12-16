@@ -230,14 +230,7 @@ def _select_engine() -> Tuple[str, Tuple[Any, Any, Any, Any, Any, Any], Any, Any
                     from pyspark.sql.utils import AnalysisException as PySparkAnalysisException
                     from pyspark.sql.window import Window as PySparkWindow
 
-                    # Log a warning that we're falling back to PySpark
-                    import warnings
-                    warnings.warn(
-                        "sparkless is not installed. Falling back to PySpark. "
-                        "To use mock mode, install with: pip install sparkforge[mock]",
-                        UserWarning,
-                        stacklevel=2
-                    )
+                    # Fall back to PySpark silently when sparkless is not available
 
                     return (
                         "pyspark",
