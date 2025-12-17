@@ -126,6 +126,10 @@ def _is_delta_lake_available_execution(spark: SparkSession) -> bool:  # type: ig
     Returns:
         True if Delta Lake is available and working, False otherwise
     """
+    # Simplify: force parquet/regular writes for now to avoid Delta-specific issues.
+    _delta_availability_cache_execution[str(id(spark))] = False
+    return False
+
     # Use Spark session's underlying SparkContext ID as cache key
     try:
         spark_id = (
