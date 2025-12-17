@@ -270,10 +270,12 @@ class TestMinimalPipelines:
     """Tests for minimal pipeline configurations."""
 
     @pytest.fixture
-    def log_writer(self, spark_session):
+    def log_writer(self, spark_session, unique_name):
         """Create LogWriter instance."""
         return LogWriter(
-            spark_session, schema="test_schema", table_name="pipeline_logs"
+            spark_session,
+            schema=unique_name("schema", "test_schema"),
+            table_name=unique_name("table", "pipeline_logs"),
         )
 
     def test_minimal_pipeline_with_logging(self, spark_session, log_writer):
@@ -1790,9 +1792,9 @@ class TestWriteModes:
             spark_session, schema="test_schema", table_name="pipeline_logs"
         )
 
-    def test_pipeline_write_mode_variations(self, spark_session, log_writer):
+    def test_pipeline_write_mode_variations(self, spark_session, log_writer, unique_name):
         """Test different write modes (overwrite, append via watermark)."""
-        schema = "test_schema"
+        schema = unique_name("schema", "test_schema")
 
         # Initial data
         initial_data = create_test_data_initial(spark_session, num_records=100)
@@ -1827,27 +1829,32 @@ class TestWriteModes:
                 .withColumnRenamed("timestamp_str", "timestamp")
             )
 
+        silver_name = unique_name("silver", "processed")
+        silver_table = unique_name("table", "processed")
+        gold_name = unique_name("gold", "summary")
+        gold_table = unique_name("table", "summary")
+
         # Silver with watermark (enables append mode for incremental)
         builder.add_silver_transform(
-            name="processed",
+            name=silver_name,
             source_bronze="events",
             transform=silver_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="processed",
+            table_name=silver_table,
             watermark_col="timestamp",  # Enables append mode for incremental runs
         )
 
         def gold_transform(spark, silvers):
-            df = silvers.get("processed")
+            df = silvers.get(silver_name)
             if df:
                 return df.groupBy("user_id").agg(F.count("*").alias("count"))
             return spark.createDataFrame([], ["user_id", "count"])
 
         builder.add_gold_transform(
-            name="summary",
+            name=gold_name,
             transform=gold_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="summary",
+            table_name=gold_table,
         )
 
         errors = builder.validate_pipeline()
@@ -1887,10 +1894,10 @@ class TestWriteModes:
         assert log_result["success"] is True
 
         # Verify write modes in results
-        silver_initial = initial_result.silver_results["processed"]
+        silver_initial = initial_result.silver_results[silver_name]
         assert silver_initial["write_mode"] == "overwrite"  # Initial run uses overwrite
 
-        silver_inc = incremental_result.silver_results["processed"]
+        silver_inc = incremental_result.silver_results[silver_name]
         assert (
             silver_inc["write_mode"] == "append"
         )  # Incremental with watermark uses append
@@ -1917,14 +1924,14 @@ class TestMixedSuccessFailure:
             df = spark_session.createDataFrame(
                 data, ["user_id", "action", "timestamp", "value"]
             )
-            bronze_sources[f"events_{i}"] = df
+            bronze_sources[unique_name("bronze", f"events_{i}")] = df
 
         builder = PipelineBuilder(spark=spark_session, schema=schema)
 
         # Add 3 bronze steps
         for i in range(3):
             builder.with_bronze_rules(
-                name=f"events_{i}",
+                name=unique_name("bronze", f"events_{i}"),
                 rules={"user_id": [F.col("user_id").isNotNull()]},
                 incremental_col="timestamp",
             )

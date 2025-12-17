@@ -96,7 +96,7 @@ from pipeline_builder_base.models import (
 from .compat import AnalysisException, DataFrame, F, SparkSession
 from .functions import FunctionsProtocol
 from .models import BronzeStep, GoldStep, SilverStep
-from .table_operations import drop_table, fqn, table_exists
+from .table_operations import drop_table, fqn, table_exists, table_schema_is_empty
 from .validation import apply_column_rules
 
 # Handle optional Delta Lake dependency
@@ -209,17 +209,21 @@ def _create_dataframe_writer(
     delta_available = _is_delta_lake_available_execution(spark)
 
     # Always start with the requested write mode
-    writer = df.write.mode(mode)
+    effective_mode = mode
 
     # Set format based on Delta availability
     if delta_available:
         # Use Delta Lake when available
-        writer = writer.format("delta")
+        # Delta tables prefer append with overwriteSchema rather than truncate
+        if mode == "overwrite":
+            effective_mode = "append"
+            options.setdefault("overwriteSchema", "true")
+        writer = df.write.format("delta").mode(effective_mode)
         # Schema evolution options (overwriteSchema, mergeSchema) are NOT set automatically
         # Callers must explicitly provide these options if schema changes are intended
     else:
         # Fallback to parquet when Delta is not available
-        writer = writer.format("parquet")
+        writer = df.write.format("parquet").mode(effective_mode)
 
     # Apply additional caller-provided options last so callers can override
     # defaults if needed.
@@ -689,11 +693,7 @@ class ExecutionEngine:
                     write_mode_str = "overwrite"
                 elif mode == ExecutionMode.INCREMENTAL:
                     write_mode_str = "append"
-                elif mode == ExecutionMode.INITIAL:
-                    # For INITIAL mode, use append for Delta tables (they don't support overwrite)
-                    # For new tables, append creates them; for existing tables, we'll use CREATE OR REPLACE TABLE
-                    write_mode_str = "append"
-                else:  # FULL_REFRESH
+                else:  # INITIAL or FULL_REFRESH
                     write_mode_str = "overwrite"
 
                 # Validate schema based on execution mode
@@ -774,6 +774,16 @@ class ExecutionEngine:
                                     "Manually update the existing table schema to match the new schema",
                                 ],
                             )
+
+                # For INITIAL runs, ensure target tables start clean to avoid lingering catalog state
+                if mode == ExecutionMode.INITIAL and isinstance(
+                    step, (SilverStep, GoldStep)
+                ):
+                    try:
+                        if table_exists(self.spark, output_table):
+                            self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                    except Exception:
+                        pass
 
                 # Handle schema override if provided
                 schema_override = getattr(step, "schema_override", None)
@@ -1045,7 +1055,19 @@ class ExecutionEngine:
                             writer = _create_dataframe_writer(
                                 output_df, self.spark, write_mode_str
                             )
-                    elif isinstance(step, GoldStep) and write_mode_str == "overwrite":
+                    # Heal catalog entries that report empty schema (struct<>) before choosing writer
+                    if table_exists(self.spark, output_table) and table_schema_is_empty(
+                        self.spark, output_table
+                    ):
+                        self.logger.warning(
+                            f"Catalog reports empty schema for '{output_table}'. Dropping table to recreate with correct schema."
+                        )
+                        try:
+                            self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                        except Exception:
+                            pass
+
+                    if isinstance(step, GoldStep) and write_mode_str == "overwrite":
                         # Gold steps always use overwrite, but Delta tables don't support overwrite with saveAsTable
                         # Use DELETE + append or DROP + CREATE for Delta tables
                         if _is_delta_lake_available_execution(self.spark):
@@ -1157,34 +1179,93 @@ class ExecutionEngine:
                                         # Retry the write after refresh
                                         writer.saveAsTable(output_table)  # type: ignore[attr-defined]
                                 except Exception as retry_error:
-                                    # Last-resort fix for catalog sync issues: drop and recreate the table.
-                                    # This is safe in INITIAL mode and prevents flaky struct<> catalog entries.
-                                    try:
-                                        if mode == ExecutionMode.INITIAL:
+                                    # Attempt to heal catalog by recreating table with existing + new data
+                                    healed = False
+                                    # For Gold steps, we can safely rebuild the table from the fresh output
+                                    if isinstance(step, GoldStep):
+                                        try:
                                             self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
-                                            writer.saveAsTable(output_table)  # type: ignore[attr-defined]
-                                        else:
-                                            raise retry_error
-                                    except Exception as drop_error:
-                                        # If drop+rewrite fails, convert to ExecutionError with helpful message
-                                        raise ExecutionError(
-                                            f"Schema validation failed for table '{output_table}' in {mode} mode. "
-                                            f"Catalog reports empty schema (struct<>), indicating a catalog sync issue. "
-                                            f"Original error: {write_error}",
-                                            context={
-                                                "step_name": step.name,
-                                                "table": output_table,
-                                                "mode": mode.value,
-                                                "original_error": str(write_error),
-                                                "retry_error": str(retry_error),
-                                                "drop_error": str(drop_error),
-                                            },
-                                            suggestions=[
-                                                "This may be a Spark/Delta Lake catalog sync issue",
-                                                "Try running the pipeline again",
-                                                "If the issue persists, use INITIAL mode to recreate the table",
-                                            ],
-                                        ) from drop_error
+                                            direct_writer = _create_dataframe_writer(
+                                                output_df,
+                                                self.spark,
+                                                "overwrite",
+                                                overwriteSchema="true",
+                                            )
+                                            direct_writer.saveAsTable(output_table)  # type: ignore[attr-defined]
+                                            healed = True
+                                            writer = None
+                                        except Exception:
+                                            healed = False
+
+                                    if not healed:
+                                        try:
+                                            base_df = None
+                                            if _is_delta_lake_available_execution(self.spark):
+                                                try:
+                                                    delta_tbl = DeltaTable.forName(self.spark, output_table)  # type: ignore[attr-defined]
+                                                    base_df = delta_tbl.toDF()
+                                                except Exception:
+                                                    base_df = None
+                                            if base_df is not None:
+                                                combined_df = base_df.unionByName(  # type: ignore[attr-defined]
+                                                    output_df, allowMissingColumns=True
+                                                )
+                                            else:
+                                                combined_df = output_df
+
+                                            temp_view_name = f"_heal_{step.name}_{uuid.uuid4().hex[:8]}"
+                                            combined_df.createOrReplaceTempView(temp_view_name)  # type: ignore[attr-defined]
+                                            try:
+                                                # Always drop then create to avoid truncate/replace limitations
+                                                self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                                                if _is_delta_lake_available_execution(self.spark):
+                                                    self.spark.sql(  # type: ignore[attr-defined]
+                                                        f"CREATE TABLE {output_table} USING DELTA AS SELECT * FROM {temp_view_name}"
+                                                    )
+                                                else:
+                                                    self.spark.sql(  # type: ignore[attr-defined]
+                                                        f"CREATE TABLE {output_table} USING PARQUET AS SELECT * FROM {temp_view_name}"
+                                                    )
+                                                healed = True
+                                            finally:
+                                                try:
+                                                    self.spark.sql(f"DROP VIEW IF EXISTS {temp_view_name}")  # type: ignore[attr-defined]
+                                                except Exception:
+                                                    pass
+                                        except Exception:
+                                            healed = False
+
+                                    if not healed:
+                                        # Last-resort fix for catalog sync issues: drop and recreate the table when safe.
+                                        try:
+                                            if mode == ExecutionMode.INITIAL:
+                                                self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                                                writer.saveAsTable(output_table)  # type: ignore[attr-defined]
+                                            else:
+                                                raise retry_error
+                                        except Exception as drop_error:
+                                            # If drop+rewrite fails, convert to ExecutionError with helpful message
+                                            raise ExecutionError(
+                                                f"Schema validation failed for table '{output_table}' in {mode} mode. "
+                                                f"Catalog reports empty schema (struct<>), indicating a catalog sync issue. "
+                                                f"Original error: {write_error}",
+                                                context={
+                                                    "step_name": step.name,
+                                                    "table": output_table,
+                                                    "mode": mode.value,
+                                                    "original_error": str(write_error),
+                                                    "retry_error": str(retry_error),
+                                                    "drop_error": str(drop_error),
+                                                },
+                                                suggestions=[
+                                                    "This may be a Spark/Delta Lake catalog sync issue",
+                                                    "Try running the pipeline again",
+                                                    "If the issue persists, use INITIAL mode to recreate the table",
+                                                ],
+                                            ) from drop_error
+                                    else:
+                                        # Table healed via recreate; skip normal writer path
+                                        writer = None
                             # Handle race condition where table might be created by another thread
                             elif (
                                 "already exists" in error_msg

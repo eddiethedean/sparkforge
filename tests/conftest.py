@@ -210,6 +210,18 @@ def unique_schema():
 
 
 @pytest.fixture(scope="function")
+def unique_name():
+    """Generate unique schema/table names per test."""
+    unique_id = int(time.time() * 1_000_000) % 1_000_000
+    base = f"t{os.getpid()}_{unique_id}"
+
+    def _make(kind: str, name: str) -> str:
+        return f"{kind}_{name}_{base}"
+
+    return _make
+
+
+@pytest.fixture(scope="function")
 def unique_table_name():
     """Provide a function to generate unique table names for each test."""
     import time

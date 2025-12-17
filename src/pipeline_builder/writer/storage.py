@@ -24,7 +24,7 @@ from pipeline_builder_base.logging import PipelineLogger
 
 from ..compat import AnalysisException, DataFrame, SparkSession, types
 from ..functions import FunctionsProtocol, get_default_functions
-from ..table_operations import table_exists
+from ..table_operations import table_exists, table_schema_is_empty
 from .exceptions import WriterTableError
 from .models import LogRow, WriteMode, WriterConfig, create_log_schema
 
@@ -242,6 +242,12 @@ class StorageManager:
             # Check if table exists and is a Delta table
             table_is_delta = False
             if table_exists(self.spark, self.table_fqn):
+                # Heal catalog entries that report empty schema (struct<>)
+                if table_schema_is_empty(self.spark, self.table_fqn):
+                    self.logger.warning(
+                        f"Table {self.table_fqn} reports empty schema; dropping and recreating."
+                    )
+                    self.spark.sql(f"DROP TABLE IF EXISTS {self.table_fqn}")  # type: ignore[attr-defined]
                 try:
                     # Check if table is a Delta table by checking table properties
                     if HAS_DELTA:
@@ -388,6 +394,10 @@ class StorageManager:
                         else:
                             raise  # Re-raise if it's a different error
 
+                try:
+                    self.spark.sql(f"REFRESH TABLE {self.table_fqn}")  # type: ignore[attr-defined]
+                except Exception:
+                    pass
                 self.logger.info(f"Table created successfully: {self.table_fqn}")
             elif not table_is_delta:
                 # Table exists but wasn't verified as Delta - this shouldn't happen after the check above
@@ -435,6 +445,15 @@ class StorageManager:
 
             # Prepare DataFrame for writing
             df_prepared = self._prepare_dataframe_for_write(df)
+
+            # Heal catalog entries that report empty schema before writing
+            if table_exists(self.spark, self.table_fqn) and table_schema_is_empty(
+                self.spark, self.table_fqn
+            ):
+                self.logger.warning(
+                    f"Table {self.table_fqn} reports empty schema before write; dropping and recreating."
+                )
+                self.spark.sql(f"DROP TABLE IF EXISTS {self.table_fqn}")  # type: ignore[attr-defined]
 
             # Check if Delta Lake is actually available and working
             delta_configured = _is_delta_lake_available(self.spark)

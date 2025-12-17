@@ -70,14 +70,19 @@ Validation Requirements:
     BronzeStep(name="events", rules={})  # ValidationError: Rules must be non-empty
 """
 
-# Import main classes for easy access
-from .pipeline import PipelineBuilder, PipelineRunner
-from .writer import LogWriter
-
 __version__ = "2.5.2"
 __author__ = "Odos Matthews"
 __email__ = "odosmattthewsm@gmail.com"
 __description__ = "A simplified, production-ready data pipeline builder for Apache Spark and Delta Lake"
+
+
+from typing import TYPE_CHECKING
+
+# Avoid eager imports so engine configuration can be set up first.
+if TYPE_CHECKING:  # pragma: no cover - used only for type checkers
+    from .pipeline import PipelineBuilder as PipelineBuilder
+    from .pipeline import PipelineRunner as PipelineRunner
+    from .writer import LogWriter as LogWriter
 
 
 # Lazy import to avoid engine configuration during package import

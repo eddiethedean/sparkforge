@@ -173,8 +173,15 @@ class TestPySparkCompatibility:
 
         from pyspark.sql import SparkSession
 
-        # Configure Spark with Delta Lake
-        spark = (
+        # Configure Spark with Delta Lake (use helper to ensure Delta jars are added)
+        try:
+            from delta import configure_spark_with_delta_pip
+        except ImportError:
+            import delta.pip_utils as pip_utils  # type: ignore
+
+            configure_spark_with_delta_pip = pip_utils.configure_spark_with_delta_pip
+
+        builder = (
             SparkSession.builder.appName("DeltaTest")
             .master("local[1]")
             .config("spark.driver.host", "127.0.0.1")
@@ -184,16 +191,23 @@ class TestPySparkCompatibility:
                 "spark.sql.catalog.spark_catalog",
                 "org.apache.spark.sql.delta.catalog.DeltaCatalog",
             )
-            .getOrCreate()
         )
+
+        spark = configure_spark_with_delta_pip(builder).getOrCreate()
 
         # Create test table
         data = [(1, "Alice"), (2, "Bob")]
         df = spark.createDataFrame(data, ["id", "name"])
         table_name = "test_delta_table"
 
-        # Write as Delta table
-        df.write.format("delta").mode("overwrite").saveAsTable(table_name)
+        # Write as Delta table (use append + overwriteSchema to avoid truncate limits)
+        spark.sql(f"DROP TABLE IF EXISTS {table_name}")  # type: ignore[attr-defined]
+        (
+            df.write.format("delta")
+            .mode("append")
+            .option("overwriteSchema", "true")
+            .saveAsTable(table_name)
+        )
 
         # Read back
         result = spark.table(table_name)

@@ -176,6 +176,16 @@ def table_exists(
         True if table exists, False otherwise
     """
     try:
+        # If catalog has a fast check, use it first
+        try:
+            if hasattr(spark, "catalog") and spark.catalog.tableExists(fqn):  # type: ignore[attr-defined]
+                # Run a lightweight count to mirror legacy behavior/side effects
+                spark.table(fqn).count()  # type: ignore[attr-defined]
+                return True
+        except Exception:
+            # Fall back to direct table access below
+            pass
+
         spark.table(fqn).count()  # type: ignore[attr-defined]
         return True
     except AnalysisException:
@@ -183,6 +193,23 @@ def table_exists(
         return False
     except Exception as e:
         logger.warning(f"Error checking if table {fqn} exists: {e}")
+        return False
+
+
+def table_schema_is_empty(spark: SparkSession, fqn: str) -> bool:
+    """
+    Check if a table exists but reports an empty schema (struct<>).
+
+    This detects catalog sync issues where the metastore has a placeholder
+    entry without columns. Callers can drop/recreate to heal.
+    """
+    try:
+        if not table_exists(spark, fqn):
+            return False
+        schema = spark.table(fqn).schema  # type: ignore[attr-defined]
+        return len(schema.fields) == 0
+    except Exception as e:
+        logger.debug(f"Could not inspect schema for {fqn}: {e}")
         return False
 
 
