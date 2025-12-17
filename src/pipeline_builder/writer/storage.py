@@ -58,10 +58,6 @@ def _is_delta_lake_available(spark: SparkSession) -> bool:  # type: ignore[valid
     Returns:
         True if Delta Lake is available and working, False otherwise
     """
-    # Simplify writes: force non-Delta paths (use parquet) to avoid Delta-specific issues.
-    _delta_availability_cache[str(id(spark))] = False
-    return False
-
     # Use Spark session's underlying SparkContext ID as cache key
     try:
         spark_id = (
