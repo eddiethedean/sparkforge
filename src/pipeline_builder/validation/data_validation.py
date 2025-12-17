@@ -65,6 +65,23 @@ def _convert_rule_to_expression(
             elif op == "ne":
                 result = functions.col(column_name) != value
                 return cast(Column, result)
+            elif op == "in":
+                if not isinstance(value, (list, tuple, set)):
+                    raise ValidationError(
+                        f"'in' rule for column '{column_name}' requires list/tuple/set values"
+                    )
+                result = functions.col(column_name).isin(list(value))
+                return cast(Column, result)
+            elif op == "not_in":
+                if not isinstance(value, (list, tuple, set)):
+                    raise ValidationError(
+                        f"'not_in' rule for column '{column_name}' requires list/tuple/set values"
+                    )
+                result = ~functions.col(column_name).isin(list(value))
+                return cast(Column, result)
+            elif op == "like":
+                result = functions.col(column_name).like(value)
+                return cast(Column, result)
             else:
                 # For unknown operators, assume it's a valid PySpark expression
                 return functions.expr(f"{column_name} {op} {value}")

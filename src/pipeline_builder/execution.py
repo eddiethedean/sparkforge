@@ -209,21 +209,16 @@ def _create_dataframe_writer(
     delta_available = _is_delta_lake_available_execution(spark)
 
     # Always start with the requested write mode
-    effective_mode = mode
-
-    # Set format based on Delta availability
     if delta_available:
-        # Use Delta Lake when available
-        # Delta tables prefer append with overwriteSchema rather than truncate
-        if mode == "overwrite":
-            effective_mode = "append"
-            options.setdefault("overwriteSchema", "true")
+        # Delta tables disallow truncate/overwrite via V2 in batch; use append with overwriteSchema
+        effective_mode = "append" if mode == "overwrite" else mode
+        # Only set overwriteSchema if caller didn't specify; keep caller override otherwise
+        if mode == "overwrite" and "overwriteSchema" not in options:
+            options["overwriteSchema"] = "true"
         writer = df.write.format("delta").mode(effective_mode)
-        # Schema evolution options (overwriteSchema, mergeSchema) are NOT set automatically
-        # Callers must explicitly provide these options if schema changes are intended
     else:
         # Fallback to parquet when Delta is not available
-        writer = df.write.format("parquet").mode(effective_mode)
+        writer = df.write.format("parquet").mode(mode)
 
     # Apply additional caller-provided options last so callers can override
     # defaults if needed.

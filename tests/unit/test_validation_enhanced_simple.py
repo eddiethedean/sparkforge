@@ -44,6 +44,7 @@ from pipeline_builder.validation.data_validation import (
     assess_data_quality,
     validate_dataframe_schema,
 )
+from pipeline_builder_base.errors import ValidationError
 
 
 # Skip all tests in this file when running in real mode
@@ -143,6 +144,28 @@ class TestValidationWithFunctionsSimple:
         # Test non_zero rule
         expr = _convert_rule_to_expression("non_zero", "id", self.mock_functions)
         assert expr is not None
+
+    def test_convert_rule_in_not_in_like(self):
+        """Test list-based operators: in, not_in, like."""
+        in_expr = _convert_rule_to_expression(
+            ["in", ["Alice", "Bob"]], "name", self.mock_functions
+        )
+        assert hasattr(in_expr, "__invert__")
+
+        not_in_expr = _convert_rule_to_expression(
+            ["not_in", {"Eve", "Mallory"}], "name", self.mock_functions
+        )
+        assert hasattr(not_in_expr, "__invert__")
+
+        like_expr = _convert_rule_to_expression(
+            ["like", "%Ali%"], "name", self.mock_functions
+        )
+        assert hasattr(like_expr, "__invert__")
+
+    def test_convert_rule_in_requires_iterable(self):
+        """'in' rules must receive an iterable."""
+        with pytest.raises(ValidationError):
+            _convert_rule_to_expression(["in", "not_iterable"], "name", self.mock_functions)
 
     def test_convert_rules_to_expressions_with_mock_functions(self):
         """Test _convert_rules_to_expressions with mock functions."""

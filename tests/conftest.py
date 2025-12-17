@@ -13,6 +13,13 @@ import shutil
 import sys
 import time
 
+# Ensure Delta jars are always on classpath for PySpark workers (including xdist)
+# This is set before any PySpark imports to propagate to child workers.
+if "PYSPARK_SUBMIT_ARGS" not in os.environ:
+    os.environ[
+        "PYSPARK_SUBMIT_ARGS"
+    ] = "--packages io.delta:delta-spark_2.12:3.0.0 pyspark-shell"
+
 # Set PySpark Python environment variables early, before any Spark imports
 # This ensures workers use the same Python version as the driver
 # Use absolute path to ensure consistency
@@ -352,6 +359,8 @@ def _create_real_spark_session():
             .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
             .config("spark.driver.memory", "1g")
             .config("spark.executor.memory", "1g")
+            # Ensure Delta jars are present even under xdist concurrency
+            .config("spark.jars.packages", "io.delta:delta-spark_2.12:3.0.0")
             .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
             # Note: spark.sql.catalog.spark_catalog is set by configure_spark_with_delta_pip()
             # Don't set it here to avoid ClassNotFoundException if Delta Lake setup fails
