@@ -66,7 +66,7 @@ class TestWriteOverwriteTable:
     """Test write_overwrite_table function."""
 
     def test_write_overwrite_table_success(self):
-        """Test successful overwrite table write using DELETE + INSERT pattern."""
+        """Test successful overwrite table write using standardized Delta overwrite pattern."""
         mock_df = MagicMock()
         mock_df.count.return_value = 100
         mock_writer = MagicMock()
@@ -74,32 +74,19 @@ class TestWriteOverwriteTable:
         mock_writer.mode.return_value = mock_writer
         mock_writer.option.return_value = mock_writer
 
-        # Mock SparkSession for DELETE operation
-        mock_spark = MagicMock()
-        mock_sql_ctx = MagicMock()
-        mock_sql_ctx.sparkSession = mock_spark
-        mock_df.sql_ctx = mock_sql_ctx
-
         with patch("pipeline_builder.table_operations.logger"):
-            with patch(
-                "pipeline_builder.table_operations.table_exists", return_value=True
-            ):
-                result = write_overwrite_table(mock_df, "test_schema.test_table")
+            result = write_overwrite_table(mock_df, "test_schema.test_table")
 
-                assert result == 100
-                mock_df.cache.assert_called_once()
-                mock_df.count.assert_called_once()
-                # Should call DELETE FROM if table exists
-                mock_spark.sql.assert_called_once_with(
-                    "DELETE FROM test_schema.test_table"
-                )
-                mock_df.write.format.assert_called_once_with("parquet")
-                # Should use append mode after DELETE
-                mock_writer.mode.assert_called_once_with("append")
-                mock_writer.option.assert_called_once_with("overwriteSchema", "true")
-                mock_writer.saveAsTable.assert_called_once_with(
-                    "test_schema.test_table"
-                )
+            assert result == 100
+            mock_df.cache.assert_called_once()
+            mock_df.count.assert_called_once()
+            # Standardized pattern: always use delta format, overwrite mode with overwriteSchema
+            mock_df.write.format.assert_called_once_with("delta")
+            mock_writer.mode.assert_called_once_with("overwrite")
+            mock_writer.option.assert_called_once_with("overwriteSchema", "true")
+            mock_writer.saveAsTable.assert_called_once_with(
+                "test_schema.test_table"
+            )
 
     def test_write_overwrite_table_with_options(self):
         """Test overwrite table write with additional options."""
@@ -110,35 +97,23 @@ class TestWriteOverwriteTable:
         mock_writer.mode.return_value = mock_writer
         mock_writer.option.return_value = mock_writer
 
-        # Mock SparkSession for DELETE operation
-        mock_spark = MagicMock()
-        mock_sql_ctx = MagicMock()
-        mock_sql_ctx.sparkSession = mock_spark
-        mock_df.sql_ctx = mock_sql_ctx
-
         with patch("pipeline_builder.table_operations.logger"):
-            with patch(
-                "pipeline_builder.table_operations.table_exists", return_value=True
-            ):
-                result = write_overwrite_table(
-                    mock_df,
-                    "test_schema.test_table",
-                    compression="snappy",
-                    partitionBy="date",
-                )
+            result = write_overwrite_table(
+                mock_df,
+                "test_schema.test_table",
+                compression="snappy",
+                partitionBy="date",
+            )
 
-                assert result == 50
-                # Should call DELETE FROM if table exists
-                mock_spark.sql.assert_called_once_with(
-                    "DELETE FROM test_schema.test_table"
-                )
-                # Should call option for each additional option
-                assert (
-                    mock_writer.option.call_count == 3
-                )  # overwriteSchema + 2 additional
-                mock_writer.option.assert_any_call("overwriteSchema", "true")
-                mock_writer.option.assert_any_call("compression", "snappy")
-                mock_writer.option.assert_any_call("partitionBy", "date")
+            assert result == 50
+            # Standardized pattern: always use delta format, overwrite mode with overwriteSchema
+            # Should call option for each additional option
+            assert (
+                mock_writer.option.call_count == 3
+            )  # overwriteSchema + 2 additional
+            mock_writer.option.assert_any_call("overwriteSchema", "true")
+            mock_writer.option.assert_any_call("compression", "snappy")
+            mock_writer.option.assert_any_call("partitionBy", "date")
 
     def test_write_overwrite_table_failure(self):
         """Test overwrite table write failure."""
@@ -160,23 +135,14 @@ class TestWriteOverwriteTable:
         mock_writer.mode.return_value = mock_writer
         mock_writer.option.return_value = mock_writer
 
-        # Mock SparkSession for DELETE operation
-        mock_spark = MagicMock()
-        mock_sql_ctx = MagicMock()
-        mock_sql_ctx.sparkSession = mock_spark
-        mock_df.sql_ctx = mock_sql_ctx
-
         with patch("pipeline_builder.table_operations.logger"):
-            with patch(
-                "pipeline_builder.table_operations.table_exists", return_value=True
-            ):
-                result = write_overwrite_table(mock_df, "test_schema.test_table")
+            result = write_overwrite_table(mock_df, "test_schema.test_table")
 
-                assert result == 0
-                # Should still call DELETE FROM if table exists
-                mock_spark.sql.assert_called_once_with(
-                    "DELETE FROM test_schema.test_table"
-                )
+            assert result == 0
+            # Standardized pattern: always use delta format, overwrite mode with overwriteSchema
+            mock_df.write.format.assert_called_once_with("delta")
+            mock_writer.mode.assert_called_once_with("overwrite")
+            mock_writer.option.assert_called_once_with("overwriteSchema", "true")
 
 
 class TestWriteAppendTable:

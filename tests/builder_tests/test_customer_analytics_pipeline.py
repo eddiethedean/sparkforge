@@ -6,7 +6,7 @@ Bronze → Silver → Gold medallion architecture with customer interactions,
 behavior analysis, and 360-degree customer view.
 """
 
-from sparkless import functions as F  # type: ignore[import]
+from pipeline_builder.compat import F
 
 from pipeline_builder.pipeline import PipelineBuilder
 from pipeline_builder.writer import LogWriter

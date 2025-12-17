@@ -97,7 +97,7 @@ from pipeline_builder_base.models import (
 from .compat import AnalysisException, DataFrame, F, SparkSession
 from .functions import FunctionsProtocol
 from .models import BronzeStep, GoldStep, SilverStep
-from .table_operations import fqn, table_exists, table_schema_is_empty
+from .table_operations import fqn, prepare_delta_overwrite, table_exists, table_schema_is_empty
 from .validation import apply_column_rules
 
 # Handle optional Delta Lake dependency
@@ -186,43 +186,53 @@ def _is_delta_lake_available_execution(spark: SparkSession) -> bool:  # type: ig
     return False
 
 
+# Legacy function - use prepare_delta_overwrite from table_operations instead
+def _prepare_delta_overwrite(
+    spark: SparkSession,  # type: ignore[valid-type]
+    table_name: str,
+) -> None:
+    """
+    Legacy function - delegates to prepare_delta_overwrite() from table_operations.
+    
+    This function is kept for backward compatibility but now uses the centralized
+    prepare_delta_overwrite() function from table_operations module.
+    """
+    # Only prepare if Delta is available
+    if HAS_DELTA and _is_delta_lake_available_execution(spark):
+        prepare_delta_overwrite(spark, table_name)
+
+
 def _create_dataframe_writer(
     df: DataFrame,
     spark: SparkSession,  # type: ignore[valid-type]
     mode: str,
+    table_name: Optional[str] = None,
     **options: Any,
 ) -> Any:
     """
-    Create a DataFrameWriter with the appropriate format based on Delta availability.
-
-    This ensures that writers always use the correct format (delta or parquet)
-    based on what's actually available in the Spark session.
-
+    Create a DataFrameWriter using the standardized Delta overwrite pattern.
+    
+    For overwrite mode: uses format("delta").mode("overwrite").option("overwriteSchema", "true")
+    Always uses Delta format - failures will propagate if Delta is not available.
+    
     Args:
         df: DataFrame to write
         spark: Spark session
         mode: Write mode ("overwrite", "append", etc.)
+        table_name: Optional table name for preparing Delta overwrite
         **options: Additional write options
-
-    Returns:
-        Configured DataFrameWriter
     """
-    delta_available = _is_delta_lake_available_execution(spark)
-
-    # Always start with the requested write mode
-    if delta_available:
-        # Delta tables disallow truncate/overwrite via V2 in batch; use append with overwriteSchema
-        effective_mode = "append" if mode == "overwrite" else mode
-        # Only set overwriteSchema if caller didn't specify; keep caller override otherwise
-        if mode == "overwrite" and "overwriteSchema" not in options:
-            options["overwriteSchema"] = "true"
-        writer = df.write.format("delta").mode(effective_mode)
+    # Use standardized overwrite pattern: overwrite + overwriteSchema
+    if mode == "overwrite":
+        writer = (
+            df.write.format("delta")
+            .mode("overwrite")
+            .option("overwriteSchema", "true")
+        )
     else:
-        # Fallback to parquet when Delta is not available
-        writer = df.write.format("parquet").mode(mode)
+        # Append or other modes - always use Delta
+        writer = df.write.format("delta").mode(mode)
 
-    # Apply additional caller-provided options last so callers can override
-    # defaults if needed.
     for key, value in options.items():
         writer = writer.option(key, value)
 
@@ -878,6 +888,7 @@ class ExecutionEngine:
                                                 output_df,
                                                 self.spark,
                                                 "overwrite",
+                                                table_name=output_table,
                                                 overwriteSchema="true",
                                             )
                                             retry_writer.saveAsTable(output_table)  # type: ignore[attr-defined]
@@ -892,6 +903,7 @@ class ExecutionEngine:
                                         output_df,
                                         self.spark,
                                         "overwrite",
+                                        table_name=output_table,
                                         overwriteSchema="true",
                                     )
                                     writer.saveAsTable(output_table)  # type: ignore[attr-defined]
@@ -913,6 +925,7 @@ class ExecutionEngine:
                                                 output_df,
                                                 self.spark,
                                                 "overwrite",
+                                                table_name=output_table,
                                                 overwriteSchema="true",
                                             )
                                             retry_writer.saveAsTable(output_table)  # type: ignore[attr-defined]
@@ -927,6 +940,7 @@ class ExecutionEngine:
                                     output_df,
                                     self.spark,
                                     write_mode_str,
+                                    table_name=output_table,
                                     overwriteSchema="true",
                                 )
                                 writer.saveAsTable(output_table)  # type: ignore[attr-defined]
@@ -1059,7 +1073,7 @@ class ExecutionEngine:
                                             )  # type: ignore[attr-defined]
                                             # DELETE succeeded, use append mode
                                             writer = _create_dataframe_writer(
-                                                output_df, self.spark, "append"
+                                                output_df, self.spark, "append", table_name=output_table
                                             )
                                         except Exception as delete_error:
                                             # If DELETE fails, fall back to CREATE OR REPLACE TABLE
@@ -1086,12 +1100,12 @@ class ExecutionEngine:
                                     else:
                                         # Not Delta table, use normal overwrite
                                         writer = _create_dataframe_writer(
-                                            output_df, self.spark, "overwrite"
+                                            output_df, self.spark, "overwrite", table_name=output_table
                                         )
                         else:
                             # Table doesn't exist - proceed with normal write
                             writer = _create_dataframe_writer(
-                                output_df, self.spark, write_mode_str
+                                output_df, self.spark, write_mode_str, table_name=output_table
                             )
                     # Heal catalog entries that report empty schema (struct<>) before choosing writer
                     if table_exists(self.spark, output_table) and table_schema_is_empty(
@@ -1115,7 +1129,7 @@ class ExecutionEngine:
                                     self.spark.sql(f"DELETE FROM {output_table}")  # type: ignore[attr-defined]
                                     # DELETE succeeded, use append mode
                                     writer = _create_dataframe_writer(
-                                        output_df, self.spark, "append"
+                                        output_df, self.spark, "append", table_name=output_table
                                     )
                                 except Exception as delete_error:
                                     # If DELETE fails, fall back to DROP + CREATE
@@ -1145,18 +1159,18 @@ class ExecutionEngine:
                             else:
                                 # Table doesn't exist - use append to create it
                                 writer = _create_dataframe_writer(
-                                    output_df, self.spark, "append"
+                                    output_df, self.spark, "append", table_name=output_table
                                 )
                         else:
                             # Not Delta table, use normal overwrite
                             writer = _create_dataframe_writer(
-                                output_df, self.spark, "overwrite"
+                                output_df, self.spark, "overwrite", table_name=output_table
                             )
                     else:
                         # For INCREMENTAL and FULL_REFRESH modes (non-Gold), schema validation already done above
                         # Just create writer with appropriate mode
                         writer = _create_dataframe_writer(
-                            output_df, self.spark, write_mode_str
+                            output_df, self.spark, write_mode_str, table_name=output_table
                         )
 
                     # Execute write
@@ -1176,11 +1190,56 @@ class ExecutionEngine:
                             table_lock.acquire()
 
                         try:
+                            # For overwrite mode with Delta, always drop existing table right before write
+                            # This avoids "truncate in batch mode" errors
+                            # We drop unconditionally because Spark may create the table during the write
+                            # and then try to use truncate semantics, which Delta doesn't support
+                            if write_mode_str == "overwrite" and _is_delta_lake_available_execution(self.spark):
+                                # Always try to drop - if table doesn't exist, this is a no-op
+                                try:
+                                    self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                                except Exception:
+                                    # If drop fails, try the more sophisticated check
+                                    _prepare_delta_overwrite(self.spark, output_table)
+                            
                             writer.saveAsTable(output_table)  # type: ignore[attr-defined]
                         except Exception as write_error:
-                            # Handle catalog sync issues where Spark reports empty schema (struct<>)
+                            # Handle "truncate in batch mode" errors for Delta tables
                             error_msg = str(write_error).lower()
-                            if (
+                            truncate_handled = False
+                            if "truncate in batch mode" in error_msg and _is_delta_lake_available_execution(self.spark):
+                                # Delta table doesn't support truncate - drop and recreate
+                                self.logger.warning(
+                                    f"Delta table '{output_table}' doesn't support truncate. "
+                                    f"Dropping and recreating with fresh data."
+                                )
+                                try:
+                                    # Drop table and recreate using CREATE TABLE AS SELECT
+                                    # This avoids truncate semantics entirely
+                                    self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                                    temp_view_name = f"_temp_{step.name}_{uuid.uuid4().hex[:8]}"
+                                    output_df.createOrReplaceTempView(temp_view_name)  # type: ignore[attr-defined]
+                                    self.spark.sql(f"""
+                                        CREATE TABLE {output_table}
+                                        USING DELTA
+                                        AS SELECT * FROM {temp_view_name}
+                                    """)  # type: ignore[attr-defined]
+                                    try:
+                                        self.spark.sql(f"DROP VIEW IF EXISTS {temp_view_name}")  # type: ignore[attr-defined]
+                                    except Exception:
+                                        pass
+                                    # Success - truncate error handled, don't process other errors
+                                    truncate_handled = True
+                                except Exception as retry_error:
+                                    # If retry also fails, fall through to other error handling
+                                    write_error = retry_error
+                                    error_msg = str(retry_error).lower()
+                            
+                            # If we successfully handled the truncate error, skip other error handling
+                            if truncate_handled:
+                                pass  # Write succeeded, continue normally
+                            # Handle catalog sync issues where Spark reports empty schema (struct<>)
+                            elif (
                                 "struct<>" in error_msg
                                 or "column number of the existing table" in error_msg
                             ):
@@ -1250,6 +1309,7 @@ class ExecutionEngine:
                                                 output_df,
                                                 self.spark,
                                                 "overwrite",
+                                                table_name=output_table,
                                                 overwriteSchema="true",
                                             )
                                             direct_writer.saveAsTable(output_table)  # type: ignore[attr-defined]
@@ -1357,6 +1417,7 @@ class ExecutionEngine:
                                         output_df,
                                         self.spark,
                                         "append",
+                                        table_name=output_table,
                                     )
                                     retry_writer.saveAsTable(output_table)  # type: ignore[attr-defined]
                                 else:

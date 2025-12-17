@@ -65,6 +65,9 @@ def delta_spark_session():
         print("🔍 Verifying Delta Lake functionality...")
         test_df = spark.createDataFrame([(1, "test")], ["id", "name"])
         test_table = "test_schema_delta.delta_verification"
+        # Use prepare_delta_overwrite to handle Delta table overwrite properly
+        from pipeline_builder.table_operations import prepare_delta_overwrite
+        prepare_delta_overwrite(spark, test_table)
         test_df.write.format("delta").mode("overwrite").saveAsTable(test_table)
 
         # Test Delta Lake specific operations

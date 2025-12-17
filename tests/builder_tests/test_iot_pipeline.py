@@ -6,9 +6,7 @@ Bronze → Silver → Gold medallion architecture with sensor readings, anomaly 
 and device health analytics.
 """
 
-from sparkless import Window as Window  # type: ignore[import]
-from sparkless import functions as F  # type: ignore[import]
-
+from pipeline_builder.compat import F, Window
 from pipeline_builder.pipeline import PipelineBuilder
 from pipeline_builder.writer import LogWriter
 
@@ -435,6 +433,19 @@ class TestIotPipeline:
         self, mock_spark_session, data_generator, log_writer_config, test_assertions
     ):
         """Test performance monitoring and logging for IoT pipeline."""
+        import os
+        from tests.conftest import _log_session_configs
+        
+        # Verify session identity and configuration at test start
+        print(f"🔍 test_performance_monitoring: Test starting")
+        print(f"🔍 test_performance_monitoring: PID={os.getpid()}")
+        print(f"🔍 test_performance_monitoring: Session ID (Python)={id(mock_spark_session)}")
+        try:
+            if hasattr(mock_spark_session, "_jsparkSession"):
+                print(f"🔍 test_performance_monitoring: Session ID (JVM)={id(mock_spark_session._jsparkSession)}")
+        except Exception:
+            pass
+        _log_session_configs(mock_spark_session, "test_performance_monitoring (test start)")
 
         # Create large sensor dataset
         sensor_data = data_generator.create_iot_sensor_data(

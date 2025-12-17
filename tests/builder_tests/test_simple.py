@@ -2,7 +2,7 @@
 Simple test to verify basic functionality.
 """
 
-from sparkless import functions as F  # type: ignore[import]
+from pipeline_builder.compat import F
 
 from pipeline_builder.pipeline import PipelineBuilder
 

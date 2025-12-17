@@ -24,6 +24,7 @@ from pipeline_builder_base.logging import PipelineLogger
 from pipeline_builder_base.models import StageStats
 
 from ..compat import Column, DataFrame
+from ..compat_helpers import detect_spark_type
 from ..functions import FunctionsProtocol, get_default_functions
 from ..models import ColumnRules
 
@@ -265,7 +266,33 @@ def apply_column_rules(
         if isinstance(validation_predicate, str):
             validation_predicate = functions.expr(validation_predicate)
         elif not isinstance(validation_predicate, Column):
-            validation_predicate = cast(Column, validation_predicate)
+            # Check if we're in real PySpark mode and predicate is not a PySpark Column
+            # This can happen when tests use sparkless functions in real PySpark mode
+            try:
+                # Try to detect if we're in real PySpark mode
+                spark_type = detect_spark_type(df.sql_ctx.sparkSession)  # type: ignore[attr-defined]
+                if spark_type == "pyspark":
+                    # Check if predicate is a PySpark Column by checking for _jc attribute
+                    if not hasattr(validation_predicate, "_jc"):
+                        # Not a PySpark Column - try to convert via string representation
+                        # This handles ColumnOperation from sparkless
+                        try:
+                            # Try to get string representation and convert
+                            pred_str = str(validation_predicate)
+                            validation_predicate = functions.expr(pred_str)
+                        except Exception:
+                            # If conversion fails, cast and hope it works
+                            # This will raise an error if it doesn't work, which is better than silent failure
+                            validation_predicate = cast(Column, validation_predicate)
+                    else:
+                        # It's a PySpark Column, just cast for type checking
+                        validation_predicate = cast(Column, validation_predicate)
+                else:
+                    # Not in real PySpark mode, safe to cast
+                    validation_predicate = cast(Column, validation_predicate)
+            except Exception:
+                # If detection fails, try casting anyway
+                validation_predicate = cast(Column, validation_predicate)
 
         valid_df = df.filter(validation_predicate)
         invalid_df = df.filter(~validation_predicate)

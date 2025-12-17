@@ -6,7 +6,7 @@ Bronze → Silver → Gold medallion architecture with transaction validation, f
 and compliance reporting.
 """
 
-from sparkless import functions as F  # type: ignore[import]
+from pipeline_builder.compat import F
 
 from pipeline_builder.pipeline import PipelineBuilder
 from pipeline_builder.writer import LogWriter

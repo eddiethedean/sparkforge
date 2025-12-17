@@ -31,7 +31,7 @@ class DummyDataFrame:
 
 
 def test_delta_writer_preserves_overwrite_mode(monkeypatch):
-    """Delta path should avoid truncate by using append+overwriteSchema for overwrite."""
+    """Delta path uses standardized overwrite pattern: overwrite + overwriteSchema."""
     df = DummyDataFrame()
     monkeypatch.setattr(
         "pipeline_builder.execution._is_delta_lake_available_execution",
@@ -41,23 +41,19 @@ def test_delta_writer_preserves_overwrite_mode(monkeypatch):
     writer = _create_dataframe_writer(df, spark="dummy", mode="overwrite")
 
     assert writer.format_value == "delta"
-    # overwrite is converted to append to avoid truncate on Delta V2 tables
-    assert writer.mode_value == "append"
+    # Standardized pattern: overwrite mode with overwriteSchema
+    assert writer.mode_value == "overwrite"
     # overwriteSchema is injected by default
     assert writer.options.get("overwriteSchema") == "true"
 
 
-def test_parquet_writer_preserves_mode(monkeypatch):
-    """Parquet fallback should also keep requested mode and options."""
+def test_delta_writer_append_mode(monkeypatch):
+    """Delta writer should use delta format for append mode."""
     df = DummyDataFrame()
-    monkeypatch.setattr(
-        "pipeline_builder.execution._is_delta_lake_available_execution",
-        lambda spark: False,
-    )
 
     writer = _create_dataframe_writer(df, spark="dummy", mode="append", extra="yes")
 
-    assert writer.format_value == "parquet"
+    assert writer.format_value == "delta"
     assert writer.mode_value == "append"
     assert writer.options.get("extra") == "yes"
 
@@ -75,6 +71,6 @@ def test_delta_writer_respects_explicit_overwrite_schema(monkeypatch):
     )
 
     assert writer.format_value == "delta"
-    assert writer.mode_value == "append"
+    assert writer.mode_value == "overwrite"
     # Caller override remains
     assert writer.options.get("overwriteSchema") == "false"
