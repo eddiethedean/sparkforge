@@ -536,43 +536,6 @@ class StorageManager:
                     # Different error - re-raise
                     raise
 
-            # Ensure catalog/table visibility in mock (sparkless) parquet path.
-            # sparkless sometimes reports rows_written but returns 0 on immediate
-            # spark.table(...).count() until a refresh or re-registration occurs.
-            if not delta_configured:
-                try:
-                    # Try to refresh the table so the catalog sees the new data
-                    self.spark.sql(f"REFRESH TABLE {self.table_fqn}")  # type: ignore[attr-defined]
-                except Exception:
-                    pass
-                try:
-                    verify_count = self.spark.table(self.table_fqn).count()  # type: ignore[attr-defined]
-                except Exception:
-                    verify_count = 0
-
-                # If rows were written but catalog sees zero, force a re-write with overwrite+refresh
-                if row_count > 0 and verify_count == 0:
-                    self.logger.warning(
-                        f"Table {self.table_fqn} returned 0 rows after write in mock mode; "
-                        "retrying with overwrite+refresh to register data."
-                    )
-                    try:
-                        self.spark.sql(f"DROP TABLE IF EXISTS {self.table_fqn}")  # type: ignore[attr-defined]
-                    except Exception:
-                        pass
-                    retry_writer = (
-                        df_prepared.write.format("parquet")
-                        .mode("overwrite")
-                        .option("overwriteSchema", "true")
-                    )  # type: ignore[attr-defined]
-                    if partition_columns:
-                        retry_writer = retry_writer.partitionBy(*partition_columns)
-                    retry_writer.saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
-                    try:
-                        self.spark.sql(f"REFRESH TABLE {self.table_fqn}")  # type: ignore[attr-defined]
-                    except Exception:
-                        pass
-
             # Get write statistics
             row_count = df_prepared.count()  # type: ignore[attr-defined]
 
