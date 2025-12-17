@@ -272,15 +272,23 @@ class TestMinimalPipelines:
     @pytest.fixture
     def log_writer(self, spark_session, unique_name):
         """Create LogWriter instance."""
-        return LogWriter(
-            spark_session,
-            schema=unique_name("schema", "test_schema"),
-            table_name=unique_name("table", "pipeline_logs"),
-        )
+        # Force LogWriter to use non-Delta path and unique names to avoid cross-worker collisions
+        from pipeline_builder.writer import storage  # type: ignore
+
+        storage.HAS_DELTA = False
+        storage._delta_availability_cache.clear()  # type: ignore[attr-defined]
+
+        schema = unique_name("schema", "test_schema")
+        table = unique_name("table", "pipeline_logs")
+        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        # Expose for tests that need to read the logs
+        lw._test_schema = schema
+        lw._test_table = table
+        return lw
 
     def test_minimal_pipeline_with_logging(self, spark_session, log_writer):
         """Test minimal pipeline: 1 bronze → 1 silver → 1 gold."""
-        schema = "test_schema"
+        schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create small dataset
         data = create_test_data_initial(spark_session, num_records=15)
@@ -364,7 +372,7 @@ class TestMinimalPipelines:
         assert log_result["success"] is True
         assert log_result["rows_written"] >= 3  # At least 3 step rows
 
-        log_df = spark_session.table(f"{schema}.pipeline_logs")
+        log_df = spark_session.table(f"{schema}.{getattr(log_writer, '_test_table', 'pipeline_logs')}")
         logs = get_log_entries_by_run(log_df, run_id)
         assert len(logs) >= 3
 
@@ -373,15 +381,23 @@ class TestLargePipelines:
     """Tests for large pipeline configurations."""
 
     @pytest.fixture
-    def log_writer(self, spark_session):
+    def log_writer(self, spark_session, unique_name):
         """Create LogWriter instance."""
-        return LogWriter(
-            spark_session, schema="test_schema", table_name="pipeline_logs"
-        )
+        from pipeline_builder.writer import storage  # type: ignore
+
+        storage.HAS_DELTA = False
+        storage._delta_availability_cache.clear()  # type: ignore[attr-defined]
+
+        schema = unique_name("schema", "test_schema")
+        table = unique_name("table", "pipeline_logs")
+        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw._test_schema = schema
+        lw._test_table = table
+        return lw
 
     def test_large_pipeline_with_logging(self, spark_session, log_writer):
         """Test large pipeline: 5 bronze → 5 silver → 3 gold."""
-        schema = "test_schema"
+        schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create large dataset
         bronze_sources = {}
@@ -515,15 +531,23 @@ class TestEdgeCases:
     """Tests for edge cases and error scenarios."""
 
     @pytest.fixture
-    def log_writer(self, spark_session):
+    def log_writer(self, spark_session, unique_name):
         """Create LogWriter instance."""
-        return LogWriter(
-            spark_session, schema="test_schema", table_name="pipeline_logs"
-        )
+        from pipeline_builder.writer import storage  # type: ignore
+
+        storage.HAS_DELTA = False
+        storage._delta_availability_cache.clear()  # type: ignore[attr-defined]
+
+        schema = unique_name("schema", "test_schema")
+        table = unique_name("table", "pipeline_logs")
+        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw._test_schema = schema
+        lw._test_table = table
+        return lw
 
     def test_pipeline_with_empty_data(self, spark_session, log_writer):
         """Test pipeline with empty DataFrames."""
-        schema_name = "test_schema"
+        schema_name = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create empty data with explicit schema (Both PySpark and mock-spark 3.10.4+ require schema for empty DataFrames)
         df = create_empty_dataframe(
@@ -584,7 +608,7 @@ class TestEdgeCases:
 
     def test_pipeline_with_partial_validation_failures(self, spark_session, log_writer):
         """Test pipeline with mixed valid/invalid data."""
-        schema = "test_schema"
+        schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create mixed data (30% invalid)
         data = create_mixed_valid_invalid_data(
@@ -652,7 +676,7 @@ class TestEdgeCases:
 
     def test_pipeline_all_invalid_data(self, spark_session, log_writer):
         """Test pipeline where all data fails validation."""
-        schema = "test_schema"
+        schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create all invalid data
         data = create_invalid_data(spark_session, num_records=50)
@@ -718,17 +742,25 @@ class TestExecutionModes:
     """Tests for different execution modes."""
 
     @pytest.fixture
-    def log_writer(self, spark_session):
+    def log_writer(self, spark_session, unique_name):
         """Create LogWriter instance."""
-        return LogWriter(
-            spark_session, schema="test_schema", table_name="pipeline_logs"
-        )
+        from pipeline_builder.writer import storage  # type: ignore
+
+        storage.HAS_DELTA = False
+        storage._delta_availability_cache.clear()  # type: ignore[attr-defined]
+
+        schema = unique_name("schema", "test_schema")
+        table = unique_name("table", "pipeline_logs")
+        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw._test_schema = schema
+        lw._test_table = table
+        return lw
 
     def test_pipeline_sequential_execution_with_logging(
         self, spark_session, log_writer
     ):
         """Test sequential execution mode (parallel disabled)."""
-        schema = "test_schema"
+        schema = getattr(log_writer, "_test_schema", "test_schema")
 
         data = create_test_data_initial(spark_session, num_records=100)
         df = spark_session.createDataFrame(
@@ -800,15 +832,23 @@ class TestIncrementalScenarios:
     """Tests for incremental processing scenarios."""
 
     @pytest.fixture
-    def log_writer(self, spark_session):
+    def log_writer(self, spark_session, unique_name):
         """Create LogWriter instance."""
-        return LogWriter(
-            spark_session, schema="test_schema", table_name="pipeline_logs"
-        )
+        from pipeline_builder.writer import storage  # type: ignore
+
+        storage.HAS_DELTA = False
+        storage._delta_availability_cache.clear()  # type: ignore[attr-defined]
+
+        schema = unique_name("schema", "test_schema")
+        table = unique_name("table", "pipeline_logs")
+        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw._test_schema = schema
+        lw._test_table = table
+        return lw
 
     def test_pipeline_multiple_incremental_runs(self, spark_session, log_writer):
         """Test multiple incremental runs (initial + 3 incremental)."""
-        schema = "test_schema"
+        schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Initial data
         initial_data = create_test_data_initial(spark_session, num_records=100)
@@ -904,7 +944,7 @@ class TestIncrementalScenarios:
             log_writer.write_log_rows(log_rows_inc, run_id=run_id_inc)
 
         # Verify all runs logged
-        log_df = spark_session.table(f"{schema}.pipeline_logs")
+        log_df = spark_session.table(f"{schema}.{getattr(log_writer, '_test_table', 'pipeline_logs')}")
         initial_logs = get_log_entries_by_run(log_df, run_id_initial)
         assert len(initial_logs) > 0
 
@@ -914,7 +954,7 @@ class TestIncrementalScenarios:
 
     def test_pipeline_incremental_with_gaps(self, spark_session, log_writer):
         """Test incremental processing with timestamp gaps."""
-        schema = "test_schema"
+        schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Initial data on 2024-01-01
         initial_data = create_test_data_initial(spark_session, num_records=100)
@@ -1008,15 +1048,23 @@ class TestDataQuality:
     """Tests for data quality scenarios."""
 
     @pytest.fixture
-    def log_writer(self, spark_session):
+    def log_writer(self, spark_session, unique_name):
         """Create LogWriter instance."""
-        return LogWriter(
-            spark_session, schema="test_schema", table_name="pipeline_logs"
-        )
+        from pipeline_builder.writer import storage  # type: ignore
+
+        storage.HAS_DELTA = False
+        storage._delta_availability_cache.clear()  # type: ignore[attr-defined]
+
+        schema = unique_name("schema", "test_schema")
+        table = unique_name("table", "pipeline_logs")
+        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw._test_schema = schema
+        lw._test_table = table
+        return lw
 
     def test_pipeline_null_handling_with_logging(self, spark_session, log_writer):
         """Test pipeline with various null patterns."""
-        schema = "test_schema"
+        schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create data with nulls
         data = create_data_with_nulls(spark_session, num_records=100)
@@ -1076,7 +1124,7 @@ class TestDataQuality:
 
     def test_pipeline_duplicate_data_with_logging(self, spark_session, log_writer):
         """Test pipeline with duplicate records."""
-        schema = "test_schema"
+        schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create duplicate data
         data = create_duplicate_data(spark_session, num_records=100)
@@ -1136,15 +1184,23 @@ class TestHighVolume:
     """Tests for high volume data scenarios."""
 
     @pytest.fixture
-    def log_writer(self, spark_session):
+    def log_writer(self, spark_session, unique_name):
         """Create LogWriter instance."""
-        return LogWriter(
-            spark_session, schema="test_schema", table_name="pipeline_logs"
-        )
+        from pipeline_builder.writer import storage  # type: ignore
+
+        storage.HAS_DELTA = False
+        storage._delta_availability_cache.clear()  # type: ignore[attr-defined]
+
+        schema = unique_name("schema", "test_schema")
+        table = unique_name("table", "pipeline_logs")
+        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw._test_schema = schema
+        lw._test_table = table
+        return lw
 
     def test_pipeline_high_volume_with_logging(self, spark_session, log_writer):
         """Test pipeline with very large dataset (10,000+ records)."""
-        schema = "test_schema"
+        schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create large dataset
         data = create_test_data_initial(spark_session, num_records=10000)
@@ -1221,17 +1277,25 @@ class TestComplexDependencies:
     """Tests for complex dependency scenarios."""
 
     @pytest.fixture
-    def log_writer(self, spark_session):
+    def log_writer(self, spark_session, unique_name):
         """Create LogWriter instance."""
-        return LogWriter(
-            spark_session, schema="test_schema", table_name="pipeline_logs"
-        )
+        from pipeline_builder.writer import storage  # type: ignore
+
+        storage.HAS_DELTA = False
+        storage._delta_availability_cache.clear()  # type: ignore[attr-defined]
+
+        schema = unique_name("schema", "test_schema")
+        table = unique_name("table", "pipeline_logs")
+        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw._test_schema = schema
+        lw._test_table = table
+        return lw
 
     def test_pipeline_complex_dependencies_with_logging(
         self, spark_session, log_writer
     ):
         """Test pipeline with complex cross-dependencies."""
-        schema = "test_schema"
+        schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create data for 3 bronze sources
         bronze_sources = {}
@@ -1387,15 +1451,23 @@ class TestParallelStress:
     """Tests for parallel execution stress scenarios."""
 
     @pytest.fixture
-    def log_writer(self, spark_session):
+    def log_writer(self, spark_session, unique_name):
         """Create LogWriter instance."""
-        return LogWriter(
-            spark_session, schema="test_schema", table_name="pipeline_logs"
-        )
+        from pipeline_builder.writer import storage  # type: ignore
+
+        storage.HAS_DELTA = False
+        storage._delta_availability_cache.clear()  # type: ignore[attr-defined]
+
+        schema = unique_name("schema", "test_schema")
+        table = unique_name("table", "pipeline_logs")
+        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw._test_schema = schema
+        lw._test_table = table
+        return lw
 
     def test_pipeline_parallel_execution_stress(self, spark_session, log_writer):
         """Test parallel execution with many concurrent steps (10 bronze → 10 silver → 5 gold)."""
-        schema = "test_schema"
+        schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create data for 10 bronze sources
         bronze_sources = {}
@@ -1489,15 +1561,23 @@ class TestSchemaEvolution:
     """Tests for schema evolution scenarios."""
 
     @pytest.fixture
-    def log_writer(self, spark_session):
+    def log_writer(self, spark_session, unique_name):
         """Create LogWriter instance."""
-        return LogWriter(
-            spark_session, schema="test_schema", table_name="pipeline_logs"
-        )
+        from pipeline_builder.writer import storage  # type: ignore
+
+        storage.HAS_DELTA = False
+        storage._delta_availability_cache.clear()  # type: ignore[attr-defined]
+
+        schema = unique_name("schema", "test_schema")
+        table = unique_name("table", "pipeline_logs")
+        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw._test_schema = schema
+        lw._test_table = table
+        return lw
 
     def test_pipeline_with_schema_evolution_logging(self, spark_session, log_writer):
         """Test schema evolution: initial run with columns A,B,C; incremental adds column D."""
-        schema = "test_schema"
+        schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Initial data with columns: user_id, action, timestamp, value
         initial_data = create_test_data_initial(spark_session, num_records=100)
@@ -1598,15 +1678,23 @@ class TestDataTypes:
     """Tests for various data types."""
 
     @pytest.fixture
-    def log_writer(self, spark_session):
+    def log_writer(self, spark_session, unique_name):
         """Create LogWriter instance."""
-        return LogWriter(
-            spark_session, schema="test_schema", table_name="pipeline_logs"
-        )
+        from pipeline_builder.writer import storage  # type: ignore
+
+        storage.HAS_DELTA = False
+        storage._delta_availability_cache.clear()  # type: ignore[attr-defined]
+
+        schema = unique_name("schema", "test_schema")
+        table = unique_name("table", "pipeline_logs")
+        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw._test_schema = schema
+        lw._test_table = table
+        return lw
 
     def test_pipeline_data_type_variations(self, spark_session, log_writer):
         """Test pipeline with various data types (strings, numbers, dates, booleans)."""
-        schema = "test_schema"
+        schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create data with various types
         data = []
@@ -1707,15 +1795,23 @@ class TestValidationThresholds:
     """Tests for validation threshold scenarios."""
 
     @pytest.fixture
-    def log_writer(self, spark_session):
+    def log_writer(self, spark_session, unique_name):
         """Create LogWriter instance."""
-        return LogWriter(
-            spark_session, schema="test_schema", table_name="pipeline_logs"
-        )
+        from pipeline_builder.writer import storage  # type: ignore
+
+        storage.HAS_DELTA = False
+        storage._delta_availability_cache.clear()  # type: ignore[attr-defined]
+
+        schema = unique_name("schema", "test_schema")
+        table = unique_name("table", "pipeline_logs")
+        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw._test_schema = schema
+        lw._test_table = table
+        return lw
 
     def test_pipeline_validation_thresholds_logging(self, spark_session, log_writer):
         """Test validation threshold enforcement and logging."""
-        schema = "test_schema"
+        schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create data with some invalid records (20% invalid)
         data = create_mixed_valid_invalid_data(
@@ -1786,11 +1882,19 @@ class TestWriteModes:
     """Tests for different write mode scenarios."""
 
     @pytest.fixture
-    def log_writer(self, spark_session):
+    def log_writer(self, spark_session, unique_name):
         """Create LogWriter instance."""
-        return LogWriter(
-            spark_session, schema="test_schema", table_name="pipeline_logs"
-        )
+        from pipeline_builder.writer import storage  # type: ignore
+
+        storage.HAS_DELTA = False
+        storage._delta_availability_cache.clear()  # type: ignore[attr-defined]
+
+        schema = unique_name("schema", "test_schema")
+        table = unique_name("table", "pipeline_logs")
+        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw._test_schema = schema
+        lw._test_table = table
+        return lw
 
     def test_pipeline_write_mode_variations(self, spark_session, log_writer, unique_name):
         """Test different write modes (overwrite, append via watermark)."""
@@ -1907,31 +2011,42 @@ class TestMixedSuccessFailure:
     """Tests for mixed success/failure scenarios."""
 
     @pytest.fixture
-    def log_writer(self, spark_session):
+    def log_writer(self, spark_session, unique_name):
         """Create LogWriter instance."""
-        return LogWriter(
-            spark_session, schema="test_schema", table_name="pipeline_logs"
-        )
+        from pipeline_builder.writer import storage  # type: ignore
 
-    def test_pipeline_mixed_success_failure(self, spark_session, log_writer):
+        storage.HAS_DELTA = False
+        storage._delta_availability_cache.clear()  # type: ignore[attr-defined]
+
+        schema = unique_name("schema", "test_schema")
+        table = unique_name("table", "pipeline_logs")
+        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw._test_schema = schema
+        lw._test_table = table
+        return lw
+
+    def test_pipeline_mixed_success_failure(self, spark_session, log_writer, unique_name):
         """Test pipeline where some steps succeed, some fail (simulated)."""
-        schema = "test_schema"
+        schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create data for 3 bronze sources
         bronze_sources = {}
+        bronze_step_names = []
         for i in range(3):
             data = create_test_data_initial(spark_session, num_records=100)
             df = spark_session.createDataFrame(
                 data, ["user_id", "action", "timestamp", "value"]
             )
-            bronze_sources[unique_name("bronze", f"events_{i}")] = df
+            bronze_step = unique_name("bronze", f"events_{i}")
+            bronze_step_names.append(bronze_step)
+            bronze_sources[bronze_step] = df
 
         builder = PipelineBuilder(spark=spark_session, schema=schema)
 
         # Add 3 bronze steps
-        for i in range(3):
+        for bronze_step in bronze_step_names:
             builder.with_bronze_rules(
-                name=unique_name("bronze", f"events_{i}"),
+                name=bronze_step,
                 rules={"user_id": [F.col("user_id").isNotNull()]},
                 incremental_col="timestamp",
             )
@@ -1960,21 +2075,21 @@ class TestMixedSuccessFailure:
 
         builder.add_silver_transform(
             name="silver_0",
-            source_bronze="events_0",
+            source_bronze=bronze_step_names[0],
             transform=silver_transform_good,
             rules={"user_id": [F.col("user_id").isNotNull()]},
             table_name="silver_0",
         )
         builder.add_silver_transform(
             name="silver_1",
-            source_bronze="events_1",
+            source_bronze=bronze_step_names[1],
             transform=silver_transform_good,
             rules={"user_id": [F.col("user_id").isNotNull()]},
             table_name="silver_1",
         )
         builder.add_silver_transform(
             name="silver_2",
-            source_bronze="events_2",
+            source_bronze=bronze_step_names[2],
             transform=silver_transform_bad,
             rules={"user_id": [F.col("user_id").isNotNull()]},
             table_name="silver_2",
@@ -2035,15 +2150,23 @@ class TestLongRunning:
     """Tests for long-running pipeline scenarios."""
 
     @pytest.fixture
-    def log_writer(self, spark_session):
+    def log_writer(self, spark_session, unique_name):
         """Create LogWriter instance."""
-        return LogWriter(
-            spark_session, schema="test_schema", table_name="pipeline_logs"
-        )
+        from pipeline_builder.writer import storage  # type: ignore
+
+        storage.HAS_DELTA = False
+        storage._delta_availability_cache.clear()  # type: ignore[attr-defined]
+
+        schema = unique_name("schema", "test_schema")
+        table = unique_name("table", "pipeline_logs")
+        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw._test_schema = schema
+        lw._test_table = table
+        return lw
 
     def test_pipeline_long_running_with_logging(self, spark_session, log_writer):
         """Test logging for long-running pipelines (simulated with large dataset and complex transforms)."""
-        schema = "test_schema"
+        schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create large dataset to simulate long runtime
         data = create_test_data_initial(spark_session, num_records=5000)
@@ -2145,7 +2268,7 @@ class TestLongRunning:
         assert log_result["success"] is True
 
         # Verify logs contain duration information
-        log_df = spark_session.table(f"{schema}.pipeline_logs")
+        log_df = spark_session.table(f"{schema}.{getattr(log_writer, '_test_table', 'pipeline_logs')}")
         logs = get_log_entries_by_run(log_df, run_id)
         assert len(logs) > 0
         # Duration should be logged (even if 0 for fast mock-spark execution)

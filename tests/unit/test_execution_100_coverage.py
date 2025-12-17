@@ -149,10 +149,11 @@ class TestExecuteStepComplete:
         assert result.rows_processed == 2
         assert result.output_table == "test_schema.test_gold_table"
 
-    def test_execute_step_with_rules_validation(self, spark_session):
+    def test_execute_step_with_rules_validation(self, spark_session, unique_name):
         """Test step execution with rules validation."""
+        schema_name = unique_name("schema", "test_schema")
         config = PipelineConfig(
-            schema="test_schema",
+            schema=schema_name,
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
@@ -178,7 +179,7 @@ class TestExecuteStepComplete:
             transform=transform_func,
             rules={"id": ["not_null"]},
             table_name="test_silver_table",
-            schema="test_schema",
+            schema=schema_name,
         )
 
         # Execute step with validation
@@ -409,10 +410,11 @@ class TestExecuteStepComplete:
 class TestExecutePipelineComplete:
     """Test execute_pipeline method for complete coverage."""
 
-    def test_execute_pipeline_success_with_silver_steps(self, spark_session):
+    def test_execute_pipeline_success_with_silver_steps(self, spark_session, unique_name):
         """Test successful pipeline execution with silver steps."""
+        schema_name = unique_name("schema", "test_schema")
         config = PipelineConfig(
-            schema="test_schema",
+            schema=schema_name,
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
@@ -438,7 +440,7 @@ class TestExecutePipelineComplete:
             transform=silver_transform,
             rules={"id": ["not_null"]},
             table_name="test_silver_table",
-            schema="test_schema",
+            schema=schema_name,
         )
 
         # Execute pipeline
@@ -464,10 +466,11 @@ class TestExecutePipelineComplete:
         assert silver_result.step_name == "test_silver"
         assert silver_result.status == StepStatus.COMPLETED
 
-    def test_execute_pipeline_success_with_gold_steps(self, spark_session):
+    def test_execute_pipeline_success_with_gold_steps(self, spark_session, unique_name):
         """Test successful pipeline execution with gold steps."""
+        schema_name = unique_name("schema", "test_schema")
         config = PipelineConfig(
-            schema="test_schema",
+            schema=schema_name,
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
             parallel=ParallelConfig(enabled=False, max_workers=1),
         )
@@ -493,7 +496,7 @@ class TestExecutePipelineComplete:
             transform=gold_transform,
             rules={"id": ["not_null"]},
             table_name="test_gold_table",
-            schema="test_schema",
+            schema=schema_name,
         )
 
         # Execute pipeline
