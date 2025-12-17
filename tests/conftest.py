@@ -16,9 +16,9 @@ import time
 # Ensure Delta jars are always on classpath for PySpark workers (including xdist)
 # This is set before any PySpark imports to propagate to child workers.
 if "PYSPARK_SUBMIT_ARGS" not in os.environ:
-    os.environ[
-        "PYSPARK_SUBMIT_ARGS"
-    ] = "--packages io.delta:delta-spark_2.12:3.0.0 pyspark-shell"
+    os.environ["PYSPARK_SUBMIT_ARGS"] = (
+        "--packages io.delta:delta-spark_2.12:3.0.0 pyspark-shell"
+    )
 
 # Set PySpark Python environment variables early, before any Spark imports
 # This ensures workers use the same Python version as the driver

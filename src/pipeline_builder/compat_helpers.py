@@ -97,14 +97,30 @@ def detect_spark_type(spark: SparkSession) -> str:
         spark: SparkSession instance to check
 
     Returns:
-        'pyspark' or 'unknown'
+        'pyspark', 'mock', or 'unknown'
     """
+    # Fast-path: PySpark sessions have a JVM bridge
     if hasattr(spark, "sparkContext") and hasattr(spark.sparkContext, "_jsc"):
         return "pyspark"
 
     try:
         spark_module = type(spark).__module__
         if "pyspark" in spark_module:
+            return "pyspark"
+        # Detect sparkless/mock sessions by module path
+        if "sparkless" in spark_module or "mock" in spark_module:
+            return "mock"
+    except Exception:
+        pass
+
+    # Fallback to engine name if available
+    try:
+        from .compat import compat_name  # Local import to avoid cycles
+
+        engine_name = compat_name()
+        if engine_name in {"mock", "sparkless"}:
+            return "mock"
+        if engine_name == "pyspark":
             return "pyspark"
     except Exception:
         pass

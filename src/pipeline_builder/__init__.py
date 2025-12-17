@@ -76,7 +76,7 @@ __email__ = "odosmattthewsm@gmail.com"
 __description__ = "A simplified, production-ready data pipeline builder for Apache Spark and Delta Lake"
 
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 # Avoid eager imports so engine configuration can be set up first.
 if TYPE_CHECKING:  # pragma: no cover - used only for type checkers
@@ -86,15 +86,15 @@ if TYPE_CHECKING:  # pragma: no cover - used only for type checkers
 
 
 # Lazy import to avoid engine configuration during package import
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     if name in {"PipelineBuilder", "PipelineRunner"}:
-        from .pipeline import builder as _builder, runner as _runner
+        from .pipeline import builder as _builder, runner as _runner  # noqa: I001
 
         if name == "PipelineBuilder":
             return _builder.PipelineBuilder
         return _runner.PipelineRunner
     if name == "LogWriter":
-        from .writer import core as _core
+        from .writer import core as _core  # noqa: I001
 
         return _core.LogWriter
     raise AttributeError(f"module {__name__} has no attribute {name}")

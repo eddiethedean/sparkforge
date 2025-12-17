@@ -155,7 +155,7 @@ def read_table(
         df = spark.table(fqn)  # type: ignore[attr-defined]
         logger.info(f"Successfully read table {fqn}")
         return df
-    except AnalysisException as e:
+    except Exception as e:
         raise TableOperationError(f"Table {fqn} does not exist: {e}") from e
     except Exception as e:
         raise TableOperationError(f"Failed to read table {fqn}: {e}") from e
@@ -188,7 +188,7 @@ def table_exists(
 
         spark.table(fqn).count()  # type: ignore[attr-defined]
         return True
-    except AnalysisException:
+    except Exception:
         logger.debug(f"Table {fqn} does not exist (AnalysisException)")
         return False
     except Exception as e:
@@ -207,7 +207,9 @@ def table_schema_is_empty(spark: SparkSession, fqn: str) -> bool:
         if not table_exists(spark, fqn):
             return False
         schema = spark.table(fqn).schema  # type: ignore[attr-defined]
-        return len(schema.fields) == 0
+        if hasattr(schema, "fields"):
+            return len(schema.fields) == 0
+        return False
     except Exception as e:
         logger.debug(f"Could not inspect schema for {fqn}: {e}")
         return False

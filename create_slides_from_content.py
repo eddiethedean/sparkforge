@@ -434,7 +434,7 @@ def create_html_slideshow(
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
-    
+
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -784,7 +784,7 @@ def create_html_slideshow(
                 border: 1px solid #ddd;
             }
         }
-        
+
         /* Image and icon styles */
         .slide-icon {
             font-size: 2em;
@@ -792,12 +792,12 @@ def create_html_slideshow(
             display: inline-block;
             vertical-align: middle;
         }
-        
+
         .slide-icon.fa {
             color: var(--accent);
             margin-right: 0.5em;
         }
-        
+
         .image-placeholder {
             background: var(--background-alt);
             border: 2px dashed var(--border);
@@ -808,12 +808,12 @@ def create_html_slideshow(
             color: var(--text-muted);
             font-size: 0.85em;
         }
-        
+
         .title-slide .slide-icon {
             color: rgba(255, 255, 255, 0.9);
             font-size: 3em;
         }
-        
+
         .icon-grid {
             display: flex;
             flex-wrap: wrap;

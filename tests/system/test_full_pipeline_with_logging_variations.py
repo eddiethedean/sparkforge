@@ -372,7 +372,9 @@ class TestMinimalPipelines:
         assert log_result["success"] is True
         assert log_result["rows_written"] >= 3  # At least 3 step rows
 
-        log_df = spark_session.table(f"{schema}.{getattr(log_writer, '_test_table', 'pipeline_logs')}")
+        log_df = spark_session.table(
+            f"{schema}.{getattr(log_writer, '_test_table', 'pipeline_logs')}"
+        )
         logs = get_log_entries_by_run(log_df, run_id)
         assert len(logs) >= 3
 
@@ -944,7 +946,9 @@ class TestIncrementalScenarios:
             log_writer.write_log_rows(log_rows_inc, run_id=run_id_inc)
 
         # Verify all runs logged
-        log_df = spark_session.table(f"{schema}.{getattr(log_writer, '_test_table', 'pipeline_logs')}")
+        log_df = spark_session.table(
+            f"{schema}.{getattr(log_writer, '_test_table', 'pipeline_logs')}"
+        )
         initial_logs = get_log_entries_by_run(log_df, run_id_initial)
         assert len(initial_logs) > 0
 
@@ -1896,7 +1900,9 @@ class TestWriteModes:
         lw._test_table = table
         return lw
 
-    def test_pipeline_write_mode_variations(self, spark_session, log_writer, unique_name):
+    def test_pipeline_write_mode_variations(
+        self, spark_session, log_writer, unique_name
+    ):
         """Test different write modes (overwrite, append via watermark)."""
         schema = unique_name("schema", "test_schema")
 
@@ -2025,7 +2031,9 @@ class TestMixedSuccessFailure:
         lw._test_table = table
         return lw
 
-    def test_pipeline_mixed_success_failure(self, spark_session, log_writer, unique_name):
+    def test_pipeline_mixed_success_failure(
+        self, spark_session, log_writer, unique_name
+    ):
         """Test pipeline where some steps succeed, some fail (simulated)."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
@@ -2268,7 +2276,9 @@ class TestLongRunning:
         assert log_result["success"] is True
 
         # Verify logs contain duration information
-        log_df = spark_session.table(f"{schema}.{getattr(log_writer, '_test_table', 'pipeline_logs')}")
+        log_df = spark_session.table(
+            f"{schema}.{getattr(log_writer, '_test_table', 'pipeline_logs')}"
+        )
         logs = get_log_entries_by_run(log_df, run_id)
         assert len(logs) > 0
         # Duration should be logged (even if 0 for fast mock-spark execution)

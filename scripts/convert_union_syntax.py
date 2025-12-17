@@ -30,10 +30,6 @@ class UnionSyntaxConverter(ast.NodeTransformer):
     def visit_BinOp(self, node):
         """Convert `A | B` to `Union[A, B]` or `Optional[A]`."""
         if isinstance(node.op, ast.BitOr):
-            # Check if one side is None
-            left_str = ast.unparse(node.left) if hasattr(ast, "unparse") else None
-            right_str = ast.unparse(node.right) if hasattr(ast, "unparse") else None
-
             # Check for None
             if isinstance(node.right, ast.Constant) and node.right.value is None:
                 # `A | None` → `Optional[A]`
@@ -77,16 +73,10 @@ def convert_union_syntax_in_code(content: str) -> Tuple[str, bool, bool]:
     # Second pass: `None | A`
     content = re.sub(pattern_optional_reverse, replace_optional, content)
 
-    # Pattern 2: `A | B` (where neither is None) → `Union[A, B]`
-    # This is more complex - we need to avoid already converted Optional patterns
-    # Match patterns like: `name: A | B` but not `Optional[...]`
-    pattern_union = r"\b(\w+(?:\[[^\]]+\])?)\s*\|\s*(\w+(?:\[[^\]]+\])?)\b"
-
     def replace_union(match):
         nonlocal needs_union
         # Skip if this looks like it's already in Optional[...]
         before = content[: match.start()]
-        after = content[match.end() :]
 
         # Check if we're inside Optional[...]
         optional_count = before.count("Optional[") - before.count("]")
@@ -123,7 +113,7 @@ def convert_union_syntax_in_code(content: str) -> Tuple[str, bool, bool]:
                 r"(\w+(?:\[[^\]]+\])?)\s*\|\s*(\w+(?:\[[^\]]+\])?)(?!\s*\|\s*None)"
             )
 
-            def make_union(m):
+            def make_union(m, line=line):
                 nonlocal needs_union
                 # Skip if this is part of an Optional we already converted
                 if "Optional[" in line[: m.start()]:
@@ -149,7 +139,7 @@ def update_imports(content: str, needs_optional: bool, needs_union: bool) -> str
     new_lines = []
     imports_added = False
 
-    for i, line in enumerate(lines):
+    for line in lines:
         # Check for existing typing imports
         if re.match(r"^from typing import", line):
             # Parse existing imports

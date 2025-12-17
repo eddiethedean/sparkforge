@@ -27,7 +27,9 @@ def test_initial_load_overwrite_delta(spark_session, unique_schema, unique_table
         ("u1", "click", "2024-01-01 10:00:00", 1.0),
         ("u2", "view", "2024-01-01 11:00:00", 2.0),
     ]
-    df = spark_session.createDataFrame(data, ["user_id", "action", "timestamp", "value"])
+    df = spark_session.createDataFrame(
+        data, ["user_id", "action", "timestamp", "value"]
+    )
 
     builder = PipelineBuilder(spark=spark_session, schema=schema)
 
@@ -72,6 +74,9 @@ def test_initial_load_overwrite_delta(spark_session, unique_schema, unique_table
 
     assert result.status.value == "completed"
     # Basic sanity: tables exist
-    assert spark_session.catalog.tableExists(f"{schema}.{builder.silver_steps['processed'].table_name}")
-    assert spark_session.catalog.tableExists(f"{schema}.{builder.gold_steps['summary'].table_name}")
-
+    assert spark_session.catalog.tableExists(
+        f"{schema}.{builder.silver_steps['processed'].table_name}"
+    )
+    assert spark_session.catalog.tableExists(
+        f"{schema}.{builder.gold_steps['summary'].table_name}"
+    )

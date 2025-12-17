@@ -304,7 +304,7 @@ class WriterConfig:
 from ..compat import types  # noqa: E402
 
 
-def create_log_schema() -> types.StructType:
+def create_log_schema() -> Any:
     """
     Create the Spark schema for log tables.
 
@@ -314,46 +314,46 @@ def create_log_schema() -> types.StructType:
     return types.StructType(
         [
             # Run-level fields
-            StructField("run_id", StringType(), False),
-            StructField("run_mode", StringType(), False),
-            StructField("run_started_at", TimestampType(), True),
-            StructField("run_ended_at", TimestampType(), True),
+            types.StructField("run_id", types.StringType(), False),
+            types.StructField("run_mode", types.StringType(), False),
+            types.StructField("run_started_at", types.TimestampType(), True),
+            types.StructField("run_ended_at", types.TimestampType(), True),
             # Execution context
-            StructField("execution_id", StringType(), False),
-            StructField("pipeline_id", StringType(), False),
-            StructField("schema", StringType(), False),
+            types.StructField("execution_id", types.StringType(), False),
+            types.StructField("pipeline_id", types.StringType(), False),
+            types.StructField("schema", types.StringType(), False),
             # Step-level fields
-            StructField("phase", StringType(), False),
-            StructField("step_name", StringType(), False),
-            StructField("step_type", StringType(), False),
+            types.StructField("phase", types.StringType(), False),
+            types.StructField("step_name", types.StringType(), False),
+            types.StructField("step_type", types.StringType(), False),
             # Timing fields
-            StructField("start_time", TimestampType(), True),
-            StructField("end_time", TimestampType(), True),
-            StructField("duration_secs", FloatType(), False),
+            types.StructField("start_time", types.TimestampType(), True),
+            types.StructField("end_time", types.TimestampType(), True),
+            types.StructField("duration_secs", types.FloatType(), False),
             # Table fields
-            StructField("table_fqn", StringType(), True),
-            StructField("write_mode", StringType(), True),
+            types.StructField("table_fqn", types.StringType(), True),
+            types.StructField("write_mode", types.StringType(), True),
             # Data metrics
-            StructField("input_rows", IntegerType(), True),
-            StructField("output_rows", IntegerType(), True),
-            StructField("rows_written", IntegerType(), True),
-            StructField("rows_processed", IntegerType(), False),
-            StructField("table_total_rows", IntegerType(), True),
+            types.StructField("input_rows", types.IntegerType(), True),
+            types.StructField("output_rows", types.IntegerType(), True),
+            types.StructField("rows_written", types.IntegerType(), True),
+            types.StructField("rows_processed", types.IntegerType(), False),
+            types.StructField("table_total_rows", types.IntegerType(), True),
             # Validation metrics
-            StructField("valid_rows", IntegerType(), False),
-            StructField("invalid_rows", IntegerType(), False),
-            StructField("validation_rate", FloatType(), False),
+            types.StructField("valid_rows", types.IntegerType(), False),
+            types.StructField("invalid_rows", types.IntegerType(), False),
+            types.StructField("validation_rate", types.FloatType(), False),
             # Execution status
-            StructField("success", BooleanType(), False),
-            StructField("error_message", StringType(), True),
+            types.StructField("success", types.BooleanType(), False),
+            types.StructField("error_message", types.StringType(), True),
             # Performance metrics
-            StructField("memory_usage_mb", FloatType(), True),
-            StructField("cpu_usage_percent", FloatType(), True),
+            types.StructField("memory_usage_mb", types.FloatType(), True),
+            types.StructField("cpu_usage_percent", types.FloatType(), True),
             # Metadata (stored as JSON string)
-            StructField("metadata", StringType(), True),
+            types.StructField("metadata", types.StringType(), True),
             # Timestamp fields for tracking
-            StructField("created_at", StringType(), True),
-            StructField("updated_at", StringType(), True),
+            types.StructField("created_at", types.StringType(), True),
+            types.StructField("updated_at", types.StringType(), True),
         ]
     )
 

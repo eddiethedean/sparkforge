@@ -26,8 +26,14 @@ from pipeline_builder_base.writer.models import WriteMode as WriteModeBaseWriter
 from pipeline_builder.pipeline.models import PipelineMode
 
 # Import StepType and StepStatus from all locations
-from pipeline_builder.execution import StepType as StepTypeExecution, StepStatus as StepStatusExecution
-from pipeline_builder.types import StepType as StepTypeTypes, StepStatus as StepStatusTypes
+from pipeline_builder.execution import (
+    StepType as StepTypeExecution,
+    StepStatus as StepStatusExecution,
+)
+from pipeline_builder.types import (
+    StepType as StepTypeTypes,
+    StepStatus as StepStatusTypes,
+)
 from pipeline_builder_base.dependencies.graph import StepType as StepTypeBaseGraph
 from pipeline_builder.dependencies.graph import StepType as StepTypeGraph
 
@@ -38,14 +44,14 @@ class TestExecutionModeConsistency:
     def test_execution_mode_has_all_required_values(self):
         """Test that ExecutionMode has all 4 required values."""
         expected_values = {"initial", "incremental", "full_refresh", "validation_only"}
-        
+
         # Check models version
         models_values = {e.value for e in ExecutionModeModels}
         assert models_values == expected_values, (
             f"ExecutionMode in models/enums.py missing values. "
             f"Expected: {expected_values}, Got: {models_values}"
         )
-        
+
         # Check base version
         base_values = {e.value for e in ExecutionModeBase}
         assert base_values == expected_values, (
@@ -57,7 +63,7 @@ class TestExecutionModeConsistency:
         """Test that ExecutionMode from models matches base."""
         models_values = {e.value for e in ExecutionModeModels}
         base_values = {e.value for e in ExecutionModeBase}
-        
+
         assert models_values == base_values, (
             f"ExecutionMode mismatch between models and base. "
             f"Models: {models_values}, Base: {base_values}"
@@ -67,7 +73,7 @@ class TestExecutionModeConsistency:
         """Test that ExecutionMode values match PipelineMode values."""
         execution_modes = {e.value for e in ExecutionModeModels}
         pipeline_modes = {e.value for e in PipelineMode}
-        
+
         assert execution_modes == pipeline_modes, (
             f"ExecutionMode and PipelineMode mismatch. "
             f"ExecutionMode: {execution_modes}, PipelineMode: {pipeline_modes}"
@@ -80,7 +86,7 @@ class TestExecutionModeConsistency:
         assert hasattr(ExecutionModeModels, "INCREMENTAL")
         assert hasattr(ExecutionModeModels, "FULL_REFRESH")
         assert hasattr(ExecutionModeModels, "VALIDATION_ONLY")
-        
+
         assert hasattr(ExecutionModeBase, "INITIAL")
         assert hasattr(ExecutionModeBase, "INCREMENTAL")
         assert hasattr(ExecutionModeBase, "FULL_REFRESH")
@@ -100,7 +106,7 @@ class TestWriteModeConsistency:
         """Test that WriteMode in writer has all 4 values."""
         writer_values = {e.value for e in WriteModeWriter}
         expected_values = {"overwrite", "append", "merge", "ignore"}
-        
+
         assert writer_values == expected_values, (
             f"WriteMode in writer/models.py missing values. "
             f"Expected: {expected_values}, Got: {writer_values}"
@@ -112,14 +118,14 @@ class TestWriteModeConsistency:
         writer_values = {e.value for e in WriteModeWriter}
         base_models_values = {e.value for e in WriteModeBaseModels}
         base_writer_values = {e.value for e in WriteModeBaseWriter}
-        
+
         # All should have at least OVERWRITE and APPEND
         basic_values = {"overwrite", "append"}
         assert models_values >= basic_values
         assert writer_values >= basic_values
         assert base_models_values >= basic_values
         assert base_writer_values >= basic_values
-        
+
         # Writer versions should have MERGE and IGNORE
         extended_values = {"overwrite", "append", "merge", "ignore"}
         assert writer_values == extended_values, (
@@ -136,7 +142,7 @@ class TestWriteModeConsistency:
         assert hasattr(WriteModeWriter, "APPEND")
         assert hasattr(WriteModeWriter, "MERGE")
         assert hasattr(WriteModeWriter, "IGNORE")
-        
+
         # Check models version has basic values
         assert hasattr(WriteModeModels, "OVERWRITE")
         assert hasattr(WriteModeModels, "APPEND")
@@ -148,12 +154,12 @@ class TestStepTypeConsistency:
     def test_step_type_has_all_required_values(self):
         """Test that StepType has all 3 required values."""
         expected_values = {"bronze", "silver", "gold"}
-        
+
         execution_values = {e.value for e in StepTypeExecution}
         types_values = {e.value for e in StepTypeTypes}
         base_graph_values = {e.value for e in StepTypeBaseGraph}
         graph_values = {e.value for e in StepTypeGraph}
-        
+
         assert execution_values == expected_values
         assert types_values == expected_values
         assert base_graph_values == expected_values
@@ -165,7 +171,7 @@ class TestStepTypeConsistency:
         types_values = {e.value for e in StepTypeTypes}
         base_graph_values = {e.value for e in StepTypeBaseGraph}
         graph_values = {e.value for e in StepTypeGraph}
-        
+
         assert execution_values == types_values == base_graph_values == graph_values, (
             f"StepType mismatch: execution={execution_values}, types={types_values}, "
             f"base_graph={base_graph_values}, graph={graph_values}"
@@ -178,10 +184,10 @@ class TestStepStatusConsistency:
     def test_step_status_has_all_required_values(self):
         """Test that StepStatus has all 5 required values."""
         expected_values = {"pending", "running", "completed", "failed", "skipped"}
-        
+
         execution_values = {e.value for e in StepStatusExecution}
         types_values = {e.value for e in StepStatusTypes}
-        
+
         assert execution_values == expected_values
         assert types_values == expected_values
 
@@ -189,7 +195,7 @@ class TestStepStatusConsistency:
         """Test that StepStatus is consistent across all locations."""
         execution_values = {e.value for e in StepStatusExecution}
         types_values = {e.value for e in StepStatusTypes}
-        
+
         assert execution_values == types_values, (
             f"StepStatus mismatch: execution={execution_values}, types={types_values}"
         )
@@ -203,12 +209,12 @@ class TestPipelineModeExecutionModeMapping:
         from pipeline_builder.pipeline.runner import SimplePipelineRunner
         from pipeline_builder.models import PipelineConfig
         from unittest.mock import Mock
-        
+
         # Create a minimal runner to access _convert_mode
         mock_spark = Mock()
         mock_config = PipelineConfig.create_default(schema="test")
         runner = SimplePipelineRunner(mock_spark, mock_config)
-        
+
         # Test that all PipelineMode values can be converted
         # This would have caught the AttributeError: FULL_REFRESH bug
         for mode in PipelineMode:
@@ -226,7 +232,7 @@ class TestPipelineModeExecutionModeMapping:
         """Test that every PipelineMode has a corresponding ExecutionMode."""
         pipeline_mode_values = {e.value for e in PipelineMode}
         execution_mode_values = {e.value for e in ExecutionModeModels}
-        
+
         assert pipeline_mode_values == execution_mode_values, (
             f"PipelineMode and ExecutionMode values don't match. "
             f"PipelineMode: {pipeline_mode_values}, ExecutionMode: {execution_mode_values}"
@@ -244,11 +250,9 @@ class TestEnumCompleteness:
             "FULL_REFRESH": "full_refresh",
             "VALIDATION_ONLY": "validation_only",
         }
-        
+
         for name, value in expected.items():
-            assert hasattr(ExecutionModeModels, name), (
-                f"ExecutionMode missing {name}"
-            )
+            assert hasattr(ExecutionModeModels, name), f"ExecutionMode missing {name}"
             assert getattr(ExecutionModeModels, name).value == value, (
                 f"ExecutionMode.{name} has wrong value. Expected {value}, "
                 f"got {getattr(ExecutionModeModels, name).value}"
@@ -262,13 +266,10 @@ class TestEnumCompleteness:
             "FULL_REFRESH": "full_refresh",
             "VALIDATION_ONLY": "validation_only",
         }
-        
+
         for name, value in expected.items():
-            assert hasattr(PipelineMode, name), (
-                f"PipelineMode missing {name}"
-            )
+            assert hasattr(PipelineMode, name), f"PipelineMode missing {name}"
             assert getattr(PipelineMode, name).value == value, (
                 f"PipelineMode.{name} has wrong value. Expected {value}, "
                 f"got {getattr(PipelineMode, name).value}"
             )
-

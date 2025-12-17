@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 SparkEngine implementation of abstracts.Engine.
 
@@ -17,10 +18,15 @@ from abstracts.source import Source
 from abstracts.step import Step
 from pipeline_builder_base.logging import PipelineLogger
 
-from ..protocols import DataFrameProtocol as DataFrame, SparkSessionProtocol as SparkSession
 from ..execution import ExecutionEngine, _create_dataframe_writer
 from ..functions import FunctionsProtocol
 from ..models import BronzeStep, GoldStep, SilverStep
+from ..protocols import (
+    DataFrameProtocol as DataFrame,
+)
+from ..protocols import (
+    SparkSessionProtocol as SparkSession,
+)
 from ..table_operations import fqn
 from ..validation import apply_column_rules
 

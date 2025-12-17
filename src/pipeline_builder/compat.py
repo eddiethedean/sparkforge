@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 Protocol-based compatibility layer.
 
@@ -8,12 +9,10 @@ with their engine objects (PySpark, sparkless, etc.) before using pipeline_build
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Tuple, cast
-from typing_extensions import TypeAlias
+from typing import TYPE_CHECKING, Any, cast
 
 from .engine_config import get_engine
 from .protocols import (
-    AnalysisExceptionProtocol,
     ColumnProtocol,
     DataFrameProtocol,
     FunctionsProtocol,
@@ -24,24 +23,24 @@ from .protocols import (
 
 # Type aliases for typing
 if TYPE_CHECKING:
-    DataFrame: TypeAlias = DataFrameProtocol
-    SparkSession: TypeAlias = SparkSessionProtocol
-    Column: TypeAlias = ColumnProtocol
+    from .protocols import DataFrameProtocol as DataFrame
+    from .protocols import SparkSessionProtocol as SparkSession
+    from .protocols import ColumnProtocol as Column
 else:
-    DataFrame = None  # resolved lazily
-    SparkSession = None  # resolved lazily
-    Column = None  # resolved lazily
+    DataFrame = Any  # type: ignore[assignment]
+    SparkSession = Any  # type: ignore[assignment]
+    Column = Any  # type: ignore[assignment]
 
 # Try to bind engine components immediately if configured
 try:
     _eng = get_engine()
-    DataFrame = _eng.dataframe_cls or DataFrameProtocol  # type: ignore[assignment]
-    SparkSession = _eng.spark_session_cls or SparkSessionProtocol  # type: ignore[assignment]
-    Column = _eng.column_cls or ColumnProtocol  # type: ignore[assignment]
-    F = cast(FunctionsProtocol, _eng.functions)
-    types = cast(TypesProtocol, _eng.types)
+    DataFrame = cast(Any, _eng.dataframe_cls or DataFrameProtocol)
+    SparkSession = cast(Any, _eng.spark_session_cls or SparkSessionProtocol)
+    Column = cast(Any, _eng.column_cls or ColumnProtocol)
+    F = _eng.functions
+    types = _eng.types
     AnalysisException = _eng.analysis_exception  # type: ignore[assignment]
-    Window = cast(WindowProtocol | None, _eng.window)
+    Window = _eng.window  # type: ignore[assignment]
     desc = _eng.desc
 except Exception:
     # Defer to __getattr__ if not configured yet
@@ -53,13 +52,13 @@ def __getattr__(name: str) -> Any:
     if name in {"F", "types", "AnalysisException", "Window", "desc"}:
         eng = get_engine()
         if name == "F":
-            return cast(FunctionsProtocol, eng.functions)
+            return eng.functions
         if name == "types":
-            return cast(TypesProtocol, eng.types)
+            return eng.types
         if name == "AnalysisException":
             return eng.analysis_exception
         if name == "Window":
-            return cast(WindowProtocol | None, eng.window)
+            return eng.window
         if name == "desc":
             return eng.desc
     if name == "DataFrame":

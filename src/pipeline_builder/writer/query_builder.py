@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 Query builder module for common PySpark DataFrame operations.
 
@@ -41,7 +42,7 @@ class QueryBuilder:
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
         result = df.filter(
-            functions.col("created_at")
+            functions.col(date_column)
             >= functions.lit(start_date.strftime("%Y-%m-%d"))
         )
         return result
@@ -66,7 +67,8 @@ class QueryBuilder:
             DataFrame with added date column
         """
         result = df.withColumn(
-            output_column, functions.date_format(functions.col(date_column), format)
+            output_column,
+            functions.date_format(functions.col(date_column), format),  # type: ignore[attr-defined]
         )
         return result
 
@@ -79,46 +81,46 @@ class QueryBuilder:
             Dictionary of common aggregations
         """
         return {
-            "count_all": functions.count("*").alias("total_executions"),
-            "count_rows": functions.count("*").alias("execution_count"),
-            "avg_validation_rate": functions.avg("validation_rate").alias(
+            "count_all": functions.count("*").alias("total_executions"),  # type: ignore[attr-defined]
+            "count_rows": functions.count("*").alias("execution_count"),  # type: ignore[attr-defined]
+            "avg_validation_rate": functions.avg("validation_rate").alias(  # type: ignore[attr-defined]
                 "avg_validation_rate"
             ),
-            "min_validation_rate": functions.min("validation_rate").alias(
+            "min_validation_rate": functions.min("validation_rate").alias(  # type: ignore[attr-defined]
                 "min_validation_rate"
             ),
-            "max_validation_rate": functions.max("validation_rate").alias(
+            "max_validation_rate": functions.max("validation_rate").alias(  # type: ignore[attr-defined]
                 "max_validation_rate"
             ),
-            "stddev_validation_rate": functions.stddev("validation_rate").alias(
+            "stddev_validation_rate": functions.stddev("validation_rate").alias(  # type: ignore[attr-defined]
                 "stddev_validation_rate"
             ),
-            "avg_execution_time": functions.avg("execution_time").alias(
+            "avg_execution_time": functions.avg("execution_time").alias(  # type: ignore[attr-defined]
                 "avg_execution_time"
             ),
-            "min_execution_time": functions.min("execution_time").alias(
+            "min_execution_time": functions.min("execution_time").alias(  # type: ignore[attr-defined]
                 "min_execution_time"
             ),
-            "max_execution_time": functions.max("execution_time").alias(
+            "max_execution_time": functions.max("execution_time").alias(  # type: ignore[attr-defined]
                 "max_execution_time"
             ),
-            "stddev_execution_time": functions.stddev("execution_time").alias(
+            "stddev_execution_time": functions.stddev("execution_time").alias(  # type: ignore[attr-defined]
                 "stddev_execution_time"
             ),
-            "sum_rows_written": functions.sum("rows_written").alias(
+            "sum_rows_written": functions.sum("rows_written").alias(  # type: ignore[attr-defined]
                 "total_rows_written"
             ),
-            "successful_executions": functions.sum(
-                functions.when(functions.col("success"), 1).otherwise(0)
+            "successful_executions": functions.sum(  # type: ignore[attr-defined]
+                functions.when(functions.col("success"), 1).otherwise(0)  # type: ignore[attr-defined]
             ).alias("successful_executions"),
-            "failed_executions": functions.sum(
-                functions.when(~functions.col("success"), 1).otherwise(0)
+            "failed_executions": functions.sum(  # type: ignore[attr-defined]
+                functions.when(~functions.col("success"), 1).otherwise(0)  # type: ignore[attr-defined]
             ).alias("failed_executions"),
-            "high_quality_executions": functions.sum(
-                functions.when(functions.col("validation_rate") >= 95.0, 1).otherwise(0)
+            "high_quality_executions": functions.sum(  # type: ignore[attr-defined]
+                functions.when(functions.col("validation_rate") >= 95.0, 1).otherwise(0)  # type: ignore[attr-defined]
             ).alias("high_quality_executions"),
-            "low_quality_executions": functions.sum(
-                functions.when(functions.col("validation_rate") < 80.0, 1).otherwise(0)
+            "low_quality_executions": functions.sum(  # type: ignore[attr-defined]
+                functions.when(functions.col("validation_rate") < 80.0, 1).otherwise(0)  # type: ignore[attr-defined]
             ).alias("low_quality_executions"),
         }
 

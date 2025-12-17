@@ -10,7 +10,7 @@ Step models for the Pipeline Builder.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from pipeline_builder_base.errors import PipelineValidationError, ValidationError
 
@@ -19,7 +19,16 @@ from .types import ColumnRules, GoldTransformFunction, SilverTransformFunction
 
 if TYPE_CHECKING:
     # Engine-specific StructType should satisfy the TypesProtocol.StructType
-    pass
+    from ..compat import types as compat_types
+
+    StructType = compat_types.StructType
+else:
+    try:
+        from ..compat import types as compat_types
+
+        StructType = compat_types.StructType  # type: ignore[assignment]
+    except Exception:
+        StructType = Any  # type: ignore[assignment]
 
 
 @dataclass
@@ -183,7 +192,7 @@ class SilverStep(BaseModel):
     existing: bool = False
     schema: Optional[str] = None
     source_incremental_col: Optional[str] = None
-    schema_override: Optional[StructType] = None
+    schema_override: Optional[Any] = None
 
     def __post_init__(self) -> None:
         """Validate required fields after initialization."""
@@ -307,7 +316,7 @@ class GoldStep(BaseModel):
     table_name: str
     source_silvers: Optional[list[str]] = None
     schema: Optional[str] = None
-    schema_override: Optional[StructType] = None
+    schema_override: Optional[Any] = None
 
     def __post_init__(self) -> None:
         """Validate required fields after initialization."""

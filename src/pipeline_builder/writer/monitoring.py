@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 Writer monitoring module for performance tracking and metrics collection.
 

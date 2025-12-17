@@ -26,7 +26,9 @@ class FunctionsProtocol(Protocol):
         """Create an expression from a string."""
         ...
 
-    def lit(self, value: Union[str, int] | Union[float, Optional[bool]]) -> ColumnProtocol:
+    def lit(
+        self, value: Union[str, int] | Union[float, Optional[bool]]
+    ) -> ColumnProtocol:
         """Create a literal column."""
         ...
 
@@ -66,7 +68,9 @@ class FunctionsProtocol(Protocol):
         """Create a length function."""
         ...
 
-    def date_trunc(self, format: str, col: Union[str, ColumnProtocol]) -> ColumnProtocol:
+    def date_trunc(
+        self, format: str, col: Union[str, ColumnProtocol]
+    ) -> ColumnProtocol:
         """Create a date truncation function."""
         ...
 

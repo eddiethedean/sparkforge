@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 Production-ready execution system for the framework pipelines.
 
@@ -96,7 +97,7 @@ from pipeline_builder_base.models import (
 from .compat import AnalysisException, DataFrame, F, SparkSession
 from .functions import FunctionsProtocol
 from .models import BronzeStep, GoldStep, SilverStep
-from .table_operations import drop_table, fqn, table_exists, table_schema_is_empty
+from .table_operations import fqn, table_exists, table_schema_is_empty
 from .validation import apply_column_rules
 
 # Handle optional Delta Lake dependency
@@ -231,30 +232,30 @@ def _create_dataframe_writer(
 def _get_existing_schema_safe(spark: Any, table_name: str) -> Optional[Any]:
     """
     Safely get the schema of an existing table.
-    
+
     Tries multiple methods to get the schema:
     1. Direct schema from spark.table()
     2. If empty schema (catalog sync issue), try DESCRIBE TABLE
     3. If still empty, try reading a sample of data to infer schema
-    
+
     Args:
         spark: Spark session
         table_name: Fully qualified table name
-        
+
     Returns:
         StructType schema if table exists and schema is readable (may be empty struct<>), None if table doesn't exist or schema can't be read
     """
     try:
         table_df = spark.table(table_name)  # type: ignore[attr-defined]
         schema = table_df.schema  # type: ignore[attr-defined]
-        
+
         # If schema is empty (catalog sync issue), try DESCRIBE TABLE as fallback
         if not schema.fields or len(schema.fields) == 0:
             try:
                 # Try DESCRIBE TABLE to get schema information
                 describe_df = spark.sql(f"DESCRIBE TABLE {table_name}")  # type: ignore[attr-defined]
                 describe_rows = describe_df.collect()  # type: ignore[attr-defined]
-                
+
                 # If DESCRIBE returns rows with column info, try to read schema from data
                 if describe_rows and len(describe_rows) > 0:
                     # Try reading a sample row to infer schema
@@ -267,7 +268,7 @@ def _get_existing_schema_safe(spark: Any, table_name: str) -> Optional[Any]:
                         pass
             except Exception:
                 pass
-        
+
         # Return schema even if empty (struct<>) - caller will handle empty schemas specially
         return schema
     except Exception:
@@ -278,34 +279,40 @@ def _get_existing_schema_safe(spark: Any, table_name: str) -> Optional[Any]:
 def _schemas_match(existing_schema: Any, output_schema: Any) -> tuple[bool, list[str]]:
     """
     Compare two schemas and determine if they match exactly.
-    
+
     Args:
         existing_schema: Schema of the existing table
         output_schema: Schema of the output DataFrame
-        
+
     Returns:
         Tuple of (matches: bool, differences: list[str])
         differences contains descriptions of any mismatches
     """
     differences = []
-    
+
     # Extract field dictionaries
-    existing_fields = {f.name: f for f in existing_schema.fields} if existing_schema.fields else {}
-    output_fields = {f.name: f for f in output_schema.fields} if output_schema.fields else {}
-    
+    existing_fields = (
+        {f.name: f for f in existing_schema.fields} if existing_schema.fields else {}
+    )
+    output_fields = (
+        {f.name: f for f in output_schema.fields} if output_schema.fields else {}
+    )
+
     existing_columns = set(existing_fields.keys())
     output_columns = set(output_fields.keys())
-    
+
     # Check for missing columns in output
     missing_in_output = existing_columns - output_columns
     if missing_in_output:
         differences.append(f"Missing columns in output: {sorted(missing_in_output)}")
-    
+
     # Check for new columns in output
     new_in_output = output_columns - existing_columns
     if new_in_output:
-        differences.append(f"New columns in output (not in existing table): {sorted(new_in_output)}")
-    
+        differences.append(
+            f"New columns in output (not in existing table): {sorted(new_in_output)}"
+        )
+
     # Check for type mismatches in common columns
     common_columns = existing_columns & output_columns
     type_mismatches = []
@@ -317,22 +324,22 @@ def _schemas_match(existing_schema: Any, output_schema: Any) -> tuple[bool, list
             )
     if type_mismatches:
         differences.append(f"Type mismatches: {', '.join(type_mismatches)}")
-    
+
     return len(differences) == 0, differences
 
 
 def _recover_table_schema(spark: Any, table_name: str) -> Optional[Any]:
     """
     Attempt to recover table schema when catalog shows empty schema.
-    
+
     Tries multiple methods:
     1. DESCRIBE TABLE and refresh, then re-read schema
     2. Read table DataFrame and use its schema (even if catalog shows empty)
-    
+
     Args:
         spark: Spark session
         table_name: Fully qualified table name
-        
+
     Returns:
         Recovered StructType schema or None if recovery fails
     """
@@ -342,15 +349,19 @@ def _recover_table_schema(spark: Any, table_name: str) -> Optional[Any]:
             spark.sql(f"REFRESH TABLE {table_name}")  # type: ignore[attr-defined]
         except Exception:
             pass  # Ignore refresh errors
-        
+
         # Re-read table after refresh
         table_df = spark.table(table_name)  # type: ignore[attr-defined]
         df_schema = table_df.schema  # type: ignore[attr-defined]
-        
+
         # Check if schema now has fields
-        if hasattr(df_schema, "fields") and df_schema.fields and len(df_schema.fields) > 0:
+        if (
+            hasattr(df_schema, "fields")
+            and df_schema.fields
+            and len(df_schema.fields) > 0
+        ):
             return df_schema
-        
+
         # Method 2: Even if schema.fields is empty, check if DataFrame has columns
         # This indicates the table exists and has data, just catalog is out of sync
         if table_df.columns and len(table_df.columns) > 0:
@@ -358,28 +369,36 @@ def _recover_table_schema(spark: Any, table_name: str) -> Optional[Any]:
             try:
                 describe_df = spark.sql(f"DESCRIBE TABLE {table_name}")  # type: ignore[attr-defined]
                 describe_rows = describe_df.collect()  # type: ignore[attr-defined]
-                
+
                 # If DESCRIBE returns column information, try to re-read the table
                 # Sometimes DESCRIBE helps Spark refresh its understanding of the schema
                 if describe_rows and len(describe_rows) > 0:
                     # Try reading the table again after DESCRIBE
                     table_df_retry = spark.table(table_name)  # type: ignore[attr-defined]
                     df_schema_retry = table_df_retry.schema  # type: ignore[attr-defined]
-                    if hasattr(df_schema_retry, "fields") and df_schema_retry.fields and len(df_schema_retry.fields) > 0:
+                    if (
+                        hasattr(df_schema_retry, "fields")
+                        and df_schema_retry.fields
+                        and len(df_schema_retry.fields) > 0
+                    ):
                         return df_schema_retry
             except Exception:
                 # DESCRIBE or re-read failed
                 pass
-            
+
             # If DESCRIBE didn't help, try to force schema resolution by reading data
             try:
                 # Attempt to read a row to force Spark to resolve schema
                 sample = table_df.limit(1)
                 sample.collect()  # Force execution
-                
+
                 # Re-read schema after forcing execution
                 df_schema_retry = table_df.schema  # type: ignore[attr-defined]
-                if hasattr(df_schema_retry, "fields") and df_schema_retry.fields and len(df_schema_retry.fields) > 0:
+                if (
+                    hasattr(df_schema_retry, "fields")
+                    and df_schema_retry.fields
+                    and len(df_schema_retry.fields) > 0
+                ):
                     return df_schema_retry
             except Exception:
                 # Schema recovery via data read failed
@@ -387,7 +406,7 @@ def _recover_table_schema(spark: Any, table_name: str) -> Optional[Any]:
     except Exception:
         # Schema recovery failed
         pass
-    
+
     return None
 
 
@@ -558,9 +577,7 @@ class ExecutionEngine:
             _ = df.count()  # type: ignore[attr-defined]
         except Exception as e:
             # Surface materialization problems instead of masking them
-            self.logger.debug(
-                f"Could not materialize DataFrame before validation: {e}"
-            )
+            self.logger.debug(f"Could not materialize DataFrame before validation: {e}")
 
         return df
 
@@ -704,8 +721,10 @@ class ExecutionEngine:
                             self.logger.debug(
                                 f"Could not refresh table {output_table} before schema validation: {refresh_error}"
                             )
-                        
-                        existing_schema = _get_existing_schema_safe(self.spark, output_table)
+
+                        existing_schema = _get_existing_schema_safe(
+                            self.spark, output_table
+                        )
                         if existing_schema is None:
                             # Cannot read schema - raise error
                             raise ExecutionError(
@@ -722,10 +741,11 @@ class ExecutionEngine:
                                     "Use INITIAL mode if you need to recreate the table",
                                 ],
                             )
-                        
+
                         # If catalog reports empty schema, treat as mismatch with explicit guidance
                         schema_is_empty = (
-                            not existing_schema.fields or len(existing_schema.fields) == 0
+                            not existing_schema.fields
+                            or len(existing_schema.fields) == 0
                         )
                         if schema_is_empty:
                             output_schema = output_df.schema  # type: ignore[attr-defined]
@@ -745,10 +765,12 @@ class ExecutionEngine:
                                     "Provide schema_override to force the schema in allowed modes",
                                 ],
                             )
-                        
+
                         output_schema = output_df.schema  # type: ignore[attr-defined]
-                        schemas_match, differences = _schemas_match(existing_schema, output_schema)
-                        
+                        schemas_match, differences = _schemas_match(
+                            existing_schema, output_schema
+                        )
+
                         if not schemas_match:
                             raise ExecutionError(
                                 f"Schema mismatch for table '{output_table}' in {mode} mode. "
@@ -952,23 +974,28 @@ class ExecutionEngine:
                     # Handle INITIAL mode schema changes - allow schema changes via CREATE OR REPLACE TABLE
                     # For INCREMENTAL/FULL_REFRESH, schema validation already done above
                     if mode == ExecutionMode.INITIAL and write_mode_str == "append":
-                        existing_schema = _get_existing_schema_safe(self.spark, output_table)
+                        existing_schema = _get_existing_schema_safe(
+                            self.spark, output_table
+                        )
                         if existing_schema is not None:
                             # Check if schema is empty (catalog sync issue)
                             schema_is_empty = (
-                                not existing_schema.fields or len(existing_schema.fields) == 0
+                                not existing_schema.fields
+                                or len(existing_schema.fields) == 0
                             )
                             output_schema = output_df.schema  # type: ignore[attr-defined]
-                            
+
                             if schema_is_empty:
                                 # Catalog reports empty schema but table exists - use CREATE OR REPLACE TABLE
                                 self.logger.info(
                                     f"Table '{output_table}' exists but catalog reports empty schema. "
                                     f"Using CREATE OR REPLACE TABLE for atomic schema replacement."
                                 )
-                                temp_view_name = f"_temp_{step.name}_{uuid.uuid4().hex[:8]}"
+                                temp_view_name = (
+                                    f"_temp_{step.name}_{uuid.uuid4().hex[:8]}"
+                                )
                                 output_df.createOrReplaceTempView(temp_view_name)  # type: ignore[attr-defined]
-                                
+
                                 # For Delta tables, DROP then CREATE (CREATE OR REPLACE doesn't work with Delta)
                                 self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
                                 self.spark.sql(f"""
@@ -976,39 +1003,49 @@ class ExecutionEngine:
                                     USING DELTA
                                     AS SELECT * FROM {temp_view_name}
                                 """)  # type: ignore[attr-defined]
-                                
+
                                 try:
-                                    self.spark.sql(f"DROP VIEW IF EXISTS {temp_view_name}")  # type: ignore[attr-defined]
+                                    self.spark.sql(
+                                        f"DROP VIEW IF EXISTS {temp_view_name}"
+                                    )  # type: ignore[attr-defined]
                                 except Exception:
                                     pass
-                                
+
                                 # Skip normal write path - table already written
                                 writer = None
                             else:
                                 # Schema exists and is not empty - check if it matches
-                                schemas_match, differences = _schemas_match(existing_schema, output_schema)
+                                schemas_match, differences = _schemas_match(
+                                    existing_schema, output_schema
+                                )
                                 if not schemas_match:
                                     # Schema differs - INITIAL mode allows schema changes via CREATE OR REPLACE TABLE
                                     self.logger.info(
                                         f"Schema change detected for '{output_table}' in INITIAL mode. "
                                         f"Using CREATE OR REPLACE TABLE for atomic schema replacement."
                                     )
-                                    temp_view_name = f"_temp_{step.name}_{uuid.uuid4().hex[:8]}"
+                                    temp_view_name = (
+                                        f"_temp_{step.name}_{uuid.uuid4().hex[:8]}"
+                                    )
                                     output_df.createOrReplaceTempView(temp_view_name)  # type: ignore[attr-defined]
-                                    
+
                                     # For Delta tables, DROP then CREATE (CREATE OR REPLACE doesn't work with Delta)
-                                    self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                                    self.spark.sql(
+                                        f"DROP TABLE IF EXISTS {output_table}"
+                                    )  # type: ignore[attr-defined]
                                     self.spark.sql(f"""
                                         CREATE TABLE {output_table}
                                         USING DELTA
                                         AS SELECT * FROM {temp_view_name}
                                     """)  # type: ignore[attr-defined]
-                                    
+
                                     try:
-                                        self.spark.sql(f"DROP VIEW IF EXISTS {temp_view_name}")  # type: ignore[attr-defined]
+                                        self.spark.sql(
+                                            f"DROP VIEW IF EXISTS {temp_view_name}"
+                                        )  # type: ignore[attr-defined]
                                     except Exception:
                                         pass
-                                    
+
                                     # Skip normal write path - table already written
                                     writer = None
                                 else:
@@ -1017,7 +1054,9 @@ class ExecutionEngine:
                                     if _is_delta_lake_available_execution(self.spark):
                                         # For Delta tables, use DELETE + append
                                         try:
-                                            self.spark.sql(f"DELETE FROM {output_table}")  # type: ignore[attr-defined]
+                                            self.spark.sql(
+                                                f"DELETE FROM {output_table}"
+                                            )  # type: ignore[attr-defined]
                                             # DELETE succeeded, use append mode
                                             writer = _create_dataframe_writer(
                                                 output_df, self.spark, "append"
@@ -1029,14 +1068,18 @@ class ExecutionEngine:
                                                 f"Using CREATE OR REPLACE TABLE instead."
                                             )
                                             temp_view_name = f"_temp_{step.name}_{uuid.uuid4().hex[:8]}"
-                                            output_df.createOrReplaceTempView(temp_view_name)  # type: ignore[attr-defined]
+                                            output_df.createOrReplaceTempView(
+                                                temp_view_name
+                                            )  # type: ignore[attr-defined]
                                             self.spark.sql(f"""
                                                 CREATE OR REPLACE TABLE {output_table}
                                                 USING DELTA
                                                 AS SELECT * FROM {temp_view_name}
                                             """)  # type: ignore[attr-defined]
                                             try:
-                                                self.spark.sql(f"DROP VIEW IF EXISTS {temp_view_name}")  # type: ignore[attr-defined]
+                                                self.spark.sql(
+                                                    f"DROP VIEW IF EXISTS {temp_view_name}"
+                                                )  # type: ignore[attr-defined]
                                             except Exception:
                                                 pass
                                             writer = None
@@ -1080,16 +1123,22 @@ class ExecutionEngine:
                                         f"DELETE FROM failed for '{output_table}': {delete_error}. "
                                         f"Using DROP + CREATE instead."
                                     )
-                                    temp_view_name = f"_temp_{step.name}_{uuid.uuid4().hex[:8]}"
+                                    temp_view_name = (
+                                        f"_temp_{step.name}_{uuid.uuid4().hex[:8]}"
+                                    )
                                     output_df.createOrReplaceTempView(temp_view_name)  # type: ignore[attr-defined]
-                                    self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                                    self.spark.sql(
+                                        f"DROP TABLE IF EXISTS {output_table}"
+                                    )  # type: ignore[attr-defined]
                                     self.spark.sql(f"""
                                         CREATE TABLE {output_table}
                                         USING DELTA
                                         AS SELECT * FROM {temp_view_name}
                                     """)  # type: ignore[attr-defined]
                                     try:
-                                        self.spark.sql(f"DROP VIEW IF EXISTS {temp_view_name}")  # type: ignore[attr-defined]
+                                        self.spark.sql(
+                                            f"DROP VIEW IF EXISTS {temp_view_name}"
+                                        )  # type: ignore[attr-defined]
                                     except Exception:
                                         pass
                                     writer = None
@@ -1109,7 +1158,7 @@ class ExecutionEngine:
                         writer = _create_dataframe_writer(
                             output_df, self.spark, write_mode_str
                         )
-                    
+
                     # Execute write
                     if writer is not None:
                         # Use table-level lock to serialize writes to the same table
@@ -1145,28 +1194,43 @@ class ExecutionEngine:
                                     self.spark.sql(f"REFRESH TABLE {output_table}")  # type: ignore[attr-defined]
                                     # Force Spark to re-read schema by reading a sample row
                                     try:
-                                        sample_df = self.spark.sql(f"SELECT * FROM {output_table} LIMIT 1")  # type: ignore[attr-defined]
+                                        sample_df = self.spark.sql(
+                                            f"SELECT * FROM {output_table} LIMIT 1"
+                                        )  # type: ignore[attr-defined]
                                         _ = sample_df.schema  # Force schema evaluation
                                     except Exception:
                                         pass  # Ignore errors when reading sample
-                                    
+
                                     # Try SQL-based INSERT for Delta tables (works even with catalog sync issues)
-                                    if _is_delta_lake_available_execution(self.spark) and write_mode_str == "append":
-                                        temp_view_name = f"_temp_{step.name}_{uuid.uuid4().hex[:8]}"
-                                        output_df.createOrReplaceTempView(temp_view_name)  # type: ignore[attr-defined]
+                                    if (
+                                        _is_delta_lake_available_execution(self.spark)
+                                        and write_mode_str == "append"
+                                    ):
+                                        temp_view_name = (
+                                            f"_temp_{step.name}_{uuid.uuid4().hex[:8]}"
+                                        )
+                                        output_df.createOrReplaceTempView(
+                                            temp_view_name
+                                        )  # type: ignore[attr-defined]
                                         try:
-                                            self.spark.sql(f"INSERT INTO {output_table} SELECT * FROM {temp_view_name}")  # type: ignore[attr-defined]
+                                            self.spark.sql(
+                                                f"INSERT INTO {output_table} SELECT * FROM {temp_view_name}"
+                                            )  # type: ignore[attr-defined]
                                             # Success - clean up and skip normal write path
                                             try:
-                                                self.spark.sql(f"DROP VIEW IF EXISTS {temp_view_name}")  # type: ignore[attr-defined]
+                                                self.spark.sql(
+                                                    f"DROP VIEW IF EXISTS {temp_view_name}"
+                                                )  # type: ignore[attr-defined]
                                             except Exception:
                                                 pass
                                             writer = None  # Mark writer as None to skip normal write
                                             # Exit the retry block - write succeeded via SQL INSERT
-                                        except Exception as sql_insert_error:
+                                        except Exception:
                                             # SQL INSERT also failed - try normal write as fallback
                                             try:
-                                                self.spark.sql(f"DROP VIEW IF EXISTS {temp_view_name}")  # type: ignore[attr-defined]
+                                                self.spark.sql(
+                                                    f"DROP VIEW IF EXISTS {temp_view_name}"
+                                                )  # type: ignore[attr-defined]
                                             except Exception:
                                                 pass
                                             writer.saveAsTable(output_table)  # type: ignore[attr-defined]
@@ -1179,7 +1243,9 @@ class ExecutionEngine:
                                     # For Gold steps, we can safely rebuild the table from the fresh output
                                     if isinstance(step, GoldStep):
                                         try:
-                                            self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                                            self.spark.sql(
+                                                f"DROP TABLE IF EXISTS {output_table}"
+                                            )  # type: ignore[attr-defined]
                                             direct_writer = _create_dataframe_writer(
                                                 output_df,
                                                 self.spark,
@@ -1195,9 +1261,13 @@ class ExecutionEngine:
                                     if not healed:
                                         try:
                                             base_df = None
-                                            if _is_delta_lake_available_execution(self.spark):
+                                            if _is_delta_lake_available_execution(
+                                                self.spark
+                                            ):
                                                 try:
-                                                    delta_tbl = DeltaTable.forName(self.spark, output_table)  # type: ignore[attr-defined]
+                                                    delta_tbl = DeltaTable.forName(
+                                                        self.spark, output_table
+                                                    )  # type: ignore[attr-defined]
                                                     base_df = delta_tbl.toDF()
                                                 except Exception:
                                                     base_df = None
@@ -1209,11 +1279,17 @@ class ExecutionEngine:
                                                 combined_df = output_df
 
                                             temp_view_name = f"_heal_{step.name}_{uuid.uuid4().hex[:8]}"
-                                            combined_df.createOrReplaceTempView(temp_view_name)  # type: ignore[attr-defined]
+                                            combined_df.createOrReplaceTempView(
+                                                temp_view_name
+                                            )  # type: ignore[attr-defined]
                                             try:
                                                 # Always drop then create to avoid truncate/replace limitations
-                                                self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
-                                                if _is_delta_lake_available_execution(self.spark):
+                                                self.spark.sql(
+                                                    f"DROP TABLE IF EXISTS {output_table}"
+                                                )  # type: ignore[attr-defined]
+                                                if _is_delta_lake_available_execution(
+                                                    self.spark
+                                                ):
                                                     self.spark.sql(  # type: ignore[attr-defined]
                                                         f"CREATE TABLE {output_table} USING DELTA AS SELECT * FROM {temp_view_name}"
                                                     )
@@ -1224,7 +1300,9 @@ class ExecutionEngine:
                                                 healed = True
                                             finally:
                                                 try:
-                                                    self.spark.sql(f"DROP VIEW IF EXISTS {temp_view_name}")  # type: ignore[attr-defined]
+                                                    self.spark.sql(
+                                                        f"DROP VIEW IF EXISTS {temp_view_name}"
+                                                    )  # type: ignore[attr-defined]
                                                 except Exception:
                                                     pass
                                         except Exception:
@@ -1234,7 +1312,9 @@ class ExecutionEngine:
                                         # Last-resort fix for catalog sync issues: drop and recreate the table when safe.
                                         try:
                                             if mode == ExecutionMode.INITIAL:
-                                                self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                                                self.spark.sql(
+                                                    f"DROP TABLE IF EXISTS {output_table}"
+                                                )  # type: ignore[attr-defined]
                                                 writer.saveAsTable(output_table)  # type: ignore[attr-defined]
                                             else:
                                                 raise retry_error

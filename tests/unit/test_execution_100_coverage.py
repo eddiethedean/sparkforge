@@ -410,7 +410,9 @@ class TestExecuteStepComplete:
 class TestExecutePipelineComplete:
     """Test execute_pipeline method for complete coverage."""
 
-    def test_execute_pipeline_success_with_silver_steps(self, spark_session, unique_name):
+    def test_execute_pipeline_success_with_silver_steps(
+        self, spark_session, unique_name
+    ):
         """Test successful pipeline execution with silver steps."""
         schema_name = unique_name("schema", "test_schema")
         config = PipelineConfig(

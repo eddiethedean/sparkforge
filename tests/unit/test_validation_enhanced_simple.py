@@ -165,7 +165,9 @@ class TestValidationWithFunctionsSimple:
     def test_convert_rule_in_requires_iterable(self):
         """'in' rules must receive an iterable."""
         with pytest.raises(ValidationError):
-            _convert_rule_to_expression(["in", "not_iterable"], "name", self.mock_functions)
+            _convert_rule_to_expression(
+                ["in", "not_iterable"], "name", self.mock_functions
+            )
 
     def test_convert_rules_to_expressions_with_mock_functions(self):
         """Test _convert_rules_to_expressions with mock functions."""

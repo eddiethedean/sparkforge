@@ -22,10 +22,9 @@ The builder creates pipelines that can be executed with the simplified execution
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 # Engine-specific StructType should satisfy the TypesProtocol.StructType
-
 from abstracts.builder import PipelineBuilder as AbstractsPipelineBuilder
 from pipeline_builder_base.builder import BasePipelineBuilder
 from pipeline_builder_base.errors import (
@@ -550,7 +549,7 @@ class PipelineBuilder(BasePipelineBuilder):
         description: Optional[str] = None,
         depends_on: Optional[list[StepName]] = None,
         schema: Optional[str] = None,
-        schema_override: Optional[StructType] = None,
+        schema_override: Optional[Any] = None,
     ) -> PipelineBuilder:
         """
         Add Silver layer transformation step for data cleaning and enrichment.
@@ -729,7 +728,7 @@ class PipelineBuilder(BasePipelineBuilder):
         source_silvers: Optional[list[StepName]] = None,
         description: Optional[str] = None,
         schema: Optional[str] = None,
-        schema_override: Optional[StructType] = None,
+        schema_override: Optional[Any] = None,
     ) -> PipelineBuilder:
         """
         Add Gold layer transformation step for business analytics and aggregations.

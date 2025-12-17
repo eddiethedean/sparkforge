@@ -34,7 +34,8 @@ def test_delta_writer_preserves_overwrite_mode(monkeypatch):
     """Delta path should avoid truncate by using append+overwriteSchema for overwrite."""
     df = DummyDataFrame()
     monkeypatch.setattr(
-        "pipeline_builder.execution._is_delta_lake_available_execution", lambda spark: True
+        "pipeline_builder.execution._is_delta_lake_available_execution",
+        lambda spark: True,
     )
 
     writer = _create_dataframe_writer(df, spark="dummy", mode="overwrite")
@@ -50,7 +51,8 @@ def test_parquet_writer_preserves_mode(monkeypatch):
     """Parquet fallback should also keep requested mode and options."""
     df = DummyDataFrame()
     monkeypatch.setattr(
-        "pipeline_builder.execution._is_delta_lake_available_execution", lambda spark: False
+        "pipeline_builder.execution._is_delta_lake_available_execution",
+        lambda spark: False,
     )
 
     writer = _create_dataframe_writer(df, spark="dummy", mode="append", extra="yes")
@@ -64,7 +66,8 @@ def test_delta_writer_respects_explicit_overwrite_schema(monkeypatch):
     """Caller-provided overwriteSchema should be preserved."""
     df = DummyDataFrame()
     monkeypatch.setattr(
-        "pipeline_builder.execution._is_delta_lake_available_execution", lambda spark: True
+        "pipeline_builder.execution._is_delta_lake_available_execution",
+        lambda spark: True,
     )
 
     writer = _create_dataframe_writer(
@@ -75,4 +78,3 @@ def test_delta_writer_respects_explicit_overwrite_schema(monkeypatch):
     assert writer.mode_value == "append"
     # Caller override remains
     assert writer.options.get("overwriteSchema") == "false"
-

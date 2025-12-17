@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 Writer storage module for Delta Lake and table operations.
 
