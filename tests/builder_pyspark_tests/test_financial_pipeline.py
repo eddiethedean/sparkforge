@@ -685,6 +685,7 @@ class TestFinancialPipeline:
         # Pipeline execution verified above - storage verification not needed for unit tests
         print("✅ Compliance monitoring test completed successfully")
 
+    @pytest.mark.sequential
     def test_financial_audit_logging(
         self, spark_session, data_generator, log_writer_config, test_assertions
     ):

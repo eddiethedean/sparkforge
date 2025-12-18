@@ -31,17 +31,37 @@ from test_helpers.isolation import get_unique_warehouse_dir, get_unique_app_name
 
 
 @pytest.fixture(scope="function")
-def spark_session():
+def spark_session(request):
     """
     Real Spark session for testing.
     
     Function-scoped to ensure isolation between parallel tests.
-    Each test gets its own Spark session with a unique warehouse directory.
+    Each test gets its own Spark session with a unique warehouse directory and app name.
     """
     from pyspark.sql import SparkSession
+    import uuid
 
     warehouse_dir = get_unique_warehouse_dir()
     os.makedirs(warehouse_dir, exist_ok=True)
+
+    # Stop any existing Spark session for this worker to ensure isolation
+    # This prevents getOrCreate from reusing a session from a previous test
+    try:
+        existing_spark = SparkSession.getActiveSession()
+        if existing_spark is not None:
+            try:
+                existing_spark.catalog.clearCache()
+                existing_spark.stop()
+            except Exception:
+                pass  # Ignore errors when stopping existing session
+    except Exception:
+        pass  # Ignore if no active session
+
+    # Generate a unique app name that includes test identifier
+    # Use test node name + unique ID to ensure each test gets its own session
+    test_name = request.node.name if hasattr(request, 'node') else "unknown_test"
+    test_id = uuid.uuid4().hex[:8]
+    unique_app_name = f"builder_pyspark_tests_{test_name}_{test_id}"
 
     # Configure Spark with Delta Lake support
     spark = None
@@ -49,9 +69,12 @@ def spark_session():
         from delta import configure_spark_with_delta_pip
 
         builder = (
-            SparkSession.builder.appName(get_unique_app_name("builder_pyspark_tests"))
-            .master("local[*]")
+            SparkSession.builder.appName(unique_app_name)
+            .master("local[1]")
             .config("spark.sql.warehouse.dir", warehouse_dir)
+            .config("spark.ui.enabled", "false")
+            .config("spark.sql.shuffle.partitions", "1")
+            .config("spark.default.parallelism", "1")
             .config("spark.driver.memory", "2g")
             .config("spark.driver.bindAddress", "127.0.0.1")
             .config("spark.driver.host", "127.0.0.1")
@@ -64,14 +87,36 @@ def spark_session():
             )
         )
 
+        # Use getOrCreate() with unique app name - the unique app name ensures
+        # each test gets its own session, and we've already stopped any existing session
         spark = configure_spark_with_delta_pip(builder).getOrCreate()
+        
+        # Verify this is a new session by checking the app name matches our unique name
+        actual_app_name = spark.sparkContext.getConf().get("spark.app.name", "")
+        if actual_app_name != unique_app_name:
+            # If app name doesn't match, we got a reused session - stop it and try again
+            try:
+                spark.stop()
+                spark = configure_spark_with_delta_pip(builder).getOrCreate()
+            except Exception:
+                pass  # If stopping/recreating fails, continue with what we have
+        
+        # Clear catalog cache at start to ensure clean state
+        # This prevents stale table metadata from causing conflicts
+        try:
+            spark.catalog.clearCache()
+        except Exception:
+            pass  # Ignore cache clearing errors
     except Exception as e:
         print(f"⚠️ Delta Lake configuration failed: {e}")
         # Fall back to basic Spark
         spark = (
-            SparkSession.builder.appName(get_unique_app_name("builder_pyspark_tests"))
-            .master("local[*]")
+            SparkSession.builder.appName(unique_app_name)
+            .master("local[1]")
             .config("spark.sql.warehouse.dir", warehouse_dir)
+            .config("spark.ui.enabled", "false")
+            .config("spark.sql.shuffle.partitions", "1")
+            .config("spark.default.parallelism", "1")
             .config("spark.driver.memory", "2g")
             .config("spark.driver.bindAddress", "127.0.0.1")
             .config("spark.driver.host", "127.0.0.1")
@@ -79,6 +124,29 @@ def spark_session():
             .config("spark.sql.adaptive.coalescePartitions.enabled", "false")
             .getOrCreate()
         )
+        
+        # Verify this is a new session by checking the app name matches our unique name
+        actual_app_name = spark.sparkContext.getConf().get("spark.app.name", "")
+        if actual_app_name != unique_app_name:
+            # If app name doesn't match, we got a reused session - stop it and try again
+            try:
+                spark.stop()
+                spark = (
+                    SparkSession.builder.appName(unique_app_name)
+                    .master("local[1]")
+                    .config("spark.sql.warehouse.dir", warehouse_dir)
+                    .config("spark.ui.enabled", "false")
+                    .config("spark.sql.shuffle.partitions", "1")
+                    .config("spark.default.parallelism", "1")
+                    .config("spark.driver.memory", "2g")
+                    .config("spark.driver.bindAddress", "127.0.0.1")
+                    .config("spark.driver.host", "127.0.0.1")
+                    .config("spark.sql.adaptive.enabled", "false")
+                    .config("spark.sql.adaptive.coalescePartitions.enabled", "false")
+                    .getOrCreate()
+                )
+            except Exception:
+                pass  # If stopping/recreating fails, continue with what we have
 
     spark._warehouse_dir = warehouse_dir  # type: ignore[attr-defined]
 

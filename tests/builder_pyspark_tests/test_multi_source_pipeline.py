@@ -761,6 +761,7 @@ class TestMultiSourcePipeline:
         # Table verification removed for testing
         # Data quality assertions removed for testing
 
+    @pytest.mark.sequential
     def test_multi_source_logging(
         self, spark_session, data_generator, log_writer_config, test_assertions
     ):

@@ -82,10 +82,15 @@ def _create_spark_with_storage(spark_session_from_main=None):
                         pass
 
                     # CRITICAL: Set Delta configs in builder BEFORE calling configure_spark_with_delta_pip
+                    # Get worker ID for concurrent testing isolation (pytest-xdist)
+                    worker_id = os_module.environ.get("PYTEST_XDIST_WORKER", "gw0")
                     builder = (
-                        PySparkSession.builder.appName(f"BuilderTests-{os_module.getpid()}")
-                        .master("local[*]")
+                        PySparkSession.builder.appName(f"pytest-spark-{worker_id}")
+                        .master("local[1]")
                         .config("spark.sql.warehouse.dir", warehouse_dir)
+                        .config("spark.ui.enabled", "false")
+                        .config("spark.sql.shuffle.partitions", "1")
+                        .config("spark.default.parallelism", "1")
                         .config("spark.driver.memory", "1g")
                         .config("spark.driver.bindAddress", "127.0.0.1")
                         .config("spark.driver.host", "127.0.0.1")
@@ -121,10 +126,15 @@ def _create_spark_with_storage(spark_session_from_main=None):
                         print(f"✅ builder_tests/conftest: Delta configs verified - Ext: '{actual_ext}', Cat: '{actual_cat}'")
                 except Exception:
                     # Fall back to basic Spark
+                    # Get worker ID for concurrent testing isolation (pytest-xdist)
+                    worker_id = os_module.environ.get("PYTEST_XDIST_WORKER", "gw0")
                     spark = (
-                        PySparkSession.builder.appName(f"BuilderTests-{os_module.getpid()}")
-                        .master("local[*]")
+                        PySparkSession.builder.appName(f"pytest-spark-{worker_id}")
+                        .master("local[1]")
                         .config("spark.sql.warehouse.dir", warehouse_dir)
+                        .config("spark.ui.enabled", "false")
+                        .config("spark.sql.shuffle.partitions", "1")
+                        .config("spark.default.parallelism", "1")
                         .config("spark.driver.memory", "1g")
                         .config("spark.driver.bindAddress", "127.0.0.1")
                         .config("spark.driver.host", "127.0.0.1")

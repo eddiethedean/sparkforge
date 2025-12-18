@@ -42,7 +42,7 @@ class TestIotPipeline:
         )
 
         # Create pipeline builder
-        unique_schema = f"bronze_{uuid4().hex[:8]}"
+        unique_schema = get_unique_schema("bronze")
 
         builder = PipelineBuilder(
             spark=spark_session,
@@ -249,7 +249,7 @@ class TestIotPipeline:
         )
 
         # Create pipeline
-        unique_schema = f"bronze_{uuid4().hex[:8]}"
+        unique_schema = get_unique_schema("bronze")
 
         builder = PipelineBuilder(spark=spark_session, schema=unique_schema)
 
@@ -357,7 +357,7 @@ class TestIotPipeline:
         all_data = normal_data.union(anomaly_data)
 
         # Create pipeline with anomaly detection
-        unique_schema = f"bronze_{uuid4().hex[:8]}"
+        unique_schema = get_unique_schema("bronze")
 
         builder = PipelineBuilder(spark=spark_session, schema=unique_schema)
 
@@ -433,6 +433,7 @@ class TestIotPipeline:
 
         print("✅ Anomaly detection pipeline test completed successfully")
 
+    @pytest.mark.sequential
     def test_performance_monitoring(
         self, spark_session, data_generator, log_writer_config, test_assertions
     ):
@@ -453,7 +454,7 @@ class TestIotPipeline:
         )
 
         # Create pipeline
-        unique_schema = f"bronze_{uuid4().hex[:8]}"
+        unique_schema = get_unique_schema("bronze")
 
         builder = PipelineBuilder(spark=spark_session, schema=unique_schema)
 

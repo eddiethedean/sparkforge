@@ -1195,9 +1195,21 @@ class ExecutionEngine:
                             # We drop unconditionally because Spark may create the table during the write
                             # and then try to use truncate semantics, which Delta doesn't support
                             if write_mode_str == "overwrite" and _is_delta_lake_available_execution(self.spark):
+                                # Clear catalog cache to ensure we have fresh table metadata
+                                # This prevents stale metadata from causing conflicts in parallel execution
+                                try:
+                                    self.spark.catalog.clearCache()  # type: ignore[attr-defined]
+                                except Exception:
+                                    pass  # Ignore cache clearing errors
+                                
                                 # Always try to drop - if table doesn't exist, this is a no-op
                                 try:
                                     self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                                    # Clear cache again after drop to ensure catalog is updated
+                                    try:
+                                        self.spark.catalog.clearCache()  # type: ignore[attr-defined]
+                                    except Exception:
+                                        pass
                                 except Exception:
                                     # If drop fails, try the more sophisticated check
                                     _prepare_delta_overwrite(self.spark, output_table)
@@ -1214,9 +1226,22 @@ class ExecutionEngine:
                                     f"Dropping and recreating with fresh data."
                                 )
                                 try:
+                                    # Clear catalog cache before retry to ensure fresh metadata
+                                    try:
+                                        self.spark.catalog.clearCache()  # type: ignore[attr-defined]
+                                    except Exception:
+                                        pass
+                                    
                                     # Drop table and recreate using CREATE TABLE AS SELECT
                                     # This avoids truncate semantics entirely
                                     self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                                    
+                                    # Clear cache again after drop
+                                    try:
+                                        self.spark.catalog.clearCache()  # type: ignore[attr-defined]
+                                    except Exception:
+                                        pass
+                                    
                                     temp_view_name = f"_temp_{step.name}_{uuid.uuid4().hex[:8]}"
                                     output_df.createOrReplaceTempView(temp_view_name)  # type: ignore[attr-defined]
                                     self.spark.sql(f"""

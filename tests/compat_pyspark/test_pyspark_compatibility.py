@@ -20,6 +20,10 @@ if os.environ.get("SPARK_MODE", "mock").lower() != "real":
         reason="PySpark compatibility tests require SPARK_MODE=real"
     )
 
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from test_helpers.isolation import get_unique_schema
+
 
 @pytest.fixture(scope="module")
 def pyspark_available():
@@ -65,6 +69,7 @@ def setup_pyspark_engine():
 class TestPySparkCompatibility:
     """Test suite for PySpark compatibility."""
 
+    @pytest.mark.sequential
     def test_pyspark_engine_detection(self, pyspark_available, setup_pyspark_engine):
         """Test that PySpark engine is detected correctly."""
         from pipeline_builder.compat import compat_name, is_mock_spark
@@ -126,8 +131,9 @@ class TestPySparkCompatibility:
             .getOrCreate()
         )
 
-        # Build pipeline
-        builder = PipelineBuilder(spark=spark, schema="test_schema")
+        # Build pipeline with unique schema for concurrent testing isolation
+        unique_schema = get_unique_schema("test")
+        builder = PipelineBuilder(spark=spark, schema=unique_schema)
         builder.with_bronze_rules(
             name="events",
             rules={"user_id": [F.col("user_id").isNotNull()]},
@@ -380,6 +386,7 @@ class TestPySparkCompatibility:
 class TestPySparkEngineSwitching:
     """Test engine switching functionality."""
 
+    @pytest.mark.sequential
     def test_switch_to_pyspark(self, pyspark_available):
         """Test switching to PySpark engine."""
         import sys
@@ -409,6 +416,7 @@ class TestPySparkEngineSwitching:
         # Skip this test when running in pyspark mode as it requires mock-spark
         pytest.skip("Mock engine switching test skipped in pyspark mode")
 
+    @pytest.mark.sequential
     def test_auto_detection(self, pyspark_available):
         """Test auto-detection of engine."""
         import sys

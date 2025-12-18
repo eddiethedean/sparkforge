@@ -30,6 +30,7 @@ from test_helpers.isolation import get_unique_schema
 class TestSupplyChainPipeline:
     """Test supply chain and logistics pipeline with bronze-silver-gold architecture."""
 
+    @pytest.mark.sequential
     def test_complete_supply_chain_pipeline_execution(
         self, spark_session, data_generator, test_assertions
     ):
@@ -45,12 +46,9 @@ class TestSupplyChainPipeline:
         inventory_df = data_generator.create_supply_chain_inventory(
             spark_session, num_items=150
         )
-        warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
-        unique_schema = f"bronze_{uuid4().hex[:16]}"
-        escaped_dir = warehouse_dir.replace("'", "''")
-        spark_session.sql(
-            f"CREATE DATABASE IF NOT EXISTS {unique_schema} LOCATION '{escaped_dir}'"
-        )
+        # Use get_unique_schema for proper concurrent testing isolation (includes worker ID)
+        unique_schema = get_unique_schema("bronze")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
 
         # Create pipeline builder
         builder = PipelineBuilder(
@@ -462,12 +460,9 @@ class TestSupplyChainPipeline:
         orders_initial = data_generator.create_supply_chain_orders(
             spark_session, num_orders=30
         )
-        warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
-        unique_schema = f"bronze_{uuid4().hex[:16]}"
-        escaped_dir = warehouse_dir.replace("'", "''")
-        spark_session.sql(
-            f"CREATE DATABASE IF NOT EXISTS {unique_schema} LOCATION '{escaped_dir}'"
-        )
+        # Use get_unique_schema for proper concurrent testing isolation (includes worker ID)
+        unique_schema = get_unique_schema("bronze")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
 
         # Create pipeline builder
         builder = PipelineBuilder(
@@ -527,6 +522,7 @@ class TestSupplyChainPipeline:
         assert result2.mode.value == "incremental"
 
     @pytest.mark.pyspark
+    @pytest.mark.sequential
     def test_supply_chain_logging(self, spark_session, data_generator, test_assertions):
         """Test comprehensive logging for supply chain pipeline."""
         # Skip if in mock mode (requires real PySpark with Delta Lake)
@@ -538,12 +534,9 @@ class TestSupplyChainPipeline:
         orders_df = data_generator.create_supply_chain_orders(
             spark_session, num_orders=25
         )
-        warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
-        unique_schema = f"bronze_{uuid4().hex[:16]}"
-        escaped_dir = warehouse_dir.replace("'", "''")
-        spark_session.sql(
-            f"CREATE DATABASE IF NOT EXISTS {unique_schema} LOCATION '{escaped_dir}'"
-        )
+        # Use get_unique_schema for proper concurrent testing isolation (includes worker ID)
+        unique_schema = get_unique_schema("bronze")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
 
         # Create unique schema for this test
         analytics_schema = get_unique_schema("analytics")

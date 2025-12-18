@@ -28,6 +28,7 @@ from test_helpers.isolation import get_unique_schema
 class TestMarketingPipeline:
     """Test marketing analytics pipeline with bronze-silver-gold architecture."""
 
+    @pytest.mark.sequential
     def test_complete_marketing_pipeline_execution(
         self, spark_session, data_generator, test_assertions
     ):

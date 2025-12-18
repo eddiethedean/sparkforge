@@ -521,13 +521,17 @@ def _create_real_spark_session():
 
         # Build Spark session builder - match conftest_delta.py pattern exactly
         # Set Delta configs in builder BEFORE calling configure_spark_with_delta_pip
-        unique_app_name = f"SparkForgeTests-{os.getpid()}-{int(time.time() * 1000000)}"
+        # Get worker ID for concurrent testing isolation (pytest-xdist)
+        worker_id = os.environ.get("PYTEST_XDIST_WORKER", "gw0")
+        unique_app_name = f"pytest-spark-{worker_id}"
         builder = (
             SparkSession.builder.appName(unique_app_name)
-            .master("local[*]")
+            .master("local[1]")
             .config("spark.sql.warehouse.dir", warehouse_dir)
-            .config("spark.sql.adaptive.enabled", "true")
-            .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
+            .config("spark.ui.enabled", "false")
+            .config("spark.sql.shuffle.partitions", "1")
+            .config("spark.default.parallelism", "1")
+            .config("spark.sql.adaptive.enabled", "false")
             .config("spark.driver.host", "127.0.0.1")
             .config("spark.driver.bindAddress", "127.0.0.1")
             .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
@@ -578,6 +582,13 @@ def _create_real_spark_session():
         
         # Set log level to WARN to reduce noise (matching conftest_delta.py pattern)
         spark.sparkContext.setLogLevel("WARN")
+        
+        # Clear catalog cache at start to ensure clean state
+        # This prevents stale table metadata from causing conflicts in parallel tests
+        try:
+            spark.catalog.clearCache()
+        except Exception:
+            pass  # Ignore cache clearing errors
 
     except Exception as e:
         import traceback
@@ -602,12 +613,16 @@ def _create_real_spark_session():
         if skip_delta or basic_spark:
             print("🔧 Using basic Spark configuration as requested")
             try:
+                # Get worker ID for concurrent testing isolation (pytest-xdist)
+                worker_id = os.environ.get("PYTEST_XDIST_WORKER", "gw0")
                 builder = (
-                    SparkSession.builder.appName(f"SparkForgeTests-{os.getpid()}")
-                    .master("local[*]")
+                    SparkSession.builder.appName(f"pytest-spark-{worker_id}")
+                    .master("local[1]")
                     .config("spark.sql.warehouse.dir", warehouse_dir)
-                    .config("spark.sql.adaptive.enabled", "true")
-                    .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
+                    .config("spark.ui.enabled", "false")
+                    .config("spark.sql.shuffle.partitions", "1")
+                    .config("spark.default.parallelism", "1")
+                    .config("spark.sql.adaptive.enabled", "false")
                     .config("spark.driver.host", "127.0.0.1")
                     .config("spark.driver.bindAddress", "127.0.0.1")
                     .config(
@@ -618,6 +633,11 @@ def _create_real_spark_session():
                 )
 
                 spark = builder.getOrCreate()
+                # Clear catalog cache at start to ensure clean state
+                try:
+                    spark.catalog.clearCache()
+                except Exception:
+                    pass  # Ignore cache clearing errors
             except Exception as e2:
                 print(f"❌ Failed to create basic Spark session: {e2}")
                 raise
@@ -626,12 +646,16 @@ def _create_real_spark_session():
             # This allows tests to run without Delta Lake (logging will use parquet format)
             print("🔧 Delta Lake not available, using basic Spark configuration")
             try:
+                # Get worker ID for concurrent testing isolation (pytest-xdist)
+                worker_id = os.environ.get("PYTEST_XDIST_WORKER", "gw0")
                 builder = (
-                    SparkSession.builder.appName(f"SparkForgeTests-{os.getpid()}")
-                    .master("local[*]")
+                    SparkSession.builder.appName(f"pytest-spark-{worker_id}")
+                    .master("local[1]")
                     .config("spark.sql.warehouse.dir", warehouse_dir)
-                    .config("spark.sql.adaptive.enabled", "true")
-                    .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
+                    .config("spark.ui.enabled", "false")
+                    .config("spark.sql.shuffle.partitions", "1")
+                    .config("spark.default.parallelism", "1")
+                    .config("spark.sql.adaptive.enabled", "false")
                     .config("spark.driver.host", "127.0.0.1")
                     .config("spark.driver.bindAddress", "127.0.0.1")
                     .config(
@@ -642,6 +666,11 @@ def _create_real_spark_session():
                 )
 
                 spark = builder.getOrCreate()
+                # Clear catalog cache at start to ensure clean state
+                try:
+                    spark.catalog.clearCache()
+                except Exception:
+                    pass  # Ignore cache clearing errors
             except Exception as e2:
                 print(f"❌ Failed to create basic Spark session: {e2}")
                 raise
@@ -1216,6 +1245,9 @@ def pytest_configure(config):
     )
     config.addinivalue_line(
         "markers", "real_spark_only: marks tests that only work with real Spark"
+    )
+    config.addinivalue_line(
+        "markers", "sequential: marks tests that must run sequentially (not in parallel) to avoid race conditions"
     )
 
 

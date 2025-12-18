@@ -29,12 +29,16 @@ def delta_spark_session():
 
         print("🔧 Configuring Spark with Delta Lake support")
 
+        # Get worker ID for concurrent testing isolation (pytest-xdist)
+        worker_id = os.environ.get("PYTEST_XDIST_WORKER", "gw0")
         builder = (
-            SparkSession.builder.appName("DeltaLakeTests")
-            .master("local[*]")
+            SparkSession.builder.appName(f"pytest-spark-{worker_id}")
+            .master("local[1]")
             .config("spark.sql.warehouse.dir", warehouse_dir)
-            .config("spark.sql.adaptive.enabled", "true")
-            .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
+            .config("spark.ui.enabled", "false")
+            .config("spark.sql.shuffle.partitions", "1")
+            .config("spark.default.parallelism", "1")
+            .config("spark.sql.adaptive.enabled", "false")
             .config("spark.driver.host", "127.0.0.1")
             .config("spark.driver.bindAddress", "127.0.0.1")
             .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")

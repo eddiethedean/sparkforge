@@ -22,11 +22,15 @@ from pyspark.sql import functions as F
 
 from pipeline_builder.models import ParallelConfig
 from pipeline_builder.pipeline import PipelineBuilder
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from test_helpers.isolation import get_unique_schema
 
 
 class TestStreamingHybridPipeline:
     """Test streaming/batch hybrid pipeline with bronze-silver-gold architecture."""
 
+    @pytest.mark.sequential
     def test_complete_streaming_hybrid_pipeline_execution(
         self, spark_session, data_generator, test_assertions
     ):
@@ -39,14 +43,9 @@ class TestStreamingHybridPipeline:
         streaming_events_df = data_generator.create_streaming_batch_events(
             spark_session, num_events=80
         )
-        warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
-
-        # Create pipeline builder
-        unique_schema = f"bronze_{uuid4().hex[:16]}"
-        escaped_dir = warehouse_dir.replace("'", "''")
-        spark_session.sql(
-            f"CREATE DATABASE IF NOT EXISTS {unique_schema} LOCATION '{escaped_dir}'"
-        )
+        # Use get_unique_schema for proper concurrent testing isolation (includes worker ID)
+        unique_schema = get_unique_schema("bronze")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
 
         builder = PipelineBuilder(
             spark=spark_session,
@@ -542,14 +541,9 @@ class TestStreamingHybridPipeline:
         batch_initial = data_generator.create_streaming_batch_history(
             spark_session, num_records=50
         )
-        warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
-
-        # Create pipeline builder
-        unique_schema = f"bronze_{uuid4().hex[:16]}"
-        escaped_dir = warehouse_dir.replace("'", "''")
-        spark_session.sql(
-            f"CREATE DATABASE IF NOT EXISTS {unique_schema} LOCATION '{escaped_dir}'"
-        )
+        # Use get_unique_schema for proper concurrent testing isolation (includes worker ID)
+        unique_schema = get_unique_schema("bronze")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
 
         builder = PipelineBuilder(
             spark=spark_session,

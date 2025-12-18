@@ -402,6 +402,7 @@ class TestEcommercePipeline:
 
         print("✅ Validation failures test completed successfully")
 
+    @pytest.mark.sequential
     def test_logging_and_monitoring(
         self, spark_session, data_generator, log_writer_config, test_assertions
     ):

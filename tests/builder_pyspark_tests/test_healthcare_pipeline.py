@@ -29,6 +29,7 @@ from test_helpers.isolation import get_unique_schema
 class TestHealthcarePipeline:
     """Test healthcare analytics pipeline with bronze-silver-gold architecture."""
 
+    @pytest.mark.sequential
     def test_complete_healthcare_pipeline_execution(
         self, spark_session, data_generator, test_assertions
     ):
@@ -45,12 +46,9 @@ class TestHealthcarePipeline:
         medications_df = data_generator.create_healthcare_medications(
             spark_session, num_prescriptions=160
         )
-        warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
-        unique_schema = f"bronze_{uuid4().hex[:16]}"
-        escaped_dir = warehouse_dir.replace("'", "''")
-        spark_session.sql(
-            f"CREATE DATABASE IF NOT EXISTS {unique_schema} LOCATION '{escaped_dir}'"
-        )
+        # Use get_unique_schema for proper concurrent testing isolation (includes worker ID)
+        unique_schema = get_unique_schema("bronze")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
 
         # Create pipeline builder
         builder = PipelineBuilder(
@@ -519,12 +517,9 @@ class TestHealthcarePipeline:
         )
 
         # Create pipeline builder
-        warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
-        unique_schema = f"bronze_{uuid4().hex[:16]}"
-        escaped_dir = warehouse_dir.replace("'", "''")
-        spark_session.sql(
-            f"CREATE DATABASE IF NOT EXISTS {unique_schema} LOCATION '{escaped_dir}'"
-        )
+        # Use get_unique_schema for proper concurrent testing isolation (includes worker ID)
+        unique_schema = get_unique_schema("bronze")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
 
         builder = PipelineBuilder(
             spark=spark_session,
@@ -593,6 +588,7 @@ class TestHealthcarePipeline:
         assert result2.mode.value == "incremental"
 
     @pytest.mark.pyspark
+    @pytest.mark.sequential
     def test_healthcare_logging(
         self, spark_session, data_generator, log_writer_config, test_assertions
     ):
@@ -620,12 +616,9 @@ class TestHealthcarePipeline:
         )
 
         # Create pipeline
-        warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
-        unique_schema = f"bronze_{uuid4().hex[:16]}"
-        escaped_dir = warehouse_dir.replace("'", "''")
-        spark_session.sql(
-            f"CREATE DATABASE IF NOT EXISTS {unique_schema} LOCATION '{escaped_dir}'"
-        )
+        # Use get_unique_schema for proper concurrent testing isolation (includes worker ID)
+        unique_schema = get_unique_schema("bronze")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
 
         builder = PipelineBuilder(
             spark=spark_session, schema=unique_schema, verbose=False

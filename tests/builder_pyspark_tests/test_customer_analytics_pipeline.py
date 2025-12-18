@@ -22,6 +22,9 @@ from pyspark.sql import functions as F
 
 from pipeline_builder.models import ParallelConfig
 from pipeline_builder.pipeline import PipelineBuilder
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from test_helpers.isolation import get_unique_schema, get_unique_warehouse_dir
 
 
 class TestCustomerAnalyticsPipeline:
@@ -71,14 +74,9 @@ class TestCustomerAnalyticsPipeline:
                 "duration_seconds",
             ],
         )
-        import os
-        warehouse_dir = tempfile.mkdtemp(prefix=f"spark-warehouse-{os.getpid()}-")
-        # Include process ID and UUID for better parallel execution isolation
-        unique_schema = f"bronze_{os.getpid()}_{uuid4().hex[:12]}"
-        escaped_dir = warehouse_dir.replace("'", "''")
-        spark_session.sql(
-            f"CREATE DATABASE IF NOT EXISTS {unique_schema} LOCATION '{escaped_dir}'"
-        )
+        # Use get_unique_schema for proper concurrent testing isolation (includes worker ID)
+        unique_schema = get_unique_schema("bronze")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
 
         # PySpark doesn't need explicit schema creation
 
@@ -457,8 +455,9 @@ class TestCustomerAnalyticsPipeline:
         # PySpark doesn't need explicit schema creation
 
         # Create pipeline
+        unique_schema = get_unique_schema("bronze")
         builder = PipelineBuilder(
-            spark=spark_session, schema=f"bronze_{uuid4().hex[:8]}"
+            spark=spark_session, schema=unique_schema
         )
         builder.config.parallel = ParallelConfig.create_sequential()
 
@@ -584,14 +583,9 @@ class TestCustomerAnalyticsPipeline:
             spark_session, num_customers=15
         )
         orders_df = data_generator.create_ecommerce_orders(spark_session, num_orders=75)
-        import os
-        warehouse_dir = tempfile.mkdtemp(prefix=f"spark-warehouse-{os.getpid()}-")
-        # Include process ID and UUID for better parallel execution isolation
-        unique_schema = f"bronze_{os.getpid()}_{uuid4().hex[:12]}"
-        escaped_dir = warehouse_dir.replace("'", "''")
-        spark_session.sql(
-            f"CREATE DATABASE IF NOT EXISTS {unique_schema} LOCATION '{escaped_dir}'"
-        )
+        # Use get_unique_schema for proper concurrent testing isolation (includes worker ID)
+        unique_schema = get_unique_schema("bronze")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
 
         # PySpark doesn't need explicit schema creation
 
@@ -723,6 +717,7 @@ class TestCustomerAnalyticsPipeline:
         # Table verification removed for testing
         # Data quality assertions removed for testing
 
+    @pytest.mark.sequential
     def test_customer_analytics_logging(
         self, spark_session, data_generator, log_writer_config, test_assertions
     ):
@@ -738,14 +733,9 @@ class TestCustomerAnalyticsPipeline:
             ],
             ["customer_id", "interaction_type", "timestamp", "duration_seconds"],
         )
-        import os
-        warehouse_dir = tempfile.mkdtemp(prefix=f"spark-warehouse-{os.getpid()}-")
-        # Include process ID and UUID for better parallel execution isolation
-        unique_schema = f"bronze_{os.getpid()}_{uuid4().hex[:12]}"
-        escaped_dir = warehouse_dir.replace("'", "''")
-        spark_session.sql(
-            f"CREATE DATABASE IF NOT EXISTS {unique_schema} LOCATION '{escaped_dir}'"
-        )
+        # Use get_unique_schema for proper concurrent testing isolation (includes worker ID)
+        unique_schema = get_unique_schema("bronze")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
 
         # PySpark doesn't need explicit schema creation
         # Storage schema creation removed for testing
