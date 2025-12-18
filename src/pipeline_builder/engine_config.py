@@ -9,6 +9,7 @@ sparkless, etc.). Defaults raise to ensure misconfiguration surfaces early.
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass
 from typing import Any, Optional
 
@@ -33,7 +34,11 @@ class EngineConfig:
     column_cls: Optional[Any] = None
 
 
+# Global engine state (for backward compatibility)
 _engine: Optional[EngineConfig] = None
+
+# Thread-local engine state (for parallel test isolation)
+_thread_local = threading.local()
 
 
 def configure_engine(
@@ -48,10 +53,15 @@ def configure_engine(
     spark_session_cls: Optional[Any] = None,
     column_cls: Optional[Any] = None,
 ) -> None:
-    """Inject engine components."""
+    """
+    Inject engine components.
+    
+    Sets both thread-local and global engine state for backward compatibility.
+    Thread-local state takes precedence in get_engine() for parallel test isolation.
+    """
 
     global _engine
-    _engine = EngineConfig(
+    engine_config = EngineConfig(
         functions=functions,
         types=types,
         analysis_exception=analysis_exception,
@@ -62,11 +72,27 @@ def configure_engine(
         spark_session_cls=spark_session_cls,
         column_cls=column_cls,
     )
+    
+    # Set global state (for backward compatibility)
+    _engine = engine_config
+    
+    # Set thread-local state (for parallel test isolation)
+    _thread_local.engine = engine_config
 
 
 def get_engine() -> EngineConfig:
-    """Get the current engine config, raising if not configured."""
+    """
+    Get the current engine config, raising if not configured.
+    
+    Checks thread-local storage first (for parallel test isolation),
+    then falls back to global state (for backward compatibility).
+    """
 
+    # Try thread-local first (for parallel test isolation)
+    if hasattr(_thread_local, 'engine') and _thread_local.engine is not None:
+        return _thread_local.engine
+    
+    # Fallback to global state (for backward compatibility)
     if _engine is None:
         raise RuntimeError(
             "Engine not configured. Call configure_engine(functions=..., types=..., analysis_exception=..., window=..., desc=...) before using pipeline_builder."
@@ -74,4 +100,15 @@ def get_engine() -> EngineConfig:
     return _engine
 
 
-__all__ = ["EngineConfig", "configure_engine", "get_engine"]
+def reset_engine_state() -> None:
+    """
+    Reset thread-local engine state.
+    
+    This is useful for test isolation - clears the thread-local engine
+    so the next get_engine() call will use global state or raise an error.
+    """
+    if hasattr(_thread_local, 'engine'):
+        delattr(_thread_local, 'engine')
+
+
+__all__ = ["EngineConfig", "configure_engine", "get_engine", "reset_engine_state"]

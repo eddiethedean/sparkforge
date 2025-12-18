@@ -13,6 +13,10 @@ if os.environ.get("SPARK_MODE", "mock").lower() != "real":
     )
 
 from pipeline_builder.pipeline import PipelineBuilder
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from test_helpers.isolation import get_unique_schema
 
 
 class TestSimplePipeline:
@@ -23,13 +27,17 @@ class TestSimplePipeline:
     ):
         """Test simple pipeline without complex validation rules."""
 
+        # Create unique schema for this test
+        bronze_schema = get_unique_schema("bronze")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
+
         # Create test data
         orders_df = data_generator.create_ecommerce_orders(spark_session, num_orders=10)
 
         # Create pipeline builder
         builder = PipelineBuilder(
             spark=spark_session,
-            schema="bronze",
+            schema=bronze_schema,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
             min_gold_rate=99.0,

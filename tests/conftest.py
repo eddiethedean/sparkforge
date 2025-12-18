@@ -147,25 +147,17 @@ def reset_global_state():
     import sys
 
     [k for k in sys.modules.keys() if "pyspark" in k.lower() and "_jvm" not in k]
-    # Don't remove modules, just ensure SparkContext is clean
+
+    yield  # Run the test
+
+    # Reset after test - clear engine state and global caches
     try:
-        from pipeline_builder.compat import compat_name
+        from tests.test_helpers.isolation import reset_engine_state
 
-        if compat_name() == "pyspark":
-            # Use compatibility layer
-
-            # SparkContext is accessed via SparkSession
-            SparkContext = None  # Not needed for mock-spark
-
-            if SparkContext._active_spark_context is not None:
-                # Don't stop it as other tests might need it
-                pass
+        reset_engine_state()
     except Exception:
         pass
 
-    yield
-
-    # Reset after test
     try:
         from pipeline_builder.logging import reset_global_logger
 
@@ -182,6 +174,22 @@ def reset_global_state():
 
         reset_globals()
         reset_execution_state()
+    except Exception:
+        pass
+
+    # Don't remove modules, just ensure SparkContext is clean
+    try:
+        from pipeline_builder.compat import compat_name
+
+        if compat_name() == "pyspark":
+            # Use compatibility layer
+
+            # SparkContext is accessed via SparkSession
+            SparkContext = None  # Not needed for mock-spark
+
+            if SparkContext._active_spark_context is not None:
+                # Don't stop it as other tests might need it
+                pass
     except Exception:
         pass
 
@@ -214,6 +222,50 @@ def cleanup_before_test():
         reset_execution_state()
     except Exception:
         pass
+
+
+@pytest.fixture
+def fully_isolated_test(spark_session):
+    """
+    Comprehensive isolation fixture that combines all isolation mechanisms.
+    
+    Provides:
+    - Unique Spark session (from spark_session fixture)
+    - Isolated engine state (thread-local)
+    - Isolated environment variables (thread-local)
+    - Unique schemas and warehouse directories
+    
+    Usage:
+        def test_something(fully_isolated_test):
+            # Test has complete isolation
+            pass
+    """
+    import sys
+    import os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+    from test_helpers.isolation import (
+        ThreadLocalEnvVar,
+        get_unique_schema,
+        reset_engine_state,
+    )
+    
+    # Isolate environment variables
+    env_vars = {}
+    for var_name in ["SPARKFORGE_ENGINE"]:
+        env_var = ThreadLocalEnvVar(var_name)
+        env_vars[var_name] = env_var
+    
+    # Reset engine state at start
+    reset_engine_state()
+    
+    yield {
+        'spark': spark_session,
+        'get_unique_schema': get_unique_schema,
+        'env_vars': env_vars,
+    }
+    
+    # Cleanup: reset engine state
+    reset_engine_state()
 
 
 @pytest.fixture(scope="function")
@@ -625,6 +677,58 @@ def _create_real_spark_session():
     )
 
     return spark
+
+
+@pytest.fixture
+def isolate_engine_config():
+    """
+    Context manager fixture to isolate engine configuration changes.
+    
+    Saves the current engine state, allows modification within the test,
+    and restores it after the test completes.
+    
+    Usage:
+        def test_something(isolate_engine_config):
+            with isolate_engine_config():
+                # Modify engine configuration
+                configure_engine(...)
+                # Test code
+                pass
+            # Engine state automatically restored
+    """
+    from contextlib import contextmanager
+    from pipeline_builder.engine_config import get_engine, configure_engine
+    
+    @contextmanager
+    def _isolate():
+        # Save current engine state
+        try:
+            current_engine = get_engine()
+            saved_config = {
+                'functions': current_engine.functions,
+                'types': current_engine.types,
+                'analysis_exception': current_engine.analysis_exception,
+                'window': current_engine.window,
+                'desc': current_engine.desc,
+                'engine_name': current_engine.engine_name,
+                'dataframe_cls': current_engine.dataframe_cls,
+                'spark_session_cls': current_engine.spark_session_cls,
+                'column_cls': current_engine.column_cls,
+            }
+        except Exception:
+            saved_config = None
+        
+        try:
+            yield
+        finally:
+            # Restore saved engine state
+            if saved_config is not None:
+                try:
+                    configure_engine(**saved_config)
+                except Exception:
+                    pass
+    
+    return _isolate
 
 
 @pytest.fixture(scope="function")

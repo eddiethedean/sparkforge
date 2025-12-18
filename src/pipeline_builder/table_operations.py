@@ -59,47 +59,17 @@ def prepare_delta_overwrite(
     is_table_name = "." in table_name and not table_name.startswith("/")
     
     if is_table_name:
-        # It's a table name - check if table exists
-        if not table_exists(spark, table_name):
-            return
-        
+        # Always try to drop the table if it exists, since we're about to overwrite it
+        # This is safer than failing later with truncate error for Delta tables
+        # Delta tables don't support truncate, so we must drop before overwrite
+        # Use DROP TABLE IF EXISTS to avoid errors if table doesn't exist
         try:
-            # Get table location from catalog
-            table_info = spark.sql(f"DESCRIBE TABLE EXTENDED {table_name}").collect()  # type: ignore[attr-defined]
-            table_location = None
-            provider = None
-            for row in table_info:
-                col_name = str(row[0]).strip()  # type: ignore[index]
-                if col_name == "Location":
-                    table_location = str(row[1]).strip()  # type: ignore[index]
-                elif col_name == "Provider":
-                    provider = str(row[1]).strip()  # type: ignore[index]
-            
-            # Check if it's a Delta table - either by provider or by location
-            is_delta = False
-            if provider and "delta" in provider.lower():
-                is_delta = True
-            elif table_location:
-                try:
-                    is_delta = DeltaTable.isDeltaTable(spark, table_location)  # type: ignore[attr-defined]
-                except Exception:
-                    # If we can't check, assume it might be Delta and drop it
-                    is_delta = True
-            
-            if is_delta:
-                # Drop the table (metadata only, data remains but will be overwritten)
-                spark.sql(f"DROP TABLE IF EXISTS {table_name}")  # type: ignore[attr-defined]
-                logger.debug(f"Dropped Delta table {table_name} before overwrite")
+            spark.sql(f"DROP TABLE IF EXISTS {table_name}")  # type: ignore[attr-defined]
+            logger.debug(f"Dropped table {table_name} before overwrite (if it existed)")
         except Exception as e:
-            # If we can't determine or drop, try to drop anyway if table exists
-            # This is safer than failing later with truncate error
-            try:
-                spark.sql(f"DROP TABLE IF EXISTS {table_name}")  # type: ignore[attr-defined]
-                logger.debug(f"Dropped table {table_name} before overwrite (fallback)")
-            except Exception:
-                # If drop fails, let the write attempt proceed
-                # The error will propagate if Delta overwrite fails
-                logger.warning(f"Could not drop table {table_name} before overwrite: {e}")
+            # If drop fails, log warning but continue - the write might still work
+            # If it's a Delta table, the write will fail with truncate error
+            logger.warning(f"Could not drop table {table_name} before overwrite: {e}")
     else:
         # It's a path - check if Delta table exists at that path
         try:
@@ -174,12 +144,19 @@ def write_overwrite_table(
         
         # Prepare for Delta overwrite by dropping existing Delta table if it exists
         prepare_delta_overwrite(spark, fqn)
-
-        # Use standardized Delta overwrite pattern - always use Delta format
-        # Failures will propagate if Delta is not available
+        
+        # After dropping, check if table still exists to determine write mode
+        # If table was dropped, we can use append mode (which creates if not exists)
+        # If table still exists, we need to use overwrite mode
+        table_still_exists = table_exists(spark, fqn)
+        
+        # Use standardized Delta write pattern - always use Delta format
+        # If table was dropped, use append mode (creates table if not exists)
+        # If table still exists, use overwrite mode
+        write_mode = "overwrite" if table_still_exists else "append"
         writer = (
             df.write.format("delta")
-            .mode("overwrite")
+            .mode(write_mode)
             .option("overwriteSchema", "true")
         )  # type: ignore[attr-defined]
 
@@ -187,7 +164,7 @@ def write_overwrite_table(
             writer = writer.option(key, value)
 
         writer.saveAsTable(fqn)
-        logger.info(f"Successfully wrote {cnt} rows to {fqn} in overwrite mode")
+        logger.info(f"Successfully wrote {cnt} rows to {fqn} in {write_mode} mode")
         return cnt
 
     except Exception as e:

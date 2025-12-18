@@ -13,6 +13,12 @@ import os
 import time
 from datetime import datetime
 
+import pytest
+
+# Skip this test module if running in real mode (requires sparkless)
+if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+    pytestmark = pytest.mark.skip(reason="Requires sparkless (mock mode only)")
+
 # Use compatibility layer
 from pipeline_builder.compat import F, SparkSession
 
@@ -22,12 +28,16 @@ if _ENGINE in ("pyspark", "spark", "real"):
     try:
         from pyspark.sql.types import IntegerType, StringType, StructField, StructType
     except ImportError:
-        from sparkless.spark_types import (  # type: ignore[import]
-            IntegerType,
-            StringType,
-            StructField,
-            StructType,
-        )
+        # In real mode, this test should be skipped, but handle gracefully
+        try:
+            from sparkless.spark_types import (  # type: ignore[import]
+                IntegerType,
+                StringType,
+                StructField,
+                StructType,
+            )
+        except ImportError:
+            pytest.skip("sparkless not available (mock mode only)")
 else:
     from sparkless.spark_types import IntegerType, StringType, StructField, StructType  # type: ignore[import]
 

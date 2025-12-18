@@ -71,8 +71,10 @@ class TestCustomerAnalyticsPipeline:
                 "duration_seconds",
             ],
         )
-        warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
-        unique_schema = f"bronze_{uuid4().hex[:16]}"
+        import os
+        warehouse_dir = tempfile.mkdtemp(prefix=f"spark-warehouse-{os.getpid()}-")
+        # Include process ID and UUID for better parallel execution isolation
+        unique_schema = f"bronze_{os.getpid()}_{uuid4().hex[:12]}"
         escaped_dir = warehouse_dir.replace("'", "''")
         spark_session.sql(
             f"CREATE DATABASE IF NOT EXISTS {unique_schema} LOCATION '{escaped_dir}'"
@@ -582,8 +584,10 @@ class TestCustomerAnalyticsPipeline:
             spark_session, num_customers=15
         )
         orders_df = data_generator.create_ecommerce_orders(spark_session, num_orders=75)
-        warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
-        unique_schema = f"bronze_{uuid4().hex[:16]}"
+        import os
+        warehouse_dir = tempfile.mkdtemp(prefix=f"spark-warehouse-{os.getpid()}-")
+        # Include process ID and UUID for better parallel execution isolation
+        unique_schema = f"bronze_{os.getpid()}_{uuid4().hex[:12]}"
         escaped_dir = warehouse_dir.replace("'", "''")
         spark_session.sql(
             f"CREATE DATABASE IF NOT EXISTS {unique_schema} LOCATION '{escaped_dir}'"
@@ -734,8 +738,10 @@ class TestCustomerAnalyticsPipeline:
             ],
             ["customer_id", "interaction_type", "timestamp", "duration_seconds"],
         )
-        warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
-        unique_schema = f"bronze_{uuid4().hex[:16]}"
+        import os
+        warehouse_dir = tempfile.mkdtemp(prefix=f"spark-warehouse-{os.getpid()}-")
+        # Include process ID and UUID for better parallel execution isolation
+        unique_schema = f"bronze_{os.getpid()}_{uuid4().hex[:12]}"
         escaped_dir = warehouse_dir.replace("'", "''")
         spark_session.sql(
             f"CREATE DATABASE IF NOT EXISTS {unique_schema} LOCATION '{escaped_dir}'"
@@ -799,3 +805,13 @@ class TestCustomerAnalyticsPipeline:
         assert "interactions" in result.bronze_results
         assert "customer_behavior" in result.silver_results
         assert "customer_insights" in result.gold_results
+
+        # Cleanup: drop schema created for this test
+        try:
+            import sys
+            import os
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+            from test_helpers.isolation import cleanup_test_tables
+            cleanup_test_tables(spark_session, unique_schema)
+        except Exception:
+            pass  # Ignore cleanup errors

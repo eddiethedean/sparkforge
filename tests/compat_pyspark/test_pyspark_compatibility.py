@@ -38,15 +38,28 @@ def pyspark_available():
         )
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def setup_pyspark_engine():
     """Set up PySpark as the engine for these tests."""
-    # Force PySpark engine
-    os.environ["SPARKFORGE_ENGINE"] = "pyspark"
+    import sys
+    import os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+    from test_helpers.isolation import ThreadLocalEnvVar
+    
+    # Use thread-local environment variable for isolation
+    env_var = ThreadLocalEnvVar("SPARKFORGE_ENGINE")
+    original_value = env_var.get()
+    
+    # Force PySpark engine in thread-local storage
+    env_var.set("pyspark")
+    
     yield
-    # Clean up
-    if "SPARKFORGE_ENGINE" in os.environ:
-        del os.environ["SPARKFORGE_ENGINE"]
+    
+    # Clean up - restore original or remove
+    if original_value is not None:
+        env_var.set(original_value)
+    else:
+        env_var.delete()
 
 
 class TestPySparkCompatibility:
@@ -282,6 +295,17 @@ class TestPySparkCompatibility:
 
     def test_pyspark_table_operations(self, pyspark_available, setup_pyspark_engine):
         """Test table operations with PySpark."""
+        import importlib.util
+
+        # Check if Delta Lake is available
+        try:
+            if importlib.util.find_spec("delta") is None:
+                pytest.skip(
+                    "Delta Lake not installed. Install with: pip install sparkforge[compat-test]"
+                )
+        except (ValueError, ImportError):
+            pytest.skip("Delta Lake not available")
+
         from pyspark.sql import SparkSession
 
         from pipeline_builder.table_operations import (
@@ -290,18 +314,36 @@ class TestPySparkCompatibility:
             write_overwrite_table,
         )
 
-        spark = (
+        # Configure Spark with Delta Lake (use helper to ensure Delta jars are added)
+        try:
+            from delta import configure_spark_with_delta_pip
+        except ImportError:
+            import delta.pip_utils as pip_utils  # type: ignore
+
+            configure_spark_with_delta_pip = pip_utils.configure_spark_with_delta_pip
+
+        builder = (
             SparkSession.builder.appName("Test")
             .master("local[1]")
             .config("spark.driver.host", "127.0.0.1")
             .config("spark.driver.bindAddress", "127.0.0.1")
-            .getOrCreate()
+            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+            .config(
+                "spark.sql.catalog.spark_catalog",
+                "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+            )
         )
 
-        table_name = "test_table"
+        spark = configure_spark_with_delta_pip(builder).getOrCreate()
 
-        # Clean up any existing table and its data
+        # Use fully qualified table name (schema.table) as required by write_overwrite_table
+        table_name = "default.test_table"
+
+        # Clean up any existing table and its data - use prepare_delta_overwrite to ensure Delta tables are properly dropped
+        from pipeline_builder.table_operations import prepare_delta_overwrite
+        
         try:
+            prepare_delta_overwrite(spark, table_name)
             spark.sql(f"DROP TABLE IF EXISTS {table_name}")
         except Exception:
             pass
@@ -309,7 +351,8 @@ class TestPySparkCompatibility:
             import os
             import shutil
 
-            warehouse_dir = os.path.join(os.getcwd(), "spark-warehouse", table_name)
+            # Clean up warehouse directory for the table
+            warehouse_dir = os.path.join(os.getcwd(), "spark-warehouse", "test_table")
             if os.path.exists(warehouse_dir):
                 shutil.rmtree(warehouse_dir, ignore_errors=True)
         except Exception:
@@ -319,7 +362,7 @@ class TestPySparkCompatibility:
         data = [(1, "Alice"), (2, "Bob")]
         df = spark.createDataFrame(data, ["id", "name"])
 
-        # Write table
+        # Write table using fully qualified name (prepare_delta_overwrite is called internally by write_overwrite_table)
         write_overwrite_table(df, table_name)
 
         # Check if exists
@@ -339,13 +382,27 @@ class TestPySparkEngineSwitching:
 
     def test_switch_to_pyspark(self, pyspark_available):
         """Test switching to PySpark engine."""
-        os.environ["SPARKFORGE_ENGINE"] = "pyspark"
+        import sys
+        import os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+        from test_helpers.isolation import ThreadLocalEnvVar
+        
+        env_var = ThreadLocalEnvVar("SPARKFORGE_ENGINE")
+        original_value = env_var.get()
+        try:
+            env_var.set("pyspark")
 
-        # Import after setting env var
-        from pipeline_builder.compat import compat_name, is_mock_spark
+            # Import after setting env var
+            from pipeline_builder.compat import compat_name, is_mock_spark
 
-        assert compat_name() == "pyspark"
-        assert not is_mock_spark()
+            assert compat_name() == "pyspark"
+            assert not is_mock_spark()
+        finally:
+            # Restore original value
+            if original_value is not None:
+                env_var.set(original_value)
+            else:
+                env_var.delete()
 
     def test_switch_to_mock(self, pyspark_available):
         """Test switching to mock engine."""
@@ -354,14 +411,25 @@ class TestPySparkEngineSwitching:
 
     def test_auto_detection(self, pyspark_available):
         """Test auto-detection of engine."""
-        if "SPARKFORGE_ENGINE" in os.environ:
-            del os.environ["SPARKFORGE_ENGINE"]
+        import sys
+        import os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+        from test_helpers.isolation import ThreadLocalEnvVar
+        
+        env_var = ThreadLocalEnvVar("SPARKFORGE_ENGINE")
+        original_value = env_var.get()
+        try:
+            env_var.delete()
 
-        # Import after clearing env var
-        from pipeline_builder.compat import compat_name
+            # Import after clearing env var
+            from pipeline_builder.compat import compat_name
 
-        # Should detect PySpark since it's available
-        assert compat_name() == "pyspark"
+            # Should detect PySpark since it's available
+            assert compat_name() == "pyspark"
+        finally:
+            # Restore original value
+            if original_value is not None:
+                env_var.set(original_value)
 
 
 if __name__ == "__main__":

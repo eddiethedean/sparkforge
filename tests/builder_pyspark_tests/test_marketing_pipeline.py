@@ -19,6 +19,10 @@ if os.environ.get("SPARK_MODE", "mock").lower() != "real":
 from pyspark.sql import functions as F
 
 from pipeline_builder.pipeline import PipelineBuilder
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from test_helpers.isolation import get_unique_schema
 
 
 class TestMarketingPipeline:
@@ -38,10 +42,14 @@ class TestMarketingPipeline:
             spark_session, num_conversions=40
         )
 
+        # Create unique schema for this test
+        bronze_schema = get_unique_schema("bronze")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
+
         # Create pipeline builder
         builder = PipelineBuilder(
             spark=spark_session,
-            schema="bronze",
+            schema=bronze_schema,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
             min_gold_rate=99.0,
@@ -519,6 +527,16 @@ class TestMarketingPipeline:
         journey_result = result.gold_results["customer_journey"]
         assert journey_result.get("rows_processed", 0) >= 0
 
+        # Cleanup: drop schema created for this test
+        try:
+            import sys
+            import os
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+            from test_helpers.isolation import cleanup_test_tables
+            cleanup_test_tables(spark_session, bronze_schema)
+        except Exception:
+            pass  # Ignore cleanup errors
+
     def test_incremental_marketing_processing(
         self, spark_session, data_generator, test_assertions
     ):
@@ -528,10 +546,14 @@ class TestMarketingPipeline:
             spark_session, num_impressions=50
         )
 
+        # Create unique schema for this test
+        bronze_schema = get_unique_schema("bronze")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
+
         # Create pipeline builder
         builder = PipelineBuilder(
             spark=spark_session,
-            schema="bronze",
+            schema=bronze_schema,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
             min_gold_rate=99.0,
@@ -583,3 +605,13 @@ class TestMarketingPipeline:
 
         test_assertions.assert_pipeline_success(result2)
         assert result2.mode.value == "incremental"
+
+        # Cleanup: drop schema created for this test
+        try:
+            import sys
+            import os
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+            from test_helpers.isolation import cleanup_test_tables
+            cleanup_test_tables(spark_session, bronze_schema)
+        except Exception:
+            pass  # Ignore cleanup errors

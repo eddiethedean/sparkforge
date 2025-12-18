@@ -2,7 +2,7 @@
 Test helper utilities for pipeline tests.
 """
 
-from tests.test_helpers.isolation import (
+from .isolation import (
     clear_all_tables,
     clear_all_test_state,
     clear_delta_tables,

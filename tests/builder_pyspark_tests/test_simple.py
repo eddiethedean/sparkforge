@@ -13,13 +13,21 @@ if os.environ.get("SPARK_MODE", "mock").lower() != "real":
     )
 
 from pipeline_builder.pipeline import PipelineBuilder
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from test_helpers.isolation import get_unique_schema
 
 
 def test_simple_pipeline_creation(spark_session):
     """Test basic pipeline creation with PySpark."""
 
+    # Create unique schema for this test
+    bronze_schema = get_unique_schema("bronze")
+    spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
+
     # Create pipeline builder
-    builder = PipelineBuilder(spark=spark_session, schema="bronze", verbose=True)
+    builder = PipelineBuilder(spark=spark_session, schema=bronze_schema, verbose=True)
 
     # Add bronze rules with string-based validation
     builder.with_bronze_rules(

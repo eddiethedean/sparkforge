@@ -22,6 +22,10 @@ from pyspark.sql import functions as F
 
 from pipeline_builder.pipeline import PipelineBuilder
 from pipeline_builder.writer import LogWriter
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from test_helpers.isolation import get_unique_schema
 
 
 class TestIotPipeline:
@@ -439,9 +443,13 @@ class TestIotPipeline:
             spark_session, num_readings=200
         )
 
+        # Create unique schema for this test
+        analytics_schema = get_unique_schema("analytics")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {analytics_schema}")
+
         # Create LogWriter for performance monitoring
         LogWriter(
-            spark=spark_session, schema="analytics", table_name="iot_pipeline_logs"
+            spark=spark_session, schema=analytics_schema, table_name="iot_pipeline_logs"
         )
 
         # Create pipeline
@@ -491,5 +499,15 @@ class TestIotPipeline:
         assert len(result.bronze_results) == 1
         assert len(result.silver_results) == 1
         assert len(result.gold_results) == 1
+
+        # Cleanup: drop schema created for this test
+        try:
+            import sys
+            import os
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+            from test_helpers.isolation import cleanup_test_tables
+            cleanup_test_tables(spark_session, analytics_schema)
+        except Exception:
+            pass  # Ignore cleanup errors
 
         print("✅ Performance monitoring test completed successfully")

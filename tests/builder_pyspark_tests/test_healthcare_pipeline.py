@@ -21,6 +21,10 @@ if os.environ.get("SPARK_MODE", "mock").lower() != "real":
 from pyspark.sql import functions as F
 
 from pipeline_builder.pipeline import PipelineBuilder
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from test_helpers.isolation import get_unique_schema
 
 
 class TestHealthcarePipeline:
@@ -493,6 +497,16 @@ class TestHealthcarePipeline:
         population_metrics_result = result.gold_results["population_health_metrics"]
         assert population_metrics_result.get("rows_processed", 0) > 0
 
+        # Cleanup: drop schema created for this test
+        try:
+            import sys
+            import os
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+            from test_helpers.isolation import cleanup_test_tables
+            cleanup_test_tables(spark_session, unique_schema)
+        except Exception:
+            pass  # Ignore cleanup errors
+
     def test_incremental_healthcare_processing(
         self, spark_session, data_generator, test_assertions
     ):
@@ -595,13 +609,14 @@ class TestHealthcarePipeline:
         )
         labs_df = data_generator.create_healthcare_labs(spark_session, num_results=50)
 
-        # Create analytics schema for logging
-        spark_session.sql("CREATE DATABASE IF NOT EXISTS analytics")
+        # Create unique schema for this test
+        analytics_schema = get_unique_schema("analytics")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {analytics_schema}")
 
         # Create LogWriter
         log_writer = LogWriter(
             spark=spark_session,
-            schema="analytics",
+            schema=analytics_schema,
             table_name="healthcare_logs",
         )
 
@@ -660,3 +675,13 @@ class TestHealthcarePipeline:
         test_assertions.assert_pipeline_success(result)
         assert log_result is not None
         assert log_result.get("success") is True
+
+        # Cleanup: drop schema created for this test
+        try:
+            import sys
+            import os
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+            from test_helpers.isolation import cleanup_test_tables
+            cleanup_test_tables(spark_session, analytics_schema)
+        except Exception:
+            pass  # Ignore cleanup errors

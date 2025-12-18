@@ -20,6 +20,10 @@ from pyspark.sql import functions as F
 
 from pipeline_builder.pipeline import PipelineBuilder
 from pipeline_builder.writer import LogWriter
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from test_helpers.isolation import get_unique_schema
 
 
 class TestEcommercePipeline:
@@ -30,6 +34,10 @@ class TestEcommercePipeline:
     ):
         """Test complete e-commerce pipeline: orders → customer profiles → sales analytics."""
 
+        # Create unique schema for this test
+        bronze_schema = get_unique_schema("bronze")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
+
         # Create realistic test data
         orders_df = data_generator.create_ecommerce_orders(spark_session, num_orders=50)
         customers_df = data_generator.create_customer_data(
@@ -39,7 +47,7 @@ class TestEcommercePipeline:
         # Create pipeline builder
         builder = PipelineBuilder(
             spark=spark_session,
-            schema="bronze",
+            schema=bronze_schema,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
             min_gold_rate=99.0,
@@ -247,6 +255,10 @@ class TestEcommercePipeline:
     ):
         """Test incremental processing of new orders."""
 
+        # Create unique schema for this test
+        bronze_schema = get_unique_schema("bronze")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
+
         # Create initial data
         initial_orders = data_generator.create_ecommerce_orders(
             spark_session, num_orders=20
@@ -254,7 +266,7 @@ class TestEcommercePipeline:
         data_generator.create_customer_data(spark_session, num_customers=10)
 
         # Create pipeline
-        builder = PipelineBuilder(spark=spark_session, schema="bronze")
+        builder = PipelineBuilder(spark=spark_session, schema=bronze_schema)
 
         # Bronze layer
         builder.with_bronze_rules(
@@ -351,10 +363,14 @@ class TestEcommercePipeline:
             ],
         )
 
+        # Create unique schema for this test
+        bronze_schema = get_unique_schema("bronze")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
+
         # Create pipeline with strict validation
         builder = PipelineBuilder(
             spark=spark_session,
-            schema="bronze",
+            schema=bronze_schema,
             min_bronze_rate=100.0,  # Very strict validation
             verbose=True,
         )
@@ -391,14 +407,20 @@ class TestEcommercePipeline:
     ):
         """Test comprehensive logging and monitoring with LogWriter."""
 
+        # Create unique schemas for this test
+        bronze_schema = get_unique_schema("bronze")
+        analytics_schema = get_unique_schema("analytics")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {analytics_schema}")
+
         # Create test data
         orders_df = data_generator.create_ecommerce_orders(spark_session, num_orders=30)
 
         # Create LogWriter
-        LogWriter(spark=spark_session, schema="analytics", table_name="pipeline_logs")
+        LogWriter(spark=spark_session, schema=analytics_schema, table_name="pipeline_logs")
 
         # Create pipeline
-        builder = PipelineBuilder(spark=spark_session, schema="bronze")
+        builder = PipelineBuilder(spark=spark_session, schema=bronze_schema)
 
         builder.with_bronze_rules(name="orders", rules={"order_id": ["not_null"]})
 
@@ -438,5 +460,16 @@ class TestEcommercePipeline:
         assert len(result.bronze_results) == 1
         assert len(result.silver_results) == 1
         assert len(result.gold_results) == 1
+
+        # Cleanup: drop schemas created for this test
+        try:
+            import sys
+            import os
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+            from test_helpers.isolation import cleanup_test_tables
+            cleanup_test_tables(spark_session, bronze_schema)
+            cleanup_test_tables(spark_session, analytics_schema)
+        except Exception:
+            pass  # Ignore cleanup errors
 
         print("✅ Logging and monitoring test completed successfully")

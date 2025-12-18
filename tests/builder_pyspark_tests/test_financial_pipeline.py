@@ -20,6 +20,10 @@ from pyspark.sql import functions as F
 
 from pipeline_builder.pipeline import PipelineBuilder
 from pipeline_builder.writer import LogWriter
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from test_helpers.isolation import get_unique_schema
 
 
 class TestFinancialPipeline:
@@ -47,12 +51,14 @@ class TestFinancialPipeline:
             ["account_id", "account_type", "balance", "status", "opening_date"],
         )
 
-        # PySpark doesn't need explicit schema creation
+        # Create unique schema for this test
+        bronze_schema = get_unique_schema("bronze")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
 
         # Create pipeline builder
         builder = PipelineBuilder(
             spark=spark_session,
-            schema="bronze",
+            schema=bronze_schema,
             min_bronze_rate=99.0,  # Very strict validation for financial data
             min_silver_rate=99.5,
             min_gold_rate=99.9,
@@ -459,8 +465,12 @@ class TestFinancialPipeline:
 
         # PySpark doesn't need explicit schema creation
 
+        # Create unique schema for this test
+        bronze_schema = get_unique_schema("bronze")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
+
         # Create pipeline
-        builder = PipelineBuilder(spark=spark_session, schema="bronze")
+        builder = PipelineBuilder(spark=spark_session, schema=bronze_schema)
 
         builder.with_bronze_rules(
             name="transactions", rules={"transaction_id": ["not_null"]}
@@ -596,8 +606,12 @@ class TestFinancialPipeline:
 
         # PySpark doesn't need explicit schema creation
 
+        # Create unique schema for this test
+        bronze_schema = get_unique_schema("bronze")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
+
         # Create pipeline
-        builder = PipelineBuilder(spark=spark_session, schema="bronze")
+        builder = PipelineBuilder(spark=spark_session, schema=bronze_schema)
 
         builder.with_bronze_rules(
             name="transactions", rules={"transaction_id": ["not_null"]}
@@ -684,13 +698,19 @@ class TestFinancialPipeline:
         # PySpark doesn't need explicit schema creation
         # PySpark doesn't need explicit schema creation
 
+        # Create unique schemas for this test
+        bronze_schema = get_unique_schema("bronze")
+        audit_schema = get_unique_schema("audit")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
+        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {audit_schema}")
+
         # Create LogWriter for audit logging
         LogWriter(
-            spark=spark_session, schema="audit", table_name="financial_audit_logs"
+            spark=spark_session, schema=audit_schema, table_name="financial_audit_logs"
         )
 
         # Create pipeline
-        builder = PipelineBuilder(spark=spark_session, schema="bronze")
+        builder = PipelineBuilder(spark=spark_session, schema=bronze_schema)
 
         builder.with_bronze_rules(
             name="transactions", rules={"transaction_id": ["not_null"]}
@@ -735,4 +755,16 @@ class TestFinancialPipeline:
 
         # Verify audit log table was created
         # Pipeline execution verified above - storage verification not needed for unit tests
+
+        # Cleanup: drop schemas created for this test
+        try:
+            import sys
+            import os
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+            from test_helpers.isolation import cleanup_test_tables
+            cleanup_test_tables(spark_session, bronze_schema)
+            cleanup_test_tables(spark_session, audit_schema)
+        except Exception:
+            pass  # Ignore cleanup errors
+
         print("✅ Financial audit logging test completed successfully")

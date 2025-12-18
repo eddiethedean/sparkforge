@@ -24,14 +24,23 @@ from pyspark.sql.types import (
 from pipeline_builder.models import ParallelConfig, PipelineConfig, ValidationThresholds
 from pipeline_builder.writer import WriteMode, WriterConfig
 from pipeline_builder.writer.models import LogLevel
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from test_helpers.isolation import get_unique_warehouse_dir, get_unique_app_name
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def spark_session():
-    """Real Spark session for testing."""
+    """
+    Real Spark session for testing.
+    
+    Function-scoped to ensure isolation between parallel tests.
+    Each test gets its own Spark session with a unique warehouse directory.
+    """
     from pyspark.sql import SparkSession
 
-    warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
+    warehouse_dir = get_unique_warehouse_dir()
     os.makedirs(warehouse_dir, exist_ok=True)
 
     # Configure Spark with Delta Lake support
@@ -40,7 +49,7 @@ def spark_session():
         from delta import configure_spark_with_delta_pip
 
         builder = (
-            SparkSession.builder.appName("builder_pyspark_tests")
+            SparkSession.builder.appName(get_unique_app_name("builder_pyspark_tests"))
             .master("local[*]")
             .config("spark.sql.warehouse.dir", warehouse_dir)
             .config("spark.driver.memory", "2g")
@@ -60,7 +69,7 @@ def spark_session():
         print(f"⚠️ Delta Lake configuration failed: {e}")
         # Fall back to basic Spark
         spark = (
-            SparkSession.builder.appName("builder_pyspark_tests")
+            SparkSession.builder.appName(get_unique_app_name("builder_pyspark_tests"))
             .master("local[*]")
             .config("spark.sql.warehouse.dir", warehouse_dir)
             .config("spark.driver.memory", "2g")
@@ -73,28 +82,14 @@ def spark_session():
 
     spark._warehouse_dir = warehouse_dir  # type: ignore[attr-defined]
 
-    # Create required databases for PySpark tests
-    spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
-    spark.sql("CREATE DATABASE IF NOT EXISTS silver")
-    spark.sql("CREATE DATABASE IF NOT EXISTS gold")
-    spark.sql("CREATE DATABASE IF NOT EXISTS analytics")
-    spark.sql("CREATE DATABASE IF NOT EXISTS integration")
+    # Note: Each test should create its own schemas with unique names
+    # We no longer create shared schemas to avoid conflicts in parallel execution
 
     yield spark
 
-    # Cleanup: Drop all tables to avoid conflicts between tests
+    # Cleanup: Clear catalog cache and stop session
     try:
-        spark.sql("DROP TABLE IF EXISTS bronze.customer_behavior")
-        spark.sql("DROP TABLE IF EXISTS bronze.customer_insights")
-        spark.sql("DROP TABLE IF EXISTS bronze.clean_orders")
-        spark.sql("DROP TABLE IF EXISTS bronze.order_metrics")
-        spark.sql("DROP TABLE IF EXISTS bronze.device_metrics")
-        spark.sql("DROP TABLE IF EXISTS bronze.integrated_data")
-        spark.sql("DROP TABLE IF EXISTS bronze.integration_summary")
-        spark.sql("DROP TABLE IF EXISTS analytics.pipeline_logs")
-        spark.sql("DROP TABLE IF EXISTS analytics.customer_analytics_logs")
-        spark.sql("DROP TABLE IF EXISTS analytics.iot_pipeline_logs")
-        spark.sql("DROP TABLE IF EXISTS integration.multi_source_logs")
+        spark.catalog.clearCache()
     except Exception:
         pass  # Ignore cleanup errors
 
@@ -106,27 +101,30 @@ def spark_session():
 
 @pytest.fixture(autouse=True)
 def cleanup_tables(spark_session):
-    """Clean up tables before each test to avoid conflicts."""
+    """
+    Clean up tables after each test to avoid conflicts.
+    
+    Note: Tests should clean up their own tables using unique schema names.
+    This fixture clears the catalog cache and temp views to help with cleanup.
+    """
     yield  # Run the test first
-    # Cleanup after each test - both SQL tables and physical files
+    # Cleanup after each test - clear catalog cache and temp views
+    # Individual tests should clean up their own tables in their unique schemas
     try:
-        spark_session.sql("DROP TABLE IF EXISTS bronze.customer_behavior")
-        spark_session.sql("DROP TABLE IF EXISTS bronze.customer_insights")
-        spark_session.sql("DROP TABLE IF EXISTS bronze.clean_orders")
-        spark_session.sql("DROP TABLE IF EXISTS bronze.order_metrics")
-        spark_session.sql("DROP TABLE IF EXISTS bronze.device_metrics")
-        spark_session.sql("DROP TABLE IF EXISTS bronze.integrated_data")
-        spark_session.sql("DROP TABLE IF EXISTS bronze.integration_summary")
-        spark_session.sql("DROP TABLE IF EXISTS analytics.pipeline_logs")
-        spark_session.sql("DROP TABLE IF EXISTS analytics.customer_analytics_logs")
-        spark_session.sql("DROP TABLE IF EXISTS analytics.iot_pipeline_logs")
-        spark_session.sql("DROP TABLE IF EXISTS integration.multi_source_logs")
-
-        # Also clean up physical warehouse files
-        warehouse_dir = getattr(spark_session, "_warehouse_dir", None)
-        if warehouse_dir and os.path.exists(warehouse_dir):
-            shutil.rmtree(warehouse_dir, ignore_errors=True)
-            os.makedirs(warehouse_dir, exist_ok=True)
+        # Clear all cached tables
+        spark_session.catalog.clearCache()
+        
+        # Clear all temporary views
+        try:
+            views = spark_session.catalog.listTables()
+            for view in views:
+                if hasattr(view, "isTemporary") and view.isTemporary:
+                    try:
+                        spark_session.catalog.dropTempView(view.name)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
     except Exception:
         pass  # Ignore cleanup errors
 

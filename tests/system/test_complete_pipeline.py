@@ -5,7 +5,13 @@ System tests for complete pipeline execution using Mock Spark.
 import os
 
 import pytest
-from sparkless.errors import AnalysisException  # type: ignore[import]
+
+# Skip this test module if running in real mode (requires sparkless)
+if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+    pytestmark = pytest.mark.skip(reason="Requires sparkless (mock mode only)")
+else:
+    # Only import sparkless if not in real mode
+    from sparkless.errors import AnalysisException  # type: ignore[import]
 
 from pipeline_builder.execution import ExecutionEngine
 from pipeline_builder.models import ParallelConfig, PipelineConfig, ValidationThresholds

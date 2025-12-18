@@ -38,8 +38,10 @@ class TestDataQualityPipeline:
         source_b_df = data_generator.create_data_quality_source_b(
             spark_session, num_records=100
         )
-        warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
-        unique_schema = f"bronze_{uuid4().hex[:16]}"
+        import os
+        warehouse_dir = tempfile.mkdtemp(prefix=f"spark-warehouse-{os.getpid()}-")
+        # Include process ID and UUID for better parallel execution isolation
+        unique_schema = f"bronze_{os.getpid()}_{uuid4().hex[:12]}"
         escaped_dir = warehouse_dir.replace("'", "''")
         spark_session.sql(
             f"CREATE DATABASE IF NOT EXISTS {unique_schema} LOCATION '{escaped_dir}'"
@@ -428,6 +430,16 @@ class TestDataQualityPipeline:
 
         reconciliation_result = result.gold_results["source_reconciliation"]
         assert reconciliation_result.get("rows_processed", 0) >= 0
+
+        # Cleanup: drop schema created for this test
+        try:
+            import sys
+            import os
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+            from test_helpers.isolation import cleanup_test_tables
+            cleanup_test_tables(spark_session, unique_schema)
+        except Exception:
+            pass  # Ignore cleanup errors
 
     def test_incremental_data_quality_processing(
         self, spark_session, data_generator, test_assertions

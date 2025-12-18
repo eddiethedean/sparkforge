@@ -504,6 +504,7 @@ class TestStreamingHybridPipeline:
         # Verify data quality
         assert result.status.value == "completed" or result.success
         assert "unified_analytics" in result.gold_results
+
         assert "real_time_sessions" in result.gold_results
 
         # Verify gold layer outputs
@@ -512,6 +513,26 @@ class TestStreamingHybridPipeline:
 
         sessions_result = result.gold_results["real_time_sessions"]
         assert sessions_result.get("rows_processed", 0) >= 0
+
+        # Cleanup: drop schema created for this test
+        try:
+            import sys
+            import os
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+            from test_helpers.isolation import cleanup_test_tables
+            cleanup_test_tables(spark_session, unique_schema)
+        except Exception:
+            pass  # Ignore cleanup errors
+
+        # Cleanup: drop schema created for this test
+        try:
+            import sys
+            import os
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+            from test_helpers.isolation import cleanup_test_tables
+            cleanup_test_tables(spark_session, unique_schema)
+        except Exception:
+            pass  # Ignore cleanup errors
 
     def test_incremental_streaming_processing(
         self, spark_session, data_generator, test_assertions
