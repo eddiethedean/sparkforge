@@ -1,0 +1,253 @@
+ImportError while loading conftest '/Users/odosmatthews/Documents/coding/sparkforge/tests/conftest.py'.
+tests/conftest.py:55: in <module>
+    from sparkless import functions as mock_functions  # type: ignore[import]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'sparkless'
+🔧 Set PYSPARK_SUBMIT_ARGS for Delta Lake: --packages io.delta:delta-spark_2.12:3.0.0 pyspark-shell
+ImportError while loading conftest '/Users/odosmatthews/Documents/coding/sparkforge/tests/conftest.py'.
+tests/conftest.py:55: in <module>
+    from sparkless import functions as mock_functions  # type: ignore[import]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'sparkless'
+🔧 Set PYSPARK_SUBMIT_ARGS for Delta Lake: --packages io.delta:delta-spark_2.12:3.0.0 pyspark-shell
+ImportError while loading conftest '/Users/odosmatthews/Documents/coding/sparkforge/tests/conftest.py'.
+tests/conftest.py:55: in <module>
+    from sparkless import functions as mock_functions  # type: ignore[import]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'sparkless'
+🔧 Set PYSPARK_SUBMIT_ARGS for Delta Lake: --packages io.delta:delta-spark_2.12:3.0.0 pyspark-shell
+ImportError while loading conftest '/Users/odosmatthews/Documents/coding/sparkforge/tests/conftest.py'.
+tests/conftest.py:55: in <module>
+    from sparkless import functions as mock_functions  # type: ignore[import]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'sparkless'
+🔧 Set PYSPARK_SUBMIT_ARGS for Delta Lake: --packages io.delta:delta-spark_2.12:3.0.0 pyspark-shell
+ImportError while loading conftest '/Users/odosmatthews/Documents/coding/sparkforge/tests/conftest.py'.
+tests/conftest.py:55: in <module>
+    from sparkless import functions as mock_functions  # type: ignore[import]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'sparkless'
+🔧 Set PYSPARK_SUBMIT_ARGS for Delta Lake: --packages io.delta:delta-spark_2.12:3.0.0 pyspark-shell
+ImportError while loading conftest '/Users/odosmatthews/Documents/coding/sparkforge/tests/conftest.py'.
+tests/conftest.py:55: in <module>
+    from sparkless import functions as mock_functions  # type: ignore[import]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'sparkless'
+🔧 Set PYSPARK_SUBMIT_ARGS for Delta Lake: --packages io.delta:delta-spark_2.12:3.0.0 pyspark-shell
+ImportError while loading conftest '/Users/odosmatthews/Documents/coding/sparkforge/tests/conftest.py'.
+tests/conftest.py:55: in <module>
+    from sparkless import functions as mock_functions  # type: ignore[import]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'sparkless'
+🔧 Set PYSPARK_SUBMIT_ARGS for Delta Lake: --packages io.delta:delta-spark_2.12:3.0.0 pyspark-shell
+ImportError while loading conftest '/Users/odosmatthews/Documents/coding/sparkforge/tests/conftest.py'.
+tests/conftest.py:55: in <module>
+    from sparkless import functions as mock_functions  # type: ignore[import]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'sparkless'
+🔧 Set PYSPARK_SUBMIT_ARGS for Delta Lake: --packages io.delta:delta-spark_2.12:3.0.0 pyspark-shell
+ImportError while loading conftest '/Users/odosmatthews/Documents/coding/sparkforge/tests/conftest.py'.
+tests/conftest.py:55: in <module>
+    from sparkless import functions as mock_functions  # type: ignore[import]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'sparkless'
+🔧 Set PYSPARK_SUBMIT_ARGS for Delta Lake: --packages io.delta:delta-spark_2.12:3.0.0 pyspark-shell
+ImportError while loading conftest '/Users/odosmatthews/Documents/coding/sparkforge/tests/conftest.py'.
+tests/conftest.py:55: in <module>
+    from sparkless import functions as mock_functions  # type: ignore[import]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'sparkless'
+🔧 Set PYSPARK_SUBMIT_ARGS for Delta Lake: --packages io.delta:delta-spark_2.12:3.0.0 pyspark-shell
+ImportError while loading conftest '/Users/odosmatthews/Documents/coding/sparkforge/tests/conftest.py'.
+tests/conftest.py:55: in <module>
+    from sparkless import functions as mock_functions  # type: ignore[import]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'sparkless'
+🔧 Set PYSPARK_SUBMIT_ARGS for Delta Lake: --packages io.delta:delta-spark_2.12:3.0.0 pyspark-shell
+ImportError while loading conftest '/Users/odosmatthews/Documents/coding/sparkforge/tests/conftest.py'.
+tests/conftest.py:55: in <module>
+    from sparkless import functions as mock_functions  # type: ignore[import]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'sparkless'
+🔧 Set PYSPARK_SUBMIT_ARGS for Delta Lake: --packages io.delta:delta-spark_2.12:3.0.0 pyspark-shell
+ImportError while loading conftest '/Users/odosmatthews/Documents/coding/sparkforge/tests/conftest.py'.
+tests/conftest.py:55: in <module>
+    from sparkless import functions as mock_functions  # type: ignore[import]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'sparkless'
+🔧 Set PYSPARK_SUBMIT_ARGS for Delta Lake: --packages io.delta:delta-spark_2.12:3.0.0 pyspark-shell
+ImportError while loading conftest '/Users/odosmatthews/Documents/coding/sparkforge/tests/conftest.py'.
+tests/conftest.py:55: in <module>
+    from sparkless import functions as mock_functions  # type: ignore[import]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'sparkless'
+🔧 Set PYSPARK_SUBMIT_ARGS for Delta Lake: --packages io.delta:delta-spark_2.12:3.0.0 pyspark-shell
+ImportError while loading conftest '/Users/odosmatthews/Documents/coding/sparkforge/tests/conftest.py'.
+tests/conftest.py:55: in <module>
+    from sparkless import functions as mock_functions  # type: ignore[import]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'sparkless'
+🔧 Set PYSPARK_SUBMIT_ARGS for Delta Lake: --packages io.delta:delta-spark_2.12:3.0.0 pyspark-shell
+Smart Parallel Test Runner
+Mode: real
+Concurrent workers: 10
+
+Collecting tests marked with @pytest.mark.sequential...
+✅ Found 15 tests marked for sequential execution
+
+================================================================================
+STEP 1: Running sequential tests (marked with @pytest.mark.sequential)
+================================================================================
+
+[1/15] Running: tests/builder_pyspark_tests/test_customer_analytics_pipeline.py::TestCustomerAnalyticsPipeline::test_customer_analytics_logging
+
+================================================================================
+Running: Sequential test 1/15: tests/builder_pyspark_tests/test_customer_analytics_pipeline.py::TestCustomerAnalyticsPipeline::test_customer_analytics_logging
+Command: /Users/odosmatthews/.pyenv/versions/3.11.13/bin/python -m pytest tests/builder_pyspark_tests/test_customer_analytics_pipeline.py::TestCustomerAnalyticsPipeline::test_customer_analytics_logging -v --tb=short
+================================================================================
+
+✅ PASSED: tests/builder_pyspark_tests/test_customer_analytics_pipeline.py::TestCustomerAnalyticsPipeline::test_customer_analytics_logging
+
+[2/15] Running: tests/builder_pyspark_tests/test_data_quality_pipeline.py::TestDataQualityPipeline::test_complete_data_quality_pipeline_execution
+
+================================================================================
+Running: Sequential test 2/15: tests/builder_pyspark_tests/test_data_quality_pipeline.py::TestDataQualityPipeline::test_complete_data_quality_pipeline_execution
+Command: /Users/odosmatthews/.pyenv/versions/3.11.13/bin/python -m pytest tests/builder_pyspark_tests/test_data_quality_pipeline.py::TestDataQualityPipeline::test_complete_data_quality_pipeline_execution -v --tb=short
+================================================================================
+
+✅ PASSED: tests/builder_pyspark_tests/test_data_quality_pipeline.py::TestDataQualityPipeline::test_complete_data_quality_pipeline_execution
+
+[3/15] Running: tests/builder_pyspark_tests/test_ecommerce_pipeline.py::TestEcommercePipeline::test_logging_and_monitoring
+
+================================================================================
+Running: Sequential test 3/15: tests/builder_pyspark_tests/test_ecommerce_pipeline.py::TestEcommercePipeline::test_logging_and_monitoring
+Command: /Users/odosmatthews/.pyenv/versions/3.11.13/bin/python -m pytest tests/builder_pyspark_tests/test_ecommerce_pipeline.py::TestEcommercePipeline::test_logging_and_monitoring -v --tb=short
+================================================================================
+
+✅ PASSED: tests/builder_pyspark_tests/test_ecommerce_pipeline.py::TestEcommercePipeline::test_logging_and_monitoring
+
+[4/15] Running: tests/builder_pyspark_tests/test_financial_pipeline.py::TestFinancialPipeline::test_financial_audit_logging
+
+================================================================================
+Running: Sequential test 4/15: tests/builder_pyspark_tests/test_financial_pipeline.py::TestFinancialPipeline::test_financial_audit_logging
+Command: /Users/odosmatthews/.pyenv/versions/3.11.13/bin/python -m pytest tests/builder_pyspark_tests/test_financial_pipeline.py::TestFinancialPipeline::test_financial_audit_logging -v --tb=short
+================================================================================
+
+✅ PASSED: tests/builder_pyspark_tests/test_financial_pipeline.py::TestFinancialPipeline::test_financial_audit_logging
+
+[5/15] Running: tests/builder_pyspark_tests/test_healthcare_pipeline.py::TestHealthcarePipeline::test_complete_healthcare_pipeline_execution
+
+================================================================================
+Running: Sequential test 5/15: tests/builder_pyspark_tests/test_healthcare_pipeline.py::TestHealthcarePipeline::test_complete_healthcare_pipeline_execution
+Command: /Users/odosmatthews/.pyenv/versions/3.11.13/bin/python -m pytest tests/builder_pyspark_tests/test_healthcare_pipeline.py::TestHealthcarePipeline::test_complete_healthcare_pipeline_execution -v --tb=short
+================================================================================
+
+✅ PASSED: tests/builder_pyspark_tests/test_healthcare_pipeline.py::TestHealthcarePipeline::test_complete_healthcare_pipeline_execution
+
+[6/15] Running: tests/builder_pyspark_tests/test_healthcare_pipeline.py::TestHealthcarePipeline::test_healthcare_logging
+
+================================================================================
+Running: Sequential test 6/15: tests/builder_pyspark_tests/test_healthcare_pipeline.py::TestHealthcarePipeline::test_healthcare_logging
+Command: /Users/odosmatthews/.pyenv/versions/3.11.13/bin/python -m pytest tests/builder_pyspark_tests/test_healthcare_pipeline.py::TestHealthcarePipeline::test_healthcare_logging -v --tb=short
+================================================================================
+
+✅ PASSED: tests/builder_pyspark_tests/test_healthcare_pipeline.py::TestHealthcarePipeline::test_healthcare_logging
+
+[7/15] Running: tests/builder_pyspark_tests/test_iot_pipeline.py::TestIotPipeline::test_performance_monitoring
+
+================================================================================
+Running: Sequential test 7/15: tests/builder_pyspark_tests/test_iot_pipeline.py::TestIotPipeline::test_performance_monitoring
+Command: /Users/odosmatthews/.pyenv/versions/3.11.13/bin/python -m pytest tests/builder_pyspark_tests/test_iot_pipeline.py::TestIotPipeline::test_performance_monitoring -v --tb=short
+================================================================================
+
+✅ PASSED: tests/builder_pyspark_tests/test_iot_pipeline.py::TestIotPipeline::test_performance_monitoring
+
+[8/15] Running: tests/builder_pyspark_tests/test_marketing_pipeline.py::TestMarketingPipeline::test_complete_marketing_pipeline_execution
+
+================================================================================
+Running: Sequential test 8/15: tests/builder_pyspark_tests/test_marketing_pipeline.py::TestMarketingPipeline::test_complete_marketing_pipeline_execution
+Command: /Users/odosmatthews/.pyenv/versions/3.11.13/bin/python -m pytest tests/builder_pyspark_tests/test_marketing_pipeline.py::TestMarketingPipeline::test_complete_marketing_pipeline_execution -v --tb=short
+================================================================================
+
+✅ PASSED: tests/builder_pyspark_tests/test_marketing_pipeline.py::TestMarketingPipeline::test_complete_marketing_pipeline_execution
+
+[9/15] Running: tests/builder_pyspark_tests/test_multi_source_pipeline.py::TestMultiSourcePipeline::test_multi_source_logging
+
+================================================================================
+Running: Sequential test 9/15: tests/builder_pyspark_tests/test_multi_source_pipeline.py::TestMultiSourcePipeline::test_multi_source_logging
+Command: /Users/odosmatthews/.pyenv/versions/3.11.13/bin/python -m pytest tests/builder_pyspark_tests/test_multi_source_pipeline.py::TestMultiSourcePipeline::test_multi_source_logging -v --tb=short
+================================================================================
+
+✅ PASSED: tests/builder_pyspark_tests/test_multi_source_pipeline.py::TestMultiSourcePipeline::test_multi_source_logging
+
+[10/15] Running: tests/builder_pyspark_tests/test_streaming_hybrid_pipeline.py::TestStreamingHybridPipeline::test_complete_streaming_hybrid_pipeline_execution
+
+================================================================================
+Running: Sequential test 10/15: tests/builder_pyspark_tests/test_streaming_hybrid_pipeline.py::TestStreamingHybridPipeline::test_complete_streaming_hybrid_pipeline_execution
+Command: /Users/odosmatthews/.pyenv/versions/3.11.13/bin/python -m pytest tests/builder_pyspark_tests/test_streaming_hybrid_pipeline.py::TestStreamingHybridPipeline::test_complete_streaming_hybrid_pipeline_execution -v --tb=short
+================================================================================
+
+✅ PASSED: tests/builder_pyspark_tests/test_streaming_hybrid_pipeline.py::TestStreamingHybridPipeline::test_complete_streaming_hybrid_pipeline_execution
+
+[11/15] Running: tests/builder_pyspark_tests/test_supply_chain_pipeline.py::TestSupplyChainPipeline::test_complete_supply_chain_pipeline_execution
+
+================================================================================
+Running: Sequential test 11/15: tests/builder_pyspark_tests/test_supply_chain_pipeline.py::TestSupplyChainPipeline::test_complete_supply_chain_pipeline_execution
+Command: /Users/odosmatthews/.pyenv/versions/3.11.13/bin/python -m pytest tests/builder_pyspark_tests/test_supply_chain_pipeline.py::TestSupplyChainPipeline::test_complete_supply_chain_pipeline_execution -v --tb=short
+================================================================================
+
+✅ PASSED: tests/builder_pyspark_tests/test_supply_chain_pipeline.py::TestSupplyChainPipeline::test_complete_supply_chain_pipeline_execution
+
+[12/15] Running: tests/builder_pyspark_tests/test_supply_chain_pipeline.py::TestSupplyChainPipeline::test_supply_chain_logging
+
+================================================================================
+Running: Sequential test 12/15: tests/builder_pyspark_tests/test_supply_chain_pipeline.py::TestSupplyChainPipeline::test_supply_chain_logging
+Command: /Users/odosmatthews/.pyenv/versions/3.11.13/bin/python -m pytest tests/builder_pyspark_tests/test_supply_chain_pipeline.py::TestSupplyChainPipeline::test_supply_chain_logging -v --tb=short
+================================================================================
+
+✅ PASSED: tests/builder_pyspark_tests/test_supply_chain_pipeline.py::TestSupplyChainPipeline::test_supply_chain_logging
+
+[13/15] Running: tests/compat_pyspark/test_pyspark_compatibility.py::TestPySparkCompatibility::test_pyspark_engine_detection
+
+================================================================================
+Running: Sequential test 13/15: tests/compat_pyspark/test_pyspark_compatibility.py::TestPySparkCompatibility::test_pyspark_engine_detection
+Command: /Users/odosmatthews/.pyenv/versions/3.11.13/bin/python -m pytest tests/compat_pyspark/test_pyspark_compatibility.py::TestPySparkCompatibility::test_pyspark_engine_detection -v --tb=short
+================================================================================
+
+✅ PASSED: tests/compat_pyspark/test_pyspark_compatibility.py::TestPySparkCompatibility::test_pyspark_engine_detection
+
+[14/15] Running: tests/compat_pyspark/test_pyspark_compatibility.py::TestPySparkEngineSwitching::test_switch_to_pyspark
+
+================================================================================
+Running: Sequential test 14/15: tests/compat_pyspark/test_pyspark_compatibility.py::TestPySparkEngineSwitching::test_switch_to_pyspark
+Command: /Users/odosmatthews/.pyenv/versions/3.11.13/bin/python -m pytest tests/compat_pyspark/test_pyspark_compatibility.py::TestPySparkEngineSwitching::test_switch_to_pyspark -v --tb=short
+================================================================================
+
+✅ PASSED: tests/compat_pyspark/test_pyspark_compatibility.py::TestPySparkEngineSwitching::test_switch_to_pyspark
+
+[15/15] Running: tests/compat_pyspark/test_pyspark_compatibility.py::TestPySparkEngineSwitching::test_auto_detection
+
+================================================================================
+Running: Sequential test 15/15: tests/compat_pyspark/test_pyspark_compatibility.py::TestPySparkEngineSwitching::test_auto_detection
+Command: /Users/odosmatthews/.pyenv/versions/3.11.13/bin/python -m pytest tests/compat_pyspark/test_pyspark_compatibility.py::TestPySparkEngineSwitching::test_auto_detection -v --tb=short
+================================================================================
+
+✅ PASSED: tests/compat_pyspark/test_pyspark_compatibility.py::TestPySparkEngineSwitching::test_auto_detection
+
+================================================================================
+STEP 2: Running all other tests concurrently (excluding sequential)
+================================================================================
+Excluding 15 sequential tests from concurrent run
+
+================================================================================
+Running: Concurrent tests (excluding problematic ones)
+Command: /Users/odosmatthews/.pyenv/versions/3.11.13/bin/python -m pytest -n 10 -v --tb=line -m not sequential
+================================================================================
+
+
+================================================================================
+SUMMARY
+================================================================================
+Sequential tests: 15/15 passed
+
+Concurrent tests: ❌ FAILED

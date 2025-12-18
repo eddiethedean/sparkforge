@@ -140,9 +140,16 @@ def main():
     concurrent_skipped = 0
     concurrent_errors = 0
     
+    # Combine stdout and stderr (pytest may output summary to either)
+    combined_output = ""
     if concurrent_stdout:
+        combined_output += concurrent_stdout
+    if concurrent_stderr:
+        combined_output += "\n" + concurrent_stderr
+    
+    if combined_output:
         # Extract test results from pytest output
-        lines = concurrent_stdout.split('\n')
+        lines = combined_output.split('\n')
         for line in lines:
             # Look for failed tests
             if 'FAILED' in line and '::' in line:
