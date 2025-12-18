@@ -22,7 +22,6 @@ from pyspark.sql import functions as F
 
 from pipeline_builder.pipeline import PipelineBuilder
 import sys
-import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from test_helpers.isolation import get_unique_schema
 
@@ -679,7 +678,6 @@ class TestHealthcarePipeline:
         # Cleanup: drop schema created for this test
         try:
             import sys
-            import os
             sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
             from test_helpers.isolation import cleanup_test_tables
             cleanup_test_tables(spark_session, analytics_schema)

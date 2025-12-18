@@ -434,18 +434,14 @@ class TestIotPipeline:
     ):
         """Test performance monitoring and logging for IoT pipeline."""
         import os
-        from tests.conftest import _log_session_configs
-        
-        # Verify session identity and configuration at test start
-        print(f"🔍 test_performance_monitoring: Test starting")
-        print(f"🔍 test_performance_monitoring: PID={os.getpid()}")
-        print(f"🔍 test_performance_monitoring: Session ID (Python)={id(mock_spark_session)}")
+        # Optional: try to log session configs if available (for debugging)
         try:
+            from tests.conftest import _log_session_configs
             if hasattr(mock_spark_session, "_jsparkSession"):
-                print(f"🔍 test_performance_monitoring: Session ID (JVM)={id(mock_spark_session._jsparkSession)}")
-        except Exception:
+                _log_session_configs(mock_spark_session, "test_performance_monitoring (test start)")
+        except (ImportError, Exception):
+            # _log_session_configs is optional, continue without it
             pass
-        _log_session_configs(mock_spark_session, "test_performance_monitoring (test start)")
 
         # Create large sensor dataset
         sensor_data = data_generator.create_iot_sensor_data(

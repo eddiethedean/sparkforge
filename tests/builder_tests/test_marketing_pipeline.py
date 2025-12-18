@@ -545,9 +545,15 @@ class TestMarketingPipeline:
         self, spark_session, data_generator, test_assertions
     ):
         """Test incremental processing of new marketing data."""
-        # Setup schemas
-        spark_session.storage.create_schema("bronze")
-        spark_session.storage.create_schema("silver")
+        # Setup schemas - use SQL for real PySpark, storage API for mock
+        if hasattr(spark_session, 'storage') and hasattr(spark_session.storage, 'create_schema'):
+            # Mock Spark (sparkless)
+            spark_session.storage.create_schema("bronze")
+            spark_session.storage.create_schema("silver")
+        else:
+            # Real PySpark - use SQL
+            spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
+            spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
 
         # Create initial data
         impressions_initial = data_generator.create_marketing_impressions(
