@@ -23,8 +23,11 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "real":
 from pipeline_builder.compat import F, SparkSession
 
 # Import types based on engine
+_SPARK_MODE = os.environ.get("SPARK_MODE", "mock").lower()
 _ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
-if _ENGINE in ("pyspark", "spark", "real"):
+
+# Check SPARK_MODE first to avoid importing sparkless in real mode
+if _ENGINE in ("pyspark", "spark", "real") or _SPARK_MODE == "real":
     try:
         from pyspark.sql.types import IntegerType, StringType, StructField, StructType
     except ImportError:
@@ -39,7 +42,11 @@ if _ENGINE in ("pyspark", "spark", "real"):
         except ImportError:
             pytest.skip("sparkless not available (mock mode only)")
 else:
-    from sparkless.spark_types import IntegerType, StringType, StructField, StructType  # type: ignore[import]
+    # Only import sparkless if we're in mock mode
+    try:
+        from sparkless.spark_types import IntegerType, StringType, StructField, StructType  # type: ignore[import]
+    except ImportError:
+        pytest.skip("sparkless not available (mock mode only)")
 
 from pipeline_builder import PipelineBuilder
 from pipeline_builder.models import PipelineConfig

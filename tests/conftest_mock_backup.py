@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Import test helpers from system directory
 try:
-    from system.test_helpers import (
+    from system.system_test_helpers import (
         TestAssertions,
         TestDataGenerator,
         TestPerformance,

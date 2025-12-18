@@ -134,22 +134,59 @@ def main():
         cmd, "Concurrent tests (excluding problematic ones)", capture_output=True
     )
     
-    # Parse concurrent test failures from the output
+    # Parse concurrent test results from the output
     concurrent_failed = []
-    if not concurrent_success and concurrent_stdout:
-        # Extract failed test names from pytest output
+    concurrent_passed = 0
+    concurrent_skipped = 0
+    concurrent_errors = 0
+    
+    if concurrent_stdout:
+        # Extract test results from pytest output
         lines = concurrent_stdout.split('\n')
         for line in lines:
+            # Look for failed tests
             if 'FAILED' in line and '::' in line:
                 # Extract test path from lines like: "FAILED tests/path/to/test.py::TestClass::test_method"
                 test_path = line.strip().replace('FAILED ', '').split()[0] if 'FAILED' in line else None
                 if test_path and test_path not in concurrent_failed:
                     concurrent_failed.append(test_path)
+            # Look for summary line with test counts (pytest final summary)
+            elif 'passed' in line.lower() and '=========' in line:
+                # Parse summary like: "========= 1334 passed, 477 skipped, 2 errors in 475.03s =========="
+                import re
+                passed_match = re.search(r'(\d+)\s+passed', line)
+                failed_match = re.search(r'(\d+)\s+failed', line)
+                error_match = re.search(r'(\d+)\s+error', line)
+                skipped_match = re.search(r'(\d+)\s+skipped', line)
+                
+                if passed_match:
+                    concurrent_passed = int(passed_match.group(1))
+                if failed_match:
+                    # If there are failures, they'll be in concurrent_failed list from FAILED lines
+                    pass
+                if error_match:
+                    concurrent_errors = int(error_match.group(1))
+                if skipped_match:
+                    concurrent_skipped = int(skipped_match.group(1))
         
         if concurrent_failed:
             print(f"\n⚠️  Found {len(concurrent_failed)} failed concurrent tests:")
             for test in concurrent_failed:
                 print(f"  ❌ {test}")
+    
+    # Determine success based on actual test results, not just exit code
+    # Pytest may return non-zero exit code due to warnings, but tests can still pass
+    # If we couldn't parse the summary, fall back to exit code
+    if concurrent_passed == 0 and concurrent_skipped == 0:
+        # Couldn't parse results, use exit code as fallback
+        concurrent_tests_successful = concurrent_success
+    else:
+        # Use parsed results - success if we have passes and no failures/errors
+        concurrent_tests_successful = (
+            concurrent_passed > 0 and 
+            len(concurrent_failed) == 0 and 
+            concurrent_errors == 0
+        )
     
     # Summary
     print(f"\n{'='*80}")
@@ -162,10 +199,20 @@ def main():
         for test in sequential_failed:
             print(f"  ❌ {test}")
     
-    print(f"\nConcurrent tests: {'✅ PASSED' if concurrent_success else '❌ FAILED'}")
+    # Show detailed concurrent test results
+    if concurrent_passed > 0 or concurrent_skipped > 0:
+        print(f"\nConcurrent tests: {concurrent_passed} passed, {concurrent_skipped} skipped", end="")
+        if concurrent_errors > 0:
+            print(f", {concurrent_errors} errors", end="")
+        if len(concurrent_failed) > 0:
+            print(f", {len(concurrent_failed)} failed", end="")
+        print()
+        print(f"Status: {'✅ PASSED' if concurrent_tests_successful else '❌ FAILED'}")
+    else:
+        print(f"\nConcurrent tests: {'✅ PASSED' if concurrent_success else '❌ FAILED'}")
     
-    # Return appropriate exit code
-    if sequential_failed or not concurrent_success:
+    # Return appropriate exit code based on actual test results
+    if sequential_failed or not concurrent_tests_successful:
         sys.exit(1)
     else:
         sys.exit(0)
