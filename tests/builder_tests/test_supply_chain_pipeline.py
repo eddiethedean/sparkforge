@@ -23,10 +23,6 @@ from pipeline_builder.writer import LogWriter
 class TestSupplyChainPipeline:
     """Test supply chain and logistics pipeline with bronze-silver-gold architecture."""
 
-    @pytest.mark.skipif(
-        os.environ.get("SPARK_MODE", "mock").lower() == "mock",
-        reason="Polars backend still fails complex datetime validation in this pipeline (mock-spark follow-up).",
-    )
     def test_complete_supply_chain_pipeline_execution(
         self, spark_session, data_generator, test_assertions
     ):

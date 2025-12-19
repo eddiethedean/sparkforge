@@ -1,0 +1,6 @@
+ImportError while loading conftest '/Users/odosmatthews/Documents/coding/sparkforge/tests/conftest.py'.
+tests/conftest.py:55: in <module>
+    from sparkless import functions as mock_functions  # type: ignore[import]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'sparkless'
+🔧 Set PYSPARK_SUBMIT_ARGS for Delta Lake: --packages io.delta:delta-spark_2.12:3.0.0 pyspark-shell

@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/Users/odosmatthews/Documents/coding/sparkforge/scripts/run_tests_smart_parallel.py", line 229, in <module>
+    main()
+  File "/Users/odosmatthews/Documents/coding/sparkforge/scripts/run_tests_smart_parallel.py", line 74, in main
+    num_workers = int(sys.argv[1]) if len(sys.argv) > 1 else 10
+                  ^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: '-n'

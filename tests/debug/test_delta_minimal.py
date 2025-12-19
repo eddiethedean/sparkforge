@@ -12,11 +12,9 @@ or test environment setup.
 
 import os
 import pytest
-from pyspark.sql import SparkSession
 from tests.conftest import _log_session_configs
 
 
-@pytest.mark.real_spark_only
 def test_delta_minimal_write(mock_spark_session):
     """
     Minimal test: Create session and write Delta table.
@@ -77,22 +75,22 @@ def test_delta_minimal_write(mock_spark_session):
         raise
 
 
-@pytest.mark.real_spark_only
-def test_delta_minimal_direct_session():
+def test_delta_minimal_direct_session(mock_spark_session):
     """
-    Test creating session directly (outside fixture) and writing Delta table.
+    Test creating session directly and writing Delta table.
     
     This helps identify if the issue is fixture-related or session creation related.
+    Uses mock session to test sparkless capabilities.
     """
     import os
-    from tests.conftest import _create_real_spark_session
+    from tests.conftest import _create_mock_spark_session
     
     print(f"🔍 test_delta_minimal_direct_session: Test starting")
     print(f"🔍 test_delta_minimal_direct_session: PID={os.getpid()}")
     
-    # Create session directly
+    # Create session directly using mock session creation
     print(f"🔍 test_delta_minimal_direct_session: Creating session directly...")
-    spark = _create_real_spark_session()
+    spark = _create_mock_spark_session()
     
     try:
         print(f"🔍 test_delta_minimal_direct_session: Session ID (Python)={id(spark)}")
@@ -124,5 +122,9 @@ def test_delta_minimal_direct_session():
         print(f"✅ test_delta_minimal_direct_session: Test completed successfully")
         
     finally:
-        spark.stop()
+        # Mock sessions don't need explicit stop, but we can try
+        try:
+            spark.stop()
+        except Exception:
+            pass
 

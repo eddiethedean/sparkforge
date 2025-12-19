@@ -109,12 +109,25 @@ class TestValidationPerformance:
         assert result.execution_time < 0.5
         assert result.avg_time_per_iteration < 1.0
 
-    def test_assess_data_quality_performance(self) -> None:
+    def test_assess_data_quality_performance(self, spark_session) -> None:
         """Test performance of assess_data_quality function."""
-        # Skip this test as it requires a real DataFrame, not a Mock
-        # Performance testing of assess_data_quality requires actual Spark DataFrames
-        # which are tested in other integration tests
-        pytest.skip("Requires real DataFrame for validation operations")
+        # Test with sparkless DataFrame to verify it works
+        # This will help identify any sparkless-specific issues
+        from pipeline_builder.validation import assess_data_quality
+        
+        # Create test DataFrame using the spark_session fixture
+        data = [(1, "Alice", 25), (2, "Bob", 30), (3, "Charlie", None)]
+        df = spark_session.createDataFrame(data, ["id", "name", "age"])
+        
+        # Test assess_data_quality with sparkless DataFrame
+        result = assess_data_quality(df, {"id": ["id > 0"], "name": ["name IS NOT NULL"]})
+        
+        assert result is not None
+        # assess_data_quality returns a dict with keys like 'quality_rate', 'total_rows', etc.
+        assert "quality_rate" in result
+        assert "total_rows" in result
+        assert result["total_rows"] == 3
+        assert result["quality_rate"] == 100.0  # All rows should pass validation
 
     def test_get_dataframe_info_performance(self) -> None:
         """Test performance of get_dataframe_info function."""

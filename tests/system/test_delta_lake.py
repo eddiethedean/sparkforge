@@ -114,11 +114,6 @@ class TestDeltaLakeComprehensive:
 
         # No cleanup needed - unique table name ensures isolation
 
-    @pytest.mark.skipif(
-        os.environ.get("SPARKFORGE_ENGINE", "mock").lower() == "mock"
-        or os.environ.get("SPARK_MODE", "mock").lower() == "mock",
-        reason="Delta Lake schema evolution not fully supported in mock-spark",
-    )
     def test_delta_lake_schema_evolution(self, spark_session, unique_table_name):
         """Test schema evolution capabilities."""
         # Skip if Delta Lake isn't actually available in Spark
