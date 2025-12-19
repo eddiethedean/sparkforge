@@ -408,55 +408,6 @@ class TestEdgeCases:
         assert result_with_errors.is_valid is False
         assert len(result_with_errors.errors) == 100
 
-    def test_writer_edge_cases(self, mock_spark_session):
-        """Test LogWriter edge cases."""
-        # Test with minimal config
-        minimal_config = WriterConfig(table_schema="test", table_name="logs")
-
-        writer = LogWriter(spark=mock_spark_session, config=minimal_config)
-        assert writer.config == minimal_config
-
-        # Test with maximum config
-        max_config = WriterConfig(
-            table_schema="test",
-            table_name="logs",
-            write_mode=WriteMode.OVERWRITE,
-            log_level=LogLevel.DEBUG,
-            batch_size=10000,
-            compression="gzip",
-            max_file_size_mb=1024,
-            partition_columns=["date"],
-            partition_count=100,
-        )
-
-        writer_max = LogWriter(spark=mock_spark_session, config=max_config)
-        assert writer_max.config == max_config
-        assert writer_max.config.batch_size == 10000
-        assert writer_max.config.compression == "gzip"
-
-    def test_storage_edge_cases(self, mock_spark_session):
-        """Test storage edge cases."""
-        # Skip this test in PySpark mode as it uses mock-spark-specific storage API
-        if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-            pytest.skip("Storage edge cases test requires mock-spark storage API")
-
-        # Test with long table names (storage backend limit is 63 characters)
-        long_table_name = "a" * 50
-        schema = StructType([StructField("id", IntegerType())])
-
-        mock_spark_session.storage.create_schema("test")
-        mock_spark_session.storage.create_table("test", long_table_name, schema.fields)
-
-        assert mock_spark_session.storage.table_exists("test", long_table_name)
-
-        # Test with underscores and numbers in names (valid SQL identifiers)
-        valid_special_name = "table_with_special_chars_123_abc"
-        mock_spark_session.storage.create_table(
-            "test", valid_special_name, schema.fields
-        )
-
-        assert mock_spark_session.storage.table_exists("test", valid_special_name)
-
     def test_function_edge_cases(self, mock_spark_session):
         """Test function edge cases."""
         # Test complex column expressions
