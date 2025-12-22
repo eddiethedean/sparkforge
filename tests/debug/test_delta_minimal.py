@@ -12,7 +12,14 @@ or test environment setup.
 
 import os
 import pytest
-from tests.conftest import _log_session_configs
+
+# Import from local conftest
+try:
+    from tests.conftest import _log_session_configs
+except ImportError:
+    # Fallback if import fails
+    def _log_session_configs(spark, context: str = ""):
+        pass  # No-op if not available
 
 
 def test_delta_minimal_write(mock_spark_session):
@@ -83,14 +90,12 @@ def test_delta_minimal_direct_session(mock_spark_session):
     Uses mock session to test sparkless capabilities.
     """
     import os
-    from tests.conftest import _create_mock_spark_session
     
     print(f"🔍 test_delta_minimal_direct_session: Test starting")
     print(f"🔍 test_delta_minimal_direct_session: PID={os.getpid()}")
     
-    # Create session directly using mock session creation
-    print(f"🔍 test_delta_minimal_direct_session: Creating session directly...")
-    spark = _create_mock_spark_session()
+    # Use the provided mock_spark_session fixture
+    spark = mock_spark_session
     
     try:
         print(f"🔍 test_delta_minimal_direct_session: Session ID (Python)={id(spark)}")
@@ -121,10 +126,9 @@ def test_delta_minimal_direct_session(mock_spark_session):
         spark.sql(f"DROP TABLE IF EXISTS {table_name}")
         print(f"✅ test_delta_minimal_direct_session: Test completed successfully")
         
-    finally:
-        # Mock sessions don't need explicit stop, but we can try
-        try:
-            spark.stop()
-        except Exception:
-            pass
+    except Exception as e:
+        import traceback
+        print(f"❌ test_delta_minimal_direct_session: Error: {e}")
+        traceback.print_exc()
+        raise
 

@@ -25,9 +25,9 @@ class TestIotPipeline:
         )
 
         # Setup schemas
-        mock_spark_session.storage.create_schema("bronze")
-        mock_spark_session.storage.create_schema("silver")
-        mock_spark_session.storage.create_schema("gold")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline builder
         builder = PipelineBuilder(
@@ -236,9 +236,9 @@ class TestIotPipeline:
         )
 
         # Setup schemas
-        mock_spark_session.storage.create_schema("bronze")
-        mock_spark_session.storage.create_schema("silver")
-        mock_spark_session.storage.create_schema("gold")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline
         builder = PipelineBuilder(
@@ -347,9 +347,9 @@ class TestIotPipeline:
         all_data = normal_data.union(anomaly_data)
 
         # Setup schemas
-        mock_spark_session.storage.create_schema("bronze")
-        mock_spark_session.storage.create_schema("silver")
-        mock_spark_session.storage.create_schema("gold")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline with anomaly detection
         builder = PipelineBuilder(
@@ -449,10 +449,10 @@ class TestIotPipeline:
         )
 
         # Setup schemas
-        mock_spark_session.storage.create_schema("bronze")
-        mock_spark_session.storage.create_schema("silver")
-        mock_spark_session.storage.create_schema("gold")
-        mock_spark_session.storage.create_schema("analytics")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS analytics")
 
         # Create LogWriter for performance monitoring
         log_writer = LogWriter(
@@ -503,10 +503,10 @@ class TestIotPipeline:
         assert log_result is not None
 
         # Verify log table was created
-        assert mock_spark_session.storage.table_exists("analytics", "iot_pipeline_logs")
+        # Verify log table exists by accessing it
+        log_df = mock_spark_session.table("analytics.iot_pipeline_logs")
+        assert log_df is not None
 
         # Verify log data contains performance metrics
-        log_data = mock_spark_session.storage.query_table(
-            "analytics", "iot_pipeline_logs"
-        )
+        log_data = [row.asDict() for row in log_df.collect()]
         assert len(log_data) > 0

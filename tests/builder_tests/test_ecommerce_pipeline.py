@@ -40,9 +40,9 @@ class TestEcommercePipeline:
         )
 
         # Setup schemas
-        mock_spark_session.storage.create_schema("bronze")
-        mock_spark_session.storage.create_schema("silver")
-        mock_spark_session.storage.create_schema("gold")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline builder
         builder = PipelineBuilder(
@@ -263,9 +263,9 @@ class TestEcommercePipeline:
         data_generator.create_customer_data(mock_spark_session, num_customers=10)
 
         # Setup schemas
-        mock_spark_session.storage.create_schema("bronze")
-        mock_spark_session.storage.create_schema("silver")
-        mock_spark_session.storage.create_schema("gold")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline
         builder = PipelineBuilder(
@@ -369,9 +369,9 @@ class TestEcommercePipeline:
         )
 
         # Setup schemas
-        mock_spark_session.storage.create_schema("bronze")
-        mock_spark_session.storage.create_schema("silver")
-        mock_spark_session.storage.create_schema("gold")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline with strict validation
         builder = PipelineBuilder(
@@ -418,10 +418,10 @@ class TestEcommercePipeline:
         )
 
         # Setup schemas
-        mock_spark_session.storage.create_schema("bronze")
-        mock_spark_session.storage.create_schema("silver")
-        mock_spark_session.storage.create_schema("gold")
-        mock_spark_session.storage.create_schema("analytics")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS analytics")
 
         # Create LogWriter
         log_writer = LogWriter(
@@ -468,8 +468,10 @@ class TestEcommercePipeline:
         assert log_result is not None
 
         # Verify log table was created
-        assert mock_spark_session.storage.table_exists("analytics", "pipeline_logs")
+        # Verify log table exists by accessing it
+        log_df = mock_spark_session.table("analytics.pipeline_logs")
+        assert log_df is not None
 
         # Verify log data
-        log_data = mock_spark_session.storage.query_table("analytics", "pipeline_logs")
+        log_data = [row.asDict() for row in log_df.collect()]
         assert len(log_data) > 0

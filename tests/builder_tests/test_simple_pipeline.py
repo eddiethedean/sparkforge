@@ -21,9 +21,9 @@ class TestSimplePipeline:
         )
 
         # Setup schemas
-        mock_spark_session.storage.create_schema("bronze")
-        mock_spark_session.storage.create_schema("silver")
-        mock_spark_session.storage.create_schema("gold")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline builder
         builder = PipelineBuilder(

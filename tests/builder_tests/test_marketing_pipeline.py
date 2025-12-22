@@ -544,8 +544,8 @@ class TestMarketingPipeline:
         # Setup schemas - use SQL for real PySpark, storage API for mock
         if hasattr(spark_session, 'storage') and hasattr(spark_session.storage, 'create_schema'):
             # Mock Spark (sparkless)
-            spark_session.storage.create_schema("bronze")
-            spark_session.storage.create_schema("silver")
+            spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
+            spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
         else:
             # Real PySpark - use SQL
             spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")

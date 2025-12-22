@@ -143,9 +143,9 @@ class TestMultiSourcePipeline:
         )
 
         # Setup schemas
-        mock_spark_session.storage.create_schema("bronze")
-        mock_spark_session.storage.create_schema("silver")
-        mock_spark_session.storage.create_schema("gold")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline builder
         builder = PipelineBuilder(
@@ -551,9 +551,9 @@ class TestMultiSourcePipeline:
         )
 
         # Setup schemas
-        mock_spark_session.storage.create_schema("bronze")
-        mock_spark_session.storage.create_schema("silver")
-        mock_spark_session.storage.create_schema("gold")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline
         builder = PipelineBuilder(
@@ -639,9 +639,9 @@ class TestMultiSourcePipeline:
         )
 
         # Setup schemas
-        mock_spark_session.storage.create_schema("bronze")
-        mock_spark_session.storage.create_schema("silver")
-        mock_spark_session.storage.create_schema("gold")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline with complex dependencies
         builder = PipelineBuilder(
@@ -767,10 +767,10 @@ class TestMultiSourcePipeline:
         )
 
         # Setup schemas
-        mock_spark_session.storage.create_schema("bronze")
-        mock_spark_session.storage.create_schema("silver")
-        mock_spark_session.storage.create_schema("gold")
-        mock_spark_session.storage.create_schema("integration")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS integration")
 
         # Create LogWriter for integration logging
         log_writer = LogWriter(
@@ -820,13 +820,10 @@ class TestMultiSourcePipeline:
         test_assertions.assert_pipeline_success(result)
         assert log_result is not None
 
-        # Verify log table was created
-        assert mock_spark_session.storage.table_exists(
-            "integration", "multi_source_logs"
-        )
+        # Verify log table was created by accessing it
+        log_df = mock_spark_session.table("integration.multi_source_logs")
+        assert log_df is not None
 
         # Verify log data
-        log_data = mock_spark_session.storage.query_table(
-            "integration", "multi_source_logs"
-        )
+        log_data = [row.asDict() for row in log_df.collect()]
         assert len(log_data) > 0

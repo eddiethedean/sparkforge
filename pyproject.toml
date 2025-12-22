@@ -47,7 +47,7 @@ pyspark = [
     "delta-spark>=3.0.0,<3.1.0",
 ]
 mock = [
-    "sparkless==3.19.0",
+    "sparkless==3.19.1",
 ]
 dev = [
     "black>=23.0.0",
@@ -64,7 +64,7 @@ dev = [
     "pytest-cov>=4.0.0",
     "pytest-xdist>=3.0.0",
     "tox>=4.0.0",
-    "sparkless==3.19.0"
+    "sparkless==3.19.1"
 ]
 docs = [
     "sphinx>=4.0.0",
@@ -72,7 +72,7 @@ docs = [
     "myst-parser>=0.17.0",
 ]
 test = [
-    "sparkless==3.19.0",
+    "sparkless==3.19.1",
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "pytest-xdist>=3.0.0",

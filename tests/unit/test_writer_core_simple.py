@@ -141,17 +141,27 @@ class TestWriterCoreSimple:
             df = spark_session.createDataFrame(test_data, schema)
             df.write.saveAsTable("test_schema.test_table")
         else:
-            # Use sparkless storage API
-            from sparkless.spark_types import IntegerType, StructField, StringType  # type: ignore[import]
-
-            spark_session.storage.create_schema("test_schema")
-            schema_fields = [
-                StructField("id", IntegerType()),
-                StructField("name", StringType()),
-            ]
-            spark_session.storage.create_table(
-                "test_schema", "test_table", schema_fields
+            # Use standard Spark SQL operations (compatible with both PySpark and sparkless)
+            from sparkless.spark_types import (  # type: ignore[import]
+                IntegerType,
+                StructField,
+                StructType,
+                StringType,
             )
+
+            # Create schema using standard SQL
+            spark_session.sql("CREATE DATABASE IF NOT EXISTS test_schema")
+
+            # Create table using standard Spark operations
+            schema = StructType(
+                [
+                    StructField("id", IntegerType()),
+                    StructField("name", StringType()),
+                ]
+            )
+            test_data = [{"id": 1, "name": "test"}]
+            df = spark_session.createDataFrame(test_data, schema)
+            df.write.saveAsTable("test_schema.test_table")
 
         # Test table exists
         assert table_exists(spark_session, "test_schema.test_table")

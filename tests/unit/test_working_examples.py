@@ -250,10 +250,6 @@ class TestWorkingExamples:
         assert config.max_workers == 4
         assert config.enabled is True
 
-    @pytest.mark.skipif(
-        os.environ.get("SPARK_MODE", "mock").lower() == "real",
-        reason="Mock-mode-specific test (uses storage API)",
-    )
     def test_mock_spark_integration(self, mock_spark_session, sample_dataframe):
         """Test integration with mock Spark session."""
 
@@ -261,15 +257,16 @@ class TestWorkingExamples:
         assert sample_dataframe.count() > 0
         assert len(sample_dataframe.columns) > 0
 
-        # Test schema operations
-        mock_spark_session.storage.create_schema("test_schema")
-        assert mock_spark_session.storage.schema_exists("test_schema")
+        # Test schema operations using standard Spark SQL
+        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS test_schema")
 
-        # Test table operations
-        mock_spark_session.storage.create_table(
-            "test_schema", "test_table", sample_dataframe.schema.fields
-        )
-        assert mock_spark_session.storage.table_exists("test_schema", "test_table")
+        # Test table operations using standard Spark operations
+        sample_dataframe.write.saveAsTable("test_schema.test_table")
+
+        # Verify table exists using standard Spark operations
+        table_df = mock_spark_session.table("test_schema.test_table")
+        assert table_df is not None
+        assert table_df.count() > 0
 
     @pytest.mark.skipif(
         os.environ.get("SPARK_MODE", "mock").lower() == "real",
