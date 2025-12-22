@@ -43,7 +43,10 @@ if SRC_DIR not in sys.path:
     sys.path.insert(0, SRC_DIR)
 
 # Load interpreter compatibility tweaks (e.g., typing.TypeAlias patch for Python 3.8)
-import sitecustomize  # type: ignore  # noqa: E402,F401
+try:
+    import sitecustomize  # type: ignore  # noqa: E402,F401
+except ImportError:
+    pass  # sitecustomize is optional
 
 import pytest
 
