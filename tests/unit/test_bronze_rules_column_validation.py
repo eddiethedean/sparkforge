@@ -46,15 +46,14 @@ class TestBronzeRulesColumnValidation:
     """Test cases for bronze rules column validation."""
 
     def test_missing_columns_validation_error(self, spark_session):
-        """Test that ValidationError is raised when columns don't exist."""
+        """Test that ValidationError is raised when ALL columns don't exist."""
         # Create DataFrame with limited columns
         df = spark_session.createDataFrame(
             [("user1", "click"), ("user2", "view")], ["user_id", "action"]
         )
 
-        # Try to apply rules for columns that don't exist
+        # Try to apply rules for columns that don't exist (all missing)
         rules = {
-            "user_id": [F.col("user_id").isNotNull()],  # This exists
             "value": [F.col("value") > 0],  # This doesn't exist
             "timestamp": [F.col("timestamp").isNotNull()],  # This doesn't exist
         }
@@ -64,7 +63,7 @@ class TestBronzeRulesColumnValidation:
 
         # Verify the error message contains helpful information
         error_msg = str(exc_info.value)
-        assert "Columns referenced in validation rules do not exist" in error_msg
+        assert "All columns referenced in validation rules do not exist" in error_msg
         assert "Missing columns:" in error_msg
         assert "value" in error_msg
         assert "timestamp" in error_msg

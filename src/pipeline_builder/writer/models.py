@@ -424,8 +424,8 @@ def create_log_row_from_step_result(
         success=step_result.success,
         error_message=step_result.error_message,
         # Performance metrics
-        memory_usage_mb=None,  # TODO: Add memory metrics to StepResult
-        cpu_usage_percent=None,  # TODO: Add CPU metrics to StepResult
+        memory_usage_mb=getattr(step_result, "memory_usage_mb", None),
+        cpu_usage_percent=getattr(step_result, "cpu_usage_percent", None),
         # Metadata
         metadata=metadata or {},
     )

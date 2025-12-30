@@ -10,7 +10,7 @@ import os
 import tempfile
 import threading
 from contextlib import contextmanager
-from typing import Any
+from typing import Any, Optional
 from uuid import uuid4
 
 
@@ -460,7 +460,7 @@ class ThreadLocalEnvVar:
         """
         self.var_name = var_name
     
-    def get(self) -> str | None:
+    def get(self) -> Optional[str]:
         """
         Get the value of the environment variable.
         

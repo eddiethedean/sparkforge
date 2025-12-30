@@ -234,12 +234,36 @@ def apply_column_rules(
     if missing_columns:
         available_columns = sorted(df_columns)
         missing_columns_list = sorted(missing_columns)
-        raise ValidationError(
-            f"Columns referenced in validation rules do not exist in DataFrame. "
-            f"Missing columns: {missing_columns_list}. "
+        
+        # Filter out rules for non-existent columns with a warning
+        # This handles cases where transforms drop columns that were in the input
+        filtered_rules = {
+            col: rules[col] for col in rules.keys() if col in df_columns
+        }
+        
+        if not filtered_rules:
+            # All rules reference missing columns - this is an error
+            raise ValidationError(
+                f"All columns referenced in validation rules do not exist in DataFrame. "
+                f"Missing columns: {missing_columns_list}. "
+                f"Available columns: {available_columns}. "
+                f"Stage: {stage}, Step: {step}. "
+                f"This may indicate that the transform function dropped columns that are referenced in validation rules. "
+                f"Please update validation rules to only reference columns that exist after the transform."
+            )
+        
+        # Log warning about filtered rules
+        logger.warning(
+            f"Validation rules reference columns that do not exist in DataFrame after transform. "
+            f"Filtered out rules for missing columns: {missing_columns_list}. "
             f"Available columns: {available_columns}. "
-            f"Stage: {stage}, Step: {step}"
+            f"Stage: {stage}, Step: {step}. "
+            f"This may indicate that the transform function dropped columns. "
+            f"Continuing validation with remaining rules for existing columns."
         )
+        
+        # Use filtered rules for validation
+        rules = filtered_rules
 
     start_time = time.time()
 

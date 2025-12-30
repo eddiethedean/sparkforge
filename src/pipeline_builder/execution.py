@@ -81,10 +81,18 @@ import tempfile
 import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, Optional, Union, cast
+
+try:
+    import psutil
+
+    HAS_PSUTIL = True
+except ImportError:
+    HAS_PSUTIL = False
+    psutil = None  # type: ignore[assignment, unused-ignore]
 
 from pipeline_builder_base.dependencies import DependencyAnalyzer
 from pipeline_builder_base.errors import ExecutionError
@@ -323,19 +331,54 @@ def _schemas_match(existing_schema: Any, output_schema: Any) -> tuple[bool, list
             f"New columns in output (not in existing table): {sorted(new_in_output)}"
         )
 
-    # Check for type mismatches in common columns
+    # Check for type mismatches and nullable changes in common columns
     common_columns = existing_columns & output_columns
     type_mismatches = []
+    nullable_changes = []
     for col in common_columns:
-        if existing_fields[col].dataType != output_fields[col].dataType:
+        existing_field = existing_fields[col]
+        output_field = output_fields[col]
+        
+        # Check type mismatch
+        if existing_field.dataType != output_field.dataType:
             type_mismatches.append(
-                f"{col}: existing={existing_fields[col].dataType}, "
-                f"output={output_fields[col].dataType}"
+                f"{col}: existing={existing_field.dataType}, "
+                f"output={output_field.dataType}"
             )
+        
+        # Check nullable changes (nullable -> non-nullable is stricter, non-nullable -> nullable is more lenient)
+        existing_nullable = getattr(existing_field, "nullable", True)
+        output_nullable = getattr(output_field, "nullable", True)
+        if existing_nullable != output_nullable:
+            if not existing_nullable and output_nullable:
+                # Existing is non-nullable, output is nullable - this is usually OK (more lenient)
+                nullable_changes.append(
+                    f"{col}: nullable changed from False to True (more lenient - usually OK)"
+                )
+            else:
+                # Existing is nullable, output is non-nullable - this is stricter and may cause issues
+                nullable_changes.append(
+                    f"{col}: nullable changed from True to False (stricter - may cause issues if data has nulls)"
+                )
+    
     if type_mismatches:
         differences.append(f"Type mismatches: {', '.join(type_mismatches)}")
+    
+    if nullable_changes:
+        # Note nullable changes but don't fail validation for them (Delta Lake handles this)
+        differences.append(f"Nullable changes (informational): {', '.join(nullable_changes)}")
+    
+    # Check for column order differences (informational only - order doesn't affect functionality)
+    existing_order = list(existing_fields.keys())
+    output_order = list(output_fields.keys())
+    if existing_order != output_order and common_columns == existing_columns == output_columns:
+        # All columns match, just order is different
+        differences.append(
+            f"Column order differs (informational - order doesn't affect functionality): "
+            f"existing={existing_order}, output={output_order}"
+        )
 
-    return len(differences) == 0, differences
+    return len([d for d in differences if "informational" not in d.lower()]) == 0, differences
 
 
 def _recover_table_schema(spark: Any, table_name: str) -> Optional[Any]:
@@ -439,6 +482,7 @@ class StepType(Enum):
 
 
 @dataclass
+@dataclass
 class StepExecutionResult:
     """Result of step execution."""
 
@@ -455,6 +499,8 @@ class StepExecutionResult:
     validation_rate: float = 100.0
     rows_written: Optional[int] = None
     input_rows: Optional[int] = None
+    memory_usage_mb: Optional[float] = None
+    cpu_usage_percent: Optional[float] = None
 
     def __post_init__(self) -> None:
         if self.end_time and self.start_time:
@@ -557,6 +603,27 @@ class ExecutionEngine:
             # Wrap other exceptions
             raise ExecutionError(f"Failed to create schema '{schema}': {str(e)}") from e
 
+    @staticmethod
+    def _collect_resource_metrics() -> tuple[Optional[float], Optional[float]]:
+        """
+        Collect current memory and CPU usage metrics.
+
+        Returns:
+            Tuple of (memory_usage_mb, cpu_usage_percent) or (None, None) if psutil unavailable
+        """
+        if not HAS_PSUTIL:
+            return None, None
+
+        try:
+            process = psutil.Process()
+            memory_info = process.memory_info()
+            memory_mb = memory_info.rss / (1024 * 1024)  # Convert bytes to MB
+            cpu_percent = process.cpu_percent(interval=0.1)
+            return memory_mb, cpu_percent
+        except Exception:
+            # If metrics collection fails, return None values
+            return None, None
+
     def _ensure_materialized_for_validation(
         self,
         df: DataFrame,  # type: ignore[valid-type]
@@ -611,6 +678,9 @@ class ExecutionEngine:
             StepExecutionResult with execution details
         """
         start_time = datetime.now()
+        # Collect initial resource metrics
+        start_memory, start_cpu = self._collect_resource_metrics()
+        
         # Determine step type based on class
         if isinstance(step, BronzeStep):
             step_type = StepType.BRONZE
@@ -1479,6 +1549,19 @@ class ExecutionEngine:
                 result.rows_processed = output_df.count()  # type: ignore[attr-defined]
                 result.write_mode = None  # type: ignore[attr-defined]
 
+            # Collect final resource metrics
+            end_memory, end_cpu = self._collect_resource_metrics()
+            
+            # Calculate metrics (use end values, or delta if both available)
+            if end_memory is not None:
+                if start_memory is not None:
+                    # Use peak memory (difference) or end memory
+                    result.memory_usage_mb = max(end_memory - start_memory, end_memory)
+                else:
+                    result.memory_usage_mb = end_memory
+            if end_cpu is not None:
+                result.cpu_usage_percent = end_cpu
+            
             result.status = StepStatus.COMPLETED
             result.end_time = datetime.now()
             result.duration = (result.end_time - result.start_time).total_seconds()
@@ -1508,6 +1591,19 @@ class ExecutionEngine:
             )
 
         except Exception as e:
+            # Collect final resource metrics even on failure
+            end_memory, end_cpu = self._collect_resource_metrics()
+            
+            # Calculate metrics (use end values, or delta if both available)
+            if end_memory is not None:
+                if start_memory is not None:
+                    # Use peak memory (difference) or end memory
+                    result.memory_usage_mb = max(end_memory - start_memory, end_memory)
+                else:
+                    result.memory_usage_mb = end_memory
+            if end_cpu is not None:
+                result.cpu_usage_percent = end_cpu
+            
             result.status = StepStatus.FAILED
             result.error = str(e)
             result.end_time = datetime.now()
@@ -2024,6 +2120,29 @@ class ExecutionEngine:
                 f"not present in bronze DataFrame; skipping incremental filter"
             )
             return bronze_df
+        
+        # Validate that incremental column type is appropriate for filtering
+        try:
+            schema = bronze_df.schema  # type: ignore[attr-defined]
+            col_field = schema[incremental_col]  # type: ignore[index]
+            col_type = col_field.dataType  # type: ignore[attr-defined]
+            col_type_name = str(col_type)
+            
+            # Check if type is comparable (numeric, date, timestamp, string)
+            # Non-comparable types: boolean, array, map, struct
+            non_comparable_types = ["boolean", "array", "map", "struct", "binary"]
+            if any(non_comp in col_type_name.lower() for non_comp in non_comparable_types):
+                self.logger.warning(
+                    f"Silver step {step.name}: incremental column '{incremental_col}' "
+                    f"has type '{col_type_name}' which may not be suitable for comparison operations. "
+                    f"Filtering may fail or produce unexpected results. "
+                    f"Consider using a numeric, date, timestamp, or string column for incremental processing."
+                )
+        except (KeyError, AttributeError, Exception) as e:
+            # If we can't inspect the schema, log a warning but continue
+            self.logger.debug(
+                f"Silver step {step.name}: could not validate incremental column type: {e}"
+            )
 
         output_table = fqn(schema, table_name)
 
@@ -2078,10 +2197,45 @@ class ExecutionEngine:
         try:
             filtered_df = bronze_df.filter(F.col(incremental_col) > F.lit(cutoff_value))  # type: ignore[attr-defined]
         except Exception as exc:
-            raise ExecutionError(
-                f"Silver step {step.name}: failed to filter bronze rows using "
-                f"{incremental_col} > {cutoff_value}: {exc!r}"
-            ) from exc
+            # Provide detailed error context for incremental filtering failures
+            error_msg = str(exc).lower()
+            if "cannot resolve" in error_msg or "column" in error_msg:
+                # Column-related error - provide schema context
+                available_cols = sorted(getattr(bronze_df, "columns", []))
+                raise ExecutionError(
+                    f"Silver step {step.name}: failed to filter bronze rows using incremental column '{incremental_col}'. "
+                    f"Error: {exc!r}. "
+                    f"Available columns in bronze DataFrame: {available_cols}. "
+                    f"This may indicate that the incremental column was dropped or renamed in a previous transform. "
+                    f"Please ensure the incremental column '{incremental_col}' exists in the bronze DataFrame."
+                ) from exc
+            elif "type" in error_msg or "cast" in error_msg:
+                # Type-related error - provide type information
+                try:
+                    col_type = bronze_df.schema[incremental_col].dataType  # type: ignore[attr-defined]
+                    raise ExecutionError(
+                        f"Silver step {step.name}: failed to filter bronze rows using incremental column '{incremental_col}'. "
+                        f"Error: {exc!r}. "
+                        f"Column type: {col_type}. "
+                        f"Cutoff value type: {type(cutoff_value).__name__}. "
+                        f"Incremental columns must be comparable types (numeric, date, timestamp). "
+                        f"Please ensure the incremental column type is compatible with the cutoff value."
+                    ) from exc
+                except (KeyError, AttributeError, Exception):
+                    # If we can't get type info, provide generic error
+                    raise ExecutionError(
+                        f"Silver step {step.name}: failed to filter bronze rows using incremental column '{incremental_col}'. "
+                        f"Error: {exc!r}. "
+                        f"This may be a type mismatch between the incremental column and the cutoff value. "
+                        f"Please ensure the incremental column type is compatible with the cutoff value type."
+                    ) from exc
+            else:
+                # Generic error with context
+                raise ExecutionError(
+                    f"Silver step {step.name}: failed to filter bronze rows using "
+                    f"{incremental_col} > {cutoff_value}: {exc!r}. "
+                    f"Please check that the incremental column exists and is of a comparable type."
+                ) from exc
 
         self.logger.info(
             f"Silver step {step.name}: filtering bronze rows where "

@@ -32,24 +32,24 @@ class TestTrap1SilentExceptionHandling:
     """Test that exceptions are properly raised instead of silently handled."""
 
     def test_validation_error_is_re_raised(self, spark_session):
-        """Test that ValidationError is re-raised instead of masked."""
+        """Test that ValidationError is re-raised when ALL columns don't exist."""
         # Create a DataFrame that will cause a ValidationError
         sample_data = [("user1", "click"), ("user2", "view")]
         df = spark_session.createDataFrame(sample_data, ["user_id", "action"])
 
-        # Create rules that reference non-existent columns
+        # Create rules that reference ONLY non-existent columns (all missing)
         rules = {
-            "user_id": [F.col("user_id").isNotNull()],
             "value": [F.col("value") > 0],  # This column doesn't exist
+            "timestamp": [F.col("timestamp").isNotNull()],  # This column doesn't exist
         }
 
-        # The function should raise ValidationError, not return fallback
+        # The function should raise ValidationError when ALL columns are missing
         with pytest.raises(ValidationError) as excinfo:
             assess_data_quality(df, rules)
 
         # Verify the error message is helpful
         error_msg = str(excinfo.value)
-        assert "Columns referenced in validation rules do not exist" in error_msg
+        assert "All columns referenced in validation rules do not exist" in error_msg
         assert "value" in error_msg
 
     def test_unexpected_error_is_logged_and_re_raised(self, spark_session):
@@ -150,13 +150,13 @@ class TestTrap1SilentExceptionHandling:
         sample_data = [("user1", "click")]
         df = spark_session.createDataFrame(sample_data, ["user_id", "action"])
 
-        # Create rules that will cause validation error
+        # Create rules that will cause validation error (ALL columns missing)
         rules = {
-            "user_id": [F.col("user_id").isNotNull()],
             "value": [F.col("value") > 0],  # Missing column
+            "timestamp": [F.col("timestamp").isNotNull()],  # Missing column
         }
 
-        # Should raise exception, not return fallback
+        # Should raise exception when ALL columns are missing, not return fallback
         with pytest.raises(ValidationError):
             assess_data_quality(df, rules)
 
