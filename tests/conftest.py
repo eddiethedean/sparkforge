@@ -1187,7 +1187,6 @@ def test_config():
     Returns a PipelineConfig object for testing.
     """
     from pipeline_builder.models import (
-        ParallelConfig,
         PipelineConfig,
         ValidationThresholds,
     )
@@ -1195,7 +1194,6 @@ def test_config():
     return PipelineConfig(
         schema="test_schema",
         thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-        parallel=ParallelConfig(enabled=False, max_workers=1),
     )
 
 

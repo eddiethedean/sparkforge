@@ -23,7 +23,7 @@ else:
     from pyspark.sql import functions as F
 
 from pipeline_builder.errors import ValidationError
-from pipeline_builder.models import ParallelConfig, PipelineConfig, ValidationThresholds
+from pipeline_builder.models import  PipelineConfig, ValidationThresholds
 
 # Import SparkForge modules
 
@@ -281,7 +281,6 @@ class SecurityTestSuite:
             PipelineConfig(
                 schema="test_schema",
                 quality_thresholds=ValidationThresholds(80.0, 85.0, 90.0),
-                parallel=ParallelConfig(enabled=True, max_workers=4),
             )
 
             # Test that configuration validation prevents insecure settings

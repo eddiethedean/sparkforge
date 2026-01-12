@@ -21,7 +21,6 @@ from pipeline_builder.logging import PipelineLogger
 from pipeline_builder.models import (
     BronzeStep,
     GoldStep,
-    ParallelConfig,
     PipelineConfig,
     SilverStep,
     ValidationThresholds,
@@ -72,7 +71,6 @@ class TestStepExecutionFlow:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(max_workers=4, enabled=True),
         )
 
         ExecutionEngine(spark=spark_session, config=config)
@@ -95,7 +93,6 @@ class TestStepExecutionFlow:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(max_workers=4, enabled=True),
         )
 
         ExecutionEngine(spark=spark_session, config=config)
@@ -124,7 +121,6 @@ class TestStepExecutionFlow:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(max_workers=4, enabled=True),
         )
 
         ExecutionEngine(spark=spark_session, config=config)
@@ -182,7 +178,6 @@ class TestStepExecutionFlow:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(max_workers=4, enabled=True),
         )
 
         ExecutionEngine(spark=spark_session, config=config)
@@ -215,7 +210,6 @@ class TestStepExecutionFlow:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(max_workers=4, enabled=True),
         )
 
         ExecutionEngine(spark=spark_session, config=config)
@@ -349,7 +343,6 @@ class TestStepExecutionFlow:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(max_workers=4, enabled=True),
         )
 
         # Test configuration values
@@ -357,16 +350,12 @@ class TestStepExecutionFlow:
         assert config.thresholds.bronze == 95.0
         assert config.thresholds.silver == 98.0
         assert config.thresholds.gold == 99.0
-        assert config.parallel.max_workers == 4
-        assert config.parallel.enabled is True
-        assert config.parallel.timeout_secs == 300  # Default value
 
     def test_execution_engine_initialization_flow(self, spark_session):
         """Test that execution engine initializes correctly."""
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(max_workers=4, enabled=True),
         )
 
         # Test with explicit logger
@@ -390,7 +379,6 @@ class TestStepExecutionFlow:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(max_workers=4, enabled=True),
         )
 
         engine = ExecutionEngine(spark=spark_session, config=config)
@@ -412,7 +400,6 @@ class TestStepExecutionFlow:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(max_workers=4, enabled=True),
         )
 
         ExecutionEngine(spark=spark_session, config=config)

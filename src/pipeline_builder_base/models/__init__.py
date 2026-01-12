@@ -2,7 +2,7 @@
 Shared models for pipeline builders.
 """
 
-from .base import BaseModel, ParallelConfig, ValidationThresholds
+from .base import BaseModel, ValidationThresholds
 from .enums import ExecutionMode, PipelinePhase
 from .exceptions import PipelineConfigurationError, PipelineExecutionError
 from .execution import (
@@ -18,7 +18,6 @@ from .types import ModelValue, Serializable, Validatable
 __all__ = [
     "BaseModel",
     "ValidationThresholds",
-    "ParallelConfig",
     "PipelineConfig",
     "PipelineMetrics",
     "StageStats",

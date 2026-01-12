@@ -27,7 +27,6 @@ from pipeline_builder import PipelineBuilder
 from pipeline_builder.execution import ExecutionEngine
 from pipeline_builder.models import (
     ExecutionMode,
-    ParallelConfig,
     PipelineConfig,
     ValidationThresholds,
 )
@@ -412,11 +411,9 @@ class TestRobustFullPipelineFlows:
         assert len(validation_errors) == 0, f"Pipeline validation failed: {validation_errors}"
 
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
-        parallel_config = ParallelConfig(enabled=True, max_workers=4)
         config = PipelineConfig(
             schema=schema,
             thresholds=thresholds,
-            parallel=parallel_config,
             verbose=True,
         )
         engine = ExecutionEngine(spark=mock_spark_session, config=config)
@@ -561,11 +558,9 @@ class TestRobustFullPipelineFlows:
         assert len(validation_errors) == 0, f"Pipeline validation failed: {validation_errors}"
 
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
-        parallel_config = ParallelConfig(enabled=True, max_workers=4)
         config = PipelineConfig(
             schema=schema,
             thresholds=thresholds,
-            parallel=parallel_config,
             verbose=True,
         )
         engine = ExecutionEngine(spark=mock_spark_session, config=config)

@@ -9,10 +9,10 @@ Pipeline configuration models.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Union
+from typing import Any
 
 from ..errors import PipelineValidationError
-from .base import BaseModel, ParallelConfig, ValidationThresholds
+from .base import BaseModel, ValidationThresholds
 
 
 @dataclass
@@ -23,25 +23,12 @@ class PipelineConfig(BaseModel):
     Attributes:
         schema: Database schema name
         thresholds: Validation thresholds for each phase
-        parallel: Parallel execution configuration
         verbose: Whether to enable verbose logging
     """
 
     schema: str
     thresholds: ValidationThresholds
-    parallel: Union[ParallelConfig, bool]
     verbose: bool = True
-
-    def __post_init__(self) -> None:
-        """Post-initialization to convert boolean parallel to ParallelConfig."""
-        # Convert boolean parallel to ParallelConfig for backward compatibility
-        if isinstance(self.parallel, bool):
-            if self.parallel:
-                # If True, create default parallel config
-                object.__setattr__(self, "parallel", ParallelConfig.create_default())
-            else:
-                # If False, create sequential config
-                object.__setattr__(self, "parallel", ParallelConfig.create_sequential())
 
     @property
     def min_bronze_rate(self) -> float:
@@ -58,42 +45,12 @@ class PipelineConfig(BaseModel):
         """Get gold validation threshold."""
         return self.thresholds.gold
 
-    @property
-    def enable_parallel_silver(self) -> bool:
-        """Get parallel silver execution setting."""
-        # After __post_init__, parallel is always ParallelConfig
-        if isinstance(self.parallel, ParallelConfig):
-            return self.parallel.enabled
-        # Fallback for mock configs in tests
-        return bool(self.parallel)
-
-    @property
-    def max_parallel_workers(self) -> int:
-        """Get max parallel workers setting."""
-        # After __post_init__, parallel is always ParallelConfig
-        if isinstance(self.parallel, ParallelConfig):
-            return self.parallel.max_workers
-        # Fallback for mock configs in tests
-        return 4
-
-    @property
-    def enable_caching(self) -> bool:
-        """Get caching setting."""
-        return getattr(self.parallel, "enable_caching", True)
-
-    @property
-    def enable_monitoring(self) -> bool:
-        """Get monitoring setting."""
-        return getattr(self.parallel, "enable_monitoring", True)
 
     def validate(self) -> None:
         """Validate pipeline configuration."""
         if not self.schema or not isinstance(self.schema, str):
             raise PipelineValidationError("Schema name must be a non-empty string")
         self.thresholds.validate()
-        # After __post_init__, parallel is always ParallelConfig
-        if isinstance(self.parallel, ParallelConfig):
-            self.parallel.validate()
 
     @classmethod
     def create_default(cls, schema: str) -> PipelineConfig:
@@ -101,27 +58,24 @@ class PipelineConfig(BaseModel):
         return cls(
             schema=schema,
             thresholds=ValidationThresholds.create_default(),
-            parallel=ParallelConfig.create_default(),
             verbose=True,
         )
 
     @classmethod
     def create_high_performance(cls, schema: str) -> PipelineConfig:
-        """Create high-performance pipeline configuration."""
+        """Create high-performance pipeline configuration with strict validation."""
         return cls(
             schema=schema,
             thresholds=ValidationThresholds.create_strict(),
-            parallel=ParallelConfig.create_high_performance(),
             verbose=False,
         )
 
     @classmethod
     def create_conservative(cls, schema: str) -> PipelineConfig:
-        """Create conservative pipeline configuration."""
+        """Create conservative pipeline configuration with strict validation."""
         return cls(
             schema=schema,
             thresholds=ValidationThresholds.create_strict(),
-            parallel=ParallelConfig.create_sequential(),
             verbose=True,
         )
 

@@ -21,7 +21,7 @@ from pyspark.sql.types import (
 )
 
 # Import functions after setting environment
-from pipeline_builder.models import ParallelConfig, PipelineConfig, ValidationThresholds
+from pipeline_builder.models import  PipelineConfig, ValidationThresholds
 from pipeline_builder.writer import WriteMode, WriterConfig
 from pipeline_builder.writer.models import LogLevel
 import sys
@@ -203,7 +203,6 @@ def pipeline_config():
     return PipelineConfig(
         schema="test_schema",
         thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-        parallel=ParallelConfig(enabled=True, max_workers=2),
         verbose=True,
     )
 

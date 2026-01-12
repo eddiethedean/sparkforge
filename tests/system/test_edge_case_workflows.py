@@ -32,7 +32,6 @@ from pipeline_builder import PipelineBuilder
 from pipeline_builder.execution import ExecutionEngine
 from pipeline_builder.models import (
     ExecutionMode,
-    ParallelConfig,
     PipelineConfig,
     ValidationThresholds,
 )
@@ -159,10 +158,20 @@ class TestEdgeCaseWorkflows:
             ])
             empty_df = mock_spark_session.createDataFrame([], schema)
         else:
-            # Mock mode can handle empty list
-            empty_df = mock_spark_session.createDataFrame(
-                [], ["user_id", "action", "timestamp", "value"]
+            # Mock mode requires schema for empty DataFrames
+            from sparkless.spark_types import (  # type: ignore[import]
+                DoubleType,
+                StringType,
+                StructField,
+                StructType,
             )
+            schema = StructType([
+                StructField("user_id", StringType(), True),
+                StructField("action", StringType(), True),
+                StructField("timestamp", StringType(), True),
+                StructField("value", DoubleType(), True),
+            ])
+            empty_df = mock_spark_session.createDataFrame([], schema)
 
         # Execute with empty DataFrame
         result = pipeline.run_initial_load(

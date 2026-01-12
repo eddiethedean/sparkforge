@@ -32,7 +32,6 @@ else:
 from pipeline_builder.models import (
     BronzeStep,
     GoldStep,
-    ParallelConfig,
     PipelineConfig,
     SilverStep,
     ValidationThresholds,
@@ -521,7 +520,6 @@ class TestUnifiedValidator:
         config = PipelineConfig(
             schema="",  # Empty schema should cause error
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=True, max_workers=4),
         )
 
         result = validator.validate_pipeline(config, {}, {}, {})
@@ -537,7 +535,6 @@ class TestUnifiedValidator:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=True, max_workers=4),
         )
 
         result = validator.validate_pipeline(config, {}, {}, {})

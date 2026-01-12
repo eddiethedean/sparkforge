@@ -28,7 +28,6 @@ from pipeline_builder.models import (
     ExecutionContext,
     ExecutionMode,
     GoldStep,
-    ParallelConfig,
     PipelineConfig,
     PipelineMetrics,
     PipelinePhase,
@@ -207,78 +206,31 @@ class TestValidationThresholds:
         thresholds2.validate()  # Should not raise
 
 
-class TestParallelConfig:
-    """Test cases for ParallelConfig class."""
-
-    def test_parallel_config_creation(self):
-        """Test ParallelConfig creation."""
-        config = ParallelConfig(enabled=True, max_workers=4)
-
-        assert config.enabled is True
-        assert config.max_workers == 4
-
-    def test_parallel_config_defaults(self):
-        """Test ParallelConfig with default values."""
-        config = ParallelConfig(enabled=False, max_workers=1)
-
-        assert config.enabled is False
-        assert config.max_workers == 1
-        assert config.timeout_secs == 300  # Default value
-
-    def test_parallel_config_validation(self):
-        """Test ParallelConfig validation."""
-        # Valid config
-        config = ParallelConfig(enabled=True, max_workers=8)
-        config.validate()  # Should not raise
-
-    def test_parallel_config_invalid_max_workers(self):
-        """Test ParallelConfig with invalid max_workers."""
-        config1 = ParallelConfig(enabled=True, max_workers=0)
-        with pytest.raises(
-            PipelineValidationError, match="max_workers must be at least 1"
-        ):
-            config1.validate()
-
-        config2 = ParallelConfig(enabled=True, max_workers=-1)
-        with pytest.raises(
-            PipelineValidationError, match="max_workers must be at least 1"
-        ):
-            config2.validate()
-
-
 class TestPipelineConfig:
     """Test cases for PipelineConfig class."""
 
     def test_pipeline_config_creation(self):
         """Test PipelineConfig creation."""
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
-        parallel = ParallelConfig(enabled=True, max_workers=4)
         config = PipelineConfig(
-            schema="test_schema", thresholds=thresholds, parallel=parallel
-        )
+            schema="test_schema", thresholds=thresholds)
 
         assert config.schema == "test_schema"
         assert config.thresholds == thresholds
-        assert config.parallel == parallel
 
     def test_pipeline_config_validation(self):
         """Test PipelineConfig validation."""
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
-        parallel = ParallelConfig(enabled=True, max_workers=4)
         config = PipelineConfig(
-            schema="test_schema", thresholds=thresholds, parallel=parallel
-        )
+            schema="test_schema", thresholds=thresholds)
 
         config.validate()  # Should not raise
 
     def test_pipeline_config_invalid_schema(self):
         """Test PipelineConfig with invalid schema."""
-        thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
-        parallel = ParallelConfig(enabled=True, max_workers=4)
-
-        # The current implementation doesn't validate schema during construction
+        thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)        # The current implementation doesn't validate schema during construction
         # So these should succeed
-        config1 = PipelineConfig(schema="", thresholds=thresholds, parallel=parallel)
+        config1 = PipelineConfig(schema="", thresholds=thresholds)
         assert config1.schema == ""
 
         # None would cause a type error, so we skip that test

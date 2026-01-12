@@ -26,7 +26,6 @@ from pipeline_builder.models import (
     ExecutionContext,
     ExecutionMode,
     GoldStep,
-    ParallelConfig,
     PipelineConfig,
     PipelineMetrics,
     PipelinePhase,
@@ -195,52 +194,24 @@ class TestValidationThresholds:
         thresholds.validate()  # Should not raise
 
 
-class TestParallelConfig:
-    """Test cases for ParallelConfig class."""
-
-    def test_parallel_config_creation(self):
-        """Test ParallelConfig creation."""
-        config = ParallelConfig(enabled=True, max_workers=4)
-
-        assert config.enabled is True
-        assert config.max_workers == 4
-        assert config.timeout_secs == 300  # Default value
-
-    def test_parallel_config_validation(self):
-        """Test ParallelConfig validation."""
-        config = ParallelConfig(enabled=True, max_workers=8)
-        config.validate()  # Should not raise
-
-    def test_parallel_config_invalid_max_workers(self):
-        """Test ParallelConfig with invalid max_workers."""
-        config = ParallelConfig(enabled=True, max_workers=0)
-        with pytest.raises(ValidationError, match="max_workers must be at least 1"):
-            config.validate()
-
-
 class TestPipelineConfig:
     """Test cases for PipelineConfig class."""
 
     def test_pipeline_config_creation(self):
         """Test PipelineConfig creation."""
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
-        parallel = ParallelConfig(enabled=True, max_workers=4)
         config = PipelineConfig(
-            schema="test_schema", thresholds=thresholds, parallel=parallel
-        )
+            schema="test_schema", thresholds=thresholds)
 
         assert config.schema == "test_schema"
         assert config.thresholds == thresholds
-        assert config.parallel == parallel
         assert config.verbose is True
 
     def test_pipeline_config_validation(self):
         """Test PipelineConfig validation."""
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
-        parallel = ParallelConfig(enabled=True, max_workers=4)
         config = PipelineConfig(
-            schema="test_schema", thresholds=thresholds, parallel=parallel
-        )
+            schema="test_schema", thresholds=thresholds)
 
         config.validate()  # Should not raise
 

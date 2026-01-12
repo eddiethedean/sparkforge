@@ -53,7 +53,7 @@ else:
     from pipeline_builder.compat import F
 
 from pipeline_builder.execution import ExecutionEngine
-from pipeline_builder.models import ParallelConfig, PipelineConfig, ValidationThresholds
+from pipeline_builder.models import PipelineConfig, ValidationThresholds
 from pipeline_builder.pipeline.builder import PipelineBuilder
 from pipeline_builder.validation.pipeline_validation import (
     UnifiedValidator,
@@ -373,11 +373,9 @@ class TestEdgeCases:
 
         # Test with minimal config
         thresholds = ValidationThresholds(bronze=0.0, silver=0.0, gold=0.0)
-        parallel_config = ParallelConfig(enabled=False, max_workers=1)
         config = PipelineConfig(
             schema="test",
             thresholds=thresholds,
-            parallel=parallel_config,
             verbose=False,
         )
 

@@ -46,7 +46,6 @@ pytestmark = pytest.mark.skipif(
 )
 from pipeline_builder.models import (
     ExecutionContext,
-    ParallelConfig,
     PipelineConfig,
     StageStats,
     StepResult,
@@ -115,11 +114,9 @@ class TestSparkForgeWorking:
         """Test ExecutionEngine using actual API."""
         # Create config using actual API
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
-        parallel_config = ParallelConfig(enabled=True, max_workers=4, timeout_secs=600)
         config = PipelineConfig(
             schema="test_schema",
             thresholds=thresholds,
-            parallel=parallel_config,
             verbose=True,
         )
 
@@ -259,22 +256,14 @@ class TestSparkForgeWorking:
         assert thresholds.silver == 98.0
         assert thresholds.gold == 99.0
 
-        # Test ParallelConfig
-        parallel_config = ParallelConfig(enabled=True, max_workers=4, timeout_secs=600)
-        assert parallel_config.enabled is True
-        assert parallel_config.max_workers == 4
-        assert parallel_config.timeout_secs == 600
-
         # Test PipelineConfig
         config = PipelineConfig(
             schema="test_schema",
             thresholds=thresholds,
-            parallel=parallel_config,
             verbose=True,
         )
         assert config.schema == "test_schema"
         assert config.thresholds == thresholds
-        assert config.parallel == parallel_config
         assert config.verbose is True
 
         # Test StageStats using actual API
@@ -563,11 +552,9 @@ class TestSparkForgeWorking:
 
         # 2. Configuration
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
-        parallel_config = ParallelConfig(enabled=True, max_workers=4, timeout_secs=600)
         config = PipelineConfig(
             schema="test_schema",
             thresholds=thresholds,
-            parallel=parallel_config,
             verbose=True,
         )
 

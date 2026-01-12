@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import List
 
-from ..models import ParallelConfig, PipelineConfig, ValidationThresholds
+from ..models import PipelineConfig, ValidationThresholds
 
 
 def validate_pipeline_config(config: PipelineConfig) -> List[str]:
@@ -40,11 +40,6 @@ def validate_pipeline_config(config: PipelineConfig) -> List[str]:
     threshold_errors = validate_thresholds(config.thresholds)
     errors.extend(threshold_errors)
 
-    # Validate parallel config
-    # After __post_init__, parallel is always ParallelConfig, but check for type safety
-    if isinstance(config.parallel, ParallelConfig):
-        parallel_errors = validate_parallel_config(config.parallel)
-        errors.extend(parallel_errors)
 
     return errors
 
@@ -91,26 +86,3 @@ def validate_thresholds(thresholds: ValidationThresholds) -> List[str]:
     return errors
 
 
-def validate_parallel_config(config: ParallelConfig) -> List[str]:
-    """
-    Validate parallel configuration.
-
-    Args:
-        config: Parallel configuration to validate
-
-    Returns:
-        List of validation errors (empty if valid)
-    """
-    errors: List[str] = []
-
-    # Check max_workers is positive
-    if config.max_workers < 1:
-        errors.append(f"max_workers must be at least 1, got {config.max_workers}")
-
-    # Check max_workers is reasonable (e.g., not more than 100)
-    if config.max_workers > 100:
-        errors.append(
-            f"max_workers is very large ({config.max_workers}), consider using a smaller value"
-        )
-
-    return errors

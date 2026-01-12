@@ -38,7 +38,6 @@ from pipeline_builder_base.errors import (
 )
 from pipeline_builder_base.logging import PipelineLogger
 from pipeline_builder_base.models import (
-    ParallelConfig,
     PipelineConfig,
     ValidationThresholds,
 )
@@ -211,12 +210,9 @@ class PipelineBuilder(BasePipelineBuilder):
         thresholds = ValidationThresholds(
             bronze=min_bronze_rate, silver=min_silver_rate, gold=min_gold_rate
         )
-        # Use default parallel config (enabled with 4 workers)
-        parallel_config = ParallelConfig.create_default()
         config = PipelineConfig(
             schema=schema,
             thresholds=thresholds,
-            parallel=parallel_config,
             verbose=verbose,
         )
 

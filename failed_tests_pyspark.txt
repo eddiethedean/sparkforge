@@ -1,4 +1,0 @@
-# Failed tests from pyspark mode
-# Generated on: 2025-12-11T21:00:19.134686
-# Total failures: 0
-

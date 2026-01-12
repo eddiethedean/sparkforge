@@ -92,7 +92,6 @@ class TestTrap9DefaultValueFallbacks:
             thresholds=ValidationThresholds(
                 bronze={"min_rows": 1}, silver={"min_rows": 1}, gold={"min_rows": 1}
             ),
-            parallel=False,
         )
         engine = ExecutionEngine(spark=spark_session, config=config)
 
@@ -119,7 +118,6 @@ class TestTrap9DefaultValueFallbacks:
             thresholds=ValidationThresholds(
                 bronze={"min_rows": 1}, silver={"min_rows": 1}, gold={"min_rows": 1}
             ),
-            parallel=False,
         )
         engine = ExecutionEngine(spark=spark_session, config=config)
 

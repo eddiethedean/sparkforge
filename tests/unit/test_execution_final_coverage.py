@@ -24,7 +24,6 @@ from pipeline_builder.execution import (
 from pipeline_builder.models import (
     BronzeStep,
     GoldStep,
-    ParallelConfig,
     PipelineConfig,
     SilverStep,
     ValidationThresholds,
@@ -39,7 +38,6 @@ class TestExecutionFinalCoverage:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=False, max_workers=1),
         )
         engine = ExecutionEngine(spark=spark_session, config=config)
 
@@ -64,7 +62,6 @@ class TestExecutionFinalCoverage:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=False, max_workers=1),
         )
         engine = ExecutionEngine(spark=spark_session, config=config)
 
@@ -117,7 +114,6 @@ class TestExecutionFinalCoverage:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=False, max_workers=1),
         )
         engine = ExecutionEngine(spark=spark_session, config=config)
 

@@ -15,7 +15,6 @@ import pytest
 from pipeline_builder.models import (
     BronzeStep,
     GoldStep,
-    ParallelConfig,
     PipelineConfig,
     SilverStep,
     ValidationThresholds,
@@ -181,24 +180,6 @@ class TestModelCreationPerformance:
         assert result.execution_time < 1.0
         assert result.avg_time_per_iteration < 0.1
         assert result.throughput > 5000
-
-    def test_parallel_config_creation_performance(self) -> None:
-        """Test performance of ParallelConfig creation."""
-        iterations = 10000
-
-        def create_parallel_config():
-            return ParallelConfig(enabled=True, max_workers=4)
-
-        result = performance_monitor.benchmark_function(
-            create_parallel_config,
-            "parallel_config_creation",
-            iterations=iterations,
-            warmup_iterations=100,
-        )
-
-        assert result.success
-        assert result.execution_time < 1.0
-        assert result.avg_time_per_iteration < 0.1
 
     def test_pipeline_config_creation_performance(self) -> None:
         """Test performance of PipelineConfig creation."""
@@ -485,7 +466,6 @@ def run_model_creation_performance_tests():
     """Run all model creation performance tests."""
     test_class = TestModelCreationPerformance()
     test_class.test_validation_thresholds_creation_performance()
-    test_class.test_parallel_config_creation_performance()
     test_class.test_pipeline_config_creation_performance()
     test_class.test_bronze_step_creation_performance()
     test_class.test_silver_step_creation_performance()

@@ -15,7 +15,6 @@ from pipeline_builder.logging import PipelineLogger
 from pipeline_builder.models import (
     BronzeStep,
     GoldStep,
-    ParallelConfig,
     PipelineConfig,
     SilverStep,
     ValidationThresholds,
@@ -73,10 +72,7 @@ class TestWriteModeIntegration:
         # NOTE: Parallel execution disabled for this test to ensure deterministic behavior
         return PipelineConfig(
             schema=unique_schema,
-            thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(
-                max_workers=1, enabled=False
-            ),  # Disabled for schema creation compatibility
+            thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),  # Disabled for schema creation compatibility
         )
 
     @pytest.fixture

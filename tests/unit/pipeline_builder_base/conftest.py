@@ -13,7 +13,6 @@ from pipeline_builder_base.logging import PipelineLogger
 from pipeline_builder_base.models import (
     PipelineConfig,
     ValidationThresholds,
-    ParallelConfig,
 )
 
 
@@ -23,7 +22,6 @@ def pipeline_config():
     return PipelineConfig(
         schema="test_schema",
         thresholds=ValidationThresholds(bronze=80.0, silver=85.0, gold=90.0),
-        parallel=ParallelConfig.create_sequential(),
         verbose=False,
     )
 

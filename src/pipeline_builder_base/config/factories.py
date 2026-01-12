@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..models import ParallelConfig, PipelineConfig, ValidationThresholds
+from ..models import PipelineConfig, ValidationThresholds
 
 
 def create_development_config(schema: str, **overrides: Any) -> PipelineConfig:
@@ -32,12 +32,9 @@ def create_development_config(schema: str, **overrides: Any) -> PipelineConfig:
         gold=overrides.pop("min_gold_rate", 90.0),
     )
 
-    parallel_config = overrides.pop("parallel", ParallelConfig.create_sequential())
-
     return PipelineConfig(
         schema=schema,
         thresholds=thresholds,
-        parallel=parallel_config,
         verbose=overrides.pop("verbose", True),
         **overrides,
     )
@@ -63,12 +60,9 @@ def create_production_config(schema: str, **overrides: Any) -> PipelineConfig:
         gold=overrides.pop("min_gold_rate", 99.5),
     )
 
-    parallel_config = overrides.pop("parallel", ParallelConfig.create_sequential())
-
     return PipelineConfig(
         schema=schema,
         thresholds=thresholds,
-        parallel=parallel_config,
         verbose=overrides.pop("verbose", False),
         **overrides,
     )
@@ -94,12 +88,9 @@ def create_test_config(schema: str, **overrides: Any) -> PipelineConfig:
         gold=overrides.pop("min_gold_rate", 50.0),
     )
 
-    parallel_config = overrides.pop("parallel", ParallelConfig.create_sequential())
-
     return PipelineConfig(
         schema=schema,
         thresholds=thresholds,
-        parallel=parallel_config,
         verbose=overrides.pop("verbose", False),
         **overrides,
     )

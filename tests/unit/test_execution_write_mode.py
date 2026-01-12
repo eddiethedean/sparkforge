@@ -16,7 +16,6 @@ from pipeline_builder.execution import ExecutionEngine, ExecutionMode
 from pipeline_builder.logging import PipelineLogger
 from pipeline_builder.models import (
     GoldStep,
-    ParallelConfig,
     PipelineConfig,
     SilverStep,
     ValidationThresholds,
@@ -47,7 +46,6 @@ class TestExecutionEngineWriteMode:
         return PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(max_workers=4, enabled=True),
         )
 
     @pytest.fixture
@@ -388,7 +386,7 @@ class TestWriteModeRegression:
     def test_incremental_mode_uses_append_for_silver_steps(self, spark_session):
         """Incremental silver writes must append to prevent data loss."""
         from pipeline_builder.models import (
-            ParallelConfig,
+            
             PipelineConfig,
             SilverStep,
             ValidationThresholds,
@@ -397,7 +395,6 @@ class TestWriteModeRegression:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(max_workers=4, enabled=True),
         )
 
         logger = PipelineLogger("test")
@@ -432,7 +429,6 @@ class TestWriteModeRegression:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(max_workers=4, enabled=True),
         )
         logger = PipelineLogger("test")
         execution_engine = ExecutionEngine(spark_session, config, logger)

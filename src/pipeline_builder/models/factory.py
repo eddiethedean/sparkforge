@@ -16,7 +16,7 @@ import json
 from datetime import datetime, timezone
 from typing import Union
 
-from .base import ParallelConfig, ValidationThresholds
+from .base import ValidationThresholds
 from .enums import ExecutionMode
 from .exceptions import PipelineConfigurationError, PipelineExecutionError
 from .execution import ExecutionContext
@@ -29,17 +29,14 @@ def create_pipeline_config(
     bronze_threshold: float = 95.0,
     silver_threshold: float = 98.0,
     gold_threshold: float = 99.0,
-    enable_parallel: bool = True,
-    max_workers: int = 4,
     verbose: bool = True,
 ) -> PipelineConfig:
     """Factory function to create pipeline configuration."""
     thresholds = ValidationThresholds(
         bronze=bronze_threshold, silver=silver_threshold, gold=gold_threshold
     )
-    parallel = ParallelConfig(enabled=enable_parallel, max_workers=max_workers)
     return PipelineConfig(
-        schema=schema, thresholds=thresholds, parallel=parallel, verbose=verbose
+        schema=schema, thresholds=thresholds, verbose=verbose
     )
 
 
@@ -78,11 +75,6 @@ def deserialize_pipeline_config(json_str: str) -> PipelineConfig:
             bronze=data["thresholds"]["bronze"],
             silver=data["thresholds"]["silver"],
             gold=data["thresholds"]["gold"],
-        ),
-        parallel=ParallelConfig(
-            enabled=data["parallel"]["enabled"],
-            max_workers=data["parallel"]["max_workers"],
-            timeout_secs=data["parallel"].get("timeout_secs", 300),
         ),
         verbose=data.get("verbose", True),
     )

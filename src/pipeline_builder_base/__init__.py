@@ -19,7 +19,6 @@ from .config import (
     create_development_config,
     create_production_config,
     create_test_config,
-    validate_parallel_config,
     validate_pipeline_config,
     validate_thresholds,
 )
@@ -40,7 +39,6 @@ from .models import (
     ExecutionContext,
     ExecutionMode,
     ExecutionResult,
-    ParallelConfig,
     PipelineConfig,
     PipelineMetrics,
     PipelinePhase,
@@ -99,7 +97,6 @@ __all__ = [
     "BaseModel",
     "PipelineConfig",
     "ValidationThresholds",
-    "ParallelConfig",
     "PipelineMetrics",
     "StageStats",
     "StepResult",
@@ -133,7 +130,6 @@ __all__ = [
     "create_development_config",
     "create_production_config",
     "create_test_config",
-    "validate_parallel_config",
     "validate_pipeline_config",
     "validate_thresholds",
     # Runner

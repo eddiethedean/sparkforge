@@ -22,7 +22,6 @@ from pipeline_builder_base.models import (
     ExecutionContext,
     ExecutionMode,
     ExecutionResult,
-    ParallelConfig,
     PipelineConfig,
     PipelineMetrics,
     PipelinePhase,
@@ -88,7 +87,6 @@ __all__ = [
     # Base classes
     "BaseModel",
     "ValidationThresholds",
-    "ParallelConfig",
     # Step models
     "BronzeStep",
     "GoldStep",

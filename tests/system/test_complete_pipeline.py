@@ -13,7 +13,7 @@ except ImportError:
     from sparkless.errors import AnalysisException  # type: ignore[import]
 
 from pipeline_builder.execution import ExecutionEngine
-from pipeline_builder.models import ParallelConfig, PipelineConfig, ValidationThresholds
+from pipeline_builder.models import PipelineConfig, ValidationThresholds
 from pipeline_builder.pipeline.builder import PipelineBuilder
 from pipeline_builder.validation.pipeline_validation import UnifiedValidator
 from pipeline_builder.writer.core import LogWriter
@@ -37,11 +37,9 @@ class TestCompletePipeline:
 
         # Create execution engine
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
-        parallel_config = ParallelConfig(enabled=True, max_workers=4)
         config = PipelineConfig(
             schema="bronze",
             thresholds=thresholds,
-            parallel=parallel_config,
             verbose=True,
         )
 
@@ -112,11 +110,9 @@ class TestCompletePipeline:
 
         # Create execution engine
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
-        parallel_config = ParallelConfig(enabled=True, max_workers=4)
         config = PipelineConfig(
             schema="bronze",
             thresholds=thresholds,
-            parallel=parallel_config,
             verbose=True,
         )
 
@@ -169,11 +165,9 @@ class TestCompletePipeline:
 
         # Create execution engine
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
-        parallel_config = ParallelConfig(enabled=True, max_workers=4)
         config = PipelineConfig(
             schema="bronze",
             thresholds=thresholds,
-            parallel=parallel_config,
             verbose=True,
         )
 
@@ -214,11 +208,9 @@ class TestCompletePipeline:
 
         # Create execution engine
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
-        parallel_config = ParallelConfig(enabled=True, max_workers=4)
         config = PipelineConfig(
             schema="bronze",
             thresholds=thresholds,
-            parallel=parallel_config,
             verbose=True,
         )
 
@@ -262,11 +254,9 @@ class TestCompletePipeline:
 
         # Create execution engine
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
-        parallel_config = ParallelConfig(enabled=True, max_workers=4)
         config = PipelineConfig(
             schema="bronze",
             thresholds=thresholds,
-            parallel=parallel_config,
             verbose=True,
         )
 

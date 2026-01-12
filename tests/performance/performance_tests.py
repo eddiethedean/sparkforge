@@ -13,7 +13,6 @@ import pytest
 from sparkforge.models import (
     BronzeStep,
     GoldStep,
-    ParallelConfig,
     PipelineConfig,
     SilverStep,
     ValidationThresholds,

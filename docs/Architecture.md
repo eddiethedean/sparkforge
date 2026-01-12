@@ -226,32 +226,32 @@ Checks data quality without writing:
 
 ---
 
-## 8. Parallel Execution
+## 8. Sequential Execution
 
-### 8.1 Automatic Parallelization
+### 8.1 Dependency-Aware Execution
 
 PipelineBuilder automatically:
 - **Analyzes dependencies** between steps
-- **Identifies independent steps** that can run in parallel
-- **Plans execution groups** for optimal parallelism
-- **Executes steps concurrently** using thread pool
+- **Identifies execution groups** based on dependencies
+- **Executes steps sequentially** in the correct order
+- **Respects dependencies** across all layers (Bronze, Silver, Gold)
 
 ### 8.2 Benefits
 
-- **3-5x faster execution** for typical pipelines
+- **Deterministic execution** – predictable execution order
 - **Automatic dependency analysis** – no manual configuration
-- **Thread-safe execution** – safe concurrent writes
-- **Configurable worker count** (1-16+ workers)
+- **Simplified debugging** – easier to trace execution flow
+- **No concurrency issues** – no race conditions or thread safety concerns
 
 ### 8.3 Example
 
 ```python
-# These 3 bronze steps run in parallel
+# These 3 bronze steps are analyzed and executed in dependency order
 builder.with_bronze_rules(name="events_a", ...)
 builder.with_bronze_rules(name="events_b", ...)
 builder.with_bronze_rules(name="events_c", ...)
 
-# These 3 silver steps also run in parallel (after bronze completes)
+# These 3 silver steps execute sequentially after their bronze dependencies complete
 builder.add_silver_transform(name="clean_a", source_bronze="events_a", ...)
 builder.add_silver_transform(name="clean_b", source_bronze="events_b", ...)
 builder.add_silver_transform(name="clean_c", source_bronze="events_c", ...)

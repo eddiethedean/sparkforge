@@ -12,7 +12,7 @@ from pipeline_builder.execution import (
     StepStatus,
     StepType,
 )
-from pipeline_builder.models import ParallelConfig, PipelineConfig, ValidationThresholds
+from pipeline_builder.models import PipelineConfig, ValidationThresholds
 from pipeline_builder.pipeline.builder import PipelineBuilder
 from pipeline_builder.validation.pipeline_validation import (
     UnifiedValidator,
@@ -48,11 +48,9 @@ class TestWorkingExamples:
         """Test execution engine with proper config."""
         # Create proper config
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
-        parallel_config = ParallelConfig(enabled=True, max_workers=4)
         config = PipelineConfig(
             schema="test_schema",
             thresholds=thresholds,
-            parallel=parallel_config,
             verbose=True,
         )
 
@@ -221,18 +219,14 @@ class TestWorkingExamples:
     def test_pipeline_config_creation(self):
         """Test creating PipelineConfig."""
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
-        parallel_config = ParallelConfig(enabled=True, max_workers=4)
-
         config = PipelineConfig(
             schema="test_schema",
             thresholds=thresholds,
-            parallel=parallel_config,
             verbose=True,
         )
 
         assert config.schema == "test_schema"
         assert config.thresholds == thresholds
-        assert config.parallel == parallel_config
         assert config.verbose is True
 
     def test_validation_thresholds_creation(self):
@@ -244,11 +238,9 @@ class TestWorkingExamples:
         assert thresholds.gold == 99.0
 
     def test_parallel_config_creation(self):
-        """Test creating ParallelConfig."""
-        config = ParallelConfig(enabled=True, max_workers=4)
-
-        assert config.max_workers == 4
-        assert config.enabled is True
+        """Test removed - ParallelConfig no longer exists."""
+        # This test is no longer relevant as ParallelConfig has been removed
+        pass
 
     def test_mock_spark_integration(self, mock_spark_session, sample_dataframe):
         """Test integration with mock Spark session."""

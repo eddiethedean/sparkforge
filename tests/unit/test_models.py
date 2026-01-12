@@ -22,7 +22,6 @@ from pipeline_builder.models import (  # Exceptions; Enums; Type definitions; Ba
     ExecutionMode,
     GoldStep,
     ModelValue,
-    ParallelConfig,
     PipelineConfig,
     PipelineConfigurationError,
     PipelineExecutionError,
@@ -650,31 +649,25 @@ class TestPipelineConfig:
     def test_pipeline_config_creation_default(self):
         """Test PipelineConfig creation with default values."""
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
-        parallel = ParallelConfig(enabled=True, max_workers=4)
         config = PipelineConfig(
-            schema="default", thresholds=thresholds, parallel=parallel
+            schema="default", thresholds=thresholds
         )
 
         assert config.schema == "default"
         assert config.thresholds == thresholds
-        assert config.parallel == parallel
         assert config.verbose is True
 
     def test_pipeline_config_creation_custom(self):
         """Test PipelineConfig creation with custom values."""
         thresholds = ValidationThresholds(bronze=90.0, silver=95.0, gold=98.0)
-        parallel = ParallelConfig(enabled=False, max_workers=2)
-
         config = PipelineConfig(
             schema="custom_schema",
             thresholds=thresholds,
-            parallel=parallel,
             verbose=False,
         )
 
         assert config.schema == "custom_schema"
         assert config.thresholds == thresholds
-        assert config.parallel == parallel
         assert config.verbose is False
 
 
@@ -741,50 +734,6 @@ class TestSilverDependencyInfo:
         ):
             dep_info.validate()
 
-
-class TestParallelConfig:
-    """Test ParallelConfig class."""
-
-    def test_parallel_config_creation(self):
-        """Test ParallelConfig creation."""
-        config = ParallelConfig(enabled=True, max_workers=4, timeout_secs=300)
-
-        assert config.enabled is True
-        assert config.max_workers == 4
-        assert config.timeout_secs == 300
-
-    def test_parallel_config_creation_minimal(self):
-        """Test ParallelConfig creation with minimal parameters."""
-        config = ParallelConfig(enabled=False, max_workers=1)
-
-        assert config.enabled is False
-        assert config.max_workers == 1
-        assert config.timeout_secs == 300  # Default value
-
-    def test_parallel_config_validation_success(self):
-        """Test ParallelConfig validation with valid data."""
-        config = ParallelConfig(enabled=True, max_workers=4, timeout_secs=300)
-
-        # Should not raise any exception
-        config.validate()
-
-    def test_parallel_config_validation_negative_max_workers(self):
-        """Test ParallelConfig validation with negative max_workers."""
-        config = ParallelConfig(enabled=True, max_workers=-1)
-
-        with pytest.raises(
-            PipelineValidationError, match="max_workers must be at least 1"
-        ):
-            config.validate()
-
-    def test_parallel_config_validation_negative_worker_timeout(self):
-        """Test ParallelConfig validation with negative timeout_secs."""
-        config = ParallelConfig(enabled=True, max_workers=4, timeout_secs=-1)
-
-        with pytest.raises(
-            PipelineValidationError, match="timeout_secs must be at least 1"
-        ):
-            config.validate()
 
     def test_base_model_to_dict_with_nested_objects(self):
         """Test BaseModel.to_dict() with nested objects that have to_dict method."""
@@ -886,7 +835,6 @@ class TestParallelConfig:
             PipelineConfig(
                 schema="",
                 thresholds=ValidationThresholds.create_default(),
-                parallel=ParallelConfig.create_default(),
             ).validate()
 
         # Test None schema
@@ -896,7 +844,6 @@ class TestParallelConfig:
             PipelineConfig(
                 schema=None,
                 thresholds=ValidationThresholds.create_default(),
-                parallel=ParallelConfig.create_default(),
             ).validate()
 
         # Test non-string schema
@@ -906,7 +853,6 @@ class TestParallelConfig:
             PipelineConfig(
                 schema=123,
                 thresholds=ValidationThresholds.create_default(),
-                parallel=ParallelConfig.create_default(),
             ).validate()
 
     def test_pipeline_config_create_default(self):
@@ -917,7 +863,6 @@ class TestParallelConfig:
         assert config.thresholds.bronze == 95.0
         assert config.thresholds.silver == 98.0
         assert config.thresholds.gold == 99.0
-        assert config.parallel.max_workers == 4
         assert config.verbose is True
 
     def test_pipeline_config_create_high_performance(self):
@@ -928,8 +873,6 @@ class TestParallelConfig:
         assert config.thresholds.bronze == 99.0
         assert config.thresholds.silver == 99.5
         assert config.thresholds.gold == 99.9
-        assert config.parallel.max_workers == 16
-        assert config.parallel.timeout_secs == 1200
         assert config.verbose is False
 
     def test_base_model_to_json(self):
@@ -994,13 +937,9 @@ class TestParallelConfig:
         assert thresholds.gold == 99.9
 
     def test_parallel_config_validation_max_workers_exceeded(self):
-        """Test ParallelConfig validation with max_workers exceeding 32."""
-        config = ParallelConfig(enabled=True, max_workers=50, timeout_secs=600)
-
-        with pytest.raises(
-            PipelineValidationError, match="max_workers should not exceed 32"
-        ):
-            config.validate()
+        """Test removed - ParallelConfig no longer exists."""
+        # This test is no longer relevant as ParallelConfig has been removed
+        pass
 
     def test_pipeline_config_properties(self):
         """Test PipelineConfig property methods."""
@@ -1018,6 +957,4 @@ class TestParallelConfig:
         assert config.thresholds.bronze == 99.0
         assert config.thresholds.silver == 99.5
         assert config.thresholds.gold == 99.9
-        assert config.parallel.max_workers == 1
-        assert config.parallel.timeout_secs == 600
         assert config.verbose is True

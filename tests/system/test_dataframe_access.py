@@ -28,7 +28,6 @@ from pipeline_builder.execution import ExecutionEngine
 from pipeline_builder.models import (
     BronzeStep,
     GoldStep,
-    ParallelConfig,
     PipelineConfig,
     SilverStep,
     ValidationThresholds,
@@ -313,7 +312,6 @@ class TestDataFrameAccess:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(max_workers=4, enabled=True),
         )
 
         engine = ExecutionEngine(spark=spark_session, config=config)
@@ -369,15 +367,12 @@ class TestDataFrameAccess:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(max_workers=4, enabled=True),
         )
 
         assert config.schema == "test_schema"
         assert config.thresholds.bronze == 95.0
         assert config.thresholds.silver == 98.0
         assert config.thresholds.gold == 99.0
-        assert config.parallel.max_workers == 4
-        assert config.parallel.enabled is True
 
     def test_execution_mode_enum(self):
         """Test that execution modes work correctly."""

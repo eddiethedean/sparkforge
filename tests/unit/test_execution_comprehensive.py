@@ -34,7 +34,6 @@ from pipeline_builder.execution import (
 from pipeline_builder.logging import PipelineLogger
 from pipeline_builder.models import (
     BronzeStep,
-    ParallelConfig,
     PipelineConfig,
     ValidationThresholds,
 )
@@ -241,7 +240,6 @@ class TestExecutionEngineInitialization:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=False, max_workers=1),
         )
 
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
@@ -255,7 +253,6 @@ class TestExecutionEngineInitialization:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=False, max_workers=1),
         )
         custom_logger = PipelineLogger()
 
@@ -272,7 +269,6 @@ class TestExecutionEngineInitialization:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=False, max_workers=1),
         )
 
         engine = ExecutionEngine(
@@ -292,7 +288,6 @@ class TestExecuteStep:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=False, max_workers=1),
         )
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
@@ -327,7 +322,6 @@ class TestExecuteStep:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=False, max_workers=1),
         )
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
@@ -347,7 +341,6 @@ class TestExecuteStep:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=False, max_workers=1),
         )
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
@@ -368,7 +361,6 @@ class TestExecutePipeline:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=False, max_workers=1),
         )
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
@@ -390,7 +382,6 @@ class TestExecutePipeline:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=False, max_workers=1),
         )
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
@@ -412,7 +403,6 @@ class TestExecutePipeline:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=False, max_workers=1),
         )
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
@@ -433,7 +423,6 @@ class TestPrivateMethods:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=False, max_workers=1),
         )
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
@@ -480,7 +469,6 @@ class TestExecutionIntegration:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=False, max_workers=1),
         )
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 
@@ -508,7 +496,6 @@ class TestExecutionIntegration:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=False, max_workers=1),
         )
         engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
 

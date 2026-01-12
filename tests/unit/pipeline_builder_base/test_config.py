@@ -10,12 +10,10 @@ from pipeline_builder_base.config.factories import (
     create_test_config,
 )
 from pipeline_builder_base.config.validators import (
-    validate_parallel_config,
     validate_pipeline_config,
     validate_thresholds,
 )
 from pipeline_builder_base.models import (
-    ParallelConfig,
     PipelineConfig,
     ValidationThresholds,
 )
@@ -88,33 +86,12 @@ class TestConfigurationValidators:
         invalid_config = PipelineConfig(
             schema="",  # Empty schema
             thresholds=ValidationThresholds(bronze=80.0, silver=85.0, gold=90.0),
-            parallel=ParallelConfig.create_sequential(),
         )
 
         errors = validate_pipeline_config(invalid_config)
         assert len(errors) > 0
 
-    def test_validate_parallel_config_valid(self):
-        """Test valid parallel config."""
-        parallel_config = ParallelConfig.create_default()
-        errors = validate_parallel_config(parallel_config)
-        assert errors == []
-
-    def test_validate_parallel_config_invalid(self):
-        """Test invalid parallel config."""
-        invalid_config = ParallelConfig(
-            enabled=True, max_workers=0
-        )  # Invalid: must be >= 1
-
-        errors = validate_parallel_config(invalid_config)
-        assert len(errors) > 0
-
-    def test_validate_parallel_config_too_large(self):
-        """Test parallel config with too many workers."""
-        large_config = ParallelConfig(enabled=True, max_workers=200)  # Too large
-
-        errors = validate_parallel_config(large_config)
-        assert len(errors) > 0
+    # ParallelConfig tests removed - ParallelConfig no longer exists
 
     def test_validate_thresholds_valid(self):
         """Test valid thresholds."""

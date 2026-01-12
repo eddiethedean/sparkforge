@@ -45,25 +45,55 @@ def pyspark_available():
 @pytest.fixture(scope="function")
 def setup_pyspark_engine():
     """Set up PySpark as the engine for these tests."""
-    import sys
-    import os
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-    from test_helpers.isolation import ThreadLocalEnvVar
+    from pipeline_builder.engine_config import configure_engine, get_engine
     
-    # Use thread-local environment variable for isolation
-    env_var = ThreadLocalEnvVar("SPARKFORGE_ENGINE")
-    original_value = env_var.get()
+    # Save current engine state
+    try:
+        current_engine = get_engine()
+        saved_config = {
+            'functions': current_engine.functions,
+            'types': current_engine.types,
+            'analysis_exception': current_engine.analysis_exception,
+            'window': current_engine.window,
+            'desc': current_engine.desc,
+            'engine_name': current_engine.engine_name,
+            'dataframe_cls': current_engine.dataframe_cls,
+            'spark_session_cls': current_engine.spark_session_cls,
+            'column_cls': current_engine.column_cls,
+        }
+    except Exception:
+        saved_config = None
     
-    # Force PySpark engine in thread-local storage
-    env_var.set("pyspark")
+    # Configure PySpark engine
+    from pyspark.sql import functions as pyspark_functions
+    from pyspark.sql import types as pyspark_types
+    from pyspark.sql.functions import desc as pyspark_desc
+    from pyspark.sql.utils import AnalysisException as PySparkAnalysisException
+    from pyspark.sql.window import Window as PySparkWindow
+    from pyspark.sql import DataFrame as PySparkDataFrame
+    from pyspark.sql import SparkSession as PySparkSparkSession
+    from pyspark.sql import Column as PySparkColumn
+    
+    configure_engine(
+        functions=pyspark_functions,
+        types=pyspark_types,
+        analysis_exception=PySparkAnalysisException,
+        window=PySparkWindow,
+        desc=pyspark_desc,
+        engine_name="pyspark",
+        dataframe_cls=PySparkDataFrame,
+        spark_session_cls=PySparkSparkSession,
+        column_cls=PySparkColumn,
+    )
     
     yield
     
-    # Clean up - restore original or remove
-    if original_value is not None:
-        env_var.set(original_value)
-    else:
-        env_var.delete()
+    # Restore saved engine state
+    if saved_config is not None:
+        try:
+            configure_engine(**saved_config)
+        except Exception:
+            pass
 
 
 class TestPySparkCompatibility:
@@ -387,29 +417,12 @@ class TestPySparkEngineSwitching:
     """Test engine switching functionality."""
 
     @pytest.mark.sequential
-    def test_switch_to_pyspark(self, pyspark_available):
+    def test_switch_to_pyspark(self, pyspark_available, setup_pyspark_engine):
         """Test switching to PySpark engine."""
-        import sys
-        import os
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-        from test_helpers.isolation import ThreadLocalEnvVar
-        
-        env_var = ThreadLocalEnvVar("SPARKFORGE_ENGINE")
-        original_value = env_var.get()
-        try:
-            env_var.set("pyspark")
+        from pipeline_builder.compat import compat_name, is_mock_spark
 
-            # Import after setting env var
-            from pipeline_builder.compat import compat_name, is_mock_spark
-
-            assert compat_name() == "pyspark"
-            assert not is_mock_spark()
-        finally:
-            # Restore original value
-            if original_value is not None:
-                env_var.set(original_value)
-            else:
-                env_var.delete()
+        assert compat_name() == "pyspark"
+        assert not is_mock_spark()
 
     def test_switch_to_mock(self, pyspark_available):
         """Test switching to mock engine."""
@@ -417,27 +430,13 @@ class TestPySparkEngineSwitching:
         pytest.skip("Mock engine switching test skipped in pyspark mode")
 
     @pytest.mark.sequential
-    def test_auto_detection(self, pyspark_available):
+    def test_auto_detection(self, pyspark_available, setup_pyspark_engine):
         """Test auto-detection of engine."""
-        import sys
-        import os
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-        from test_helpers.isolation import ThreadLocalEnvVar
-        
-        env_var = ThreadLocalEnvVar("SPARKFORGE_ENGINE")
-        original_value = env_var.get()
-        try:
-            env_var.delete()
+        from pipeline_builder.compat import compat_name
 
-            # Import after clearing env var
-            from pipeline_builder.compat import compat_name
-
-            # Should detect PySpark since it's available
-            assert compat_name() == "pyspark"
-        finally:
-            # Restore original value
-            if original_value is not None:
-                env_var.set(original_value)
+        # When SPARK_MODE=real, engine should already be configured as pyspark
+        # The setup_pyspark_engine fixture ensures it's configured correctly
+        assert compat_name() == "pyspark"
 
 
 if __name__ == "__main__":

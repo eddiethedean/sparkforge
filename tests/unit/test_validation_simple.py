@@ -24,7 +24,6 @@ from pipeline_builder.models import (
     BronzeStep,
     ExecutionContext,
     GoldStep,
-    ParallelConfig,
     PipelineConfig,
     SilverStep,
     ValidationThresholds,
@@ -219,7 +218,6 @@ class TestPipelineValidation:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=True, max_workers=4),
             verbose=False,
         )
 
@@ -308,7 +306,6 @@ class TestPipelineValidation:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=True, max_workers=4),
             verbose=False,
         )
 
@@ -325,7 +322,6 @@ class TestPipelineValidation:
         config = PipelineConfig(
             schema="",  # Empty schema should be invalid
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=True, max_workers=4),
             verbose=False,
         )
 
@@ -393,7 +389,6 @@ class TestValidationIntegration:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=True, max_workers=4),
             verbose=False,
         )
 
@@ -421,7 +416,6 @@ class TestValidationIntegration:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=True, max_workers=4),
             verbose=False,
         )
 
@@ -473,7 +467,6 @@ class TestValidationIntegration:
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-            parallel=ParallelConfig(enabled=True, max_workers=4),
             verbose=False,
         )
 

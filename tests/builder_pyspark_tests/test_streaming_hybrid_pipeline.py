@@ -20,7 +20,7 @@ if os.environ.get("SPARK_MODE", "mock").lower() != "real":
 
 from pyspark.sql import functions as F
 
-from pipeline_builder.models import ParallelConfig
+
 from pipeline_builder.pipeline import PipelineBuilder
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
