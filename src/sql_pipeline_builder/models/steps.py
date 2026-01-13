@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from pipeline_builder_base.errors import PipelineValidationError, ValidationError
-from pipeline_builder_base.models import BaseModel
+from pipeline_builder_base.models import BaseModel, PipelinePhase
 
 from sql_pipeline_builder.types import (
     GoldTransformFunction,
@@ -106,6 +106,11 @@ class SqlBronzeStep(BaseModel):
     def has_incremental_capability(self) -> bool:
         """Check if this Bronze step supports incremental processing."""
         return self.incremental_col is not None
+
+    @property
+    def step_type(self) -> PipelinePhase:
+        """Return the pipeline phase for this step."""
+        return PipelinePhase.BRONZE
 
 
 @dataclass
@@ -208,6 +213,11 @@ class SqlSilverStep(BaseModel):
             raise PipelineValidationError(
                 "Silver step model_class is required to create destination tables"
             )
+
+    @property
+    def step_type(self) -> PipelinePhase:
+        """Return the pipeline phase for this step."""
+        return PipelinePhase.SILVER
 
 
 @dataclass
@@ -315,3 +325,8 @@ class SqlGoldStep(BaseModel):
             raise PipelineValidationError(
                 "Gold step model_class is required to create destination tables"
             )
+
+    @property
+    def step_type(self) -> PipelinePhase:
+        """Return the pipeline phase for this step."""
+        return PipelinePhase.GOLD

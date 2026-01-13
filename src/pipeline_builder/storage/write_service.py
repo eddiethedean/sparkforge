@@ -16,7 +16,6 @@ from pipeline_builder_base.models import ExecutionMode
 from ..compat import DataFrame, SparkSession
 from ..table_operations import (
     create_dataframe_writer,
-    is_delta_lake_available,
 )
 from .table_service import TableService
 

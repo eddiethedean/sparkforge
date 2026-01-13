@@ -92,21 +92,18 @@ class SqlExecutionEngine:
         try:
             self.logger.info(f"Executing step: {step_name}")
 
-            # Determine phase
-            if isinstance(step, SqlBronzeStep):
-                phase = PipelinePhase.BRONZE
-            elif isinstance(step, SqlSilverStep):
-                phase = PipelinePhase.SILVER
-            else:
-                phase = PipelinePhase.GOLD
+            # Determine phase using step_type property (avoids isinstance issues in Python 3.8)
+            phase = step.step_type
 
             # Execute step based on type
-            if isinstance(step, SqlBronzeStep):
-                result = self._execute_bronze_step(step, context, mode)
-            elif isinstance(step, SqlSilverStep):
-                result = self._execute_silver_step(step, context, mode)
+            if phase == PipelinePhase.BRONZE:
+                result = self._execute_bronze_step(step, context, mode)  # type: ignore[arg-type]
+            elif phase == PipelinePhase.SILVER:
+                result = self._execute_silver_step(step, context, mode)  # type: ignore[arg-type]
+            elif phase == PipelinePhase.GOLD:
+                result = self._execute_gold_step(step, context, mode)  # type: ignore[arg-type]
             else:
-                result = self._execute_gold_step(step, context, mode)
+                raise ValueError(f"Unknown step type: {phase.value}")
 
             end_time = datetime.now(timezone.utc)
 
@@ -128,11 +125,7 @@ class SqlExecutionEngine:
             end_time = datetime.now(timezone.utc)
             self.logger.error(f"Step {step_name} failed: {e}")
 
-            phase = PipelinePhase.BRONZE
-            if isinstance(step, SqlSilverStep):
-                phase = PipelinePhase.SILVER
-            elif isinstance(step, SqlGoldStep):
-                phase = PipelinePhase.GOLD
+            phase = step.step_type
 
             return StepResult.create_failure(
                 step_name=step_name,

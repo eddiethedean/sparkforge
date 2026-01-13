@@ -10,27 +10,38 @@ Step models for the Pipeline Builder.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Optional
+
+# TypeAlias is available in Python 3.10+, use typing_extensions for 3.8/3.9
+# Mypy prefers typing_extensions even for Python 3.11
+from typing_extensions import TypeAlias
 
 from pipeline_builder_base.errors import PipelineValidationError, ValidationError
 
 from .base import BaseModel
+from .enums import PipelinePhase
 from .types import ColumnRules, GoldTransformFunction, SilverTransformFunction
 
 if TYPE_CHECKING:
     # Engine-specific StructType should satisfy the TypesProtocol.StructType
-    from ..compat import types as compat_types
+    # Import the actual type from pyspark.sql.types for type checking
+    try:
+        from pyspark.sql.types import StructType as _StructTypeBase
+    except ImportError:
+        # Fallback if PySpark not available during type checking
+        from typing import Any as _StructTypeBase  # type: ignore[assignment]
 
-    StructType = compat_types.StructType
+    StructType: TypeAlias = _StructTypeBase
 else:
     try:
         from ..compat import types as compat_types
 
-        StructType = compat_types.StructType  # type: ignore[assignment]
+        StructType: TypeAlias = compat_types.StructType  # type: ignore[assignment]
     except Exception:
         # Use object instead of Any for Python 3.8 compatibility
         # Any cannot be used with isinstance() in Python 3.8
-        StructType = object  # type: ignore[assignment]
+        # For runtime, we use object, but mypy will use the TypeAlias from TYPE_CHECKING
+        StructType: TypeAlias = object  # type: ignore[assignment, misc]
 
 
 @dataclass
@@ -117,6 +128,11 @@ class BronzeStep(BaseModel):
     def has_incremental_capability(self) -> bool:
         """Check if this Bronze step supports incremental processing."""
         return self.incremental_col is not None
+
+    @property
+    def step_type(self) -> PipelinePhase:
+        """Return the pipeline phase for this step."""
+        return PipelinePhase.BRONZE
 
 
 @dataclass
@@ -240,6 +256,11 @@ class SilverStep(BaseModel):
             # Accept any StructType-like object; engine enforces correctness at write time.
             pass
 
+    @property
+    def step_type(self) -> PipelinePhase:
+        """Return the pipeline phase for this step."""
+        return PipelinePhase.SILVER
+
 
 @dataclass
 class GoldStep(BaseModel):
@@ -355,3 +376,8 @@ class GoldStep(BaseModel):
         if self.schema_override is not None:
             # Accept any StructType-like object; engine enforces correctness.
             pass
+
+    @property
+    def step_type(self) -> PipelinePhase:
+        """Return the pipeline phase for this step."""
+        return PipelinePhase.GOLD

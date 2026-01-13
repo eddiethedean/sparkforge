@@ -76,12 +76,12 @@ class SqlPipelineRunner(BaseRunner, Runner):
         # If steps provided (from abstracts interface), convert to step dictionaries
         if steps:
             for step in steps:
-                if isinstance(step, SqlBronzeStep):
-                    self.bronze_steps[step.name] = step
-                elif isinstance(step, SqlSilverStep):
-                    self.silver_steps[step.name] = step
-                elif isinstance(step, SqlGoldStep):
-                    self.gold_steps[step.name] = step
+                if step.step_type.value == "bronze":
+                    self.bronze_steps[step.name] = step  # type: ignore[assignment]
+                elif step.step_type.value == "silver":
+                    self.silver_steps[step.name] = step  # type: ignore[assignment]
+                elif step.step_type.value == "gold":
+                    self.gold_steps[step.name] = step  # type: ignore[assignment]
 
     def run_initial_load(
         self,
@@ -164,9 +164,22 @@ class SqlPipelineRunner(BaseRunner, Runner):
             bronze_sources = {}
 
         # Organize steps by type
-        bronze_steps = {s.name: s for s in steps if isinstance(s, SqlBronzeStep)}
-        silver_steps = {s.name: s for s in steps if isinstance(s, SqlSilverStep)}
-        gold_steps = {s.name: s for s in steps if isinstance(s, SqlGoldStep)}
+        # Type narrowing: mypy doesn't understand step_type.value filtering, so we cast
+        bronze_steps: Dict[str, SqlBronzeStep] = {
+            s.name: s  # type: ignore[assignment, misc]
+            for s in steps
+            if s.step_type.value == "bronze"
+        }
+        silver_steps: Dict[str, SqlSilverStep] = {
+            s.name: s  # type: ignore[assignment, misc]
+            for s in steps
+            if s.step_type.value == "silver"
+        }
+        gold_steps: Dict[str, SqlGoldStep] = {
+            s.name: s  # type: ignore[assignment, misc]
+            for s in steps
+            if s.step_type.value == "gold"
+        }
 
         return self.execution_engine.execute_pipeline(
             bronze_steps=bronze_steps,

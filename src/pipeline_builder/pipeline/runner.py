@@ -98,12 +98,12 @@ class SimplePipelineRunner(BaseRunner, Runner):
         # If steps provided (from abstracts interface), convert to step dictionaries
         if steps:
             for step in steps:
-                if isinstance(step, BronzeStep):
-                    self.bronze_steps[step.name] = step
-                elif isinstance(step, SilverStep):
-                    self.silver_steps[step.name] = step
-                elif isinstance(step, GoldStep):
-                    self.gold_steps[step.name] = step
+                if step.step_type.value == "bronze":
+                    self.bronze_steps[step.name] = step  # type: ignore[assignment]
+                elif step.step_type.value == "silver":
+                    self.silver_steps[step.name] = step  # type: ignore[assignment]
+                elif step.step_type.value == "gold":
+                    self.gold_steps[step.name] = step  # type: ignore[assignment]
 
     def run_pipeline(
         self,
@@ -136,7 +136,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
                 # Add bronze sources to context for execution
                 context = {}
                 for step in steps:
-                    if isinstance(step, BronzeStep) and step.name in bronze_sources:
+                    if step.step_type.value == "bronze" and step.name in bronze_sources:
                         context[step.name] = bronze_sources[step.name]
             else:
                 context = {}

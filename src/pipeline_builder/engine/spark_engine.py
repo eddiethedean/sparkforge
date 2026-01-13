@@ -130,22 +130,23 @@ class SparkEngine(Engine):
 
         try:
             # Bronze steps: no transformation, just return source
-            if isinstance(concrete_step, BronzeStep):
+            step_phase = concrete_step.step_type
+            if step_phase.value == "bronze":
                 return TransformReport(source=df, error=None)
 
-            elif isinstance(concrete_step, SilverStep):
-                if concrete_step.transform is None:
+            elif step_phase.value == "silver":
+                if concrete_step.transform is None:  # type: ignore[attr-defined]
                     raise ValueError(
                         f"Silver step '{concrete_step.name}' requires a transform function"
                     )
-                transformed_df = concrete_step.transform(self.spark, df, {})
+                transformed_df = concrete_step.transform(self.spark, df, {})  # type: ignore[attr-defined]
                 return TransformReport(source=transformed_df, error=None)
 
             # Gold steps: transform with silvers dict
             # Note: For gold steps, the "source" parameter is actually a dict of silvers
             # This is a limitation of the abstracts.Engine interface for gold steps
-            elif isinstance(concrete_step, GoldStep):
-                if concrete_step.transform is None:
+            elif step_phase.value == "gold":
+                if concrete_step.transform is None:  # type: ignore[attr-defined]
                     raise ValueError(
                         f"Gold step '{concrete_step.name}' requires a transform function"
                     )
@@ -184,18 +185,17 @@ class SparkEngine(Engine):
 
         df: DataFrame = source  # type: ignore[valid-type]
 
-        # Type check: step should be a concrete step type
-        # Don't use Any annotation to avoid Python 3.8 isinstance() issues
-        # Direct isinstance check works fine even with Protocol types
-        if not isinstance(step, (BronzeStep, SilverStep, GoldStep)):
+        # Type check: step should have step_type property (avoids isinstance issues in Python 3.8)
+        if not hasattr(step, "step_type"):
             raise TypeError(
-                f"Step must be BronzeStep, SilverStep, or GoldStep, got {type(step)}"
+                f"Step must have step_type property (BronzeStep, SilverStep, or GoldStep), got {type(step)}"
             )
-        # Cast to help mypy - we know it's one of the concrete types after isinstance
+        # Cast to help mypy - we know it's one of the concrete types after checking step_type
         concrete_step: Union[BronzeStep, SilverStep, GoldStep] = step  # type: ignore[assignment]
 
         # Bronze steps don't write to tables
-        if isinstance(concrete_step, BronzeStep):
+        step_phase = concrete_step.step_type
+        if step_phase.value == "bronze":
             rows_written = df.count()  # type: ignore[attr-defined]
             return WriteReport(
                 source=df,

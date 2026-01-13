@@ -18,7 +18,6 @@ from abstracts.step import Step
 from pipeline_builder_base.logging import PipelineLogger
 from pipeline_builder_base.models import PipelineConfig
 
-from sql_pipeline_builder.models import SqlBronzeStep, SqlGoldStep, SqlSilverStep
 from sql_pipeline_builder.table_operations import write_table
 from sql_pipeline_builder.validation import apply_sql_validation_rules
 
@@ -66,11 +65,10 @@ class SqlEngine(Engine):
 
         query: Any = source
 
-        # Type check: step should be a concrete step type
-        # Note: step is typed as Step (Protocol), but at runtime it could be any concrete type
-        if not isinstance(step, (SqlBronzeStep, SqlSilverStep, SqlGoldStep)):  # type: ignore[unreachable]
+        # Type check: step should have step_type property (avoids isinstance issues in Python 3.8)
+        if not hasattr(step, "step_type"):
             raise TypeError(
-                f"Step must be SqlBronzeStep, SqlSilverStep, or SqlGoldStep, got {type(step)}"
+                f"Step must have step_type property (SqlBronzeStep, SqlSilverStep, or SqlGoldStep), got {type(step)}"
             )
 
         # Apply validation rules
@@ -113,21 +111,21 @@ class SqlEngine(Engine):
         Returns:
             TransformReport with transformed source
         """
-        # Type check: step should be a concrete step type
-        # Note: step is typed as Step (Protocol), but at runtime it could be any concrete type
-        if not isinstance(step, (SqlBronzeStep, SqlSilverStep, SqlGoldStep)):  # type: ignore[unreachable]
+        # Type check: step should have step_type property (avoids isinstance issues in Python 3.8)
+        if not hasattr(step, "step_type"):
             raise TypeError(
-                f"Step must be SqlBronzeStep, SqlSilverStep, or SqlGoldStep, got {type(step)}"
+                f"Step must have step_type property (SqlBronzeStep, SqlSilverStep, or SqlGoldStep), got {type(step)}"
             )
 
         try:  # type: ignore[unreachable]
+            step_phase = step.step_type
             # Bronze steps: no transformation, just return source
-            if isinstance(step, SqlBronzeStep):
+            if step_phase.value == "bronze":
                 return TransformReport(source=source, error=None)
 
             # Silver steps: transform with bronze query and empty silvers dict
-            elif isinstance(step, SqlSilverStep):
-                if step.transform is None:
+            elif step_phase.value == "silver":
+                if step.transform is None:  # type: ignore[attr-defined]
                     raise ValueError(
                         f"Silver step '{step.name}' requires a transform function"
                     )
@@ -136,12 +134,12 @@ class SqlEngine(Engine):
                     raise TypeError(
                         f"Silver step '{step.name}' requires a Query source, got {type(source)}"
                     )
-                transformed_query = step.transform(self.session, source, {})
+                transformed_query = step.transform(self.session, source, {})  # type: ignore[attr-defined, operator]
                 return TransformReport(source=transformed_query, error=None)
 
             # Gold steps: transform with silvers dict
-            elif isinstance(step, SqlGoldStep):
-                if step.transform is None:
+            elif step_phase.value == "gold":
+                if step.transform is None:  # type: ignore[attr-defined]
                     raise ValueError(
                         f"Gold step '{step.name}' requires a transform function"
                     )
@@ -153,7 +151,7 @@ class SqlEngine(Engine):
                     raise TypeError(
                         f"Gold step '{step.name}' requires a dict of silvers, got {type(source)}"
                     )
-                transformed_query = step.transform(self.session, silvers)
+                transformed_query = step.transform(self.session, silvers)  # type: ignore[operator]
                 return TransformReport(source=transformed_query, error=None)
 
             else:
@@ -179,15 +177,15 @@ class SqlEngine(Engine):
 
         query: Any = source
 
-        # Type check: step should be a concrete step type
-        # Note: step is typed as Step (Protocol), but at runtime it could be any concrete type
-        if not isinstance(step, (SqlBronzeStep, SqlSilverStep, SqlGoldStep)):  # type: ignore[unreachable]
+        # Type check: step should have step_type property (avoids isinstance issues in Python 3.8)
+        if not hasattr(step, "step_type"):
             raise TypeError(
-                f"Step must be SqlBronzeStep, SqlSilverStep, or SqlGoldStep, got {type(step)}"
+                f"Step must have step_type property (SqlBronzeStep, SqlSilverStep, or SqlGoldStep), got {type(step)}"
             )
 
         # Bronze steps don't write to tables
-        if isinstance(step, SqlBronzeStep):  # type: ignore[unreachable]
+        step_phase = step.step_type
+        if step_phase.value == "bronze":
             rows_written = query.count() if hasattr(query, "count") else 0
             return WriteReport(
                 source=query,
@@ -209,9 +207,9 @@ class SqlEngine(Engine):
         write_mode = getattr(step, "write_mode", "overwrite") or "overwrite"
 
         drop_existing = False
-        if isinstance(step, SqlGoldStep):
+        if step_phase.value == "gold":
             drop_existing = True
-        elif isinstance(step, SqlSilverStep) and write_mode == "overwrite":
+        elif step_phase.value == "silver" and write_mode == "overwrite":
             drop_existing = True
 
         # Create schema if needed

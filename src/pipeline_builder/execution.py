@@ -864,15 +864,23 @@ class ExecutionEngine:
         # Collect initial resource metrics
         start_memory, start_cpu = self._collect_resource_metrics()
 
-        # Determine step type based on class
-        if isinstance(step, BronzeStep):
-            step_type = StepType.BRONZE
-        elif isinstance(step, SilverStep):
-            step_type = StepType.SILVER
-        elif isinstance(step, GoldStep):
-            step_type = StepType.GOLD
-        else:
-            raise ValueError(f"Unknown step type: {type(step)}")
+        # Determine step type using step_type property (avoids isinstance issues in Python 3.8)
+        # Initialize step_type to None to ensure it's always defined for exception handling
+        step_type = None
+        try:
+            phase = step.step_type
+            if phase.value == "bronze":
+                step_type = StepType.BRONZE
+            elif phase.value == "silver":
+                step_type = StepType.SILVER
+            elif phase.value == "gold":
+                step_type = StepType.GOLD
+            else:
+                raise ValueError(f"Unknown step type: {phase.value}")
+        except AttributeError as err:
+            raise ValueError(
+                f"Unknown step type: Step must have step_type property (BronzeStep, SilverStep, or GoldStep), got {type(step)}"
+            ) from err
 
         result = StepExecutionResult(
             step_name=step.name,
@@ -887,14 +895,14 @@ class ExecutionEngine:
 
             # Execute the step based on type using executors
             output_df: DataFrame  # type: ignore[valid-type]
-            if isinstance(step, BronzeStep):
-                output_df = self.bronze_executor.execute(step, context, mode)
-            elif isinstance(step, SilverStep):
-                output_df = self.silver_executor.execute(step, context, mode)
-            elif isinstance(step, GoldStep):
-                output_df = self.gold_executor.execute(step, context, mode)
+            if step_type == StepType.BRONZE:
+                output_df = self.bronze_executor.execute(step, context, mode)  # type: ignore[arg-type]
+            elif step_type == StepType.SILVER:
+                output_df = self.silver_executor.execute(step, context, mode)  # type: ignore[arg-type]
+            elif step_type == StepType.GOLD:
+                output_df = self.gold_executor.execute(step, context, mode)  # type: ignore[arg-type]
             else:
-                raise ExecutionError(f"Unknown step type: {type(step)}")
+                raise ExecutionError(f"Unknown step type: {step_type}")
 
             # Apply validation if not in validation-only mode
             validation_rate = 100.0
@@ -918,9 +926,7 @@ class ExecutionEngine:
 
             # Write output if not in validation-only mode
             # Note: Bronze steps only validate data, they don't write to tables
-            if mode != ExecutionMode.VALIDATION_ONLY and not isinstance(
-                step, BronzeStep
-            ):
+            if mode != ExecutionMode.VALIDATION_ONLY and step_type != StepType.BRONZE:
                 # Use table_name attribute for SilverStep and GoldStep
                 table_name = getattr(step, "table_name", step.name)
                 schema = getattr(step, "schema", None)
@@ -957,7 +963,7 @@ class ExecutionEngine:
                 # - Silver steps append during incremental runs to preserve history
                 # - INITIAL mode uses overwrite
                 # - FULL_REFRESH uses overwrite
-                if isinstance(step, GoldStep):
+                if step_type == StepType.GOLD:
                     write_mode_str = "overwrite"
                 elif mode == ExecutionMode.INCREMENTAL:
                     write_mode_str = "append"
@@ -1049,8 +1055,9 @@ class ExecutionEngine:
                             )
 
                 # For INITIAL runs, ensure target tables start clean to avoid lingering catalog state
-                if mode == ExecutionMode.INITIAL and isinstance(
-                    step, (SilverStep, GoldStep)
+                if mode == ExecutionMode.INITIAL and step_type in (
+                    StepType.SILVER,
+                    StepType.GOLD,
                 ):
                     try:
                         if table_exists(self.spark, output_table):
@@ -1067,9 +1074,9 @@ class ExecutionEngine:
                     # - Gold steps: Always apply (always use overwrite mode)
                     # - Silver steps in initial/full refresh: Always apply
                     # - Silver steps in incremental: Only if table doesn't exist
-                    if isinstance(step, GoldStep):
+                    if step_type == StepType.GOLD:
                         should_apply_schema_override = True
-                    elif isinstance(step, SilverStep):
+                    elif step_type == StepType.SILVER:
                         if mode != ExecutionMode.INCREMENTAL:
                             should_apply_schema_override = True
                         else:
@@ -1450,7 +1457,7 @@ class ExecutionEngine:
                                     # Attempt to heal catalog by recreating table with existing + new data
                                     healed = False
                                     # For Gold steps, we can safely rebuild the table from the fresh output
-                                    if isinstance(step, GoldStep):
+                                    if step_type == StepType.GOLD:
                                         try:
                                             self.spark.sql(
                                                 f"DROP TABLE IF EXISTS {output_table}"
@@ -1592,7 +1599,7 @@ class ExecutionEngine:
 
                 # Set write mode in result for tracking
                 result.write_mode = write_mode_str  # type: ignore[attr-defined]
-            elif isinstance(step, BronzeStep):
+            elif step_type == StepType.BRONZE:
                 # Bronze steps only validate data, don't write to tables
                 result.rows_processed = output_df.count()  # type: ignore[attr-defined]
                 result.write_mode = None  # type: ignore[attr-defined]
@@ -1622,7 +1629,7 @@ class ExecutionEngine:
             rows_processed = result.rows_processed or 0
             # For Silver/Gold steps, rows_written equals rows_processed (since we write the output)
             # For Bronze steps, rows_written is None (they don't write to tables)
-            rows_written = rows_processed if not isinstance(step, BronzeStep) else None
+            rows_written = rows_processed if step_type != StepType.BRONZE else None
 
             result.rows_written = rows_written
             result.input_rows = rows_processed
@@ -1759,9 +1766,9 @@ class ExecutionEngine:
                 raise TypeError(f"context must be a dictionary, got {type(context)}")
 
             # Group steps by type for dependency analysis
-            bronze_steps = [s for s in steps if isinstance(s, BronzeStep)]
-            silver_steps = [s for s in steps if isinstance(s, SilverStep)]
-            gold_steps = [s for s in steps if isinstance(s, GoldStep)]
+            bronze_steps = [s for s in steps if s.step_type.value == "bronze"]
+            silver_steps = [s for s in steps if s.step_type.value == "silver"]
+            gold_steps = [s for s in steps if s.step_type.value == "gold"]
 
             # Build dependency graph and get execution groups
             analyzer = DependencyAnalyzer()
@@ -1815,7 +1822,7 @@ class ExecutionEngine:
                         # Update context with step output for downstream steps
                         if (
                             step_result.status == StepStatus.COMPLETED
-                            and not isinstance(step, BronzeStep)
+                            and step_result.step_type != StepType.BRONZE
                         ):
                             table_name = getattr(step, "table_name", step.name)
                             schema = getattr(step, "schema", None)
@@ -1845,12 +1852,16 @@ class ExecutionEngine:
                         self.logger.error(f"Exception executing step {step_name}: {e}")
                         # Determine correct step type
                         step_obj = step_map.get(step_name)
-                        if step_obj is not None and isinstance(step_obj, BronzeStep):
-                            step_type_enum = StepType.BRONZE
-                        elif step_obj is not None and isinstance(step_obj, SilverStep):
-                            step_type_enum = StepType.SILVER
-                        elif step_obj is not None and isinstance(step_obj, GoldStep):
-                            step_type_enum = StepType.GOLD
+                        if step_obj is not None:
+                            phase = step_obj.step_type
+                            if phase.value == "bronze":
+                                step_type_enum = StepType.BRONZE
+                            elif phase.value == "silver":
+                                step_type_enum = StepType.SILVER
+                            elif phase.value == "gold":
+                                step_type_enum = StepType.GOLD
+                            else:
+                                step_type_enum = StepType.BRONZE  # fallback
                         else:
                             step_type_enum = StepType.BRONZE  # fallback
 
