@@ -628,14 +628,56 @@ def remove_sparkforge_imports(code: str) -> str:
             if ")" in line:
                 in_mock_spark_import = False
             continue
-        # Check for any relative imports (starting with one or more dots)
-        elif re.match(r"^\s*from\s+\.", line):
+        # Check for relative imports from performance module (time_operation)
+        elif re.match(r"^\s*from\s+\.performance\s+import", line):
+            # Extract what's being imported
+            match = re.search(r"import\s+(.+)", line)
+            imported_items = match.group(1).strip() if match else ""
+            
             # Comment out the import
             indent = len(line) - len(line.lstrip())
             comment = (
                 "# " + line.strip() + "  # Removed: defined in notebook cells above"
             )
             new_lines.append(" " * indent + comment)
+            
+            # Add fallback: define a no-op decorator that will work until performance module is loaded
+            # Since modules execute in order, if performance comes after, we need a temporary decorator
+            if "time_operation" in imported_items:
+                new_lines.append(
+                    " " * indent + "# Fallback: time_operation decorator (will be replaced when performance module loads)\n"
+                    + " " * indent + "def time_operation(name):\n"
+                    + " " * (indent + 4) + "def decorator(func):\n"
+                    + " " * (indent + 8) + "return func\n"
+                    + " " * (indent + 4) + "return decorator\n"
+                )
+            continue
+        # Check for any relative imports (starting with one or more dots)
+        elif re.match(r"^\s*from\s+\.", line):
+            # Check if this import includes F or types from compat - we need to handle it specially
+            imports_f_from_compat = "F" in line and ("compat" in line or "..compat" in line)
+            imports_types_from_compat = "types" in line and ("compat" in line or "..compat" in line)
+            
+            # Comment out the import
+            indent = len(line) - len(line.lstrip())
+            comment = (
+                "# " + line.strip() + "  # Removed: defined in notebook cells above"
+            )
+            new_lines.append(" " * indent + comment)
+            
+            # If this import includes F from compat, add a fallback
+            # F is imported in the imports cell as: from pyspark.sql import functions as F
+            # In standalone notebooks, we use the global F from pyspark
+            if imports_f_from_compat:
+                # Add import to ensure F is available
+                new_lines.append(
+                    " " * indent + "from pyspark.sql import functions as F  # F from pyspark (not from compat)"
+                )
+            if imports_types_from_compat:
+                # Add import to ensure types is available
+                new_lines.append(
+                    " " * indent + "from pyspark.sql import types  # types from pyspark (not from compat)"
+                )
 
             # Check if this starts a multi-line import
             if "(" in line and ")" not in line:
@@ -724,6 +766,21 @@ def remove_sparkforge_imports(code: str) -> str:
     code = re.sub(r'name\s*=\s*["\']SparkForge["\']', 'name="PipelineFramework"', code)
     code = re.sub(r'"SparkForge"', '"PipelineFramework"', code)
     code = re.sub(r"'SparkForge'", "'PipelineFramework'", code)
+
+        # Fix: When compat imports are commented out, ensure F is available
+    # For cells that use F after compat import is commented out, add explicit fallback
+    # Pattern: "# from ..compat import ... F ..." followed by "col = F.col"
+    if "# from ..compat import" in code and "F" in code and "col = F.col" in code:
+            # Ensure F is available - add import if needed
+            # In standalone notebooks, F should be from pyspark.sql.functions
+            if "from pyspark.sql import functions as F" not in code:
+                # Add import before col = F.col
+                code = re.sub(
+                    r"(\s*col = F\.col)",
+                    r"\n    # Ensure F is available from pyspark (imported in imports cell)\n    from pyspark.sql import functions as F\1",
+                    code,
+                    flags=re.MULTILINE,
+                )
 
     # Finally, normalize excessive blank lines to avoid large gaps in the
     # generated notebook when it is executed via `%run` in environments like
@@ -959,6 +1016,47 @@ except ImportError:
                 + "\n\n# Store as global alias to avoid name collision with pipeline_builder.pipeline.builder.PipelineBuilder\n_AbstractsPipelineBuilderClass = PipelineBuilder\n"
             )
 
+        # Fix table_operations to handle time_operation import
+        if module_path == "pipeline_builder.table_operations":
+            # Add fallback for time_operation if import is commented out
+            if "# from .performance import" in code and "@time_operation" in code:
+                # Add import at the top of the module after commented imports
+                code = re.sub(
+                    r"(# from \.performance import[^\n]*\n[^\n]*# time_operation[^\n]*\n)",
+                    r"\1# Import time_operation from performance module (available from notebook cells above)\n"
+                    r"# Note: time_operation decorator will work if performance module was executed earlier\n",
+                    code,
+                    flags=re.MULTILINE,
+                )
+                # If time_operation is used but not imported, add a try/except wrapper
+                # Actually, since performance module is in the notebook, time_operation should be available
+                # We just need to make sure the import path works
+                # The performance module defines time_operation, so it should be in namespace
+        
+        # Fix compat module to use global F from pyspark instead of engine
+        if module_path == "pipeline_builder.compat":
+            # In standalone notebooks, F should come from pyspark.sql.functions (imported in imports cell)
+            # Replace engine-based F assignment with global F
+            code = re.sub(
+                r"F = _eng\.functions",
+                "# F = _eng.functions  # In standalone notebook, use global F from pyspark\n    # F is available from imports cell (pyspark.sql.functions)",
+                code,
+            )
+            # Also update __getattr__ to return global F
+            code = re.sub(
+                r'if name == "F":\s+return eng\.functions',
+                'if name == "F":\n            # In standalone notebook, return global F from pyspark\n            from pyspark.sql import functions as F\n            return F',
+                code,
+                flags=re.MULTILINE | re.DOTALL,
+            )
+            # Also ensure types is available
+            code = re.sub(
+                r'if name == "types":\s+return eng\.types',
+                'if name == "types":\n            # In standalone notebook, return types from pyspark.sql.types\n            from pyspark.sql import types\n            return types',
+                code,
+                flags=re.MULTILINE | re.DOTALL,
+            )
+
         # Fix BasePipelineValidator alias issue
         # PipelineValidator is actually UnifiedValidator in pipeline_builder_base
         # But PipelineValidator exists in pipeline_builder_base.validation.__init__ as an alias
@@ -994,6 +1092,79 @@ except ImportError:
             combined_code = module_header + code
             cells.append(create_notebook_cell(combined_code, "code"))
 
+    # Add engine configuration helper cell (PySpark-only)
+    engine_config_code = """# Engine Configuration Helper (PySpark-only)
+# This helper automatically configures the engine with PySpark components
+# In standalone notebooks, we use PySpark directly (no mock Spark support)
+
+# Store reference to original configure_engine before we wrap it
+# The configure_engine function is already defined in the engine_config module cell above
+_original_configure_engine_for_pyspark = configure_engine
+
+def configure_engine_pyspark(spark):
+    \"\"\"Configure engine with PySpark components for standalone notebooks.
+    
+    This is a convenience function for notebooks that automatically configures
+    the engine with PySpark components. In standalone notebooks, we only
+    support PySpark (not mock Spark/sparkless).
+    
+    Args:
+        spark: SparkSession instance
+    \"\"\"
+    from pyspark.sql import functions as F
+    from pyspark.sql.types import (
+        BooleanType, FloatType, IntegerType, StringType,
+        StructField, StructType, TimestampType
+    )
+    from pyspark.sql.utils import AnalysisException
+    from pyspark.sql.window import Window
+    
+    # Configure engine with PySpark components
+    # Use the original configure_engine function (stored before wrapping)
+    # Note: engine_name, dataframe_cls, spark_session_cls, column_cls are optional
+    try:
+        _original_configure_engine_for_pyspark(
+            functions=F,
+            types=StructType,
+            analysis_exception=AnalysisException,
+            window=Window,
+            engine_name="pyspark",
+            dataframe_cls=type(spark.createDataFrame([], "id int")),
+            spark_session_cls=type(spark),
+            column_cls=type(F.col("dummy")),
+        )
+    except TypeError:
+        # Fallback if some parameters aren't accepted
+        _original_configure_engine_for_pyspark(
+            functions=F,
+            types=StructType,
+            analysis_exception=AnalysisException,
+            window=Window,
+        )
+    print("✅ Engine configured with PySpark components")
+
+# Make configure_engine accept spark parameter for convenience
+# This allows using configure_engine(spark=spark) like in examples
+# We already stored the original function above as _original_configure_engine_for_pyspark
+
+def configure_engine_wrapper(*, spark=None, **kwargs):
+    \"\"\"Configure engine - accepts spark parameter for convenience.
+    
+    In standalone notebooks, you can call configure_engine(spark=spark)
+    and it will automatically configure with PySpark components.
+    \"\"\"
+    if spark is not None:
+        # Auto-configure with PySpark
+        configure_engine_pyspark(spark)
+    else:
+        # Use original function
+        _original_configure_engine_for_pyspark(**kwargs)
+
+# Replace configure_engine in the current namespace
+configure_engine = configure_engine_wrapper"""
+
+    cells.append(create_notebook_cell(engine_config_code, "code", collapsed=False))
+
     # Add usage example cell (as Python comments for Databricks compatibility)
     example_code = """# Usage Example
 #
@@ -1008,6 +1179,9 @@ spark = SparkSession.builder \\
     .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \\
     .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \\
     .getOrCreate()
+
+# Configure engine (required! - uses PySpark automatically)
+configure_engine(spark=spark)
 
 # Initialize PipelineBuilder
 builder = PipelineBuilder(spark=spark, schema="analytics")
