@@ -7,7 +7,6 @@ and device health analytics.
 """
 
 import os
-from uuid import uuid4
 
 import pytest
 
@@ -24,6 +23,7 @@ from pipeline_builder.pipeline import PipelineBuilder
 from pipeline_builder.writer import LogWriter
 import sys
 import os
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from test_helpers.isolation import get_unique_schema
 
@@ -505,8 +505,10 @@ class TestIotPipeline:
         try:
             import sys
             import os
-            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             from test_helpers.isolation import cleanup_test_tables
+
             cleanup_test_tables(spark_session, analytics_schema)
         except Exception:
             pass  # Ignore cleanup errors

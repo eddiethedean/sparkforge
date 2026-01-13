@@ -15,7 +15,6 @@ from pipeline_builder_base.builder import BasePipelineBuilder
 from pipeline_builder_base.errors import ConfigurationError, ValidationError
 from pipeline_builder_base.logging import PipelineLogger
 from pipeline_builder_base.models import (
-    ParallelConfig,
     PipelineConfig,
     ValidationThresholds,
 )
@@ -157,11 +156,9 @@ class SqlPipelineBuilder(BasePipelineBuilder):
         thresholds = ValidationThresholds(
             bronze=min_bronze_rate, silver=min_silver_rate, gold=min_gold_rate
         )
-        parallel_config = ParallelConfig.create_sequential()
         config = PipelineConfig(
             schema=schema,
             thresholds=thresholds,
-            parallel=parallel_config,
             verbose=verbose,
         )
 

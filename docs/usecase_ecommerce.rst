@@ -26,6 +26,14 @@ Raw data ingestion with basic validation:
 
 .. code-block:: python
 
+   from pipeline_builder import PipelineBuilder
+   from pipeline_builder.engine_config import configure_engine
+   from pipeline_builder.functions import get_default_functions
+   
+   # Configure engine (required!)
+   configure_engine(spark=spark)
+   F = get_default_functions()
+   
    builder = PipelineBuilder(spark=spark, schema="ecommerce")
    
    # Customer data validation
@@ -60,6 +68,7 @@ Data cleaning and enrichment:
 
    # Clean customer data
    def clean_customers(spark, bronze_df, prior_silvers):
+       F = get_default_functions()
        return (bronze_df
            .filter(F.col("customer_id").isNotNull())
            .withColumn("age_group", 
@@ -81,6 +90,7 @@ Data cleaning and enrichment:
    
    # Enrich orders with customer data
    def enrich_orders(spark, bronze_df, prior_silvers):
+       F = get_default_functions()
        customers = prior_silvers["clean_customers"]
        return (bronze_df
            .join(customers, "customer_id", "left")
@@ -96,8 +106,7 @@ Data cleaning and enrichment:
        transform=enrich_orders,
        rules={"order_id": [F.col("order_id").isNotNull()]},
        table_name="enriched_orders",
-       watermark_col="order_date",
-       depends_on=["clean_customers"]
+       source_silvers=["clean_customers"]
    )
 
 Gold Layer
@@ -109,6 +118,7 @@ Business analytics and KPIs:
 
    # Customer analytics
    def customer_analytics(spark, silvers):
+       F = get_default_functions()
        orders = silvers["enriched_orders"]
        return (orders
            .groupBy("customer_id", "age_group", "is_premium")
@@ -134,6 +144,7 @@ Business analytics and KPIs:
    
    # Sales analytics
    def sales_analytics(spark, silvers):
+       F = get_default_functions()
        orders = silvers["enriched_orders"]
        return (orders
            .groupBy(F.date_trunc("month", "order_date").alias("month"))
@@ -162,7 +173,7 @@ Execution
    pipeline = builder.to_pipeline()
    
    # Initial load
-   result = pipeline.initial_load(bronze_sources={
+   result = pipeline.run_initial_load(bronze_sources={
        "customers": customers_df,
        "orders": orders_df
    })

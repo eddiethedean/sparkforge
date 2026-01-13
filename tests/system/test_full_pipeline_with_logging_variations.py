@@ -286,7 +286,9 @@ class TestMinimalPipelines:
         lw._test_table = table
         return lw
 
-    def test_minimal_pipeline_with_logging(self, spark_session, log_writer):
+    def test_minimal_pipeline_with_logging(
+        self, spark_session, log_writer, unique_name
+    ):
         """Test minimal pipeline: 1 bronze → 1 silver → 1 gold."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
@@ -324,6 +326,10 @@ class TestMinimalPipelines:
                 .withColumnRenamed("timestamp_str", "timestamp")
             )
 
+        # Use unique table names to prevent collisions in parallel execution
+        silver_table_name = unique_name("table", "processed_events")
+        gold_table_name = unique_name("table", "summary")
+
         builder.add_silver_transform(
             name="processed_events",
             source_bronze="events",
@@ -332,7 +338,7 @@ class TestMinimalPipelines:
                 "user_id": [F.col("user_id").isNotNull()],
                 "value": [F.col("value").isNotNull()],
             },
-            table_name="processed_events",
+            table_name=silver_table_name,
         )
 
         def gold_transform(spark, silvers):
@@ -348,7 +354,7 @@ class TestMinimalPipelines:
             name="summary",
             transform=gold_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="summary",
+            table_name=gold_table_name,
         )
 
         # Validate and execute
@@ -397,7 +403,7 @@ class TestLargePipelines:
         lw._test_table = table
         return lw
 
-    def test_large_pipeline_with_logging(self, spark_session, log_writer):
+    def test_large_pipeline_with_logging(self, spark_session, log_writer, unique_name):
         """Test large pipeline: 5 bronze → 5 silver → 3 gold."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
@@ -441,6 +447,9 @@ class TestLargePipelines:
                 .withColumnRenamed("timestamp_str", "timestamp")
             )
 
+        # Generate unique table names for all silver steps
+        silver_table_names = [unique_name("table", f"processed_{i}") for i in range(5)]
+
         for i in range(5):
             # processed_4 needs action column for gold step summary_2
             if i == 4:
@@ -459,7 +468,7 @@ class TestLargePipelines:
                 source_bronze=f"events_{i}",
                 transform=silver_transform,
                 rules=rules,
-                table_name=f"processed_{i}",
+                table_name=silver_table_names[i],
             )
 
         # Add 3 gold steps with dependencies
@@ -485,25 +494,32 @@ class TestLargePipelines:
                 return df.groupBy("action").agg(F.count("*").alias("action_count"))
             return spark.createDataFrame([], ["action", "action_count"])
 
+        # Generate unique table names for all gold steps
+        gold_table_names = [
+            unique_name("table", "summary_0"),
+            unique_name("table", "summary_1"),
+            unique_name("table", "summary_2"),
+        ]
+
         builder.add_gold_transform(
             name="summary_0",
             transform=gold_transform_0,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="summary_0",
+            table_name=gold_table_names[0],
             source_silvers=["processed_0", "processed_1"],
         )
         builder.add_gold_transform(
             name="summary_1",
             transform=gold_transform_1,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="summary_1",
+            table_name=gold_table_names[1],
             source_silvers=["processed_2", "processed_3"],
         )
         builder.add_gold_transform(
             name="summary_2",
             transform=gold_transform_2,
             rules={"action": [F.col("action").isNotNull()]},
-            table_name="summary_2",
+            table_name=gold_table_names[2],
             source_silvers=["processed_4"],
         )
 
@@ -547,7 +563,7 @@ class TestEdgeCases:
         lw._test_table = table
         return lw
 
-    def test_pipeline_with_empty_data(self, spark_session, log_writer):
+    def test_pipeline_with_empty_data(self, spark_session, log_writer, unique_name):
         """Test pipeline with empty DataFrames."""
         schema_name = getattr(log_writer, "_test_schema", "test_schema")
 
@@ -569,12 +585,16 @@ class TestEdgeCases:
         def silver_transform(spark, bronze_df, silvers):
             return bronze_df.filter(F.col("user_id").isNotNull())
 
+        # Use unique table names
+        silver_table = unique_name("table", "processed")
+        gold_table = unique_name("table", "summary")
+
         builder.add_silver_transform(
             name="processed",
             source_bronze="events",
             transform=silver_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="processed",
+            table_name=silver_table,
         )
 
         def gold_transform(spark, silvers):
@@ -590,7 +610,7 @@ class TestEdgeCases:
             name="summary",
             transform=gold_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="summary",
+            table_name=gold_table,
         )
 
         errors = builder.validate_pipeline()
@@ -608,7 +628,9 @@ class TestEdgeCases:
         log_result = log_writer.write_log_rows(log_rows, run_id=run_id)
         assert log_result["success"] is True
 
-    def test_pipeline_with_partial_validation_failures(self, spark_session, log_writer):
+    def test_pipeline_with_partial_validation_failures(
+        self, spark_session, log_writer, unique_name
+    ):
         """Test pipeline with mixed valid/invalid data."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
@@ -636,12 +658,16 @@ class TestEdgeCases:
                 F.col("timestamp").isNotNull()
             )
 
+        # Use unique table names
+        silver_table = unique_name("table", "processed")
+        gold_table = unique_name("table", "summary")
+
         builder.add_silver_transform(
             name="processed",
             source_bronze="events",
             transform=silver_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="processed",
+            table_name=silver_table,
         )
 
         def gold_transform(spark, silvers):
@@ -654,7 +680,7 @@ class TestEdgeCases:
             name="summary",
             transform=gold_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="summary",
+            table_name=gold_table,
         )
 
         errors = builder.validate_pipeline()
@@ -676,7 +702,7 @@ class TestEdgeCases:
         log_result = log_writer.write_log_rows(log_rows, run_id=run_id)
         assert log_result["success"] is True
 
-    def test_pipeline_all_invalid_data(self, spark_session, log_writer):
+    def test_pipeline_all_invalid_data(self, spark_session, log_writer, unique_name):
         """Test pipeline where all data fails validation."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
@@ -700,12 +726,16 @@ class TestEdgeCases:
         def silver_transform(spark, bronze_df, silvers):
             return bronze_df.filter(F.col("user_id").isNotNull())
 
+        # Use unique table names
+        silver_table = unique_name("table", "processed")
+        gold_table = unique_name("table", "summary")
+
         builder.add_silver_transform(
             name="processed",
             source_bronze="events",
             transform=silver_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="processed",
+            table_name=silver_table,
         )
 
         def gold_transform(spark, silvers):
@@ -718,7 +748,7 @@ class TestEdgeCases:
             name="summary",
             transform=gold_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="summary",
+            table_name=gold_table,
         )
 
         errors = builder.validate_pipeline()
@@ -759,7 +789,7 @@ class TestExecutionModes:
         return lw
 
     def test_pipeline_sequential_execution_with_logging(
-        self, spark_session, log_writer
+        self, spark_session, log_writer, unique_name
     ):
         """Test sequential execution mode (parallel disabled)."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
@@ -799,7 +829,7 @@ class TestExecutionModes:
             source_bronze="events",
             transform=silver_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="processed",
+            table_name=unique_name("table", "processed"),
         )
 
         def gold_transform(spark, silvers):
@@ -812,7 +842,7 @@ class TestExecutionModes:
             name="summary",
             transform=gold_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="summary",
+            table_name=unique_name("table", "summary"),
         )
 
         errors = builder.validate_pipeline()
@@ -848,7 +878,9 @@ class TestIncrementalScenarios:
         lw._test_table = table
         return lw
 
-    def test_pipeline_multiple_incremental_runs(self, spark_session, log_writer):
+    def test_pipeline_multiple_incremental_runs(
+        self, spark_session, log_writer, unique_name
+    ):
         """Test multiple incremental runs (initial + 3 incremental)."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
@@ -890,7 +922,7 @@ class TestIncrementalScenarios:
             source_bronze="events",
             transform=silver_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="processed",
+            table_name=unique_name("table", "processed"),
         )
 
         def gold_transform(spark, silvers):
@@ -903,7 +935,7 @@ class TestIncrementalScenarios:
             name="summary",
             transform=gold_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="summary",
+            table_name=unique_name("table", "summary"),
         )
 
         errors = builder.validate_pipeline()
@@ -956,7 +988,9 @@ class TestIncrementalScenarios:
             inc_logs = get_log_entries_by_run(log_df, f"multi_inc_{inc_num}")
             assert len(inc_logs) > 0
 
-    def test_pipeline_incremental_with_gaps(self, spark_session, log_writer):
+    def test_pipeline_incremental_with_gaps(
+        self, spark_session, log_writer, unique_name
+    ):
         """Test incremental processing with timestamp gaps."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
@@ -993,12 +1027,16 @@ class TestIncrementalScenarios:
                 .withColumnRenamed("timestamp_str", "timestamp")
             )
 
+        # Use unique table names
+        silver_table = unique_name("table", "processed")
+        gold_table = unique_name("table", "summary")
+
         builder.add_silver_transform(
             name="processed",
             source_bronze="events",
             transform=silver_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="processed",
+            table_name=silver_table,
         )
 
         def gold_transform(spark, silvers):
@@ -1011,7 +1049,7 @@ class TestIncrementalScenarios:
             name="summary",
             transform=gold_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="summary",
+            table_name=gold_table,
         )
 
         errors = builder.validate_pipeline()
@@ -1066,7 +1104,9 @@ class TestDataQuality:
         lw._test_table = table
         return lw
 
-    def test_pipeline_null_handling_with_logging(self, spark_session, log_writer):
+    def test_pipeline_null_handling_with_logging(
+        self, spark_session, log_writer, unique_name
+    ):
         """Test pipeline with various null patterns."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
@@ -1087,12 +1127,16 @@ class TestDataQuality:
         def silver_transform(spark, bronze_df, silvers):
             return bronze_df.filter(F.col("user_id").isNotNull())
 
+        # Use unique table names
+        silver_table = unique_name("table", "processed")
+        gold_table = unique_name("table", "summary")
+
         builder.add_silver_transform(
             name="processed",
             source_bronze="events",
             transform=silver_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="processed",
+            table_name=silver_table,
         )
 
         def gold_transform(spark, silvers):
@@ -1105,7 +1149,7 @@ class TestDataQuality:
             name="summary",
             transform=gold_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="summary",
+            table_name=gold_table,
         )
 
         errors = builder.validate_pipeline()
@@ -1126,7 +1170,9 @@ class TestDataQuality:
         log_result = log_writer.write_log_rows(log_rows, run_id=run_id)
         assert log_result["success"] is True
 
-    def test_pipeline_duplicate_data_with_logging(self, spark_session, log_writer):
+    def test_pipeline_duplicate_data_with_logging(
+        self, spark_session, log_writer, unique_name
+    ):
         """Test pipeline with duplicate records."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
@@ -1148,12 +1194,16 @@ class TestDataQuality:
             # Deduplicate in transform
             return bronze_df.dropDuplicates(["user_id", "action", "timestamp"])
 
+        # Use unique table names
+        silver_table = unique_name("table", "processed")
+        gold_table = unique_name("table", "summary")
+
         builder.add_silver_transform(
             name="processed",
             source_bronze="events",
             transform=silver_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="processed",
+            table_name=silver_table,
         )
 
         def gold_transform(spark, silvers):
@@ -1166,7 +1216,7 @@ class TestDataQuality:
             name="summary",
             transform=gold_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="summary",
+            table_name=gold_table,
         )
 
         errors = builder.validate_pipeline()
@@ -1202,7 +1252,9 @@ class TestHighVolume:
         lw._test_table = table
         return lw
 
-    def test_pipeline_high_volume_with_logging(self, spark_session, log_writer):
+    def test_pipeline_high_volume_with_logging(
+        self, spark_session, log_writer, unique_name
+    ):
         """Test pipeline with very large dataset (10,000+ records)."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
@@ -1241,7 +1293,7 @@ class TestHighVolume:
             source_bronze="events",
             transform=silver_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="processed",
+            table_name=unique_name("table", "processed"),
         )
 
         def gold_transform(spark, silvers):
@@ -1254,7 +1306,7 @@ class TestHighVolume:
             name="summary",
             transform=gold_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="summary",
+            table_name=unique_name("table", "summary"),
         )
 
         errors = builder.validate_pipeline()
@@ -1296,7 +1348,7 @@ class TestComplexDependencies:
         return lw
 
     def test_pipeline_complex_dependencies_with_logging(
-        self, spark_session, log_writer
+        self, spark_session, log_writer, unique_name
     ):
         """Test pipeline with complex cross-dependencies."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
@@ -1337,6 +1389,14 @@ class TestComplexDependencies:
                 .withColumnRenamed("timestamp_str", "timestamp")
             )
 
+        # Generate unique table names for silver steps
+        silver_table_names = [
+            unique_name("table", "silver_0"),
+            unique_name("table", "silver_1"),
+            unique_name("table", "silver_2"),
+            unique_name("table", "silver_3"),
+        ]
+
         builder.add_silver_transform(
             name="silver_0",
             source_bronze="events_0",
@@ -1345,7 +1405,7 @@ class TestComplexDependencies:
                 "user_id": [F.col("user_id").isNotNull()],
                 "value": [F.col("value").isNotNull()],
             },
-            table_name="silver_0",
+            table_name=silver_table_names[0],
         )
         builder.add_silver_transform(
             name="silver_1",
@@ -1355,7 +1415,7 @@ class TestComplexDependencies:
                 "user_id": [F.col("user_id").isNotNull()],
                 "value": [F.col("value").isNotNull()],
             },
-            table_name="silver_1",
+            table_name=silver_table_names[1],
         )
         builder.add_silver_transform(
             name="silver_2",
@@ -1366,7 +1426,7 @@ class TestComplexDependencies:
                 "value": [F.col("value").isNotNull()],
                 "action": [F.col("action").isNotNull()],
             },
-            table_name="silver_2",
+            table_name=silver_table_names[2],
         )
 
         # Silver 3 depends on silver_0 and silver_1
@@ -1396,7 +1456,7 @@ class TestComplexDependencies:
                 "value": [F.col("value").isNotNull()],
                 "action": [F.col("action").isNotNull()],
             },
-            table_name="silver_3",
+            table_name=silver_table_names[3],
         )
 
         # Add 2 gold steps with multiple dependencies
@@ -1418,18 +1478,24 @@ class TestComplexDependencies:
                 )
             return spark.createDataFrame([], ["action", "action_count"])
 
+        # Generate unique table names for gold steps
+        gold_table_names = [
+            unique_name("table", "gold_0"),
+            unique_name("table", "gold_1"),
+        ]
+
         builder.add_gold_transform(
             name="gold_0",
             transform=gold_0_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="gold_0",
+            table_name=gold_table_names[0],
             source_silvers=["silver_0", "silver_1"],
         )
         builder.add_gold_transform(
             name="gold_1",
             transform=gold_1_transform,
             rules={"action": [F.col("action").isNotNull()]},
-            table_name="gold_1",
+            table_name=gold_table_names[1],
             source_silvers=["silver_2", "silver_3"],
         )
 
@@ -1469,7 +1535,9 @@ class TestParallelStress:
         lw._test_table = table
         return lw
 
-    def test_pipeline_parallel_execution_stress(self, spark_session, log_writer):
+    def test_pipeline_parallel_execution_stress(
+        self, spark_session, log_writer, unique_name
+    ):
         """Test parallel execution with many concurrent steps (10 bronze → 10 silver → 5 gold)."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
@@ -1579,7 +1647,9 @@ class TestSchemaEvolution:
         lw._test_table = table
         return lw
 
-    def test_pipeline_with_schema_evolution_logging(self, spark_session, log_writer):
+    def test_pipeline_with_schema_evolution_logging(
+        self, spark_session, log_writer, unique_name
+    ):
         """Test schema evolution: initial run with columns A,B,C; incremental adds column D."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
@@ -1624,7 +1694,7 @@ class TestSchemaEvolution:
                 "user_id": [F.col("user_id").isNotNull()],
                 "value": [F.col("value").isNotNull()],
             },
-            table_name="processed",
+            table_name=unique_name("table", "processed"),
         )
 
         def gold_transform(spark, silvers):
@@ -1637,7 +1707,7 @@ class TestSchemaEvolution:
             name="summary",
             transform=gold_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="summary",
+            table_name=unique_name("table", "summary"),
         )
 
         errors = builder.validate_pipeline()
@@ -1696,7 +1766,9 @@ class TestDataTypes:
         lw._test_table = table
         return lw
 
-    def test_pipeline_data_type_variations(self, spark_session, log_writer):
+    def test_pipeline_data_type_variations(
+        self, spark_session, log_writer, unique_name
+    ):
         """Test pipeline with various data types (strings, numbers, dates, booleans)."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
@@ -1752,6 +1824,10 @@ class TestDataTypes:
                 .withColumnRenamed("created_at_str", "created_at")
             )
 
+        # Use unique table names
+        silver_table = unique_name("table", "processed_users")
+        gold_table = unique_name("table", "user_stats")
+
         builder.add_silver_transform(
             name="processed_users",
             source_bronze="users",
@@ -1762,7 +1838,7 @@ class TestDataTypes:
                 "score": [F.col("score").isNotNull()],
                 "is_active": [F.col("is_active").isNotNull()],
             },
-            table_name="processed_users",
+            table_name=silver_table,
         )
 
         def gold_transform(spark, silvers):
@@ -1777,7 +1853,7 @@ class TestDataTypes:
             name="user_stats",
             transform=gold_transform,
             rules={"is_active": [F.col("is_active").isNotNull()]},
-            table_name="user_stats",
+            table_name=gold_table,
         )
 
         errors = builder.validate_pipeline()
@@ -1813,7 +1889,9 @@ class TestValidationThresholds:
         lw._test_table = table
         return lw
 
-    def test_pipeline_validation_thresholds_logging(self, spark_session, log_writer):
+    def test_pipeline_validation_thresholds_logging(
+        self, spark_session, log_writer, unique_name
+    ):
         """Test validation threshold enforcement and logging."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
@@ -1841,12 +1919,16 @@ class TestValidationThresholds:
                 F.col("timestamp").isNotNull()
             )
 
+        # Use unique table names
+        silver_table = unique_name("table", "processed")
+        gold_table = unique_name("table", "summary")
+
         builder.add_silver_transform(
             name="processed",
             source_bronze="events",
             transform=silver_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="processed",
+            table_name=silver_table,
         )
 
         def gold_transform(spark, silvers):
@@ -1859,7 +1941,7 @@ class TestValidationThresholds:
             name="summary",
             transform=gold_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="summary",
+            table_name=gold_table,
         )
 
         errors = builder.validate_pipeline()
@@ -2008,9 +2090,11 @@ class TestWriteModes:
         assert silver_initial["write_mode"] == "overwrite"  # Initial run uses overwrite
 
         silver_inc = incremental_result.silver_results[silver_name]
+        # Note: With watermark column, incremental runs use append mode
+        # The write_mode reflects the actual mode used.
         assert (
             silver_inc["write_mode"] == "append"
-        )  # Incremental with watermark uses append
+        )  # Incremental with watermark uses append mode
 
 
 class TestMixedSuccessFailure:
@@ -2081,26 +2165,33 @@ class TestMixedSuccessFailure:
             # But we'll make it work for this test - the "failure" is simulated by validation
             return bronze_df.filter(F.col("user_id").isNotNull())
 
+        # Generate unique table names for silver steps
+        silver_table_names = [
+            unique_name("table", "silver_0"),
+            unique_name("table", "silver_1"),
+            unique_name("table", "silver_2"),
+        ]
+
         builder.add_silver_transform(
             name="silver_0",
             source_bronze=bronze_step_names[0],
             transform=silver_transform_good,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="silver_0",
+            table_name=silver_table_names[0],
         )
         builder.add_silver_transform(
             name="silver_1",
             source_bronze=bronze_step_names[1],
             transform=silver_transform_good,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="silver_1",
+            table_name=silver_table_names[1],
         )
         builder.add_silver_transform(
             name="silver_2",
             source_bronze=bronze_step_names[2],
             transform=silver_transform_bad,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="silver_2",
+            table_name=silver_table_names[2],
         )
 
         # Add 2 gold steps
@@ -2122,18 +2213,24 @@ class TestMixedSuccessFailure:
                 return s2.groupBy("user_id").count()
             return spark.createDataFrame([], ["user_id", "count"])
 
+        # Generate unique table names for gold steps
+        gold_table_names = [
+            unique_name("table", "gold_0"),
+            unique_name("table", "gold_1"),
+        ]
+
         builder.add_gold_transform(
             name="gold_0",
             transform=gold_0_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="gold_0",
+            table_name=gold_table_names[0],
             source_silvers=["silver_0"],
         )
         builder.add_gold_transform(
             name="gold_1",
             transform=gold_1_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="gold_1",
+            table_name=gold_table_names[1],
             source_silvers=["silver_1", "silver_2"],
         )
 
@@ -2172,7 +2269,9 @@ class TestLongRunning:
         lw._test_table = table
         return lw
 
-    def test_pipeline_long_running_with_logging(self, spark_session, log_writer):
+    def test_pipeline_long_running_with_logging(
+        self, spark_session, log_writer, unique_name
+    ):
         """Test logging for long-running pipelines (simulated with large dataset and complex transforms)."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
@@ -2212,6 +2311,10 @@ class TestLongRunning:
                 "user_id", "action", "event_date", "value", "timestamp_str"
             ).withColumnRenamed("timestamp_str", "timestamp")
 
+        # Use unique table names
+        silver_table = unique_name("table", "processed")
+        gold_table = unique_name("table", "summary")
+
         builder.add_silver_transform(
             name="processed",
             source_bronze="events",
@@ -2221,7 +2324,7 @@ class TestLongRunning:
                 "value": [F.col("value").isNotNull()],
                 "timestamp": [F.col("timestamp").isNotNull()],
             },
-            table_name="processed",
+            table_name=silver_table,
         )
 
         # Complex gold aggregation with multiple aggregations to simulate longer processing
@@ -2254,7 +2357,7 @@ class TestLongRunning:
             name="summary",
             transform=gold_transform,
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            table_name="summary",
+            table_name=gold_table,
         )
 
         errors = builder.validate_pipeline()

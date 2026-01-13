@@ -437,65 +437,65 @@ def cleanup_test_tables(spark: Any, schema: str) -> None:
 class ThreadLocalEnvVar:
     """
     Thread-local environment variable proxy for parallel test isolation.
-    
+
     This class provides thread-local storage for environment variables,
     allowing each test thread to have its own isolated environment state
     without affecting other parallel tests.
-    
+
     Example:
         >>> env_var = ThreadLocalEnvVar("SPARKFORGE_ENGINE")
         >>> env_var.set("pyspark")
         >>> value = env_var.get()  # Returns "pyspark" for this thread only
         >>> env_var.delete()  # Remove thread-local value
     """
-    
+
     _local = threading.local()
-    
+
     def __init__(self, var_name: str):
         """
         Initialize thread-local environment variable proxy.
-        
+
         Args:
             var_name: Name of the environment variable to proxy
         """
         self.var_name = var_name
-    
+
     def get(self) -> Optional[str]:
         """
         Get the value of the environment variable.
-        
+
         Checks thread-local storage first, then falls back to os.environ.
-        
+
         Returns:
             Environment variable value, or None if not set
         """
-        if hasattr(self._local, 'env') and self.var_name in self._local.env:
+        if hasattr(self._local, "env") and self.var_name in self._local.env:
             return self._local.env[self.var_name]
         return os.environ.get(self.var_name)
-    
+
     def set(self, value: str) -> None:
         """
         Set the value of the environment variable in thread-local storage.
-        
+
         Args:
             value: Value to set
         """
-        if not hasattr(self._local, 'env'):
+        if not hasattr(self._local, "env"):
             self._local.env = {}
         self._local.env[self.var_name] = value
-    
+
     def delete(self) -> None:
         """
         Delete the thread-local value (falls back to os.environ).
         """
-        if hasattr(self._local, 'env') and self.var_name in self._local.env:
+        if hasattr(self._local, "env") and self.var_name in self._local.env:
             del self._local.env[self.var_name]
-    
+
     def __enter__(self):
         """Context manager entry - save original value."""
         self._original_value = os.environ.get(self.var_name)
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit - restore original value."""
         if self._original_value is not None:
@@ -507,14 +507,15 @@ class ThreadLocalEnvVar:
 def reset_engine_state() -> None:
     """
     Reset thread-local engine state.
-    
+
     This clears the thread-local engine configuration, causing the next
     get_engine() call to use global state or raise an error.
-    
+
     Useful for test isolation to ensure clean engine state between tests.
     """
     try:
         from pipeline_builder.engine_config import reset_engine_state as _reset
+
         _reset()
     except Exception:
         pass  # Ignore errors if engine_config is not available

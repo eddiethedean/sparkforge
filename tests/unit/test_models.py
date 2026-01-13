@@ -649,9 +649,7 @@ class TestPipelineConfig:
     def test_pipeline_config_creation_default(self):
         """Test PipelineConfig creation with default values."""
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
-        config = PipelineConfig(
-            schema="default", thresholds=thresholds
-        )
+        config = PipelineConfig(schema="default", thresholds=thresholds)
 
         assert config.schema == "default"
         assert config.thresholds == thresholds
@@ -733,7 +731,6 @@ class TestSilverDependencyInfo:
             match="Source bronze step name must be a non-empty string",
         ):
             dep_info.validate()
-
 
     def test_base_model_to_dict_with_nested_objects(self):
         """Test BaseModel.to_dict() with nested objects that have to_dict method."""

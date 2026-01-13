@@ -21,10 +21,14 @@ if "PYSPARK_SUBMIT_ARGS" not in os.environ:
     os.environ["PYSPARK_SUBMIT_ARGS"] = (
         "--packages io.delta:delta-spark_2.12:3.0.0 pyspark-shell"
     )
-    print(f"🔧 Set PYSPARK_SUBMIT_ARGS for Delta Lake: {os.environ['PYSPARK_SUBMIT_ARGS']}")
+    print(
+        f"🔧 Set PYSPARK_SUBMIT_ARGS for Delta Lake: {os.environ['PYSPARK_SUBMIT_ARGS']}"
+    )
 else:
     # Log if already set to help debug worker process issues
-    print(f"🔧 PYSPARK_SUBMIT_ARGS already set: {os.environ.get('PYSPARK_SUBMIT_ARGS', 'NOT SET')}")
+    print(
+        f"🔧 PYSPARK_SUBMIT_ARGS already set: {os.environ.get('PYSPARK_SUBMIT_ARGS', 'NOT SET')}"
+    )
 
 # Set PySpark Python environment variables early, before any Spark imports
 # This ensures workers use the same Python version as the driver
@@ -231,13 +235,13 @@ def cleanup_before_test():
 def fully_isolated_test(spark_session):
     """
     Comprehensive isolation fixture that combines all isolation mechanisms.
-    
+
     Provides:
     - Unique Spark session (from spark_session fixture)
     - Isolated engine state (thread-local)
     - Isolated environment variables (thread-local)
     - Unique schemas and warehouse directories
-    
+
     Usage:
         def test_something(fully_isolated_test):
             # Test has complete isolation
@@ -245,28 +249,29 @@ def fully_isolated_test(spark_session):
     """
     import sys
     import os
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
     from test_helpers.isolation import (
         ThreadLocalEnvVar,
         get_unique_schema,
         reset_engine_state,
     )
-    
+
     # Isolate environment variables
     env_vars = {}
     for var_name in ["SPARKFORGE_ENGINE"]:
         env_var = ThreadLocalEnvVar(var_name)
         env_vars[var_name] = env_var
-    
+
     # Reset engine state at start
     reset_engine_state()
-    
+
     yield {
-        'spark': spark_session,
-        'get_unique_schema': get_unique_schema,
-        'env_vars': env_vars,
+        "spark": spark_session,
+        "get_unique_schema": get_unique_schema,
+        "env_vars": env_vars,
     }
-    
+
     # Cleanup: reset engine state
     reset_engine_state()
 
@@ -323,7 +328,7 @@ def get_unique_table_name(base_name: str) -> str:
 def _log_session_configs(spark, context: str = ""):
     """
     Log current session configs and identity for debugging Delta Lake configuration issues.
-    
+
     Args:
         spark: SparkSession to check
         context: Context string to include in log message
@@ -331,11 +336,11 @@ def _log_session_configs(spark, context: str = ""):
     try:
         import os
         from pyspark.sql import SparkSession as PySparkSparkSession
-        
+
         # Get session identity
         session_id = id(spark)
         session_pid = os.getpid()
-        
+
         # Try to get JVM session ID if available
         jvm_session_id = None
         try:
@@ -343,7 +348,7 @@ def _log_session_configs(spark, context: str = ""):
                 jvm_session_id = str(id(spark._jsparkSession))
         except Exception:
             pass
-        
+
         # Get active session for comparison
         active_session_id = None
         active_session_match = False
@@ -351,14 +356,14 @@ def _log_session_configs(spark, context: str = ""):
             active_session = PySparkSparkSession.getActiveSession()
             if active_session:
                 active_session_id = id(active_session)
-                active_session_match = (active_session_id == session_id)
+                active_session_match = active_session_id == session_id
         except Exception:
             pass
-        
+
         # Get configs
         ext = spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
         cat = spark.conf.get("spark.sql.catalog.spark_catalog", "")  # type: ignore[attr-defined]
-        
+
         # Try to check JVM-level configuration
         jvm_extensions = None
         jvm_catalog = None
@@ -367,16 +372,20 @@ def _log_session_configs(spark, context: str = ""):
                 jspark_session = spark._jsparkSession
                 # Try to get config from JVM session
                 try:
-                    jvm_extensions = jspark_session.conf().get("spark.sql.extensions", "")
+                    jvm_extensions = jspark_session.conf().get(
+                        "spark.sql.extensions", ""
+                    )
                 except Exception:
                     pass
                 try:
-                    jvm_catalog = jspark_session.conf().get("spark.sql.catalog.spark_catalog", "")
+                    jvm_catalog = jspark_session.conf().get(
+                        "spark.sql.catalog.spark_catalog", ""
+                    )
                 except Exception:
                     pass
         except Exception:
             pass
-        
+
         # Log comprehensive session state
         print(f"🔍 {context} - Session State:")
         print(f"   PID: {session_pid}")
@@ -392,31 +401,34 @@ def _log_session_configs(spark, context: str = ""):
             print(f"   Extensions (JVM): '{jvm_extensions}'")
         if jvm_catalog is not None:
             print(f"   Catalog (JVM): '{jvm_catalog}'")
-        
+
         # Check if Delta is actually configured
-        delta_configured = (
-            "DeltaSparkSessionExtension" in ext and "DeltaCatalog" in cat
-        )
+        delta_configured = "DeltaSparkSessionExtension" in ext and "DeltaCatalog" in cat
         if not delta_configured:
             print(f"⚠️ {context} - Delta Lake NOT properly configured!")
         else:
             print(f"✅ {context} - Delta Lake configuration verified (Python level)")
-            
+
         # Check JVM level if available
         if jvm_extensions is not None or jvm_catalog is not None:
             jvm_delta_configured = (
-                jvm_extensions and "DeltaSparkSessionExtension" in jvm_extensions
-                and jvm_catalog and "DeltaCatalog" in jvm_catalog
+                jvm_extensions
+                and "DeltaSparkSessionExtension" in jvm_extensions
+                and jvm_catalog
+                and "DeltaCatalog" in jvm_catalog
             )
             if jvm_delta_configured:
                 print(f"✅ {context} - Delta Lake configuration verified (JVM level)")
             else:
                 print(f"⚠️ {context} - Delta Lake NOT properly configured at JVM level!")
-                print(f"   This may explain why Delta operations fail despite Python configs being set")
-        
+                print(
+                    "   This may explain why Delta operations fail despite Python configs being set"
+                )
+
         return delta_configured
     except Exception as e:
         import traceback
+
         print(f"⚠️ {context} - Could not read session configs: {e}")
         traceback.print_exc()
         return False
@@ -514,7 +526,9 @@ def _create_real_spark_session():
         try:
             existing_spark = SparkSession.getActiveSession()
             if existing_spark:
-                print("🔧 Stopping existing Spark session before creating new one (prevent getOrCreate() reuse)")
+                print(
+                    "🔧 Stopping existing Spark session before creating new one (prevent getOrCreate() reuse)"
+                )
                 existing_spark.stop()
                 # Also clear internal cache to be absolutely sure
                 if hasattr(SparkSession, "_instantiatedContext"):
@@ -538,43 +552,53 @@ def _create_real_spark_session():
             .config("spark.driver.host", "127.0.0.1")
             .config("spark.driver.bindAddress", "127.0.0.1")
             .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-            .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+            .config(
+                "spark.sql.catalog.spark_catalog",
+                "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+            )
         )
 
         # Use configure_spark_with_delta_pip for JAR management
         # Match conftest_delta.py: use getOrCreate() but ensure no existing session
         print(f"🔍 Creating Spark session with app name: {unique_app_name}")
-        
+
         # Check if there's an active session before calling getOrCreate()
         active_before = SparkSession.getActiveSession()
         if active_before:
-            print(f"⚠️ WARNING: Active session exists before getOrCreate(): {id(active_before)}")
+            print(
+                f"⚠️ WARNING: Active session exists before getOrCreate(): {id(active_before)}"
+            )
             _log_session_configs(active_before, "Active session BEFORE getOrCreate()")
-        
+
         configured_builder = configure_spark_with_delta_pip(builder)
-        
+
         # Use getOrCreate() - .create() only works with Spark Connect (remote mode)
         # We've already stopped any existing session, so getOrCreate() should create a new one
-        print(f"🔍 Calling getOrCreate() (after stopping existing session)...")
+        print("🔍 Calling getOrCreate() (after stopping existing session)...")
         spark = configured_builder.getOrCreate()
         print(f"✅ getOrCreate() returned session: {id(spark)}")
 
         # Verify configuration is correct
         actual_ext = spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
         actual_cat = spark.conf.get("spark.sql.catalog.spark_catalog", "")  # type: ignore[attr-defined]
-        print(f"🔍 Delta config after session creation - Extensions: '{actual_ext}', Catalog: '{actual_cat}'")
-        
+        print(
+            f"🔍 Delta config after session creation - Extensions: '{actual_ext}', Catalog: '{actual_cat}'"
+        )
+
         # If configs aren't set, something went wrong
-        if "DeltaSparkSessionExtension" not in actual_ext or "DeltaCatalog" not in actual_cat:
+        if (
+            "DeltaSparkSessionExtension" not in actual_ext
+            or "DeltaCatalog" not in actual_cat
+        ):
             raise RuntimeError(
                 f"Delta Lake not properly configured. Extensions: '{actual_ext}', Catalog: '{actual_cat}'. "
                 f"This should not happen if configs are set in builder before .create()."
             )
 
         print("✅ Delta Lake configuration completed and verified")
-        
+
         # Log session identity after creation
-        print(f"🔍 _create_real_spark_session - Session created:")
+        print("🔍 _create_real_spark_session - Session created:")
         print(f"   Session ID (Python): {id(spark)}")
         try:
             if hasattr(spark, "_jsparkSession"):
@@ -582,10 +606,10 @@ def _create_real_spark_session():
         except Exception:
             pass
         _log_session_configs(spark, "_create_real_spark_session (after creation)")
-        
+
         # Set log level to WARN to reduce noise (matching conftest_delta.py pattern)
         spark.sparkContext.setLogLevel("WARN")
-        
+
         # Clear catalog cache at start to ensure clean state
         # This prevents stale table metadata from causing conflicts in parallel tests
         try:
@@ -715,10 +739,10 @@ def _create_real_spark_session():
 def isolate_engine_config():
     """
     Context manager fixture to isolate engine configuration changes.
-    
+
     Saves the current engine state, allows modification within the test,
     and restores it after the test completes.
-    
+
     Usage:
         def test_something(isolate_engine_config):
             with isolate_engine_config():
@@ -730,26 +754,26 @@ def isolate_engine_config():
     """
     from contextlib import contextmanager
     from pipeline_builder.engine_config import get_engine, configure_engine
-    
+
     @contextmanager
     def _isolate():
         # Save current engine state
         try:
             current_engine = get_engine()
             saved_config = {
-                'functions': current_engine.functions,
-                'types': current_engine.types,
-                'analysis_exception': current_engine.analysis_exception,
-                'window': current_engine.window,
-                'desc': current_engine.desc,
-                'engine_name': current_engine.engine_name,
-                'dataframe_cls': current_engine.dataframe_cls,
-                'spark_session_cls': current_engine.spark_session_cls,
-                'column_cls': current_engine.column_cls,
+                "functions": current_engine.functions,
+                "types": current_engine.types,
+                "analysis_exception": current_engine.analysis_exception,
+                "window": current_engine.window,
+                "desc": current_engine.desc,
+                "engine_name": current_engine.engine_name,
+                "dataframe_cls": current_engine.dataframe_cls,
+                "spark_session_cls": current_engine.spark_session_cls,
+                "column_cls": current_engine.column_cls,
             }
         except Exception:
             saved_config = None
-        
+
         try:
             yield
         finally:
@@ -759,7 +783,7 @@ def isolate_engine_config():
                     configure_engine(**saved_config)
                 except Exception:
                     pass
-    
+
     return _isolate
 
 
@@ -783,15 +807,17 @@ def spark_session():
         print("🔧 spark_session fixture: Creating real Spark session...")
         print(f"🔧 spark_session fixture: PID={os.getpid()}")
         spark = _create_real_spark_session()
-        
+
         # Log session identity before yielding
         print(f"🔧 spark_session fixture: Session ID (Python)={id(spark)}")
         try:
             if hasattr(spark, "_jsparkSession"):
-                print(f"🔧 spark_session fixture: Session ID (JVM)={id(spark._jsparkSession)}")
+                print(
+                    f"🔧 spark_session fixture: Session ID (JVM)={id(spark._jsparkSession)}"
+                )
         except Exception:
             pass
-        
+
         # Verify Delta configs are still set before yielding to tests
         # This ensures configs haven't been lost between creation and test execution
         print("🔧 spark_session fixture: Verifying Delta configs before yielding...")
@@ -800,12 +826,14 @@ def spark_session():
         cat = spark.conf.get("spark.sql.catalog.spark_catalog", "")  # type: ignore[attr-defined]
         if "DeltaSparkSessionExtension" not in ext or "DeltaCatalog" not in cat:
             # Use our debug logging helper
-            _log_session_configs(spark, "spark_session fixture (BEFORE YIELD - CONFIGS MISSING)")
+            _log_session_configs(
+                spark, "spark_session fixture (BEFORE YIELD - CONFIGS MISSING)"
+            )
             raise RuntimeError(
                 f"Delta configs lost before test execution! Extensions: '{ext}', Catalog: '{cat}'. "
                 f"This indicates the session configuration was lost or overridden."
             )
-        print(f"✅ spark_session fixture: Verified Delta configs - ready to yield")
+        print("✅ spark_session fixture: Verified Delta configs - ready to yield")
     else:
         spark = _create_mock_spark_session()
 
@@ -847,12 +875,16 @@ def spark_session():
                         except Exception:
                             pass
                     # Stop the session to ensure clean state for next test
-                    print(f"🔧 spark_session fixture: Stopping session after test (function scope isolation)")
+                    print(
+                        "🔧 spark_session fixture: Stopping session after test (function scope isolation)"
+                    )
                     spark.stop()
                     # Clear internal cache to prevent getOrCreate() from reusing this session
                     try:
-                        if hasattr(SparkSession, "_instantiatedContext"):
-                            SparkSession._instantiatedContext = None  # type: ignore[attr-defined]
+                        from pyspark.sql import SparkSession as PySparkSparkSession  # noqa: F401
+
+                        if hasattr(PySparkSparkSession, "_instantiatedContext"):
+                            PySparkSparkSession._instantiatedContext = None  # type: ignore[attr-defined]
                     except Exception:
                         pass
                 except Exception as e:
@@ -965,12 +997,15 @@ def mock_spark_session(spark_session):
     This makes tests work seamlessly in both modes without code changes.
     """
     import os
-    print(f"🔧 mock_spark_session fixture: Executing (alias for spark_session)")
+
+    print("🔧 mock_spark_session fixture: Executing (alias for spark_session)")
     print(f"🔧 mock_spark_session fixture: PID={os.getpid()}")
     print(f"🔧 mock_spark_session fixture: Session ID (Python)={id(spark_session)}")
     try:
         if hasattr(spark_session, "_jsparkSession"):
-            print(f"🔧 mock_spark_session fixture: Session ID (JVM)={id(spark_session._jsparkSession)}")
+            print(
+                f"🔧 mock_spark_session fixture: Session ID (JVM)={id(spark_session._jsparkSession)}"
+            )
     except Exception:
         pass
     # Simply return the spark_session fixture which already handles mode switching
@@ -1248,7 +1283,8 @@ def pytest_configure(config):
         "markers", "real_spark_only: marks tests that only work with real Spark"
     )
     config.addinivalue_line(
-        "markers", "sequential: marks tests that must run sequentially (not in parallel) to avoid race conditions"
+        "markers",
+        "sequential: marks tests that must run sequentially (not in parallel) to avoid race conditions",
     )
 
 

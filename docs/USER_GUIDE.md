@@ -1,31 +1,49 @@
-# SparkForge Pipeline Builder - User Guide
+# SparkForge Pipeline Builder - Comprehensive User Guide
+
+**Version**: 2.5.2  
+**Last Updated**: January 2025
 
 ## Table of Contents
 
 1. [Introduction](#introduction)
 2. [Getting Started](#getting-started)
 3. [Core Concepts](#core-concepts)
-4. [Building Pipelines](#building-pipelines)
-5. [Execution Modes](#execution-modes)
-6. [Validation Rules](#validation-rules)
-7. [Logging and Monitoring](#logging-and-monitoring)
-8. [Common Workflows](#common-workflows)
-9. [Best Practices](#best-practices)
-10. [Troubleshooting](#troubleshooting)
+4. [Service-Oriented Architecture](#service-oriented-architecture)
+5. [Building Pipelines](#building-pipelines)
+6. [Execution Modes](#execution-modes)
+7. [Validation Rules](#validation-rules)
+8. [Logging and Monitoring](#logging-and-monitoring)
+9. [Common Workflows](#common-workflows)
+10. [Best Practices](#best-practices)
+11. [Troubleshooting](#troubleshooting)
+
+---
 
 ## Introduction
 
-SparkForge Pipeline Builder is a framework for building and executing data pipelines using Apache Spark and Delta Lake. It implements the Medallion Architecture (Bronze → Silver → Gold) with built-in validation, logging, and monitoring capabilities.
+SparkForge Pipeline Builder is a production-ready framework for building and executing data pipelines using Apache Spark and Delta Lake. It implements the **Medallion Architecture** (Bronze → Silver → Gold) with built-in validation, logging, and monitoring capabilities.
 
 ### Key Features
 
 - **Medallion Architecture**: Bronze (raw), Silver (cleaned), Gold (aggregated) data layers
-- **Dual Engine Support**: Works with PySpark (production) and sparkless (testing/development)
+- **Dual Engine Support**: Works with PySpark (production) and mock Spark (testing/development)
 - **Automatic Validation**: Configurable validation rules at each layer
 - **Incremental Processing**: Efficient processing of new/updated data
-- **Parallel Execution**: Automatic dependency analysis and concurrent step execution
+- **Dependency-Aware Execution**: Automatic dependency analysis and sequential execution
 - **Comprehensive Logging**: Built-in LogWriter for tracking pipeline executions
+- **Service-Oriented Architecture**: Clean separation of concerns with dedicated services
 - **Type Safety**: Full mypy compliance and runtime type checks
+
+### Why PipelineBuilder?
+
+- **70% Less Boilerplate**: Clean API vs raw Spark code
+- **Built-in Validation**: Data quality checks at every layer
+- **Dependency-Aware Execution**: Automatic dependency analysis and sequential execution
+- **Production Ready**: Error handling, monitoring, alerting
+- **Delta Lake Integration**: ACID transactions, time travel, schema evolution
+- **Service Architecture**: Modular design for maintainability and testability
+
+---
 
 ## Getting Started
 
@@ -40,26 +58,50 @@ pip install pipeline-builder[pyspark]  # For PySpark support
 pip install pipeline-builder[dev,test]  # For development
 ```
 
-### Basic Setup
+### Engine Configuration
+
+**Important**: You must configure the engine before using pipeline components. This allows the framework to work with both real PySpark and mock Spark for testing.
 
 ```python
-from pipeline_builder import PipelineBuilder
 from pipeline_builder.engine_config import configure_engine
-
-# Configure the engine (required before importing pipeline components)
-configure_engine()
-
-# Create a Spark session
 from pyspark.sql import SparkSession
+
+# Create Spark session
 spark = SparkSession.builder \
     .appName("MyPipeline") \
     .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
     .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
     .getOrCreate()
 
+# Configure the engine (required before importing pipeline components)
+configure_engine(spark=spark)
+
+# Now you can use pipeline components
+from pipeline_builder import PipelineBuilder
+builder = PipelineBuilder(spark=spark, schema="my_schema")
+```
+
+### Basic Setup
+
+```python
+from pipeline_builder import PipelineBuilder
+from pipeline_builder.engine_config import configure_engine
+from pyspark.sql import SparkSession
+
+# Configure the engine (required)
+spark = SparkSession.builder \
+    .appName("MyPipeline") \
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+    .getOrCreate()
+
+configure_engine(spark=spark)
+
 # Create a pipeline builder
 builder = PipelineBuilder(spark=spark, schema="my_schema")
 ```
+
+---
 
 ## Core Concepts
 
@@ -71,6 +113,7 @@ The framework implements the Medallion Architecture pattern:
   - Validates incoming data
   - Stores data as-is (no transformations)
   - Acts as a landing zone
+  - Data remains in-memory (not persisted)
 
 - **Silver Layer**: Cleaned and enriched data
   - Transforms bronze data
@@ -90,6 +133,120 @@ The framework implements the Medallion Architecture pattern:
 - **Validation Rules**: Rules that ensure data quality
 - **Execution Modes**: How the pipeline runs (initial, incremental, etc.)
 
+---
+
+## Service-Oriented Architecture
+
+The PipelineBuilder uses a service-oriented architecture internally for clean separation of concerns and improved maintainability.
+
+### Architecture Overview
+
+```
+PipelineBuilder
+├── ExecutionEngine (orchestration)
+│   ├── Step Executors
+│   │   ├── BronzeStepExecutor
+│   │   ├── SilverStepExecutor
+│   │   └── GoldStepExecutor
+│   ├── ExecutionValidator (validation service)
+│   ├── TableService (table operations)
+│   ├── WriteService (write operations)
+│   ├── SchemaManager (schema management)
+│   ├── TransformService (transformations)
+│   ├── ExecutionReporter (reporting)
+│   └── ErrorHandler (error handling)
+└── StepFactory (step creation)
+```
+
+### Key Services
+
+#### Step Executors
+
+Step executors handle the execution logic for each step type:
+
+- **BronzeStepExecutor**: Validates raw data without transformation or writing
+- **SilverStepExecutor**: Transforms bronze data and handles incremental processing
+- **GoldStepExecutor**: Aggregates silver data into final metrics/aggregates
+
+**Example**:
+```python
+# Step executors are used internally by ExecutionEngine
+# You don't typically interact with them directly, but understanding
+# their role helps with debugging and customization
+from pipeline_builder.step_executors import BronzeStepExecutor
+
+# Executors handle:
+# - Step-specific validation
+# - Data transformation
+# - Write operations
+# - Error handling
+```
+
+#### ExecutionValidator
+
+Validates data during pipeline execution according to step rules:
+
+```python
+from pipeline_builder.validation.execution_validator import ExecutionValidator
+
+# The validator:
+# - Applies validation rules to DataFrames
+# - Calculates validation rates
+# - Checks against thresholds
+# - Provides detailed error messages
+```
+
+#### TableService
+
+Manages table operations and schema:
+
+```python
+from pipeline_builder.storage.table_service import TableService
+
+# The service handles:
+# - Table existence checks
+# - Schema validation
+# - Table lifecycle operations
+# - Fully qualified name (FQN) construction
+```
+
+#### WriteService
+
+Handles all write operations to Delta Lake:
+
+```python
+from pipeline_builder.storage.write_service import WriteService
+
+# The service handles:
+# - Write mode determination (overwrite/append)
+# - Schema validation for write mode
+# - Schema overrides
+# - Delta Lake operations
+```
+
+#### ErrorHandler
+
+Centralized error handling for consistent error wrapping:
+
+```python
+from pipeline_builder.errors.error_handler import ErrorHandler
+
+# The handler provides:
+# - Consistent error wrapping
+# - Context addition to errors
+# - Helpful error messages with suggestions
+```
+
+### Benefits of Service Architecture
+
+1. **Separation of Concerns**: Each service has a single responsibility
+2. **Testability**: Services can be tested independently
+3. **Maintainability**: Changes to one service don't affect others
+4. **Extensibility**: Easy to add new services or modify existing ones
+5. **Reusability**: Services can be reused across different contexts
+
+---
+
 ## Building Pipelines
 
 ### Step 1: Define Bronze Steps
@@ -97,7 +254,8 @@ The framework implements the Medallion Architecture pattern:
 Bronze steps validate incoming raw data:
 
 ```python
-from pyspark.sql import functions as F
+from pipeline_builder.functions import get_default_functions
+F = get_default_functions()
 
 # Define validation rules
 bronze_rules = {
@@ -114,12 +272,29 @@ builder.with_bronze_rules(
 )
 ```
 
+**String Rules Support**:
+
+You can also use human-readable string rules:
+
+```python
+# String rules are automatically converted to PySpark expressions
+builder.with_bronze_rules(
+    name="raw_events",
+    rules={
+        "user_id": ["not_null"],
+        "value": ["gt", 0],
+        "status": ["in", ["active", "inactive"]]
+    },
+    incremental_col="timestamp"
+)
+```
+
 ### Step 2: Define Silver Steps
 
 Silver steps transform and clean bronze data:
 
 ```python
-def silver_transform(spark, bronze_df, silvers):
+def silver_transform(spark, bronze_df, prior_silvers):
     """Transform bronze data: add event_date and filter."""
     # Convert timestamp to date
     bronze_df = bronze_df.withColumn(
@@ -203,6 +378,8 @@ if validation_errors:
 pipeline = builder.to_pipeline()
 ```
 
+---
+
 ## Execution Modes
 
 ### Initial Load (Full Refresh)
@@ -259,6 +436,41 @@ if result.status.value == "completed":
     print(f"New rows processed: {result.bronze_results['raw_events']['rows_processed']}")
 ```
 
+### Full Refresh
+
+Use `run_full_refresh()` for:
+- Reprocessing all data
+- Schema changes
+- Data corrections
+
+**Behavior**: Overwrites existing tables with reprocessed data
+
+```python
+# Execute full refresh
+result = pipeline.run_full_refresh(
+    bronze_sources={"raw_events": source_df}
+)
+```
+
+### Validation Only
+
+Use `run_validation_only()` for:
+- Testing validation rules
+- Quality checks without writing
+- Development and testing
+
+**Behavior**: Validates data without writing to tables
+
+```python
+# Execute validation only
+result = pipeline.run_validation_only(
+    bronze_sources={"raw_events": source_df}
+)
+
+# Check validation results
+print(f"Validation rate: {result.bronze_results['raw_events']['validation_rate']}%")
+```
+
 ### Typical Workflow Pattern
 
 ```python
@@ -273,6 +485,8 @@ incremental_result = pipeline.run_incremental(
 )
 ```
 
+---
+
 ## Validation Rules
 
 ### Rule Syntax
@@ -286,6 +500,19 @@ rules = {
         F.col("column_name") > 0,          # Value range check
         F.length(F.col("column_name")) > 5,  # String length check
     ]
+}
+```
+
+### String Rules
+
+You can use human-readable string rules that are automatically converted:
+
+```python
+rules = {
+    "user_id": ["not_null"],                    # F.col("user_id").isNotNull()
+    "age": ["gt", 0],                           # F.col("age") > 0
+    "status": ["in", ["active", "inactive"]],   # F.col("status").isin([...])
+    "value": ["between", 0, 100],                # F.col("value").between(0, 100)
 }
 ```
 
@@ -333,14 +560,18 @@ rules = {
 - **Filtering**: Invalid rows are filtered out (not written to tables)
 - **Missing Columns**: Rules for columns that don't exist after transforms are automatically filtered out with a warning
 
+---
+
 ## Logging and Monitoring
 
 ### Setting Up LogWriter
 
-```python
-from pipeline_builder.writer.core import LogWriter
+The LogWriter provides a simplified API for logging pipeline executions:
 
-# Create LogWriter
+```python
+from pipeline_builder.writer import LogWriter
+
+# Create LogWriter with new simplified API (recommended)
 log_writer = LogWriter(
     spark=spark,
     schema="my_schema",
@@ -348,28 +579,28 @@ log_writer = LogWriter(
 )
 ```
 
+**Note**: The old API using `WriterConfig` is deprecated but still supported:
+
+```python
+# Old API (deprecated, emits warning)
+from pipeline_builder.writer import LogWriter, WriterConfig, WriteMode
+config = WriterConfig(table_schema="my_schema", table_name="pipeline_logs")
+log_writer = LogWriter(spark=spark, config=config)  # DeprecationWarning
+```
+
 ### Logging Pipeline Executions
 
 ```python
-from pipeline_builder.writer.models import create_log_rows_from_pipeline_report
-
 # Execute pipeline
 result = pipeline.run_initial_load(
     bronze_sources={"raw_events": source_df}
 )
 
-# Convert result to log rows
-log_rows = create_log_rows_from_pipeline_report(
-    result,
-    run_id="my_run_123",
-    run_mode="initial"  # or "incremental"
-)
+# Log execution using simplified API
+log_result = log_writer.append(result, run_id="my_run_123")
 
-# Write logs
-write_result = log_writer.write_log_rows(log_rows, run_id="my_run_123")
-
-if write_result["success"]:
-    print(f"Logged {write_result['rows_written']} log entries")
+if log_result["success"]:
+    print(f"Logged {log_result['rows_written']} log entries")
 ```
 
 ### Querying Logs
@@ -389,6 +620,24 @@ metrics = log_writer.get_metrics()
 print(f"Total writes: {metrics['total_writes']}")
 print(f"Total rows written: {metrics['total_rows_written']}")
 ```
+
+### Analytics and Monitoring
+
+```python
+# Analyze quality trends
+quality_trends = log_writer.analyze_quality_trends(days=30)
+
+# Analyze execution trends
+execution_trends = log_writer.analyze_execution_trends(days=30)
+
+# Detect anomalies
+anomalies = log_writer.detect_quality_anomalies()
+
+# Generate performance report
+report = log_writer.generate_performance_report()
+```
+
+---
 
 ## Common Workflows
 
@@ -436,7 +685,37 @@ for day in range(1, 8):
     # Table accumulates: 1000 + 100 + 100 + ... = 1700 rows after 7 days
 ```
 
-### Workflow 3: Handling Edge Cases
+### Workflow 3: Multi-Source Pipeline
+
+```python
+# Multiple bronze sources
+builder.with_bronze_rules(name="users", rules={...})
+builder.with_bronze_rules(name="orders", rules={...})
+builder.with_bronze_rules(name="products", rules={...})
+
+# Silver steps can depend on multiple sources
+builder.add_silver_transform(
+    name="clean_orders",
+    source_bronze="orders",
+    transform=lambda spark, df, silvers: df.join(
+        silvers.get("clean_users", spark.createDataFrame([], schema)),
+        "user_id"
+    ),
+    rules={...},
+    table_name="clean_orders"
+)
+
+# Execute with multiple sources
+result = pipeline.run_initial_load(
+    bronze_sources={
+        "users": users_df,
+        "orders": orders_df,
+        "products": products_df
+    }
+)
+```
+
+### Workflow 4: Handling Edge Cases
 
 ```python
 # Empty DataFrame handling
@@ -457,6 +736,8 @@ rules = {
 # Rules for missing columns are automatically filtered with a warning
 # Pipeline continues with remaining valid rules
 ```
+
+---
 
 ## Best Practices
 
@@ -490,16 +771,15 @@ builder.with_bronze_rules(
 )
 ```
 
-### 3. Handle Empty DataFrames Gracefully
+### 3. Configure Engine Before Use
 
 ```python
-# Check if DataFrame is empty before processing
-if source_df.count() > 0:
-    result = pipeline.run_initial_load(
-        bronze_sources={"raw_events": source_df}
-    )
-else:
-    print("No data to process")
+# Always configure engine first
+from pipeline_builder.engine_config import configure_engine
+configure_engine(spark=spark)
+
+# Then import and use pipeline components
+from pipeline_builder import PipelineBuilder
 ```
 
 ### 4. Validate Pipeline Before Execution
@@ -516,12 +796,11 @@ if validation_errors:
 
 ```python
 # Log every pipeline execution
-log_rows = create_log_rows_from_pipeline_report(
-    result,
-    run_id=f"run_{datetime.now().isoformat()}",
-    run_mode="initial"  # or "incremental"
-)
-log_writer.write_log_rows(log_rows, run_id=run_id)
+from pipeline_builder.writer import LogWriter
+
+log_writer = LogWriter(spark=spark, schema="monitoring", table_name="logs")
+result = pipeline.run_initial_load(bronze_sources={"events": source_df})
+log_writer.append(result, run_id=f"run_{datetime.now().isoformat()}")
 ```
 
 ### 6. Use Unique Schemas for Testing
@@ -532,6 +811,21 @@ from uuid import uuid4
 schema = f"test_schema_{uuid4().hex[:8]}"
 builder = PipelineBuilder(spark=spark, schema=schema)
 ```
+
+### 7. Handle Errors Gracefully
+
+```python
+# Check execution results
+result = pipeline.run_initial_load(bronze_sources={"events": source_df})
+
+if result.status.value == "completed":
+    print("Success!")
+else:
+    print(f"Pipeline failed: {result.errors}")
+    # Handle errors appropriately
+```
+
+---
 
 ## Troubleshooting
 
@@ -609,20 +903,38 @@ schema = StructType([
 empty_df = spark.createDataFrame([], schema)
 ```
 
-## Examples
+### Issue: Engine Not Configured
 
-### Complete Example: Event Processing Pipeline
+**Symptom**: Errors about missing engine configuration
+
+**Solution**:
+- Always call `configure_engine(spark=spark)` before importing pipeline components
+- Ensure Spark session is created before engine configuration
+- Check that Delta Lake extensions are configured in Spark session
+
+---
+
+## Complete Example: Event Processing Pipeline
 
 ```python
 from pipeline_builder import PipelineBuilder
-from pipeline_builder.writer.core import LogWriter
-from pipeline_builder.writer.models import create_log_rows_from_pipeline_report
+from pipeline_builder.writer import LogWriter
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
+from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from datetime import datetime
 from uuid import uuid4
 
 # Setup
 spark = SparkSession.builder.appName("EventPipeline").getOrCreate()
+
+# Configure engine (required)
+configure_engine(spark=spark)
+
+# Get functions
+F = get_default_functions()
+
 schema = "analytics"
 log_writer = LogWriter(spark, schema=schema, table_name="pipeline_logs")
 
@@ -696,25 +1008,24 @@ source_df = spark.createDataFrame(data, ["user_id", "action", "timestamp", "valu
 result = pipeline.run_initial_load(bronze_sources={"raw_events": source_df})
 
 # Log execution
-log_rows = create_log_rows_from_pipeline_report(
-    result,
-    run_id=f"initial_{uuid4().hex[:8]}",
-    run_mode="initial"
-)
-log_writer.write_log_rows(log_rows, run_id=f"initial_{uuid4().hex[:8]}")
+log_writer.append(result, run_id=f"initial_{uuid4().hex[:8]}")
 
 print(f"Pipeline completed: {result.status.value}")
 print(f"Rows processed: {result.bronze_results['raw_events']['rows_processed']}")
 ```
 
+---
+
 ## Additional Resources
 
-- **API Reference**: See `docs/writer_api_reference.md` for LogWriter API details
-- **Validation Guide**: See `docs/markdown/VALIDATION_EDGE_CASES.md` for validation troubleshooting
-- **Examples**: See `tests/system/` for complete workflow examples
-- **Error Handling**: See `src/pipeline_builder/errors.py` for error types and handling
+- **API Reference**: See `docs/api_reference.rst` for detailed API documentation
+- **Architecture Guide**: See `docs/Architecture.md` for architecture details
+- **Writer Guide**: See `docs/writer_api_reference.md` for LogWriter API details
+- **Examples**: See `examples/` directory for complete workflow examples
+- **Troubleshooting**: See `docs/COMPREHENSIVE_TROUBLESHOOTING_GUIDE.md` for detailed troubleshooting
+
+---
 
 ## Support
 
 For issues, questions, or contributions, please refer to the project repository.
-

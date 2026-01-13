@@ -14,7 +14,6 @@ import logging
 from datetime import datetime
 
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
 from pyspark.sql.types import (
     IntegerType,
     StringType,
@@ -23,7 +22,9 @@ from pyspark.sql.types import (
     TimestampType,
 )
 
-from pipeline_builder.pipeline.builder import PipelineBuilder
+from pipeline_builder import PipelineBuilder
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -46,6 +47,9 @@ def main():
         .config("spark.executor.memory", "4g")
         .getOrCreate()
     )
+
+    # Configure engine (required!)
+    configure_engine(spark=spark)
 
     logger.info("SparkSession initialized.")
 
@@ -131,6 +135,7 @@ def main():
 
     # Define Silver transformation functions
     def clean_events(spark_session, bronze_df, prior_silvers):
+        F = get_default_functions()
         logger.info("Running clean_events silver transform...")
         return (
             bronze_df.filter(F.col("user_id").isNotNull())
@@ -140,12 +145,14 @@ def main():
         )
 
     def enrich_events(spark_session, bronze_df, prior_silvers):
+        F = get_default_functions()
         logger.info("Running enrich_events silver transform...")
         return bronze_df.withColumn(
             "event_hour", F.hour(F.col("timestamp"))
         ).withColumn("event_day_of_week", F.dayofweek(F.col("timestamp")))
 
     def daily_analytics(spark_session, silvers):
+        F = get_default_functions()
         logger.info("Running daily_analytics gold transform...")
         enriched_events_df = silvers["enriched_events"]
         return (
@@ -161,37 +168,34 @@ def main():
     # Add silver steps with auto-inference
     logger.info("🟡 Adding Silver steps with auto-inference...")
 
-    # 1. Auto-infer source_bronze (from "events")
-    # 2. Auto-detect watermark column (from "timestamp")
+    # Add silver steps
     builder.add_silver_transform(
         name="clean_events",
-        # source_bronze auto-inferred from "events"
-        # watermark_col could be auto-detected from "timestamp"
+        source_bronze="events",
         transform=clean_events,
         rules=PipelineBuilder.not_null_rules(["user_id", "action", "event_date"]),
         table_name="clean_events",
-        watermark_col="timestamp",  # Still explicit for demonstration
+        watermark_col="timestamp",
     )
 
-    # Another silver step, also auto-inferring from "events"
+    # Another silver step
     builder.add_silver_transform(
         name="enriched_events",
-        # source_bronze auto-inferred from "events"
+        source_bronze="events",
         transform=enrich_events,
         rules=PipelineBuilder.not_null_rules(["event_hour", "event_day_of_week"]),
         table_name="enriched_events",
     )
 
-    # Add gold step with auto-inference
-    logger.info("🟨 Adding Gold step with auto-inference...")
+    # Add gold step
+    logger.info("🟨 Adding Gold step...")
 
-    # 1. Auto-infer source_silvers (from all available silver steps)
     builder.add_gold_transform(
         name="daily_analytics",
-        # source_silvers auto-inferred from ["clean_events", "enriched_events"]
         transform=daily_analytics,
         rules=PipelineBuilder.not_null_rules(["event_date", "event_count"]),
         table_name="daily_analytics",
+        source_silvers=["enriched_events"],
     )
 
     # ============================================================================
@@ -216,25 +220,17 @@ def main():
     logger.info("✅ Pipeline validation passed")
 
     logger.info("📊 Running pipeline...")
-    result = pipeline.initial_load(bronze_sources={"events": source_df})
+    result = pipeline.run_initial_load(bronze_sources={"events": source_df})
 
-    if result.success:
+    if result.status.value == "completed":
         logger.info("✅ Pipeline execution completed successfully!")
     else:
         logger.error("❌ Pipeline execution failed!")
 
-    logger.info(
-        f"📈 Bronze steps executed: {result.metrics.get('bronze_steps_executed', 0)}"
-    )
-    logger.info(
-        f"📈 Silver steps executed: {result.metrics.get('silver_steps_executed', 0)}"
-    )
-    logger.info(
-        f"📈 Gold steps executed: {result.metrics.get('gold_steps_executed', 0)}"
-    )
-    logger.info(
-        f"⏱️  Total duration: {result.metrics.get('total_duration_secs', 0):.2f}s"
-    )
+    logger.info(f"📈 Total steps: {result.metrics.total_steps}")
+    logger.info(f"📈 Successful steps: {result.metrics.successful_steps}")
+    logger.info(f"📈 Failed steps: {result.metrics.failed_steps}")
+    logger.info(f"⏱️  Total duration: {result.duration_seconds:.2f}s")
 
     # ============================================================================
     # DEMONSTRATION 6: COMPARISON WITH OLD API

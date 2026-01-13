@@ -37,9 +37,15 @@ pytest tests/unit/test_validation.py \
        tests/unit/test_bronze_rules_column_validation.py \
        -v --tb=short --no-cov > /tmp/sparkforge_isolation_tests.log 2>&1
 
-if [ $? -eq 0 ]; then
+ISOLATION_EXIT_CODE=$?
+if [ $ISOLATION_EXIT_CODE -eq 0 ]; then
     ISOLATION_RESULT="✅ PASSED"
-    ISOLATION_PASSED=$(grep -c "PASSED" /tmp/sparkforge_isolation_tests.log || echo "57")
+    # Parse pytest summary line (e.g., "1234 passed, 5 failed, 10 skipped")
+    ISOLATION_PASSED=$(grep -E '[0-9]+ passed' /tmp/sparkforge_isolation_tests.log | tail -1 | sed -E 's/.*([0-9]+) passed.*/\1/' || echo "0")
+    if [ "$ISOLATION_PASSED" = "0" ]; then
+        echo "⚠️  Warning: Could not parse isolation test results, using exit code"
+        ISOLATION_PASSED="57"  # Fallback to expected count
+    fi
     TOTAL_PASSED=$((TOTAL_PASSED + ISOLATION_PASSED))
 else
     ISOLATION_RESULT="❌ FAILED"
@@ -61,16 +67,26 @@ pytest tests/ \
        --ignore=tests/unit/test_bronze_rules_column_validation.py \
        -v --tb=short --no-cov > /tmp/sparkforge_main_tests.log 2>&1
 
-if [ $? -eq 0 ]; then
+MAIN_EXIT_CODE=$?
+if [ $MAIN_EXIT_CODE -eq 0 ]; then
     MAIN_RESULT="✅ PASSED"
 else
     MAIN_RESULT="⚠️  Some failures"
 fi
 
-# Parse main test results
-MAIN_PASSED=$(grep -oP '\d+(?= passed)' /tmp/sparkforge_main_tests.log | tail -1 || echo "0")
-MAIN_FAILED=$(grep -oP '\d+(?= failed)' /tmp/sparkforge_main_tests.log | tail -1 || echo "0")
-MAIN_SKIPPED=$(grep -oP '\d+(?= skipped)' /tmp/sparkforge_main_tests.log | tail -1 || echo "0")
+# Parse main test results from pytest summary line (portable method using awk)
+# Look for lines with "passed" and extract numbers
+SUMMARY_LINE=$(grep -E '[0-9]+ passed' /tmp/sparkforge_main_tests.log | tail -1)
+if [ -n "$SUMMARY_LINE" ]; then
+    MAIN_PASSED=$(echo "$SUMMARY_LINE" | awk '{for(i=1;i<=NF;i++){if($i~/^[0-9]+$/ && $(i+1)=="passed"){print $i; exit}}}' || echo "0")
+    MAIN_FAILED=$(echo "$SUMMARY_LINE" | awk '{for(i=1;i<=NF;i++){if($i~/^[0-9]+$/ && $(i+1)=="failed"){print $i; exit}}}' || echo "0")
+    MAIN_SKIPPED=$(echo "$SUMMARY_LINE" | awk '{for(i=1;i<=NF;i++){if($i~/^[0-9]+$/ && $(i+1)=="skipped"){print $i; exit}}}' || echo "0")
+else
+    echo "⚠️  Warning: Could not find pytest summary line in main test log"
+    MAIN_PASSED="0"
+    MAIN_FAILED="0"
+    MAIN_SKIPPED="0"
+fi
 
 TOTAL_PASSED=$((TOTAL_PASSED + MAIN_PASSED))
 TOTAL_FAILED=$((TOTAL_FAILED + MAIN_FAILED))

@@ -17,15 +17,16 @@ Not suitable when:
 """
 
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
 
 try:
     # Databricks context is available in notebooks
     import dbutils
-    from pyspark.sql import SparkSession
 except ImportError:
     # For local testing
     dbutils = None
+
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
 
 
 def main():
@@ -39,6 +40,10 @@ def main():
 
     # Initialize Spark (Databricks provides this)
     spark = SparkSession.builder.getOrCreate()
+
+    # Configure engine (required!)
+    configure_engine(spark=spark)
+    F = get_default_functions()
 
     try:
         # Import PipelineBuilder and LogWriter
@@ -128,6 +133,7 @@ def main():
 
         # Silver: Cleaned and enriched data
         def enrich_events(spark, bronze_df, prior_silvers):
+            F = get_default_functions()
             return (
                 bronze_df.withColumn("processed_at", F.current_timestamp())
                 .withColumn("event_date", F.to_date("timestamp"))
@@ -157,6 +163,7 @@ def main():
 
         # Gold: Business analytics
         def daily_analytics(spark, silvers):
+            F = get_default_functions()
             return (
                 silvers["enriched_events"]
                 .groupBy("event_date")
@@ -230,12 +237,12 @@ def main():
         print("\n" + "=" * 80)
         print("EXECUTION SUMMARY")
         print("=" * 80)
-        print(f"Status: {result.status}")
+        print(f"Status: {result.status.value}")
         print(f"Total Steps: {result.metrics.total_steps}")
         print(f"Successful: {result.metrics.successful_steps}")
         print(f"Failed: {result.metrics.failed_steps}")
         print(f"Rows Written: {result.metrics.total_rows_written}")
-        print(f"Duration: {result.metrics.total_duration_secs:.2f}s")
+        print(f"Duration: {result.duration_seconds:.2f}s")
 
         # Show sample results
         print("\n📊 Daily Analytics (Gold Layer):")
@@ -250,7 +257,7 @@ def main():
         # ERROR HANDLING
         # ========================================================================
 
-        if result.status != "completed":
+        if result.status.value != "completed":
             error_msg = f"Pipeline failed: {result.errors}"
             print(f"\n❌ {error_msg}")
 

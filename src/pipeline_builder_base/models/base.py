@@ -127,4 +127,3 @@ class ValidationThresholds(BaseModel):
     def create_loose(cls) -> ValidationThresholds:
         """Create loose validation thresholds."""
         return cls(bronze=80.0, silver=85.0, gold=90.0)
-

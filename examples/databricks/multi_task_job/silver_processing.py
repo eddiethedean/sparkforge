@@ -9,12 +9,14 @@ Depends on: Task 1 (Bronze Ingestion)
 """
 
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
 
 try:
     import dbutils
 except ImportError:
     dbutils = None
+
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
 
 
 def main():
@@ -27,6 +29,10 @@ def main():
     print("=" * 80)
 
     spark = SparkSession.builder.getOrCreate()
+
+    # Configure engine (required!)
+    configure_engine(spark=spark)
+    F = get_default_functions()
 
     try:
         from pipeline_builder import PipelineBuilder
@@ -111,6 +117,7 @@ def main():
 
         # Silver: Clean and enrich
         def enrich_events(spark, bronze_df, prior_silvers):
+            F = get_default_functions()
             return (
                 bronze_df.withColumn("processed_at", F.current_timestamp())
                 .withColumn("event_date", F.to_date("timestamp"))
@@ -150,9 +157,9 @@ def main():
 
         result = pipeline.run_initial_load(bronze_sources={"events": source_df})
 
-        print(f"✅ Silver processing completed: {result.status}")
+        print(f"✅ Silver processing completed: {result.status.value}")
         print(f"   Rows written: {result.metrics.total_rows_written}")
-        print(f"   Duration: {result.metrics.total_duration_secs:.2f}s")
+        print(f"   Duration: {result.duration_seconds:.2f}s")
 
         # Show results
         print("\n📊 Enriched Events (Silver Layer):")

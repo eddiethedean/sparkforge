@@ -25,7 +25,11 @@ from pipeline_builder_base.logging import PipelineLogger
 
 from ..compat import AnalysisException, DataFrame, SparkSession, types
 from ..functions import FunctionsProtocol, get_default_functions
-from ..table_operations import prepare_delta_overwrite, table_exists, table_schema_is_empty
+from ..table_operations import (
+    prepare_delta_overwrite,
+    table_exists,
+    table_schema_is_empty,
+)
 from .exceptions import WriterTableError
 from .models import LogRow, WriteMode, WriterConfig, create_log_schema
 
@@ -52,7 +56,7 @@ def _prepare_delta_overwrite_storage(
 ) -> None:
     """
     Legacy function - delegates to prepare_delta_overwrite() from table_operations.
-    
+
     This function is kept for backward compatibility but now uses the centralized
     prepare_delta_overwrite() function from table_operations module.
     """
@@ -74,8 +78,7 @@ def _is_delta_lake_available(spark: SparkSession) -> bool:  # type: ignore[valid
     Returns:
         True if Delta Lake is available and working, False otherwise
     """
-    import os
-    
+
     # Use Spark session's underlying SparkContext ID as cache key
     try:
         spark_id = (
@@ -87,12 +90,14 @@ def _is_delta_lake_available(spark: SparkSession) -> bool:  # type: ignore[valid
         spark_id = str(id(spark))
 
     # Log session identity and configs before checking
-    print(f"🔍 _is_delta_lake_available: Checking Delta availability")
+    print("🔍 _is_delta_lake_available: Checking Delta availability")
     print(f"🔍 _is_delta_lake_available: PID={os.getpid()}")
     print(f"🔍 _is_delta_lake_available: Session ID (Python)={id(spark)}")
     try:
         if hasattr(spark, "_jsparkSession"):
-            print(f"🔍 _is_delta_lake_available: Session ID (JVM)={id(spark._jsparkSession)}")
+            print(
+                f"🔍 _is_delta_lake_available: Session ID (JVM)={id(spark._jsparkSession)}"
+            )
     except Exception:
         pass
 
@@ -104,7 +109,9 @@ def _is_delta_lake_available(spark: SparkSession) -> bool:  # type: ignore[valid
 
     # If delta package is not installed, can't be available
     if not HAS_DELTA:
-        print(f"⚠️ _is_delta_lake_available: Delta package not installed (HAS_DELTA=False)")
+        print(
+            "⚠️ _is_delta_lake_available: Delta package not installed (HAS_DELTA=False)"
+        )
         _delta_availability_cache[spark_id] = False
         return False
 
@@ -112,8 +119,10 @@ def _is_delta_lake_available(spark: SparkSession) -> bool:  # type: ignore[valid
     try:
         extensions = spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
         catalog = spark.conf.get("spark.sql.catalog.spark_catalog", "")  # type: ignore[attr-defined]
-        
-        print(f"🔍 _is_delta_lake_available: Config check - Extensions: '{extensions}', Catalog: '{catalog}'")
+
+        print(
+            f"🔍 _is_delta_lake_available: Config check - Extensions: '{extensions}', Catalog: '{catalog}'"
+        )
 
         # If both extensions and catalog are configured for Delta, assume it works
         if (
@@ -122,7 +131,7 @@ def _is_delta_lake_available(spark: SparkSession) -> bool:  # type: ignore[valid
             and "DeltaSparkSessionExtension" in extensions
             and "DeltaCatalog" in catalog
         ):
-            print(f"✅ _is_delta_lake_available: Delta configured via config check")
+            print("✅ _is_delta_lake_available: Delta configured via config check")
             _delta_availability_cache[spark_id] = True
             return True
     except Exception as e:
@@ -133,7 +142,9 @@ def _is_delta_lake_available(spark: SparkSession) -> bool:  # type: ignore[valid
     try:
         extensions = spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
         if extensions and "DeltaSparkSessionExtension" in extensions:
-            print(f"🔍 _is_delta_lake_available: Extension found, testing with actual write...")
+            print(
+                "🔍 _is_delta_lake_available: Extension found, testing with actual write..."
+            )
             # Try a simple test - create a minimal DataFrame and try to write it
             test_df = spark.createDataFrame([(1, "test")], ["id", "name"])
             # Use a unique temp directory to avoid conflicts
@@ -141,19 +152,21 @@ def _is_delta_lake_available(spark: SparkSession) -> bool:  # type: ignore[valid
                 test_path = os.path.join(temp_dir, "delta_test")
                 try:
                     test_df.write.format("delta").mode("overwrite").save(test_path)
-                    print(f"✅ _is_delta_lake_available: Delta test write succeeded")
+                    print("✅ _is_delta_lake_available: Delta test write succeeded")
                     _delta_availability_cache[spark_id] = True
                     return True
                 except Exception as test_error:
                     # Delta format failed - not available
-                    print(f"⚠️ _is_delta_lake_available: Delta test write failed: {test_error}")
+                    print(
+                        f"⚠️ _is_delta_lake_available: Delta test write failed: {test_error}"
+                    )
                     pass
     except Exception as e:
         print(f"⚠️ _is_delta_lake_available: Error during test write: {e}")
         pass
 
     # Delta is not available in this Spark session
-    print(f"❌ _is_delta_lake_available: Delta NOT available in this session")
+    print("❌ _is_delta_lake_available: Delta NOT available in this session")
     _delta_availability_cache[spark_id] = False
     return False
 
@@ -367,10 +380,11 @@ class StorageManager:
 
                 # Always use Delta format - failures will propagate if Delta is not available
                 # This ensures we know when Delta fails rather than silently falling back
+                # Note: Delta Lake doesn't support append in batch mode, so use overwrite
                 try:
                     (
                         empty_df.write.format("delta")
-                        .mode("append")
+                        .mode("overwrite")
                         .option("overwriteSchema", "true")
                         .saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
                     )
@@ -460,11 +474,17 @@ class StorageManager:
             if table_exists(self.spark, self.table_fqn):
                 try:
                     # Get table provider/format
-                    detail_df = self.spark.sql(f"DESCRIBE DETAIL {self.table_fqn}").collect()  # type: ignore[attr-defined]
+                    detail_df = self.spark.sql(
+                        f"DESCRIBE DETAIL {self.table_fqn}"
+                    ).collect()  # type: ignore[attr-defined]
                     if detail_df:
                         provider = detail_df[0].get("provider", "").lower()  # type: ignore[index]
                         # If table is Parquet but we're trying to write Delta, drop and recreate
-                        if provider and "parquet" in provider and "delta" not in provider:
+                        if (
+                            provider
+                            and "parquet" in provider
+                            and "delta" not in provider
+                        ):
                             self.logger.warning(
                                 f"Table {self.table_fqn} is Parquet but we need Delta format. "
                                 f"Dropping and will recreate as Delta."
@@ -476,23 +496,32 @@ class StorageManager:
 
             # Verify Delta configuration before write operation
             import os
+
             print(f"🔍 write_dataframe: About to write Delta table {self.table_fqn}")
             print(f"🔍 write_dataframe: PID={os.getpid()}")
             print(f"🔍 write_dataframe: Session ID (Python)={id(self.spark)}")
             try:
                 if hasattr(self.spark, "_jsparkSession"):
-                    print(f"🔍 write_dataframe: Session ID (JVM)={id(self.spark._jsparkSession)}")
+                    print(
+                        f"🔍 write_dataframe: Session ID (JVM)={id(self.spark._jsparkSession)}"
+                    )
             except Exception:
                 pass
-            
+
             # Check configs before Delta operation
             try:
                 ext = self.spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
                 cat = self.spark.conf.get("spark.sql.catalog.spark_catalog", "")  # type: ignore[attr-defined]
-                print(f"🔍 write_dataframe: Pre-write config check - Extensions: '{ext}', Catalog: '{cat}'")
+                print(
+                    f"🔍 write_dataframe: Pre-write config check - Extensions: '{ext}', Catalog: '{cat}'"
+                )
                 if "DeltaSparkSessionExtension" not in ext or "DeltaCatalog" not in cat:
-                    print(f"⚠️ write_dataframe: WARNING - Delta configs missing before write!")
-                    print(f"⚠️ write_dataframe: This will likely cause DeltaAnalysisException")
+                    print(
+                        "⚠️ write_dataframe: WARNING - Delta configs missing before write!"
+                    )
+                    print(
+                        "⚠️ write_dataframe: This will likely cause DeltaAnalysisException"
+                    )
             except Exception as config_error:
                 print(f"⚠️ write_dataframe: Could not check configs: {config_error}")
 
@@ -520,31 +549,40 @@ class StorageManager:
             try:
                 print(f"🔍 write_dataframe: Executing saveAsTable({self.table_fqn})")
                 writer.saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
-                print(f"✅ write_dataframe: saveAsTable succeeded")
+                print("✅ write_dataframe: saveAsTable succeeded")
             except Exception as write_error:
                 import traceback
+
                 error_msg = str(write_error).lower()
-                
+
                 # Log full error context for DeltaAnalysisException
-                if "delta" in error_msg.lower() or "DELTA_CONFIGURE" in str(write_error):
-                    print(f"❌ write_dataframe: Delta error occurred!")
-                    print(f"❌ write_dataframe: Error type: {type(write_error).__name__}")
+                if "delta" in error_msg.lower() or "DELTA_CONFIGURE" in str(
+                    write_error
+                ):
+                    print("❌ write_dataframe: Delta error occurred!")
+                    print(
+                        f"❌ write_dataframe: Error type: {type(write_error).__name__}"
+                    )
                     print(f"❌ write_dataframe: Error message: {write_error}")
                     print(f"❌ write_dataframe: Session ID (Python)={id(self.spark)}")
                     try:
                         if hasattr(self.spark, "_jsparkSession"):
-                            print(f"❌ write_dataframe: Session ID (JVM)={id(self.spark._jsparkSession)}")
+                            print(
+                                f"❌ write_dataframe: Session ID (JVM)={id(self.spark._jsparkSession)}"
+                            )
                     except Exception:
                         pass
                     try:
                         ext = self.spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
                         cat = self.spark.conf.get("spark.sql.catalog.spark_catalog", "")  # type: ignore[attr-defined]
-                        print(f"❌ write_dataframe: Configs at error time - Extensions: '{ext}', Catalog: '{cat}'")
+                        print(
+                            f"❌ write_dataframe: Configs at error time - Extensions: '{ext}', Catalog: '{cat}'"
+                        )
                     except Exception:
                         pass
-                    print(f"❌ write_dataframe: Stack trace:")
+                    print("❌ write_dataframe: Stack trace:")
                     traceback.print_exc()
-                
+
                 if (
                     "already exists" in error_msg
                     or "table_or_view_already_exists" in error_msg
@@ -555,13 +593,14 @@ class StorageManager:
                 ):
                     if table_exists(self.spark, self.table_fqn):
                         self.logger.debug(
-                            f"Table {self.table_fqn} was created by another thread, retrying with append mode"
+                            f"Table {self.table_fqn} was created by another thread, retrying with overwrite mode"
                         )
                         # Always use Delta format
+                        # Note: Delta Lake doesn't support append in batch mode, so use overwrite
                         retry_writer = (
                             df_prepared.write.format("delta")
-                            .mode("append")
-                            .option("mergeSchema", "true")
+                            .mode("overwrite")
+                            .option("overwriteSchema", "true")
                         )  # type: ignore[attr-defined]
                         if partition_columns:
                             retry_writer = retry_writer.partitionBy(*partition_columns)

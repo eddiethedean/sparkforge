@@ -433,12 +433,15 @@ class TestIotPipeline:
         self, mock_spark_session, data_generator, log_writer_config, test_assertions
     ):
         """Test performance monitoring and logging for IoT pipeline."""
-        import os
+
         # Optional: try to log session configs if available (for debugging)
         try:
             from tests.conftest import _log_session_configs
+
             if hasattr(mock_spark_session, "_jsparkSession"):
-                _log_session_configs(mock_spark_session, "test_performance_monitoring (test start)")
+                _log_session_configs(
+                    mock_spark_session, "test_performance_monitoring (test start)"
+                )
         except (ImportError, Exception):
             # _log_session_configs is optional, continue without it
             pass

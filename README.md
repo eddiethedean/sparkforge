@@ -51,11 +51,15 @@ pip install -e ".[compat-test]"
 
 ### Quick Start Example
 ```python
-from pipeline_builder.pipeline.builder import PipelineBuilder
-from pyspark.sql import SparkSession, functions as F
+from pipeline_builder import PipelineBuilder
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
+from pyspark.sql import SparkSession
 
-# Initialize Spark
+# Initialize Spark and configure engine (required!)
 spark = SparkSession.builder.appName("QuickStart").getOrCreate()
+configure_engine(spark=spark)
+F = get_default_functions()
 
 # Sample data
 data = [
@@ -65,27 +69,56 @@ data = [
 ]
 df = spark.createDataFrame(data, ["user_id", "product_id", "quantity", "price"])
 
-# Build and execute pipeline
-pipeline = PipelineBuilder() \
-    .add_bronze_step("raw_orders", df) \
-    .add_silver_step("clean_orders", "raw_orders",
-                     validation_rules={"quantity": ["positive"]}) \
-    .add_gold_step("summary", "clean_orders",
-                   transform_func=lambda df: df.groupBy("product_id")
-                                              .agg(F.sum("quantity").alias("total"))) \
-    .build()
+# Build pipeline
+builder = PipelineBuilder(spark=spark, schema="quickstart")
+builder.with_bronze_rules(
+    name="raw_orders",
+    rules={"user_id": [F.col("user_id").isNotNull()], "quantity": [F.col("quantity") > 0]}
+)
 
-results = pipeline.execute()
-results["summary"].show()
+def clean_orders(spark, bronze_df, prior_silvers):
+    F = get_default_functions()
+    return bronze_df.filter(F.col("quantity") > 0)
+
+builder.add_silver_transform(
+    name="clean_orders",
+    source_bronze="raw_orders",
+    transform=clean_orders,
+    rules={"quantity": [F.col("quantity") > 0]},
+    table_name="clean_orders"
+)
+
+def summary(spark, silvers):
+    F = get_default_functions()
+    return silvers["clean_orders"].groupBy("product_id").agg(
+        F.sum("quantity").alias("total")
+    )
+
+builder.add_gold_transform(
+    name="summary",
+    transform=summary,
+    rules={"product_id": [F.col("product_id").isNotNull()]},
+    table_name="summary",
+    source_silvers=["clean_orders"]
+)
+
+# Execute pipeline
+pipeline = builder.to_pipeline()
+result = pipeline.run_initial_load(bronze_sources={"raw_orders": df})
+print(f"Status: {result.status.value}")
 ```
 
 ### Your First Pipeline
 ```python
 from pipeline_builder import PipelineBuilder
-from pyspark.sql import SparkSession, functions as F
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
+from pyspark.sql import SparkSession
 
-# Initialize Spark
+# Initialize Spark and configure engine (required!)
 spark = SparkSession.builder.appName("EcommerceAnalytics").getOrCreate()
+configure_engine(spark=spark)
+F = get_default_functions()
 
 # Sample e-commerce data
 events_data = [
@@ -99,39 +132,42 @@ source_df = spark.createDataFrame(events_data, ["user_id", "action", "timestamp"
 # Build the pipeline
 builder = PipelineBuilder(spark=spark, schema="analytics")
 
-# Bronze: Raw event ingestion with validation (using string rules)
+# Bronze: Raw event ingestion with validation
 builder.with_bronze_rules(
     name="events",
     rules={
-        "user_id": ["not_null"],
-        "action": ["not_null"],
-        "price": ["gt", 0]  # Greater than 0
+        "user_id": [F.col("user_id").isNotNull()],
+        "action": [F.col("action").isNotNull()],
+        "price": [F.col("price") > 0]
     },
     incremental_col="timestamp"
 )
 
 # Silver: Clean and enrich the data
-builder.add_silver_transform(
-    name="enriched_events",
-    source_bronze="events",
-    transform=lambda spark, df, silvers: (
-        df.withColumn("event_date", F.to_date("timestamp"))
+def enrich_events(spark, bronze_df, prior_silvers):
+    F = get_default_functions()
+    return (
+        bronze_df.withColumn("event_date", F.to_date("timestamp"))
           .withColumn("hour", F.hour("timestamp"))
           .withColumn("is_purchase", F.col("action") == "purchase")
           .filter(F.col("user_id").isNotNull())
-    ),
+    )
+
+builder.add_silver_transform(
+    name="enriched_events",
+    source_bronze="events",
+    transform=enrich_events,
     rules={
-        "user_id": ["not_null"],
-        "event_date": ["not_null"]
+        "user_id": [F.col("user_id").isNotNull()],
+        "event_date": [F.col("event_date").isNotNull()]
     },
     table_name="enriched_events"
 )
 
 # Gold: Business analytics
-builder.add_gold_transform(
-    name="daily_revenue",
-    source_silvers=["enriched_events"],
-    transform=lambda spark, silvers: (
+def daily_revenue(spark, silvers):
+    F = get_default_functions()
+    return (
         silvers["enriched_events"]
         .filter(F.col("is_purchase"))
         .groupBy("event_date")
@@ -141,38 +177,50 @@ builder.add_gold_transform(
             F.countDistinct("user_id").alias("unique_customers")
         )
         .orderBy("event_date")
-    ),
+    )
+
+builder.add_gold_transform(
+    name="daily_revenue",
+    transform=daily_revenue,
     rules={
-        "event_date": ["not_null"],
-        "total_revenue": ["gte", 0]  # Greater than or equal to 0
+        "event_date": [F.col("event_date").isNotNull()],
+        "total_revenue": [F.col("total_revenue") >= 0]
     },
-    table_name="daily_revenue"
+    table_name="daily_revenue",
+    source_silvers=["enriched_events"]
 )
 
 # Execute the pipeline
 pipeline = builder.to_pipeline()
 result = pipeline.run_initial_load(bronze_sources={"events": source_df})
 
-print(f"✅ Pipeline completed: {result.status}")
+print(f"✅ Pipeline completed: {result.status.value}")
 print(f"📊 Processed {result.metrics.total_rows_written} rows")
 ```
 
-## ⚡ Smart Parallel Execution
+## ⚡ Dependency-Aware Sequential Execution
 
-PipelineBuilder automatically analyzes your pipeline dependencies and executes independent steps in parallel for maximum performance. **No configuration needed** - it just works!
+PipelineBuilder automatically analyzes your pipeline dependencies and executes steps in the correct order based on their dependencies. Steps are executed sequentially within dependency groups for predictable, deterministic execution.
 
 ### How It Works
 
 ```python
-# Your pipeline with multiple independent steps
+from pipeline_builder import PipelineBuilder
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
+
+configure_engine(spark=spark)
+F = get_default_functions()
+
+# Your pipeline with multiple steps
 builder = PipelineBuilder(spark=spark, schema="analytics")
 
-# These 3 bronze steps will run in parallel
-builder.with_bronze_rules(name="events_a", rules={"id": ["not_null"]})
-builder.with_bronze_rules(name="events_b", rules={"id": ["not_null"]})
-builder.with_bronze_rules(name="events_c", rules={"id": ["not_null"]})
+# These 3 bronze steps execute sequentially in dependency order
+builder.with_bronze_rules(name="events_a", rules={"id": [F.col("id").isNotNull()]})
+builder.with_bronze_rules(name="events_b", rules={"id": [F.col("id").isNotNull()]})
+builder.with_bronze_rules(name="events_c", rules={"id": [F.col("id").isNotNull()]})
 
-# These 3 silver steps will also run in parallel (after bronze completes)
+# These 3 silver steps execute sequentially after their bronze dependencies
 builder.add_silver_transform(name="clean_a", source_bronze="events_a", ...)
 builder.add_silver_transform(name="clean_b", source_bronze="events_b", ...)
 builder.add_silver_transform(name="clean_c", source_bronze="events_c", ...)
@@ -183,63 +231,36 @@ builder.add_gold_transform(name="analytics", source_silvers=["clean_a", "clean_b
 pipeline = builder.to_pipeline()
 result = pipeline.run_initial_load(bronze_sources={...})
 
-# Check parallel execution metrics
-print(f"⚡ Parallel efficiency: {result.parallel_efficiency:.1f}%")
-print(f"📊 Execution groups: {result.execution_groups_count}")
-print(f"🚀 Max parallelism: {result.max_group_size} concurrent steps")
+# Check execution metrics
+print(f"📊 Total rows written: {result.metrics.total_rows_written}")
+print(f"⏱️  Execution time: {result.duration_seconds:.2f}s")
 ```
 
 ### Execution Flow
 
 ```
-Timeline (with 3 independent steps, 2s each):
+Timeline (with 3 steps, 2s each):
 
-Sequential Execution (old):    Parallel Execution (new):
-┌──────┐                       ┌──────┐
-│Step A│ 2s                    │Step A├──┐
-├──────┤                       ├──────┤  │
-│Step B│ 2s                    │Step B├──┤ All 3 run
-├──────┤                       ├──────┤  │ in parallel!
-│Step C│ 2s                    │Step C├──┘
-└──────┘                       └──────┘
-Total: 6s                      Total: 2s ⚡
+Sequential Execution:
+┌──────┐
+│Step A│ 2s
+├──────┤
+│Step B│ 2s
+├──────┤
+│Step C│ 2s
+└──────┘
+Total: 6s
 
-                               3x faster!
-```
-
-### Performance Configuration
-
-```python
-from pipeline_builder.models import PipelineConfig
-
-# Default: Parallel enabled with 4 workers (recommended)
-builder = PipelineBuilder(spark=spark, schema="analytics")
-
-# High-performance: 16 workers for maximum throughput
-config = PipelineConfig.create_high_performance(schema="analytics")
-
-# Conservative: Sequential execution (1 worker)
-config = PipelineConfig.create_conservative(schema="analytics")
-
-# Custom configuration
-from pipeline_builder.models import ParallelConfig, ValidationThresholds
-
-config = PipelineConfig(
-    schema="analytics",
-    thresholds=ValidationThresholds.create_default(),
-    parallel=ParallelConfig(enabled=True, max_workers=8, timeout_secs=600),
-    verbose=True
-)
+Deterministic and predictable execution order!
 ```
 
 ### Key Benefits
 
-- 🚀 **Automatic optimization** - No manual configuration needed
-- ⚡ **3-5x faster** for pipelines with independent steps
 - 🧠 **Dependency-aware** - Automatically respects step dependencies
-- 📊 **Observable** - Detailed metrics show parallelization effectiveness
-- 🔒 **Thread-safe** - Built-in protection against race conditions
-- 🎯 **Zero code changes** - Works with existing pipelines
+- 🔒 **Deterministic** - Predictable execution order
+- 🐛 **Easy debugging** - Sequential execution simplifies troubleshooting
+- 📊 **Observable** - Detailed metrics for each step
+- 🎯 **No race conditions** - Thread-safe execution
 
 ## 🎨 String Rules - Human-Readable Validation
 
@@ -301,13 +322,14 @@ rules = {
 - **Security hardened** with zero security vulnerabilities
 
 ### 🔧 **Advanced Capabilities**
-- **Smart parallel execution** - Automatic dependency analysis and concurrent step execution (enabled by default)
+- **Service-oriented architecture** - Modular design with dedicated services for validation, storage, transformation, and reporting
+- **Step executors** - Dedicated executors for Bronze, Silver, and Gold steps
 - **String rules support** - Human-readable validation rules (`"not_null"`, `"gt", 0`, `"in", ["active", "inactive"]`)
-- **Column filtering control** - choose what gets preserved
+- **Engine configuration** - Works with both real PySpark and mock Spark for testing
 - **Incremental processing** with watermarking
 - **Schema evolution** support
 - **Time travel** and data versioning
-- **Concurrent write handling**
+- **Comprehensive error handling** with centralized error management
 
 ## 📚 Examples & Use Cases
 
@@ -333,23 +355,28 @@ Track and analyze your pipeline executions with the simplified LogWriter API:
 ### Quick Example
 
 ```python
-from pipeline_builder import PipelineBuilder, LogWriter
+from pipeline_builder import PipelineBuilder
+from pipeline_builder.writer import LogWriter
+from pipeline_builder.engine_config import configure_engine
+
+# Configure engine (required!)
+configure_engine(spark=spark)
 
 # Build and run your pipeline
-builder = PipelineBuilder(spark, schema="analytics")
+builder = PipelineBuilder(spark=spark, schema="analytics")
 # ... add steps ...
 pipeline = builder.to_pipeline()
-report = pipeline.run_initial_load(bronze_sources={"events": df})
+result = pipeline.run_initial_load(bronze_sources={"events": df})
 
 # Initialize LogWriter (simple API - just schema and table name!)
-writer = LogWriter(spark, schema="logs", table_name="pipeline_execution")
+writer = LogWriter(spark=spark, schema="logs", table_name="pipeline_execution")
 
 # Create log table from first report
-writer.create_table(report)
+writer.create_table(result)
 
 # Append subsequent runs
-report2 = pipeline.run_incremental(bronze_sources={"events": df2})
-writer.append(report2)
+result2 = pipeline.run_incremental(bronze_sources={"events": df2})
+writer.append(result2)
 
 # Query your logs
 logs = spark.table("logs.pipeline_execution")
@@ -405,7 +432,7 @@ See **[examples/specialized/logwriter_simple_example.py](https://github.com/eddi
 
 ### Prerequisites
 - **Python 3.8+** (tested with 3.8, 3.9, 3.10, 3.11)
-- **Java 11** (for PySpark 3.5)
+- **Java 17** (for Spark 3.5)
 - **PySpark 3.5+**
 - **Delta Lake 3.0.0+**
 
@@ -530,7 +557,7 @@ We welcome contributions! Here's how to get started:
 |--------|------------|-----------|-------------|
 | **Lines of Code** | 20 lines | 200+ lines | **90% reduction** |
 | **Development Time** | 30 minutes | 4+ hours | **87% faster** |
-| **Execution Speed** | Parallel (3-5x faster) | Sequential | **3-5x faster** |
+| **Execution Speed** | Sequential (dependency-aware) | Manual | **Deterministic** |
 | **Test Coverage** | 83% (1,400 tests) | Manual | **Comprehensive** |
 | **Type Safety** | 100% mypy compliant | None | **Production-ready** |
 | **Security** | Zero vulnerabilities | Manual | **Enterprise-grade** |
@@ -538,26 +565,21 @@ We welcome contributions! Here's how to get started:
 | **Debugging** | Step-by-step | Complex | **Developer-friendly** |
 | **Validation** | Automatic + Configurable | Manual | **Enterprise-grade** |
 
-### Real-World Performance Example
+### Service-Oriented Architecture
+
+SparkForge uses a service-oriented architecture for better maintainability:
 
 ```
-Pipeline: 3 independent data sources → 3 transformations → 1 aggregation
-
-Sequential Execution:        Parallel Execution (PipelineBuilder):
-─────────────────────       ─────────────────────────────────
-Source A: 2s                Group 1 (parallel): 2s
-Source B: 2s                  ├─ Source A: 2s ┐
-Source C: 2s                  ├─ Source B: 2s ├─ All concurrent
-Transform A: 3s               └─ Source C: 2s ┘
-Transform B: 3s             Group 2 (parallel): 3s
-Transform C: 3s               ├─ Transform A: 3s ┐
-Aggregate: 1s                 ├─ Transform B: 3s ├─ All concurrent
-─────────────────────         └─ Transform C: 3s ┘
-Total: 16s                  Group 3: 1s
-                              └─ Aggregate: 1s
-                            ─────────────────────────────────
-                            Total: 6s (2.7x faster!)
+ExecutionEngine
+├── ExecutionValidator - Data quality validation
+├── TableService - Table operations and schema management
+├── WriteService - Write operations to Delta Lake
+├── TransformService - Transformation logic
+├── ExecutionReporter - Execution reporting
+└── ErrorHandler - Centralized error handling
 ```
+
+Each service has a single responsibility and can be tested independently.
 
 ## 🚀 What's New in v2.1.2
 
@@ -567,8 +589,9 @@ Total: 16s                  Group 3: 1s
 - ✅ **Gold overwrite guarantees** – Gold-layer steps always perform `overwrite` writes (and log them accordingly), even during incremental runs, preventing duplicate aggregates
 
 ### 🛠 Environment & Runtime Support
-- ✅ **PySpark 3.5 + Java 11 by default** – Configuration, docs, and tooling aligned to the new runtime baseline
+- ✅ **PySpark 3.5 + Java 17 by default** – Configuration, docs, and tooling aligned to the new runtime baseline
 - ✅ **Updated dependency ranges** – `pyspark` and `delta-spark` optional extras track the latest stable 3.5/3.0 lines
+- ✅ **Engine configuration** – Required engine configuration for both real PySpark and mock Spark
 
 ### 🧪 Reliability & Tooling
 - ✅ **Parallel test stability** – Warehouse schemas are randomized per test to eliminate Delta collisions under `pytest -n`
@@ -590,14 +613,13 @@ Total: 16s                  Group 3: 1s
 13:08:13 - PipelineRunner - INFO - ✅ Completed SILVER step: silver_purchases (0.81s, 350 rows processed, 4 invalid, validation: 98.9%)
 ```
 
-### ⚡ **Smart Parallel Execution (Enhanced)**
-- ✅ **Automatic parallel execution** - Independent steps run concurrently (3-5x faster!)
-- ✅ **Dependency-aware scheduling** - Automatically respects step dependencies
-- ✅ **Thread-safe execution** - Built-in protection against race conditions
-- ✅ **Real-time parallel logging** - See concurrent step execution in action
-- ✅ **Performance metrics** - Track parallel efficiency and throughput
-- ✅ **Zero configuration** - Enabled by default with sensible defaults (4 workers)
-- ✅ **Highly configurable** - Adjust workers from 1 (sequential) to 16+ (high-performance)
+### ⚡ **Service-Oriented Architecture**
+- ✅ **Modular design** - Dedicated services for validation, storage, transformation, and reporting
+- ✅ **Step executors** - Dedicated executors for Bronze, Silver, and Gold steps
+- ✅ **Dependency-aware execution** - Automatically respects step dependencies
+- ✅ **Deterministic execution** - Predictable, sequential execution order
+- ✅ **Easy debugging** - Sequential execution simplifies troubleshooting
+- ✅ **Comprehensive error handling** - Centralized error management with detailed context
 
 ### 🎯 **Quality & Reliability**
 - ✅ **100% type safety** - Complete mypy compliance across all 43 source files
@@ -633,10 +655,12 @@ Total: 16s                  Group 3: 1s
 - **Auto-inference** reduces boilerplate by 70%
 
 ### ✅ **Modern Architecture**
+- **Service-oriented design** with dedicated services for each concern
 - **Delta Lake integration** with ACID transactions
 - **Medallion Architecture** best practices built-in
 - **Schema evolution** and time travel support
 - **Incremental processing** with watermarking
+- **Engine configuration** supporting both real PySpark and mock Spark
 
 ## 📝 License
 

@@ -45,7 +45,9 @@ class TestPipelineRunnerWriteMode:
         # NOTE: Parallel execution disabled for this test to ensure deterministic behavior
         return PipelineConfig(
             schema="test_schema",
-            thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),  # Disabled for schema creation compatibility
+            thresholds=ValidationThresholds(
+                bronze=95.0, silver=98.0, gold=99.0
+            ),  # Disabled for schema creation compatibility
         )
 
     @pytest.fixture

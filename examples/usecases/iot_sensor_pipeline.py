@@ -10,9 +10,10 @@ import random
 from datetime import datetime, timedelta
 
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
 
 from pipeline_builder import PipelineBuilder
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
 
 
 def create_sensor_data(spark):
@@ -76,6 +77,10 @@ def main():
         .getOrCreate()
     )
 
+    # Configure engine (required!)
+    configure_engine(spark=spark)
+    F = get_default_functions()
+
     try:
         # Create sample data
         print("📊 Creating sample IoT sensor data...")
@@ -113,6 +118,7 @@ def main():
         print("🥈 Setting up Silver layer...")
 
         def process_sensor_data(spark, bronze_df, prior_silvers):
+            F = get_default_functions()
             return (
                 bronze_df.withColumn("reading_date", F.date_trunc("day", "timestamp"))
                 .withColumn("reading_hour", F.hour("timestamp"))
@@ -150,6 +156,7 @@ def main():
 
         # Silver Layer: Sensor health monitoring
         def sensor_health_monitoring(spark, bronze_df, prior_silvers):
+            F = get_default_functions()
             processed_readings = prior_silvers["processed_readings"]
             return (
                 processed_readings.groupBy("sensor_id", "sensor_type", "zone")
@@ -198,6 +205,7 @@ def main():
         print("🥇 Setting up Gold layer...")
 
         def zone_analytics(spark, silvers):
+            F = get_default_functions()
             processed_readings = silvers["processed_readings"]
             return (
                 processed_readings.groupBy("zone", "sensor_type", "reading_date")
@@ -231,9 +239,10 @@ def main():
 
         # Gold Layer: Anomaly summary
         def anomaly_summary(spark, silvers):
+            F = get_default_functions()
             processed_readings = silvers["processed_readings"]
             return (
-                processed_readings.filter(F.col("is_anomaly") is True)
+                processed_readings.filter(F.col("is_anomaly"))
                 .groupBy("zone", "sensor_type", "reading_date")
                 .agg(
                     F.count("*").alias("anomaly_count"),
@@ -267,22 +276,23 @@ def main():
         pipeline = builder.to_pipeline()
 
         print("\n📋 Pipeline steps:")
-        steps = pipeline.list_steps()
-        print(f"Bronze steps: {steps['bronze']}")
-        print(f"Silver steps: {steps['silver']}")
-        print(f"Gold steps: {steps['gold']}")
+        print(f"Bronze steps: {list(builder.bronze_steps.keys())}")
+        print(f"Silver steps: {list(builder.silver_steps.keys())}")
+        print(f"Gold steps: {list(builder.gold_steps.keys())}")
 
         # Execute pipeline
         print("\n⚡ Executing pipeline...")
-        result = pipeline.initial_load(bronze_sources={"sensor_readings": sensor_df})
+        result = pipeline.run_initial_load(
+            bronze_sources={"sensor_readings": sensor_df}
+        )
 
         # Display results
         print("\n📊 Pipeline Results:")
-        print(f"Success: {result.success}")
-        print(f"Total rows written: {result.totals['total_rows_written']}")
-        print(f"Execution time: {result.totals['total_duration_secs']:.2f}s")
+        print(f"Status: {result.status.value}")
+        print(f"Total rows written: {result.metrics.total_rows_written}")
+        print(f"Execution time: {result.duration_seconds:.2f}s")
 
-        if result.success:
+        if result.status.value == "completed":
             print("\n✅ Pipeline completed successfully!")
 
             # Show sample results
@@ -290,26 +300,39 @@ def main():
 
             # Zone analytics
             print("\nZone Analytics (top 10):")
-            spark.table("iot_analytics.zone_analytics").show(10)
+            try:
+                spark.table("iot_analytics.zone_analytics").show(10)
+            except Exception as e:
+                print(f"⚠️  Could not display: {e}")
 
             # Sensor health
             print("\nSensor Health Status:")
-            spark.table("iot_analytics.sensor_health").show(10)
+            try:
+                spark.table("iot_analytics.sensor_health").show(10)
+            except Exception as e:
+                print(f"⚠️  Could not display: {e}")
 
             # Anomaly summary
             print("\nAnomaly Summary:")
-            spark.table("iot_analytics.anomaly_summary").show(10)
+            try:
+                spark.table("iot_analytics.anomaly_summary").show(10)
+            except Exception as e:
+                print(f"⚠️  Could not display: {e}")
 
             # Data quality summary
             print("\nData Quality Summary:")
-            spark.table("iot_analytics.processed_readings").groupBy(
-                "data_quality"
-            ).count().orderBy("count", ascending=False).show()
+            try:
+                F = get_default_functions()
+                spark.table("iot_analytics.processed_readings").groupBy(
+                    "data_quality"
+                ).count().orderBy("count", ascending=False).show()
+            except Exception as e:
+                print(f"⚠️  Could not display: {e}")
 
         else:
-            print(f"\n❌ Pipeline failed: {result.error_message}")
-            if result.failed_steps:
-                print(f"Failed steps: {result.failed_steps}")
+            print("\n❌ Pipeline failed")
+            if hasattr(result, "errors") and result.errors:
+                print(f"Errors: {result.errors}")
 
     except Exception as e:
         print(f"\n💥 Error: {e}")

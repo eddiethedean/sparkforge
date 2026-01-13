@@ -177,21 +177,9 @@ class TestModelCreationPerformance:
 
     def test_parallel_config_creation_performance(self) -> None:
         """Test performance of ParallelConfig creation."""
-        iterations = 10000
-
-        def create_parallel_config():
-            return ParallelConfig(enabled=True, max_workers=4)
-
-        result = performance_monitor.benchmark_function(
-            create_parallel_config,
-            "parallel_config_creation",
-            iterations=iterations,
-            warmup_iterations=100,
-        )
-
-        assert result.success
-        assert result.execution_time < 1.0
-        assert result.avg_time_per_iteration < 0.1
+        # Note: ParallelConfig no longer exists in the codebase
+        # This test is skipped as it references removed functionality
+        pytest.skip("ParallelConfig was removed from the codebase")
 
     def test_pipeline_config_creation_performance(self) -> None:
         """Test performance of PipelineConfig creation."""

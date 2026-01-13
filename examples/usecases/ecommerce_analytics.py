@@ -10,9 +10,10 @@ import random
 from datetime import datetime, timedelta
 
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
 
 from pipeline_builder import PipelineBuilder
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
 
 
 def create_sample_data(spark):
@@ -63,6 +64,10 @@ def main():
         .getOrCreate()
     )
 
+    # Configure engine (required!)
+    configure_engine(spark=spark)
+    F = get_default_functions()
+
     try:
         # Create sample data
         print("📊 Creating sample e-commerce data...")
@@ -99,6 +104,7 @@ def main():
         print("🥈 Setting up Silver layer...")
 
         def enrich_orders(spark, bronze_df, prior_silvers):
+            F = get_default_functions()
             return (
                 bronze_df.withColumn(
                     "total_amount", F.col("quantity") * F.col("unit_price")
@@ -132,6 +138,7 @@ def main():
 
         # Silver Layer: Customer profiles
         def create_customer_profiles(spark, bronze_df, prior_silvers):
+            F = get_default_functions()
             enriched_orders = prior_silvers["enriched_orders"]
             return (
                 enriched_orders.groupBy("customer_id")
@@ -170,6 +177,7 @@ def main():
         print("🥇 Setting up Gold layer...")
 
         def daily_sales_summary(spark, silvers):
+            F = get_default_functions()
             enriched_orders = silvers["enriched_orders"]
             return (
                 enriched_orders.groupBy("order_date", "product_category")
@@ -200,6 +208,7 @@ def main():
 
         # Gold Layer: Customer analytics
         def customer_analytics(spark, silvers):
+            F = get_default_functions()
             customer_profiles = silvers["customer_profiles"]
             return (
                 customer_profiles.groupBy("customer_tier", "preferred_region")
@@ -232,22 +241,21 @@ def main():
         pipeline = builder.to_pipeline()
 
         print("\n📋 Pipeline steps:")
-        steps = pipeline.list_steps()
-        print(f"Bronze steps: {steps['bronze']}")
-        print(f"Silver steps: {steps['silver']}")
-        print(f"Gold steps: {steps['gold']}")
+        print(f"Bronze steps: {list(builder.bronze_steps.keys())}")
+        print(f"Silver steps: {list(builder.silver_steps.keys())}")
+        print(f"Gold steps: {list(builder.gold_steps.keys())}")
 
         # Execute pipeline
         print("\n⚡ Executing pipeline...")
-        result = pipeline.initial_load(bronze_sources={"orders": orders_df})
+        result = pipeline.run_initial_load(bronze_sources={"orders": orders_df})
 
         # Display results
         print("\n📊 Pipeline Results:")
-        print(f"Success: {result.success}")
-        print(f"Total rows written: {result.totals['total_rows_written']}")
-        print(f"Execution time: {result.totals['total_duration_secs']:.2f}s")
+        print(f"Status: {result.status.value}")
+        print(f"Total rows written: {result.metrics.total_rows_written}")
+        print(f"Execution time: {result.duration_seconds:.2f}s")
 
-        if result.success:
+        if result.status.value == "completed":
             print("\n✅ Pipeline completed successfully!")
 
             # Show sample results
@@ -266,9 +274,9 @@ def main():
             spark.table("ecommerce_analytics.customer_profiles").show(10)
 
         else:
-            print(f"\n❌ Pipeline failed: {result.error_message}")
-            if result.failed_steps:
-                print(f"Failed steps: {result.failed_steps}")
+            print("\n❌ Pipeline failed")
+            if hasattr(result, "errors") and result.errors:
+                print(f"Errors: {result.errors}")
 
     except Exception as e:
         print(f"\n💥 Error: {e}")

@@ -15,8 +15,10 @@ Key Concepts:
 import logging
 
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -32,6 +34,10 @@ def demonstrate_column_filtering():
         .master("local[*]")
         .getOrCreate()
     )
+
+    # Configure engine (required!)
+    configure_engine(spark=spark)
+    F = get_default_functions()
 
     try:
         # Create sample data with multiple columns
@@ -67,6 +73,7 @@ def demonstrate_column_filtering():
         from pipeline_builder.validation import apply_column_rules
 
         # Define validation rules for only some columns
+        F = get_default_functions()
         rules = {
             "user_id": [F.col("user_id").isNotNull()],
             "event_type": [F.col("event_type").isin(["click", "view", "purchase"])],
@@ -149,10 +156,11 @@ def demonstrate_pipeline_impact():
         .getOrCreate()
     )
 
-    try:
-        import sys
+    # Configure engine (required!)
+    configure_engine(spark=spark)
+    F = get_default_functions()
 
-        sys.path.insert(0, ".")
+    try:
         from pipeline_builder import PipelineBuilder
 
         # Create sample data
@@ -193,8 +201,9 @@ def demonstrate_pipeline_impact():
         )
 
         # Silver transform that needs ALL columns
-        def silver_transform(spark, bronze_df):
+        def silver_transform(spark, bronze_df, prior_silvers):
             """Transform that needs access to all columns."""
+            F = get_default_functions()
             logger.info(f"Silver transform input columns: {bronze_df.columns}")
 
             # This will fail if columns are filtered out
@@ -223,6 +232,7 @@ def demonstrate_pipeline_impact():
 
         builder.add_silver_transform(
             name="enriched_events",
+            source_bronze="user_events",
             transform=silver_transform,
             rules={
                 "user_id": [F.col("user_id").isNotNull()],
@@ -242,7 +252,8 @@ def demonstrate_pipeline_impact():
         )
 
         # Run pipeline
-        pipeline.initial_load(bronze_sources={"user_events": df})
+        result = pipeline.run_initial_load(bronze_sources={"user_events": df})
+        logger.info(f"Pipeline status: {result.status.value}")
 
         logger.info("✅ Pipeline completed successfully!")
         logger.info("   The error above demonstrates exactly what happens when")

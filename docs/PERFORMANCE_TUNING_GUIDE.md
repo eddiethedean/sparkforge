@@ -1,14 +1,14 @@
 # SparkForge Performance Tuning Guide
 
-This guide provides comprehensive strategies for optimizing SparkForge pipeline performance in production environments.
+This guide provides comprehensive strategies for optimizing SparkForge pipeline performance in production environments, focusing on sequential execution, service optimization, and caching strategies.
 
 ## Table of Contents
 
 1. [Performance Monitoring](#performance-monitoring)
 2. [Pipeline Optimization](#pipeline-optimization)
-3. [Data Processing Optimization](#data-processing-optimization)
-4. [Memory Management](#memory-management)
-5. [Parallel Processing](#parallel-processing)
+3. [Service Optimization](#service-optimization)
+4. [Data Processing Optimization](#data-processing-optimization)
+5. [Memory Management](#memory-management)
 6. [Caching Strategies](#caching-strategies)
 7. [Resource Configuration](#resource-configuration)
 8. [Best Practices](#best-practices)
@@ -18,21 +18,25 @@ This guide provides comprehensive strategies for optimizing SparkForge pipeline 
 
 ### Built-in Performance Monitoring
 
-SparkForge includes comprehensive performance monitoring capabilities:
+SparkForge tracks execution metrics automatically:
 
 ```python
-from pipeline_builder.pipeline.builder import PipelineBuilder
-from pipeline_builder.models import ValidationThresholds, ParallelConfig
+from pipeline_builder import PipelineBuilder
+from pipeline_builder.engine_config import configure_engine
 
-# Enable performance monitoring
-config = PipelineConfig(
+# Configure engine
+spark = SparkSession.builder.getOrCreate()
+configure_engine(spark=spark)
+
+# Build pipeline with verbose logging
+builder = PipelineBuilder(
+    spark=spark,
     schema="analytics",
-    quality_thresholds=ValidationThresholds(bronze=80.0, silver=85.0, gold=90.0),
-    parallel=ParallelConfig(enabled=True, max_workers=4),  # Enable parallel processing
-    performance_monitoring=True  # Enable performance tracking
+    min_bronze_rate=95.0,
+    min_silver_rate=98.0,
+    min_gold_rate=99.0,
+    verbose=True  # Enable verbose logging
 )
-
-builder = PipelineBuilder(config)
 ```
 
 ### Performance Metrics
@@ -48,16 +52,16 @@ The system tracks the following metrics:
 ### Accessing Performance Data
 
 ```python
-# Get performance summary
-performance_summary = builder.get_performance_summary()
-print(f"Total execution time: {performance_summary.total_time}s")
-print(f"Memory peak: {performance_summary.peak_memory_mb}MB")
-print(f"Throughput: {performance_summary.records_per_second} records/s")
+# Execute pipeline
+result = pipeline.run_initial_load(bronze_sources={"events": source_df})
 
-# Get detailed step performance
-step_performance = builder.get_step_performance("bronze_events")
-print(f"Step execution time: {step_performance.execution_time}s")
-print(f"Step memory usage: {step_performance.memory_usage_mb}MB")
+# Access performance metrics
+print(f"Status: {result.status.value}")
+print(f"Duration: {result.duration_seconds:.2f}s")
+print(f"Total rows written: {result.metrics.total_rows_written}")
+print(f"Bronze duration: {result.metrics.bronze_duration:.2f}s")
+print(f"Silver duration: {result.metrics.silver_duration:.2f}s")
+print(f"Gold duration: {result.metrics.gold_duration:.2f}s")
 ```
 
 ## Pipeline Optimization
@@ -67,16 +71,44 @@ print(f"Step memory usage: {step_performance.memory_usage_mb}MB")
 Optimize pipeline execution by carefully ordering steps:
 
 ```python
-# ✅ Optimal: Minimize dependencies
-builder.add_bronze_step("events", transform_func, validation_rules)
-builder.add_bronze_step("users", transform_func, validation_rules)
+from pipeline_builder import PipelineBuilder
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
 
-# Silver steps can run in parallel
-builder.add_silver_step("user_events", transform_func, validation_rules, source_bronze="events")
-builder.add_silver_step("user_profiles", transform_func, validation_rules, source_bronze="users")
+configure_engine(spark=spark)
+F = get_default_functions()
 
-# ✅ Avoid: Unnecessary dependencies
-# builder.add_silver_step("combined", transform_func, validation_rules, source_bronze="events,users")
+# ✅ Optimal: Minimize dependencies, execute in dependency order
+builder = PipelineBuilder(spark=spark, schema="analytics")
+
+# Bronze steps execute first
+builder.with_bronze_rules(name="events", rules={...})
+builder.with_bronze_rules(name="users", rules={...})
+
+# Silver steps execute after their bronze dependencies
+builder.add_silver_transform(
+    name="user_events",
+    source_bronze="events",
+    transform=transform_func,
+    rules={...},
+    table_name="user_events"
+)
+builder.add_silver_transform(
+    name="user_profiles",
+    source_bronze="users",
+    transform=transform_func,
+    rules={...},
+    table_name="user_profiles"
+)
+
+# Gold steps execute after all dependencies
+builder.add_gold_transform(
+    name="analytics",
+    transform=analytics_func,
+    rules={...},
+    table_name="analytics",
+    source_silvers=["user_events", "user_profiles"]
+)
 ```
 
 ### 2. Validation Rule Optimization
@@ -84,11 +116,14 @@ builder.add_silver_step("user_profiles", transform_func, validation_rules, sourc
 Optimize validation rules for performance:
 
 ```python
+from pipeline_builder.functions import get_default_functions
+F = get_default_functions()
+
 # ✅ Efficient: Combine related validations
 validation_rules = {
     "user_id": [
         F.col("user_id").isNotNull(),
-        F.col("user_id").rlike(r"^[0-9]+$")  # Combine null check and format validation
+        F.length(F.col("user_id")) > 0  # Combine null check and length validation
     ],
     "timestamp": [
         F.col("timestamp").isNotNull(),
@@ -99,7 +134,7 @@ validation_rules = {
 # ❌ Inefficient: Separate rules that could be combined
 validation_rules = {
     "user_id": [F.col("user_id").isNotNull()],
-    "user_id_format": [F.col("user_id").rlike(r"^[0-9]+$")],
+    "user_id_length": [F.length(F.col("user_id")) > 0],
     "timestamp": [F.col("timestamp").isNotNull()],
     "timestamp_range": [F.col("timestamp") > F.lit("2020-01-01")]
 }
@@ -110,9 +145,12 @@ validation_rules = {
 Optimize transform functions for better performance:
 
 ```python
+from pipeline_builder.functions import get_default_functions
+
 # ✅ Efficient: Use Spark SQL functions
-def efficient_transform(df):
-    return df.withColumn("processed_at", F.current_timestamp()) \
+def efficient_transform(spark, bronze_df, prior_silvers):
+    F = get_default_functions()
+    return bronze_df.withColumn("processed_at", F.current_timestamp()) \
             .withColumn("user_segment", 
                        F.when(F.col("total_spent") > 1000, "premium")
                         .when(F.col("total_spent") > 500, "standard")
@@ -132,8 +170,86 @@ def get_segment(spent):
 
 segment_udf = udf(get_segment, StringType())
 
-def inefficient_transform(df):
-    return df.withColumn("user_segment", segment_udf(F.col("total_spent")))
+def inefficient_transform(spark, bronze_df, prior_silvers):
+    return bronze_df.withColumn("user_segment", segment_udf(F.col("total_spent")))
+```
+
+## Service Optimization
+
+### 1. ExecutionValidator Optimization
+
+Optimize validation service performance:
+
+```python
+from pipeline_builder.execution import ExecutionEngine
+from pipeline_builder.models import PipelineConfig
+
+# Use appropriate validation thresholds
+config = PipelineConfig(
+    schema="production",
+    thresholds=ValidationThresholds(
+        bronze=90.0,  # Lower threshold for bronze (faster)
+        silver=95.0,  # Higher threshold for silver
+        gold=98.0     # Highest threshold for gold
+    )
+)
+
+engine = ExecutionEngine(spark=spark, config=config)
+
+# Validation service caches validation results internally
+# Reuse the same validator instance for multiple steps
+```
+
+### 2. TableService Optimization
+
+Optimize table service for schema operations:
+
+```python
+# TableService caches schema information
+# First call fetches schema, subsequent calls use cache
+table_service = engine.table_service
+
+# Check table existence (cached)
+if table_service.table_exists("clean_events"):
+    schema = table_service.get_table_schema("clean_events")  # Uses cache
+```
+
+### 3. WriteService Optimization
+
+Optimize write service for Delta Lake operations:
+
+```python
+# WriteService handles Delta Lake optimizations automatically
+write_service = engine.write_service
+
+# Batch writes for better performance
+result = write_service.write_step_output(
+    df=output_df,
+    step=silver_step,
+    mode="overwrite"
+)
+```
+
+### 4. TransformService Optimization
+
+Optimize transform service:
+
+```python
+# TransformService applies transformations efficiently
+transform_service = engine.transform_service
+
+# Reuse transform functions
+def silver_transform(spark, bronze_df, prior_silvers):
+    F = get_default_functions()
+    # Efficient transformation logic
+    return bronze_df.filter(F.col("status") == "active")
+
+# Apply transform
+transformed_df = transform_service.apply_silver_transform(
+    step=silver_step,
+    bronze_df=bronze_df,
+    prior_silvers={}
+)
 ```
 
 ## Data Processing Optimization
@@ -143,13 +259,17 @@ def inefficient_transform(df):
 Implement effective partitioning for large datasets:
 
 ```python
-def optimized_bronze_transform(df):
-    # Partition by date for time-series data
-    return df.repartition(F.col("date"), 20)  # 20 partitions per date
+from pipeline_builder.functions import get_default_functions
 
-def optimized_silver_transform(df):
+def optimized_silver_transform(spark, bronze_df, prior_silvers):
+    F = get_default_functions()
+    # Partition by date for time-series data
+    return bronze_df.repartition(F.col("date"), 20)  # 20 partitions per date
+
+def optimized_gold_transform(spark, silvers):
+    F = get_default_functions()
     # Partition by user_id for user-centric data
-    return df.repartition(F.col("user_id"), 50)  # 50 partitions per user_id
+    return silvers["clean_events"].repartition(F.col("user_id"), 50)
 ```
 
 ### 2. Data Type Optimization
@@ -157,18 +277,14 @@ def optimized_silver_transform(df):
 Use appropriate data types to reduce memory usage:
 
 ```python
-# ✅ Optimized: Use appropriate data types
 from pyspark.sql.types import IntegerType, DoubleType, TimestampType
 
-def optimize_data_types(df):
-    return df.withColumn("user_id", F.col("user_id").cast(IntegerType())) \
-            .withColumn("amount", F.col("amount").cast(DoubleType())) \
-            .withColumn("timestamp", F.col("timestamp").cast(TimestampType()))
-
-# ❌ Inefficient: String types for numeric data
-def inefficient_data_types(df):
-    return df.withColumn("user_id", F.col("user_id").cast("string")) \
-            .withColumn("amount", F.col("amount").cast("string"))
+def optimize_data_types(spark, bronze_df, prior_silvers):
+    F = get_default_functions()
+    return bronze_df \
+        .withColumn("user_id", F.col("user_id").cast(IntegerType())) \
+        .withColumn("amount", F.col("amount").cast(DoubleType())) \
+        .withColumn("timestamp", F.col("timestamp").cast(TimestampType()))
 ```
 
 ### 3. Data Filtering
@@ -176,11 +292,13 @@ def inefficient_data_types(df):
 Filter data early in the pipeline:
 
 ```python
-def early_filtering_transform(df):
+def early_filtering_transform(spark, bronze_df, prior_silvers):
+    F = get_default_functions()
     # Filter out invalid records early
-    return df.filter(F.col("user_id").isNotNull()) \
-            .filter(F.col("timestamp") > F.lit("2020-01-01")) \
-            .filter(F.col("amount") > 0)
+    return bronze_df \
+        .filter(F.col("user_id").isNotNull()) \
+        .filter(F.col("timestamp") > F.lit("2020-01-01")) \
+        .filter(F.col("amount") > 0)
 ```
 
 ## Memory Management
@@ -195,6 +313,7 @@ spark.conf.set("spark.sql.adaptive.enabled", "true")
 spark.conf.set("spark.sql.adaptive.coalescePartitions.enabled", "true")
 spark.conf.set("spark.sql.adaptive.skewJoin.enabled", "true")
 spark.conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
 ```
 
 ### 2. Memory-Efficient Operations
@@ -203,94 +322,65 @@ Use memory-efficient operations:
 
 ```python
 # ✅ Memory efficient: Use select to reduce columns
-def memory_efficient_transform(df):
-    return df.select("user_id", "timestamp", "amount", "category") \
+def memory_efficient_transform(spark, bronze_df, prior_silvers):
+    return bronze_df.select("user_id", "timestamp", "amount", "category") \
             .filter(F.col("amount") > 100)
 
 # ❌ Memory inefficient: Keep all columns
-def memory_inefficient_transform(df):
-    return df.filter(F.col("amount") > 100)  # Keeps all columns in memory
+def memory_inefficient_transform(spark, bronze_df, prior_silvers):
+    return bronze_df.filter(F.col("amount") > 100)  # Keeps all columns in memory
 ```
 
 ### 3. Garbage Collection Tuning
 
 Optimize garbage collection for long-running pipelines:
 
-```python
+```bash
 # JVM options for better GC performance
-# -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+UseZGC
-```
-
-## Parallel Processing
-
-### 1. Parallel Configuration
-
-Configure parallel processing for optimal performance:
-
-```python
-from pipeline_builder.models import ParallelConfig
-
-# Optimal parallel configuration
-parallel_config = ParallelConfig(
-    enabled=True,
-    max_workers=min(8, os.cpu_count())  # Don't exceed CPU cores
-)
-
-config = PipelineConfig(
-    schema="analytics",
-    parallel=parallel_config
-)
-```
-
-### 2. Step Parallelization
-
-Design steps for parallel execution:
-
-```python
-# ✅ Parallelizable: Independent silver steps
-builder.add_silver_step("user_events", transform_func, validation_rules, source_bronze="events")
-builder.add_silver_step("user_profiles", transform_func, validation_rules, source_bronze="users")
-builder.add_silver_step("product_analytics", transform_func, validation_rules, source_bronze="products")
-
-# These can run in parallel as they don't depend on each other
-```
-
-### 3. Data Parallelization
-
-Implement data-level parallelization:
-
-```python
-def parallel_data_processing(df):
-    # Process data in parallel chunks
-    return df.repartition(20) \
-            .withColumn("processed_chunk", F.spark_partition_id()) \
-            .groupBy("processed_chunk") \
-            .agg(F.count("*").alias("records_per_chunk"))
+# -XX:+UseG1GC -XX:MaxGCPauseMillis=200
 ```
 
 ## Caching Strategies
 
 ### 1. Strategic Caching
 
-Cache frequently accessed data:
+Cache frequently accessed DataFrames:
 
 ```python
-def cache_frequently_used_data(df):
+def cache_frequently_used_data(spark, bronze_df, prior_silvers):
     # Cache data that will be accessed multiple times
-    df.cache()
-    df.count()  # Trigger caching
-    return df
+    bronze_df.cache()
+    bronze_df.count()  # Trigger caching
+    return bronze_df
 
 # In your pipeline
-builder.add_silver_step(
-    "user_events", 
-    cache_frequently_used_data, 
-    validation_rules, 
-    source_bronze="events"
+builder.add_silver_transform(
+    name="user_events",
+    source_bronze="events",
+    transform=cache_frequently_used_data,
+    rules={...},
+    table_name="user_events"
 )
 ```
 
-### 2. Cache Management
+### 2. Service-Level Caching
+
+Services cache metadata automatically:
+
+```python
+from pipeline_builder.execution import ExecutionEngine
+
+engine = ExecutionEngine(spark=spark, config=config)
+
+# TableService caches schema information
+# First call fetches schema
+schema1 = engine.table_service.get_table_schema("clean_events")
+
+# Subsequent calls use cache (faster)
+schema2 = engine.table_service.get_table_schema("clean_events")  # Uses cache
+```
+
+### 3. Cache Management
 
 Manage cache size and eviction:
 
@@ -298,6 +388,28 @@ Manage cache size and eviction:
 # Configure cache storage
 spark.conf.set("spark.sql.adaptive.localShuffleReader.enabled", "true")
 spark.conf.set("spark.sql.adaptive.skewJoin.enabled", "true")
+
+# Unpersist cached DataFrames when done
+df.unpersist()
+```
+
+### 4. Incremental Processing Caching
+
+Cache intermediate results for incremental processing:
+
+```python
+# Cache bronze data for incremental silver processing
+def incremental_silver_transform(spark, bronze_df, prior_silvers):
+    F = get_default_functions()
+    # Cache bronze data if it will be reused
+    if bronze_df.is_cached:
+        bronze_df.unpersist()
+    bronze_df.cache()
+    
+    # Process incrementally
+    return bronze_df.filter(
+        F.col("timestamp") > F.lit("2024-01-01")
+    )
 ```
 
 ## Resource Configuration
@@ -326,8 +438,30 @@ spark_config = {
     "spark.sql.adaptive.localShuffleReader.enabled": "true",
     "spark.serializer": "org.apache.spark.serializer.KryoSerializer",
     "spark.sql.execution.arrow.pyspark.enabled": "true",
-    "spark.sql.adaptive.advisoryPartitionSizeInBytes": "128MB"
+    "spark.sql.adaptive.advisoryPartitionSizeInBytes": "128MB",
+    "spark.sql.shuffle.partitions": "200",
+    "spark.default.parallelism": "200"
 }
+
+for key, value in spark_config.items():
+    spark.conf.set(key, value)
+```
+
+### 3. Resource Allocation
+
+Configure resource allocation:
+
+```python
+# Configure Spark resources
+spark.conf.set("spark.executor.memory", "8g")
+spark.conf.set("spark.executor.cores", "4")
+spark.conf.set("spark.driver.memory", "4g")
+spark.conf.set("spark.driver.maxResultSize", "2g")
+
+# Enable dynamic allocation
+spark.conf.set("spark.dynamicAllocation.enabled", "true")
+spark.conf.set("spark.dynamicAllocation.minExecutors", "2")
+spark.conf.set("spark.dynamicAllocation.maxExecutors", "10")
 ```
 
 ## Best Practices
@@ -345,8 +479,16 @@ spark_config = {
 - **Minimize Data Movement**: Reduce shuffles and data transfers
 - **Optimize Joins**: Use broadcast joins for small tables
 - **Filter Early**: Apply filters as early as possible in the pipeline
+- **Reuse Services**: Services are optimized and cache metadata
 
-### 3. Operational Practices
+### 3. Service Practices
+
+- **Reuse Service Instances**: Services cache metadata internally
+- **Optimize Validation Rules**: Combine related validations
+- **Use Appropriate Thresholds**: Set thresholds based on data quality requirements
+- **Monitor Service Performance**: Track service-level metrics
+
+### 4. Operational Practices
 
 - **Resource Monitoring**: Monitor CPU, memory, and disk usage
 - **Error Handling**: Implement robust error handling and retry logic
@@ -357,14 +499,20 @@ spark_config = {
 
 ### 1. Built-in Performance Tests
 
-Use SparkForge's built-in performance testing:
+Use execution results for performance analysis:
 
-```bash
-# Run performance tests
-python -m pytest tests/performance/ -v
+```python
+# Execute pipeline and measure performance
+result = pipeline.run_initial_load(bronze_sources={"events": source_df})
 
-# Generate performance report
-python scripts/performance_report.py --summary
+# Analyze performance
+print(f"Total duration: {result.duration_seconds:.2f}s")
+print(f"Bronze duration: {result.metrics.bronze_duration:.2f}s")
+print(f"Silver duration: {result.metrics.silver_duration:.2f}s")
+print(f"Gold duration: {result.metrics.gold_duration:.2f}s")
+
+# Assert performance requirements
+assert result.duration_seconds < 300, "Pipeline execution time exceeds 5 minutes"
 ```
 
 ### 2. Custom Performance Tests
@@ -373,14 +521,17 @@ Create custom performance tests:
 
 ```python
 import time
-from pipeline_builder.pipeline.builder import PipelineBuilder
+from pipeline_builder import PipelineBuilder
 
 def performance_test():
     start_time = time.time()
     
     # Build and execute pipeline
-    builder = PipelineBuilder(config)
+    builder = PipelineBuilder(spark=spark, schema="test")
     # ... add steps ...
+    
+    pipeline = builder.to_pipeline()
+    result = pipeline.run_initial_load(bronze_sources={"events": test_df})
     
     execution_time = time.time() - start_time
     print(f"Pipeline execution time: {execution_time:.2f}s")
@@ -399,37 +550,13 @@ def load_test():
     large_df = spark.range(10000000)  # 10M records
     
     start_time = time.time()
-    result = pipeline_process(large_df)
+    result = pipeline.run_initial_load(bronze_sources={"events": large_df})
     execution_time = time.time() - start_time
     
     throughput = 10000000 / execution_time
     print(f"Throughput: {throughput:.0f} records/second")
     
     assert throughput > 10000, "Throughput below minimum requirement"
-```
-
-## Performance Monitoring Dashboard
-
-### 1. Real-time Monitoring
-
-Monitor pipeline performance in real-time:
-
-```python
-# Get real-time performance metrics
-performance_metrics = builder.get_real_time_metrics()
-print(f"Current memory usage: {performance_metrics.memory_usage_mb}MB")
-print(f"Current CPU usage: {performance_metrics.cpu_usage_percent}%")
-```
-
-### 2. Historical Analysis
-
-Analyze historical performance data:
-
-```python
-# Get performance history
-history = builder.get_performance_history(days=30)
-print(f"Average execution time: {history.avg_execution_time}s")
-print(f"Peak memory usage: {history.peak_memory_mb}MB")
 ```
 
 ## Troubleshooting Performance Issues
@@ -439,7 +566,7 @@ print(f"Peak memory usage: {history.peak_memory_mb}MB")
 - **Slow Execution**: Check for inefficient transforms and validation rules
 - **Memory Issues**: Optimize data types and partitioning
 - **Skewed Data**: Implement data skew handling
-- **Resource Contention**: Adjust parallel configuration
+- **Service Initialization**: Services are initialized once and reused
 
 ### 2. Performance Debugging
 
@@ -449,9 +576,10 @@ import logging
 logging.getLogger("pipeline_builder").setLevel(logging.DEBUG)
 
 # Get detailed performance breakdown
-performance_breakdown = builder.get_performance_breakdown()
-for step, metrics in performance_breakdown.items():
-    print(f"{step}: {metrics.execution_time}s, {metrics.memory_usage_mb}MB")
+result = pipeline.run_initial_load(bronze_sources={"events": df})
+print(f"Bronze duration: {result.metrics.bronze_duration:.2f}s")
+print(f"Silver duration: {result.metrics.silver_duration:.2f}s")
+print(f"Gold duration: {result.metrics.gold_duration:.2f}s")
 ```
 
 ## Conclusion
@@ -463,5 +591,6 @@ This guide provides comprehensive strategies for optimizing SparkForge pipeline 
 3. **Test Thoroughly**: Use performance tests and load testing
 4. **Document Changes**: Keep track of performance tuning decisions
 5. **Monitor in Production**: Set up alerts for performance degradation
+6. **Leverage Services**: Services are optimized and cache metadata automatically
 
 For additional support, refer to the troubleshooting guide or contact the development team.

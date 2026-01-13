@@ -7,8 +7,6 @@ behavior analysis, and 360-degree customer view.
 """
 
 import os
-import tempfile
-from uuid import uuid4
 
 import pytest
 
@@ -23,8 +21,9 @@ from pyspark.sql import functions as F
 
 from pipeline_builder.pipeline import PipelineBuilder
 import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from test_helpers.isolation import get_unique_schema, get_unique_warehouse_dir
+from test_helpers.isolation import get_unique_schema
 
 
 class TestCustomerAnalyticsPipeline:
@@ -456,10 +455,7 @@ class TestCustomerAnalyticsPipeline:
 
         # Create pipeline
         unique_schema = get_unique_schema("bronze")
-        builder = PipelineBuilder(
-            spark=spark_session, schema=unique_schema
-        )
-        builder.config.parallel = ParallelConfig.create_sequential()
+        builder = PipelineBuilder(spark=spark_session, schema=unique_schema)
 
         builder.with_bronze_rules(name="customers", rules={"customer_id": ["not_null"]})
 
@@ -591,7 +587,6 @@ class TestCustomerAnalyticsPipeline:
 
         # Create pipeline
         builder = PipelineBuilder(spark=spark_session, schema=unique_schema)
-        builder.config.parallel = ParallelConfig.create_sequential()
 
         builder.with_bronze_rules(name="customers", rules={"customer_id": ["not_null"]})
 
@@ -745,7 +740,6 @@ class TestCustomerAnalyticsPipeline:
 
         # Create pipeline
         builder = PipelineBuilder(spark=spark_session, schema=unique_schema)
-        builder.config.parallel = ParallelConfig.create_sequential()
 
         builder.with_bronze_rules(name="customers", rules={"customer_id": ["not_null"]})
 
@@ -800,8 +794,10 @@ class TestCustomerAnalyticsPipeline:
         try:
             import sys
             import os
-            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             from test_helpers.isolation import cleanup_test_tables
+
             cleanup_test_tables(spark_session, unique_schema)
         except Exception:
             pass  # Ignore cleanup errors

@@ -8,9 +8,34 @@ Installation
 
 .. code-block:: bash
 
-   git clone https://github.com/eddiethedean/sparkforge.git
-   cd sparkforge
-   pip install -e .
+   pip install pipeline-builder
+
+   # Or with extras
+   pip install pipeline-builder[pyspark]  # For PySpark support
+
+Engine Configuration
+--------------------
+
+.. important::
+
+   **Engine Configuration Required**: You must configure the engine before using
+   pipeline components. This allows the framework to work with both real PySpark
+   and mock Spark for testing.
+
+.. code-block:: python
+
+   from pipeline_builder.engine_config import configure_engine
+   from pyspark.sql import SparkSession
+
+   # Create Spark session with Delta Lake
+   spark = SparkSession.builder \
+       .appName("My First Pipeline") \
+       .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+       .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+       .getOrCreate()
+
+   # Configure engine (required!)
+   configure_engine(spark=spark)
 
 Your First Pipeline
 -------------------
@@ -24,14 +49,22 @@ Let's build a simple e-commerce analytics pipeline:
 .. code-block:: python
 
    from pipeline_builder import PipelineBuilder
-   from pyspark.sql import functions as F
+   from pipeline_builder.engine_config import configure_engine
+   from pipeline_builder.functions import get_default_functions
    from pyspark.sql import SparkSession
 
-   # 1. Initialize Spark
+   # 1. Initialize Spark and configure engine
    spark = SparkSession.builder \
        .appName("My First Pipeline") \
-       .master("local[*]") \
+       .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+       .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
        .getOrCreate()
+
+   # Configure engine (required!)
+   configure_engine(spark=spark)
+
+   # Get functions
+   F = get_default_functions()
 
    # 2. Create sample data
    events_data = [
@@ -51,7 +84,8 @@ Let's build a simple e-commerce analytics pipeline:
            "user_id": [F.col("user_id").isNotNull()],
            "action": [F.col("action").isNotNull()],
            "timestamp": [F.col("timestamp").isNotNull()]
-       }
+       },
+       incremental_col="timestamp"
    )
 
    # Silver: Clean events
@@ -62,7 +96,10 @@ Let's build a simple e-commerce analytics pipeline:
        name="clean_events",
        source_bronze="events",
        transform=clean_events,
-       rules={"action": [F.col("action").isNotNull()]},
+       rules={
+           "user_id": [F.col("user_id").isNotNull()],
+           "action": [F.col("action").isNotNull()],
+       },
        table_name="clean_events"
    )
 
@@ -74,74 +111,64 @@ Let's build a simple e-commerce analytics pipeline:
    builder.add_gold_transform(
        name="daily_summary",
        transform=daily_summary,
-       rules={"action": [F.col("action").isNotNull()]},
+       rules={"action": [F.col("action").isNotNull()], "count": [F.col("count") > 0]},
        table_name="daily_summary",
        source_silvers=["clean_events"]
    )
 
    # 4. Execute pipeline
    pipeline = builder.to_pipeline()
-   result = pipeline.initial_load(bronze_sources={"events": events_df})
+   result = pipeline.run_initial_load(bronze_sources={"events": events_df})
 
-   print(f"Pipeline completed: {result.success}")
-   print(f"Rows written: {result.totals['total_rows_written']}")
+   print(f"Pipeline completed: {result.status.value}")
+   print(f"Rows written: {result.metrics.total_rows_written}")
 
 What Just Happened?
 -------------------
 
-1. **Bronze Layer**: We defined validation rules for raw event data
-2. **Silver Layer**: We cleaned the data by filtering valid actions
-3. **Gold Layer**: We created a daily summary by action type
-4. **Execution**: We ran the pipeline and got results
+1. **Engine Configuration**: We configured the engine to use PySpark
+2. **Bronze Layer**: We defined validation rules for raw event data
+3. **Silver Layer**: We cleaned the data by filtering valid actions
+4. **Gold Layer**: We created a daily summary by action type
+5. **Execution**: We ran the pipeline and got results
+
+The pipeline uses a service-oriented architecture internally:
+- **Step Executors**: Handle execution logic for each step type
+- **ExecutionValidator**: Validates data according to step rules
+- **WriteService**: Handles all write operations to Delta Lake
+- **TableService**: Manages table operations and schema
 
 Next Steps
 ----------
 
-Debug Individual Steps
-~~~~~~~~~~~~~~~~~~~~~~
+Check Execution Results
+~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-   # Test Bronze step
-   bronze_result = pipeline.execute_bronze_step("events", input_data=events_df)
-   print(f"Bronze validation: {bronze_result.validation_result.validation_passed}")
+   result = pipeline.run_initial_load(bronze_sources={"events": events_df})
 
-   # Test Silver step
-   silver_result = pipeline.execute_silver_step("clean_events")
-   print(f"Silver output rows: {silver_result.output_count}")
-
-   # Test Gold step
-   gold_result = pipeline.execute_gold_step("daily_summary")
-   print(f"Gold duration: {gold_result.duration_seconds:.2f}s")
+   # Check status
+   if result.status.value == "completed":
+       print("✅ Pipeline completed successfully")
+       print(f"Bronze rows: {result.bronze_results['events']['rows_processed']}")
+       print(f"Silver rows: {result.silver_results['clean_events']['rows_written']}")
+       print(f"Gold rows: {result.gold_results['daily_summary']['rows_written']}")
+   else:
+       print(f"❌ Pipeline failed: {result.errors}")
 
 Add Incremental Processing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-   # Enable incremental processing
-   builder.with_bronze_rules(
-       name="events",
-       rules={"user_id": [F.col("user_id").isNotNull()]},
-       incremental_col="timestamp"  # Process only new data
-   )
-
+   # Enable incremental processing (already done above with incremental_col)
    # Run incrementally
    new_events = spark.createDataFrame([...], schema)
    result = pipeline.run_incremental(bronze_sources={"events": new_events})
 
-Enable Parallel Execution
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: python
-
-   # Silver steps run in parallel
-   builder = PipelineBuilder(
-       spark=spark,
-       schema="analytics",
-       enable_parallel_silver=True,
-       max_parallel_workers=4
-   )
+   # Check incremental results
+   print(f"Incremental rows processed: {result.bronze_results['events']['rows_processed']}")
 
 Add Data Validation
 ~~~~~~~~~~~~~~~~~~~
@@ -157,6 +184,11 @@ Add Data Validation
        min_gold_rate=99.0     # 99% data quality required
    )
 
+   # Validate pipeline before execution
+   errors = builder.validate_pipeline()
+   if errors:
+       print(f"Validation errors: {errors}")
+
 Common Patterns
 ---------------
 
@@ -164,6 +196,10 @@ E-commerce Pipeline
 ~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
+
+   # Configure engine first
+   configure_engine(spark=spark)
+   F = get_default_functions()
 
    # Bronze: Raw orders
    builder.with_bronze_rules(
@@ -224,6 +260,10 @@ IoT Sensor Data Pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
+
+   # Configure engine first
+   configure_engine(spark=spark)
+   F = get_default_functions()
 
    # Bronze: Raw sensor data
    builder.with_bronze_rules(
@@ -288,37 +328,40 @@ Check Pipeline Status
 
 .. code-block:: python
 
-   result = pipeline.run_incremental(bronze_sources={"events": events_df})
+   result = pipeline.run_initial_load(bronze_sources={"events": events_df})
 
-   if not result.success:
-       print(f"Pipeline failed: {result.error_message}")
-       print(f"Failed steps: {result.failed_steps}")
+   if result.status.value == "completed":
+       print("✅ Pipeline completed successfully")
+       print(f"Rows written: {result.metrics.total_rows_written}")
+   else:
+       print(f"❌ Pipeline failed: {result.errors}")
+       print(f"Failed steps: {result.metrics.failed_steps}")
 
-Debug Specific Steps
-~~~~~~~~~~~~~~~~~~~~
+Check Validation Results
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-   # Check Bronze validation
-   bronze_result = pipeline.execute_bronze_step("events", input_data=events_df)
-   if not bronze_result.validation_result.validation_passed:
-       print(f"Bronze validation failed: {bronze_result.validation_result.validation_rate:.2f}%")
+   # Check validation rates
+   bronze_rate = result.bronze_results["events"]["validation_rate"]
+   silver_rate = result.silver_results["clean_events"]["validation_rate"]
+   gold_rate = result.gold_results["daily_summary"]["validation_rate"]
 
-   # Check Silver output
-   silver_result = pipeline.execute_silver_step("clean_events")
-   print(f"Silver output: {silver_result.output_count} rows")
+   print(f"Bronze validation: {bronze_rate:.2f}%")
+   print(f"Silver validation: {silver_rate:.2f}%")
+   print(f"Gold validation: {gold_rate:.2f}%")
 
 Monitor Performance
 ~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-   from pipeline_builder.performance import performance_monitor
+   result = pipeline.run_initial_load(bronze_sources={"events": events_df})
 
-   with performance_monitor("pipeline_execution"):
-       result = pipeline.run_incremental(bronze_sources={"events": events_df})
-
-   print(f"Execution time: {result.totals['total_duration_secs']:.2f}s")
+   print(f"Execution time: {result.duration_seconds:.2f}s")
+   print(f"Bronze duration: {result.metrics.bronze_duration:.2f}s")
+   print(f"Silver duration: {result.metrics.silver_duration:.2f}s")
+   print(f"Gold duration: {result.metrics.gold_duration:.2f}s")
 
 What's Next?
 ------------

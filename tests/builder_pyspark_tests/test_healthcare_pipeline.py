@@ -7,8 +7,6 @@ diagnoses, medications, and population health insights.
 """
 
 import os
-import tempfile
-from uuid import uuid4
 
 import pytest
 
@@ -22,6 +20,7 @@ from pyspark.sql import functions as F
 
 from pipeline_builder.pipeline import PipelineBuilder
 import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from test_helpers.isolation import get_unique_schema
 
@@ -498,8 +497,10 @@ class TestHealthcarePipeline:
         try:
             import sys
             import os
-            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             from test_helpers.isolation import cleanup_test_tables
+
             cleanup_test_tables(spark_session, unique_schema)
         except Exception:
             pass  # Ignore cleanup errors
@@ -671,8 +672,10 @@ class TestHealthcarePipeline:
         # Cleanup: drop schema created for this test
         try:
             import sys
-            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             from test_helpers.isolation import cleanup_test_tables
+
             cleanup_test_tables(spark_session, analytics_schema)
         except Exception:
             pass  # Ignore cleanup errors

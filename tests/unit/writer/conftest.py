@@ -32,6 +32,7 @@ from pipeline_builder.writer.models import LogRow, WriteMode, WriterConfig
 def spark_session():
     """Create a SparkSession for testing."""
     import os
+
     # Get worker ID for concurrent testing isolation (pytest-xdist)
     worker_id = os.environ.get("PYTEST_XDIST_WORKER", "gw0")
     spark = (

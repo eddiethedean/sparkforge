@@ -7,11 +7,10 @@ using SparkForge.
 """
 
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
 
 from pipeline_builder import PipelineBuilder
-
-# No additional imports needed - PipelineBuilder takes individual parameters
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
 
 
 def main():
@@ -24,6 +23,10 @@ def main():
         .config("spark.sql.warehouse.dir", "/tmp/spark-warehouse")
         .getOrCreate()
     )
+
+    # Configure engine (required!)
+    configure_engine(spark=spark)
+    F = get_default_functions()
 
     try:
         # Create sample data
@@ -69,18 +72,22 @@ def main():
         )
 
         # Silver Layer: Cleaned and enriched data
-        builder.add_silver_transform(
-            name="enriched_events",
-            source_bronze="events",
-            transform=lambda spark, df, prior_silvers: (
-                df.withColumn("processed_at", F.current_timestamp())
+        def enrich_events(spark, bronze_df, prior_silvers):
+            F = get_default_functions()
+            return (
+                bronze_df.withColumn("processed_at", F.current_timestamp())
                 .withColumn("event_date", F.to_date("timestamp"))
                 .withColumn("hour", F.hour("timestamp"))
                 .filter(F.col("user_id").isNotNull())
                 .select(
                     "user_id", "action", "value", "event_date", "processed_at", "hour"
                 )
-            ),
+            )
+
+        builder.add_silver_transform(
+            name="enriched_events",
+            source_bronze="events",
+            transform=enrich_events,
             rules={
                 "user_id": [F.col("user_id").isNotNull()],
                 "action": [F.col("action").isNotNull()],
@@ -95,10 +102,9 @@ def main():
         )
 
         # Gold Layer: Business analytics
-        builder.add_gold_transform(
-            name="daily_analytics",
-            source_silvers=["enriched_events"],
-            transform=lambda spark, silvers: (
+        def daily_analytics(spark, silvers):
+            F = get_default_functions()
+            return (
                 silvers["enriched_events"]
                 .groupBy("event_date")
                 .agg(
@@ -116,7 +122,12 @@ def main():
                     F.avg("value").alias("avg_value"),
                 )
                 .orderBy("event_date")
-            ),
+            )
+
+        builder.add_gold_transform(
+            name="daily_analytics",
+            source_silvers=["enriched_events"],
+            transform=daily_analytics,
             rules={
                 "event_date": [F.col("event_date").isNotNull()],
                 "total_events": [F.col("total_events") > 0],
@@ -147,15 +158,9 @@ def main():
 
         # Display results
         print("\n📊 Pipeline Results:")
-        print(f"   Status: {result.status}")
-        print(f"   Total steps: {result.total_steps}")
-        print(f"   Successful steps: {result.successful_steps}")
-        print(f"   Failed steps: {result.failed_steps}")
+        print(f"   Status: {result.status.value}")
         print(f"   Total rows written: {result.metrics.total_rows_written}")
-        print(f"   Execution time: {result.metrics.total_duration_secs:.2f}s")
-        print(
-            f"   Overall validation rate: {result.metrics.overall_validation_rate:.1f}%"
-        )
+        print(f"   Execution time: {result.duration_seconds:.2f}s")
 
         # Show the final Gold table
         print("\n📈 Daily Analytics (Gold Layer):")

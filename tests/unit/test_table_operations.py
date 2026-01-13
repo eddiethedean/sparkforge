@@ -84,9 +84,7 @@ class TestWriteOverwriteTable:
             mock_df.write.format.assert_called_once_with("delta")
             mock_writer.mode.assert_called_once_with("overwrite")
             mock_writer.option.assert_called_once_with("overwriteSchema", "true")
-            mock_writer.saveAsTable.assert_called_once_with(
-                "test_schema.test_table"
-            )
+            mock_writer.saveAsTable.assert_called_once_with("test_schema.test_table")
 
     def test_write_overwrite_table_with_options(self):
         """Test overwrite table write with additional options."""
@@ -108,9 +106,7 @@ class TestWriteOverwriteTable:
             assert result == 50
             # Standardized pattern: always use delta format, overwrite mode with overwriteSchema
             # Should call option for each additional option
-            assert (
-                mock_writer.option.call_count == 3
-            )  # overwriteSchema + 2 additional
+            assert mock_writer.option.call_count == 3  # overwriteSchema + 2 additional
             mock_writer.option.assert_any_call("overwriteSchema", "true")
             mock_writer.option.assert_any_call("compression", "snappy")
             mock_writer.option.assert_any_call("partitionBy", "date")

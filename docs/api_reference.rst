@@ -11,10 +11,20 @@ This section provides comprehensive API documentation for all PipelineBuilder cl
 
 .. important::
 
-   **Validation System**: PipelineBuilder now includes a robust validation system that enforces data quality requirements:
+   **Engine Configuration Required**: Before using PipelineBuilder, you must configure the engine:
+
+   .. code-block:: python
+
+      from pipeline_builder.engine_config import configure_engine
+      from pyspark.sql import SparkSession
+
+      spark = SparkSession.builder.getOrCreate()
+      configure_engine(spark=spark)
+
+   **Validation System**: PipelineBuilder includes a robust validation system that enforces data quality requirements:
 
    - **BronzeStep**: Must have non-empty validation rules
-   - **SilverStep**: Must have non-empty validation rules, valid transform function, and valid source_bronze (except for existing tables)
+   - **SilverStep**: Must have non-empty validation rules, valid transform function, and valid source_bronze
    - **GoldStep**: Must have non-empty validation rules and valid transform function
 
    Invalid configurations are rejected during construction with clear error messages, ensuring data quality from the start.
@@ -33,23 +43,128 @@ The main class for building data pipelines with the Medallion Architecture.
    :show-inheritance:
    :noindex:
 
-PipelineRunner
-~~~~~~~~~~~~~~
+ExecutionEngine
+~~~~~~~~~~~~~~~
 
-The simplified pipeline runner for executing data pipelines.
+The execution engine for processing pipeline steps with service-oriented architecture.
 
-.. autoclass:: pipeline_builder.pipeline.runner.SimplePipelineRunner
+.. autoclass:: pipeline_builder.execution.ExecutionEngine
    :members:
    :undoc-members:
    :show-inheritance:
    :noindex:
 
-ExecutionEngine
-~~~~~~~~~~~~~~~
+Step Executors
+--------------
 
-The simplified execution engine for processing pipeline steps.
+BronzeStepExecutor
+~~~~~~~~~~~~~~~~~~
 
-.. autoclass:: pipeline_builder.execution.ExecutionEngine
+Executor for Bronze layer steps.
+
+.. autoclass:: pipeline_builder.step_executors.bronze.BronzeStepExecutor
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :noindex:
+
+SilverStepExecutor
+~~~~~~~~~~~~~~~~~~
+
+Executor for Silver layer steps.
+
+.. autoclass:: pipeline_builder.step_executors.silver.SilverStepExecutor
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :noindex:
+
+GoldStepExecutor
+~~~~~~~~~~~~~~~~
+
+Executor for Gold layer steps.
+
+.. autoclass:: pipeline_builder.step_executors.gold.GoldStepExecutor
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :noindex:
+
+Services
+--------
+
+ExecutionValidator
+~~~~~~~~~~~~~~~~~~
+
+Service for validating data during pipeline execution.
+
+.. autoclass:: pipeline_builder.validation.execution_validator.ExecutionValidator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :noindex:
+
+TableService
+~~~~~~~~~~~~
+
+Service for table operations and schema management.
+
+.. autoclass:: pipeline_builder.storage.table_service.TableService
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :noindex:
+
+WriteService
+~~~~~~~~~~~~
+
+Service for writing DataFrames to tables.
+
+.. autoclass:: pipeline_builder.storage.write_service.WriteService
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :noindex:
+
+SchemaManager
+~~~~~~~~~~~~~
+
+Service for schema validation and management.
+
+.. autoclass:: pipeline_builder.storage.schema_manager.SchemaManager
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :noindex:
+
+TransformService
+~~~~~~~~~~~~~~~~
+
+Service for applying transformations to DataFrames.
+
+.. autoclass:: pipeline_builder.transformation.transform_service.TransformService
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :noindex:
+
+ExecutionReporter
+~~~~~~~~~~~~~~~~~
+
+Service for creating execution reports.
+
+.. autoclass:: pipeline_builder.reporting.execution_reporter.ExecutionReporter
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :noindex:
+
+ErrorHandler
+~~~~~~~~~~~~
+
+Centralized error handler for pipeline operations.
+
+.. autoclass:: pipeline_builder.errors.error_handler.ErrorHandler
    :members:
    :undoc-members:
    :show-inheritance:
@@ -63,7 +178,7 @@ BronzeStep
 
 Configuration for Bronze layer steps (raw data validation and ingestion).
 
-.. autoclass:: pipeline_builder.models.BronzeStep
+.. autoclass:: pipeline_builder.models.steps.BronzeStep
    :members:
    :undoc-members:
    :show-inheritance:
@@ -74,7 +189,7 @@ SilverStep
 
 Configuration for Silver layer steps (data cleaning and enrichment).
 
-.. autoclass:: pipeline_builder.models.SilverStep
+.. autoclass:: pipeline_builder.models.steps.SilverStep
    :members:
    :undoc-members:
    :show-inheritance:
@@ -85,7 +200,7 @@ GoldStep
 
 Configuration for Gold layer steps (business analytics and reporting).
 
-.. autoclass:: pipeline_builder.models.GoldStep
+.. autoclass:: pipeline_builder.models.steps.GoldStep
    :members:
    :undoc-members:
    :show-inheritance:
@@ -96,29 +211,18 @@ PipelineConfig
 
 Main pipeline configuration.
 
-.. autoclass:: pipeline_builder.models.PipelineConfig
+.. autoclass:: pipeline_builder.models.pipeline.PipelineConfig
    :members:
    :undoc-members:
    :show-inheritance:
    :noindex:
 
 ValidationThresholds
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 Validation thresholds for each pipeline layer.
 
-.. autoclass:: pipeline_builder.models.ValidationThresholds
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :noindex:
-
-ParallelConfig
-~~~~~~~~~~~~~~
-
-Configuration for parallel execution.
-
-.. autoclass:: pipeline_builder.models.ParallelConfig
+.. autoclass:: pipeline_builder.models.base.ValidationThresholds
    :members:
    :undoc-members:
    :show-inheritance:
@@ -149,12 +253,23 @@ Result of executing a complete pipeline.
    :show-inheritance:
    :noindex:
 
-PipelineReport
-~~~~~~~~~~~~~~
+ExecutionContext
+~~~~~~~~~~~~~~~
 
-Report of pipeline execution results.
+Context for pipeline execution.
 
-.. autoclass:: pipeline_builder.models.PipelineReport
+.. autoclass:: pipeline_builder.models.execution.ExecutionContext
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :noindex:
+
+StepResult
+~~~~~~~~~~
+
+Result of executing a single step.
+
+.. autoclass:: pipeline_builder.models.execution.StepResult
    :members:
    :undoc-members:
    :show-inheritance:
@@ -196,23 +311,34 @@ Types of pipeline steps.
    :show-inheritance:
    :noindex:
 
-PipelineStatus
-~~~~~~~~~~~~~~
+PipelinePhase
+~~~~~~~~~~~~~
 
-Pipeline execution status.
+Pipeline phases (Bronze, Silver, Gold).
 
-.. autoclass:: pipeline_builder.models.PipelineStatus
+.. autoclass:: pipeline_builder.models.enums.PipelinePhase
    :members:
    :undoc-members:
    :show-inheritance:
    :noindex:
 
-PipelineMode
-~~~~~~~~~~~~
+WriteMode
+~~~~~~~~~
 
-Pipeline execution modes.
+Write modes for table operations.
 
-.. autoclass:: pipeline_builder.models.PipelineMode
+.. autoclass:: pipeline_builder.models.enums.WriteMode
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :noindex:
+
+ValidationResult
+~~~~~~~~~~~~~~~
+
+Validation result status.
+
+.. autoclass:: pipeline_builder.models.enums.ValidationResult
    :members:
    :undoc-members:
    :show-inheritance:
@@ -221,198 +347,67 @@ Pipeline execution modes.
 Error Classes
 -------------
 
-SparkForgeError
-~~~~~~~~~~~~~~~
-
-Base exception for all SparkForge errors.
-
-.. autoclass:: pipeline_builder.errors.SparkForgeError
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :noindex:
-
-ValidationError
-~~~~~~~~~~~~~~~
-
-Error raised when data validation fails.
-
-.. autoclass:: pipeline_builder.errors.ValidationError
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :noindex:
-
-ExecutionError
-~~~~~~~~~~~~~~
-
-Error raised when step execution fails.
-
-.. autoclass:: pipeline_builder.errors.ExecutionError
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :noindex:
-
-ConfigurationError
-~~~~~~~~~~~~~~~~~~
+PipelineConfigurationError
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Error raised when pipeline configuration is invalid.
 
-.. autoclass:: pipeline_builder.errors.ConfigurationError
+.. autoclass:: pipeline_builder.models.exceptions.PipelineConfigurationError
    :members:
    :undoc-members:
    :show-inheritance:
    :noindex:
 
-PipelineError
-~~~~~~~~~~~~~
+PipelineExecutionError
+~~~~~~~~~~~~~~~~~~~~~~
 
 Error raised when pipeline execution fails.
 
-.. autoclass:: pipeline_builder.errors.PipelineError
+.. autoclass:: pipeline_builder.models.exceptions.PipelineExecutionError
    :members:
    :undoc-members:
    :show-inheritance:
    :noindex:
 
-DataError
+Compatibility Layer
+-------------------
+
+Functions
 ~~~~~~~~~
 
-Error raised when data processing fails.
+Get default functions from the configured engine.
 
-.. autoclass:: pipeline_builder.errors.DataError
+.. autofunction:: pipeline_builder.functions.get_default_functions
+
+Compatibility Module
+~~~~~~~~~~~~~~~~~~~~~
+
+Protocol-based compatibility layer for SparkForge.
+
+.. automodule:: pipeline_builder.compat
    :members:
    :undoc-members:
-   :show-inheritance:
    :noindex:
 
-SystemError
-~~~~~~~~~~~
+Table Operations
+----------------
 
-Error raised when system-level operations fail.
+Table operation utilities.
 
-.. autoclass:: pipeline_builder.errors.SystemError
+.. automodule:: pipeline_builder.table_operations
    :members:
    :undoc-members:
-   :show-inheritance:
    :noindex:
-
-PerformanceError
-~~~~~~~~~~~~~~~~
-
-Error raised when performance issues are detected.
-
-.. autoclass:: pipeline_builder.errors.PerformanceError
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :noindex:
-
-Logging
--------
-
-PipelineLogger
-~~~~~~~~~~~~~~
-
-Simplified logger for pipeline execution.
-
-.. autoclass:: pipeline_builder.logging.PipelineLogger
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :noindex:
-
-Utility Functions
------------------
-
-get_logger
-~~~~~~~~~~
-
-Get the global logger instance.
-
-.. autofunction:: pipeline_builder.logging.get_logger
-
-set_logger
-~~~~~~~~~~
-
-Set the global logger instance.
-
-.. autofunction:: pipeline_builder.logging.set_logger
-
-create_logger
-~~~~~~~~~~~~~
-
-Create a new logger instance.
-
-.. autofunction:: pipeline_builder.logging.create_logger
-
-Validation
-----------
-
-UnifiedValidator
-~~~~~~~~~~~~~~~~
-
-Unified validation system for data and pipeline validation.
-
-.. autoclass:: pipeline_builder.validation.UnifiedValidator
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :noindex:
-
-apply_column_rules
-~~~~~~~~~~~~~~~~~~
-
-Apply validation rules to a DataFrame.
-
-.. autofunction:: pipeline_builder.validation.apply_column_rules
-
-assess_data_quality
-~~~~~~~~~~~~~~~~~~~
-
-Assess data quality metrics.
-
-.. autofunction:: pipeline_builder.validation.assess_data_quality
-
-get_dataframe_info
-~~~~~~~~~~~~~~~~~~
-
-Get DataFrame information and statistics.
-
-.. autofunction:: pipeline_builder.validation.get_dataframe_info
 
 Dependencies
 ------------
-
-DependencyAnalyzer
-~~~~~~~~~~~~~~~~~~
-
-Analyzer for pipeline dependencies.
-
-.. autoclass:: pipeline_builder.dependencies.DependencyAnalyzer
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :noindex:
 
 DependencyGraph
 ~~~~~~~~~~~~~~~
 
 Graph representation of pipeline dependencies.
 
-.. autoclass:: pipeline_builder.dependencies.DependencyGraph
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :noindex:
-
-DependencyAnalysisResult
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-Result of dependency analysis.
-
-.. autoclass:: pipeline_builder.dependencies.DependencyAnalysisResult
+.. autoclass:: pipeline_builder.dependencies.graph.DependencyGraph
    :members:
    :undoc-members:
    :show-inheritance:
@@ -423,80 +418,25 @@ StepNode
 
 Node in the dependency graph.
 
-.. autoclass:: pipeline_builder.dependencies.StepNode
+.. autoclass:: pipeline_builder.dependencies.graph.StepNode
    :members:
    :undoc-members:
    :show-inheritance:
    :noindex:
 
-Table Operations
-----------------
+LogWriter
+--------
 
-fqn
-~~~
+LogWriter
+~~~~~~~~~
 
-Generate fully qualified table name.
+Writer for logging pipeline execution results.
 
-.. autofunction:: pipeline_builder.table_operations.fqn
-
-Type Definitions
-----------------
-
-ColumnRules
-~~~~~~~~~~~
-
-Type alias for column validation rules.
-
-.. autodata:: pipeline_builder.types.ColumnRules
-
-TransformFunction
-~~~~~~~~~~~~~~~~~
-
-Type alias for transform functions.
-
-.. autodata:: pipeline_builder.types.TransformFunction
-
-SilverTransformFunction
-~~~~~~~~~~~~~~~~~~~~~~~
-
-Type alias for silver transform functions.
-
-.. autodata:: pipeline_builder.types.SilverTransformFunction
-
-GoldTransformFunction
-~~~~~~~~~~~~~~~~~~~~~
-
-Type alias for gold transform functions.
-
-.. autodata:: pipeline_builder.types.GoldTransformFunction
-
-ExecutionConfig
-~~~~~~~~~~~~~~~
-
-Type alias for execution configuration.
-
-.. autodata:: pipeline_builder.types.ExecutionConfig
-
-PipelineConfig
-~~~~~~~~~~~~~~
-
-Type alias for pipeline configuration.
-
-.. autodata:: pipeline_builder.types.PipelineConfig
-
-ValidationConfig
-~~~~~~~~~~~~~~~~
-
-Type alias for validation configuration.
-
-.. autodata:: pipeline_builder.types.ValidationConfig
-
-MonitoringConfig
-~~~~~~~~~~~~~~~~
-
-Type alias for monitoring configuration.
-
-.. autodata:: pipeline_builder.types.MonitoringConfig
+.. autoclass:: pipeline_builder.writer.core.LogWriter
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :noindex:
 
 Examples
 --------
@@ -506,8 +446,15 @@ Basic Pipeline
 
 .. code-block:: python
 
+   from pipeline_builder.engine_config import configure_engine
    from pipeline_builder import PipelineBuilder
-   from pyspark.sql import functions as F
+   from pipeline_builder.functions import get_default_functions
+   from pyspark.sql import SparkSession
+
+   # Configure engine (required!)
+   spark = SparkSession.builder.getOrCreate()
+   configure_engine(spark=spark)
+   F = get_default_functions()
 
    # Create pipeline
    builder = PipelineBuilder(spark=spark, schema="analytics")
@@ -520,91 +467,137 @@ Basic Pipeline
    )
 
    # Add Silver step
+   def clean_events(spark, bronze_df, prior_silvers):
+       return bronze_df.filter(F.col("status") == "active")
+
    builder.add_silver_transform(
        name="clean_events",
        source_bronze="events",
-       transform=lambda spark, df, silvers: df.filter(F.col("status") == "active"),
+       transform=clean_events,
        rules={"status": [F.col("status").isNotNull()]},
        table_name="clean_events"
    )
 
    # Add Gold step
+   def daily_metrics(spark, silvers):
+       return silvers["clean_events"].groupBy("date").count()
+
    builder.add_gold_transform(
        name="daily_metrics",
-       transform=lambda spark, silvers: silvers["clean_events"].groupBy("date").count(),
+       transform=daily_metrics,
        rules={"date": [F.col("date").isNotNull()]},
-       table_name="daily_metrics"
+       table_name="daily_metrics",
+       source_silvers=["clean_events"]
    )
 
    # Execute pipeline
    pipeline = builder.to_pipeline()
    result = pipeline.run_initial_load(bronze_sources={"events": source_df})
 
+   print(f"Pipeline completed: {result.status.value}")
+   print(f"Rows written: {result.metrics.total_rows_written}")
+
 Error Handling
 ~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-   from pipeline_builder.errors import ValidationError, ExecutionError, PipelineError
+   from pipeline_builder.models.exceptions import (
+       PipelineConfigurationError,
+       PipelineExecutionError
+   )
 
    try:
        result = pipeline.run_initial_load(bronze_sources={"events": df})
-   except ValidationError as e:
-       print(f"Validation failed: {e}")
-       print(f"Context: {e.context}")
-   except ExecutionError as e:
-       print(f"Execution failed: {e}")
-       print(f"Step: {e.context.get('step_name')}")
-   except PipelineError as e:
-       print(f"Pipeline failed: {e}")
-       print(f"Errors: {e.context.get('errors')}")
+   except PipelineConfigurationError as e:
+       print(f"Configuration error: {e}")
+   except PipelineExecutionError as e:
+       print(f"Execution error: {e}")
+
+Service Usage
+~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from pipeline_builder.execution import ExecutionEngine
+   from pipeline_builder.models import PipelineConfig
+
+   # Create execution engine (services are initialized internally)
+   config = PipelineConfig.create_default(schema="analytics")
+   engine = ExecutionEngine(spark=spark, config=config)
+
+   # Services are available as attributes:
+   # - engine.validator (ExecutionValidator)
+   # - engine.table_service (TableService)
+   # - engine.write_service (WriteService)
+   # - engine.transform_service (TransformService)
+   # - engine.reporter (ExecutionReporter)
+   # - engine.error_handler (ErrorHandler)
 
 Logging
 ~~~~~~~
 
 .. code-block:: python
 
-   from pipeline_builder.logging import PipelineLogger
+   from pipeline_builder.writer import LogWriter
 
-   # Create logger
-   logger = PipelineLogger(level="INFO")
-
-   # Use with pipeline
-   builder = PipelineBuilder(spark=spark, schema="analytics", logger=logger)
-
-   # Log messages
-   logger.info("Starting pipeline execution")
-   logger.error("Pipeline failed", extra={"step": "bronze"})
-
-Validation
-~~~~~~~~~~
-
-.. code-block:: python
-
-   from pipeline_builder.validation import apply_column_rules, assess_data_quality
-
-   # Apply validation rules
-   valid_df, invalid_df, stats = apply_column_rules(
-       df, rules, stage="bronze", step="events"
+   # Create LogWriter (new simplified API)
+   writer = LogWriter(
+       spark=spark,
+       schema="monitoring",
+       table_name="pipeline_logs"
    )
 
-   # Assess data quality
-   quality = assess_data_quality(df)
-   print(f"Quality rate: {quality['quality_rate']}%")
+   # Log execution result
+   result = pipeline.run_initial_load(bronze_sources={"events": source_df})
+   writer.append(result)
 
-Dependencies
-~~~~~~~~~~~~
+   # Query logs
+   logs = spark.table("monitoring.pipeline_logs")
+   logs.show()
+
+For more examples, see the `Examples <examples/index.html>`_ section.
+
+Migration Guide
+----------------
+
+From Old API to New API
+~~~~~~~~~~~~~~~~~~~~~~~
+
+**Old API (Deprecated):**
 
 .. code-block:: python
 
-   from pipeline_builder.dependencies import DependencyAnalyzer
+   builder.add_bronze_step("events", transform_func, rules)
+   builder.add_silver_step("clean", transform_func, rules, source_bronze="events")
+   builder.add_gold_step("metrics", "table", transform_func, rules, source_silvers=["clean"])
 
-   # Analyze dependencies
-   analyzer = DependencyAnalyzer()
-   result = analyzer.analyze_pipeline(bronze_steps, silver_steps, gold_steps)
+**New API:**
 
-   # Get execution order
-   execution_order = result.execution_order
-   print(f"Execution order: {execution_order}")
+.. code-block:: python
 
-For more examples, see the `Examples <examples/index.html>`_ section.
+   builder.with_bronze_rules(name="events", rules=rules, incremental_col="timestamp")
+   builder.add_silver_transform(
+       name="clean",
+       source_bronze="events",
+       transform=transform_func,
+       rules=rules,
+       table_name="clean_events"
+   )
+   builder.add_gold_transform(
+       name="metrics",
+       transform=transform_func,
+       rules=rules,
+       table_name="metrics",
+       source_silvers=["clean"]
+   )
+
+**Key Changes:**
+
+- ``add_bronze_step`` → ``with_bronze_rules`` (Bronze steps don't have transforms)
+- ``add_silver_step`` → ``add_silver_transform``
+- ``add_gold_step`` → ``add_gold_transform``
+- Transform function signature changed: ``(spark, bronze_df, prior_silvers)`` for Silver, ``(spark, silvers)`` for Gold
+- Execution methods: ``initial_load()`` → ``run_initial_load()``, ``incremental()`` → ``run_incremental()``
+- Parallel execution removed: Sequential execution with dependency-aware ordering
+- Engine configuration required: Must call ``configure_engine(spark=spark)`` before use

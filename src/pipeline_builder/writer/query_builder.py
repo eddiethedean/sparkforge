@@ -42,8 +42,7 @@ class QueryBuilder:
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
         result = df.filter(
-            functions.col(date_column)
-            >= functions.lit(start_date.strftime("%Y-%m-%d"))
+            functions.col(date_column) >= functions.lit(start_date.strftime("%Y-%m-%d"))
         )
         return result
 

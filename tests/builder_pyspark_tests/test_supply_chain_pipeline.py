@@ -7,8 +7,6 @@ and logistics performance metrics.
 """
 
 import os
-import tempfile
-from uuid import uuid4
 
 import pytest
 
@@ -23,6 +21,7 @@ from pyspark.sql import functions as F
 
 from pipeline_builder.pipeline import PipelineBuilder
 import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from test_helpers.isolation import get_unique_schema
 
@@ -59,7 +58,6 @@ class TestSupplyChainPipeline:
             min_gold_rate=99.0,
             verbose=True,
         )
-        builder.config.parallel = ParallelConfig.create_sequential()
 
         # Bronze Layer: Raw supply chain data validation
         builder.with_bronze_rules(
@@ -446,8 +444,10 @@ class TestSupplyChainPipeline:
         try:
             import sys
             import os
-            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             from test_helpers.isolation import cleanup_test_tables
+
             cleanup_test_tables(spark_session, unique_schema)
         except Exception:
             pass  # Ignore cleanup errors
@@ -473,7 +473,6 @@ class TestSupplyChainPipeline:
             min_gold_rate=99.0,
             verbose=False,
         )
-        builder.config.parallel = ParallelConfig.create_sequential()
 
         builder.with_bronze_rules(
             name="raw_orders",
@@ -553,7 +552,6 @@ class TestSupplyChainPipeline:
         builder = PipelineBuilder(
             spark=spark_session, schema=unique_schema, verbose=False
         )
-        builder.config.parallel = ParallelConfig.create_sequential()
 
         builder.with_bronze_rules(
             name="raw_orders",
@@ -593,8 +591,10 @@ class TestSupplyChainPipeline:
         # Cleanup: drop schema created for this test
         try:
             import sys
-            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             from test_helpers.isolation import cleanup_test_tables
+
             cleanup_test_tables(spark_session, analytics_schema)
         except Exception:
             pass  # Ignore cleanup errors

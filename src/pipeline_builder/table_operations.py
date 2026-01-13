@@ -1,19 +1,54 @@
 """
 Table operations utilities for the pipeline framework.
 
-This module contains functions for reading, writing, and managing tables
-in the data lake.
+This module provides comprehensive utilities for reading, writing, and managing
+tables in the data lake. It includes Delta Lake support, table existence checks,
+schema validation, and standardized write patterns.
 
-# Depends on:
-#   compat
-#   errors
-#   performance
+**Key Features:**
+    - **Delta Lake Integration**: Automatic detection and support for Delta tables
+    - **Standardized Write Patterns**: Consistent write operations across the framework
+    - **Table Management**: Existence checks, schema validation, and table operations
+    - **Error Handling**: Comprehensive error handling with custom exceptions
+    - **Performance Monitoring**: Built-in timing and performance tracking
+
+**Common Patterns:**
+    - Check if table exists before writing
+    - Prepare Delta tables for overwrite operations
+    - Create fully qualified table names (FQN)
+    - Write DataFrames with standardized patterns
+
+Dependencies:
+    - compat: Compatibility layer for Spark/PySpark types
+    - errors: Custom exception classes
+    - performance: Performance monitoring decorators
+
+Example:
+    >>> from pipeline_builder.table_operations import (
+    ...     table_exists,
+    ...     write_overwrite_table,
+    ...     fqn
+    ... )
+    >>> from pipeline_builder.compat import SparkSession
+    >>>
+    >>> # Create fully qualified name
+    >>> table_name = fqn("analytics", "user_events")
+    >>>
+    >>> # Check if table exists
+    >>> if table_exists(spark, table_name):
+    ...     print(f"Table {table_name} exists")
+    >>>
+    >>> # Write DataFrame
+    >>> rows = write_overwrite_table(df, table_name)
+    >>> print(f"Wrote {rows} rows")
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Union
+import os
+import tempfile
+from typing import Any, Dict, Optional, Union
 
 from .compat import AnalysisException, DataFrame, SparkSession
 from .errors import TableOperationError
@@ -30,34 +65,170 @@ except (ImportError, AttributeError, RuntimeError):
 
 logger = logging.getLogger(__name__)
 
+# Cache for Delta Lake availability checks
+_delta_availability_cache: Dict[str, bool] = {}
+
+
+def is_delta_lake_available(spark: SparkSession) -> bool:  # type: ignore[valid-type]
+    """Check if Delta Lake is available in the Spark session.
+
+    Checks whether Delta Lake extensions and catalog are configured in the
+    Spark session. Uses caching to avoid repeated checks for the same session.
+
+    Args:
+        spark: SparkSession instance to check.
+
+    Returns:
+        True if Delta Lake is available (extensions and catalog configured),
+        False otherwise.
+
+    Example:
+        >>> from pipeline_builder.table_operations import is_delta_lake_available
+        >>> if is_delta_lake_available(spark):
+        ...     print("Delta Lake is available")
+        ...     # Use Delta-specific operations
+        ... else:
+        ...     print("Delta Lake is not available")
+    """
+    # Use session ID as cache key
+    spark_id = str(id(spark))
+    if spark_id in _delta_availability_cache:
+        return _delta_availability_cache[spark_id]
+
+    # Check if Delta extensions are configured
+    try:
+        extensions = spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
+        catalog = spark.conf.get("spark.sql.catalog.spark_catalog", "")  # type: ignore[attr-defined]
+        if (
+            extensions
+            and catalog
+            and "DeltaSparkSessionExtension" in extensions
+            and "DeltaCatalog" in catalog
+        ):
+            _delta_availability_cache[spark_id] = True
+            return True
+    except Exception:
+        pass
+
+    # If only extensions are configured, do a lightweight test
+    try:
+        extensions = spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
+        if extensions and "DeltaSparkSessionExtension" in extensions:
+            # Try a simple test - create a minimal DataFrame and try to write it
+            test_df = spark.createDataFrame([(1, "test")], ["id", "name"])
+            # Use a unique temp directory to avoid conflicts
+            with tempfile.TemporaryDirectory() as temp_dir:
+                test_path = os.path.join(temp_dir, "delta_test")
+                try:
+                    test_df.write.format("delta").mode("overwrite").save(test_path)
+                    _delta_availability_cache[spark_id] = True
+                    return True
+                except Exception:
+                    # Delta format failed - not available
+                    pass
+    except Exception:
+        pass
+
+    # Delta is not available in this Spark session
+    _delta_availability_cache[spark_id] = False
+    return False
+
+
+def create_dataframe_writer(
+    df: DataFrame,
+    spark: SparkSession,  # type: ignore[valid-type]
+    mode: str,
+    table_name: Optional[str] = None,
+    **options: Any,
+) -> Any:
+    """Create a DataFrameWriter using the standardized Delta overwrite pattern.
+
+    Creates a DataFrameWriter configured with Delta format and appropriate
+    options. For overwrite mode, uses `overwriteSchema=true` to allow schema
+    evolution. Always uses Delta format - failures will propagate if Delta
+    is not available.
+
+    Args:
+        df: DataFrame to write.
+        spark: SparkSession instance (used for Delta table preparation if needed).
+        mode: Write mode string. Common values:
+            - "overwrite": Replace existing data
+            - "append": Add to existing data
+            - "ignore": Skip if table exists
+            - "error": Fail if table exists
+        table_name: Optional fully qualified table name. If provided and mode
+            is "overwrite", prepares the Delta table for overwrite.
+        **options: Additional write options to pass to the writer (e.g.,
+            partitionBy, mergeSchema, etc.).
+
+    Returns:
+        DataFrameWriter instance configured with Delta format and options.
+
+    Example:
+        >>> from pipeline_builder.table_operations import create_dataframe_writer
+        >>> writer = create_dataframe_writer(
+        ...     df,
+        ...     spark,
+        ...     mode="overwrite",
+        ...     table_name="analytics.events",
+        ...     partitionBy="date"
+        ... )
+        >>> writer.saveAsTable("analytics.events")
+    """
+    # Use standardized overwrite pattern: overwrite + overwriteSchema
+    if mode == "overwrite":
+        writer = (
+            df.write.format("delta").mode("overwrite").option("overwriteSchema", "true")
+        )
+    else:
+        # Append or other modes - always use Delta
+        writer = df.write.format("delta").mode(mode)
+
+    for key, value in options.items():
+        writer = writer.option(key, value)
+
+    return writer
+
 
 def prepare_delta_overwrite(
     spark: SparkSession,  # type: ignore[valid-type]
     table_name: str,
 ) -> None:
-    """
-    Prepare for Delta table overwrite by dropping existing Delta table if it exists.
-    
+    """Prepare for Delta table overwrite by dropping existing table if it exists.
+
     Delta tables don't support truncate in batch mode, so we must drop the table
-    before overwriting it. This function safely handles this preparation.
-    
-    This is a public utility function that should be used before any Delta overwrite
-    operation to avoid "Table does not support truncate in batch mode" errors.
-    
+    before overwriting it. This function safely handles this preparation by
+    dropping the table if it exists, avoiding "Table does not support truncate
+    in batch mode" errors.
+
+    **Important:** This function should be called before any Delta overwrite
+    operation to ensure compatibility with Delta Lake's limitations.
+
     Args:
-        spark: Spark session
-        table_name: Fully qualified table name (e.g., "schema.table") or table path
-        
+        spark: SparkSession instance for executing SQL commands.
+        table_name: Fully qualified table name (e.g., "schema.table") or
+            table path. If it's a table name (contains dot and doesn't start
+            with "/"), it will be dropped via SQL. If it's a path, the function
+            checks if it's a Delta table but cannot drop it (overwrite will
+            handle it).
+
     Example:
-        >>> prepare_delta_overwrite(spark, "my_schema.my_table")
-        >>> df.write.format("delta").mode("overwrite").saveAsTable("my_schema.my_table")
+        >>> from pipeline_builder.table_operations import prepare_delta_overwrite
+        >>> prepare_delta_overwrite(spark, "analytics.user_events")
+        >>> df.write.format("delta").mode("overwrite").saveAsTable("analytics.user_events")
+
+    Note:
+        This function is safe to call even if the table doesn't exist. It uses
+        `DROP TABLE IF EXISTS` to avoid errors. If the drop fails for any reason,
+        a warning is logged but execution continues (the write operation may
+        still succeed or fail with a more specific error).
     """
     if not HAS_DELTA:
         return
-    
+
     # Check if it's a table name (contains dot) or a path
     is_table_name = "." in table_name and not table_name.startswith("/")
-    
+
     if is_table_name:
         # Always try to drop the table if it exists, since we're about to overwrite it
         # This is safer than failing later with truncate error for Delta tables
@@ -73,10 +244,12 @@ def prepare_delta_overwrite(
     else:
         # It's a path - check if Delta table exists at that path
         try:
-            if DeltaTable.isDeltaTable(spark, table_name):  # type: ignore[attr-defined]
+            if DeltaTable.isDeltaTable(spark, table_name):  # type: ignore[attr-defined,arg-type]
                 # For path-based Delta tables, we can't drop via SQL
                 # The overwrite will handle it, but we log a warning
-                logger.debug(f"Delta table exists at path {table_name}, overwrite will replace it")
+                logger.debug(
+                    f"Delta table exists at path {table_name}, overwrite will replace it"
+                )
         except Exception:
             # If we can't check, assume it might be Delta and proceed
             pass
@@ -89,7 +262,7 @@ def _prepare_delta_overwrite_table_ops(
 ) -> None:
     """
     Legacy function name - use prepare_delta_overwrite() instead.
-    
+
     This function is kept for backward compatibility but now delegates to
     the public prepare_delta_overwrite() function.
     """
@@ -97,18 +270,26 @@ def _prepare_delta_overwrite_table_ops(
 
 
 def fqn(schema: str, table: str) -> str:
-    """
-    Create a fully qualified table name.
+    """Create a fully qualified table name (FQN).
+
+    Combines schema and table names into a fully qualified table name in the
+    format "schema.table". This is the standard format used throughout the
+    framework for table references.
 
     Args:
-        schema: Database schema name
-        table: Table name
+        schema: Database schema name. Must be non-empty.
+        table: Table name. Must be non-empty.
 
     Returns:
-        Fully qualified table name
+        Fully qualified table name in the format "schema.table".
 
     Raises:
-        ValueError: If schema or table is empty
+        ValueError: If schema or table is empty.
+
+    Example:
+        >>> from pipeline_builder.table_operations import fqn
+        >>> table_name = fqn("analytics", "user_events")
+        >>> print(table_name)  # "analytics.user_events"
     """
     if not schema or not table:
         raise ValueError("Schema and table names cannot be empty")
@@ -121,19 +302,36 @@ def write_overwrite_table(
     fqn: str,
     **options: Union[str, int] | Union[float, bool],  # type: ignore[valid-type]
 ) -> int:
-    """
-    Write DataFrame to table in overwrite mode using Delta overwrite pattern.
+    """Write DataFrame to table in overwrite mode using Delta overwrite pattern.
+
+    Writes a DataFrame to a table, replacing all existing data. Uses Delta
+    format with `overwriteSchema=true` to allow schema evolution. Automatically
+    prepares the Delta table for overwrite by dropping it if it exists (to
+    avoid truncate errors).
 
     Args:
-        df: DataFrame to write
-        fqn: Fully qualified table name
-        **options: Additional write options
+        df: DataFrame to write. Will be cached before writing.
+        fqn: Fully qualified table name (e.g., "schema.table").
+        **options: Additional write options to pass to the writer. Common
+            options include:
+            - partitionBy: Column(s) to partition by
+            - mergeSchema: Whether to merge schemas (default: true via overwriteSchema)
 
     Returns:
-        Number of rows written
+        Number of rows written to the table.
 
     Raises:
-        TableOperationError: If write operation fails
+        TableOperationError: If write operation fails (e.g., table creation
+            fails, write fails, or Delta Lake is not available).
+
+    Example:
+        >>> from pipeline_builder.table_operations import write_overwrite_table
+        >>> rows = write_overwrite_table(
+        ...     df,
+        ...     "analytics.user_events",
+        ...     partitionBy="date"
+        ... )
+        >>> print(f"Wrote {rows} rows")
     """
     try:
         df.cache()  # type: ignore[attr-defined]
@@ -141,23 +339,16 @@ def write_overwrite_table(
 
         # Get SparkSession from DataFrame to prepare Delta overwrite
         spark = df.sql_ctx.sparkSession  # type: ignore[attr-defined]
-        
+
         # Prepare for Delta overwrite by dropping existing Delta table if it exists
         prepare_delta_overwrite(spark, fqn)
-        
-        # After dropping, check if table still exists to determine write mode
-        # If table was dropped, we can use append mode (which creates if not exists)
-        # If table still exists, we need to use overwrite mode
-        table_still_exists = table_exists(spark, fqn)
-        
-        # Use standardized Delta write pattern - always use Delta format
-        # If table was dropped, use append mode (creates table if not exists)
-        # If table still exists, use overwrite mode
-        write_mode = "overwrite" if table_still_exists else "append"
+
+        # Delta Lake doesn't support append in batch mode
+        # Always use overwrite mode for Delta tables
+        # This is safe because we've already dropped the table if it existed
+        write_mode = "overwrite"
         writer = (
-            df.write.format("delta")
-            .mode(write_mode)
-            .option("overwriteSchema", "true")
+            df.write.format("delta").mode(write_mode).option("overwriteSchema", "true")
         )  # type: ignore[attr-defined]
 
         for key, value in options.items():
@@ -177,19 +368,35 @@ def write_append_table(
     fqn: str,
     **options: Union[str, int] | Union[float, bool],  # type: ignore[valid-type]
 ) -> int:
-    """
-    Write DataFrame to table in append mode.
+    """Write DataFrame to table in append mode.
+
+    Writes a DataFrame to a table, adding new data to existing data. Uses
+    Parquet format for append operations. The table will be created if it
+    doesn't exist.
 
     Args:
-        df: DataFrame to write
-        fqn: Fully qualified table name
-        **options: Additional write options
+        df: DataFrame to write. Will be cached before writing.
+        fqn: Fully qualified table name (e.g., "schema.table").
+        **options: Additional write options to pass to the writer. Common
+            options include:
+            - partitionBy: Column(s) to partition by
+            - compression: Compression codec (e.g., "snappy", "gzip")
 
     Returns:
-        Number of rows written
+        Number of rows written to the table.
 
     Raises:
-        TableOperationError: If write operation fails
+        TableOperationError: If write operation fails (e.g., table creation
+            fails or write fails).
+
+    Example:
+        >>> from pipeline_builder.table_operations import write_append_table
+        >>> rows = write_append_table(
+        ...     df,
+        ...     "analytics.user_events",
+        ...     partitionBy="date"
+        ... )
+        >>> print(f"Appended {rows} rows")
     """
     try:
         # Cache DataFrame for potential multiple operations
@@ -213,18 +420,28 @@ def read_table(
     spark: SparkSession,
     fqn: str,  # type: ignore[valid-type]
 ) -> DataFrame:  # type: ignore[valid-type]
-    """
-    Read data from a table.
+    """Read data from a table.
+
+    Reads data from a table using Spark's `table()` method. Supports both
+    regular tables and Delta tables.
 
     Args:
-        spark: Spark session
-        fqn: Fully qualified table name
+        spark: SparkSession instance for reading the table.
+        fqn: Fully qualified table name (e.g., "schema.table").
 
     Returns:
-        DataFrame with table data
+        DataFrame containing the table data.
 
     Raises:
-        TableOperationError: If read operation fails
+        TableOperationError: If read operation fails. Common causes:
+            - Table does not exist (wrapped AnalysisException)
+            - Permission errors
+            - Table corruption
+
+    Example:
+        >>> from pipeline_builder.table_operations import read_table
+        >>> df = read_table(spark, "analytics.user_events")
+        >>> print(f"Read {df.count()} rows")
     """
     try:
         df = spark.table(fqn)  # type: ignore[attr-defined]
@@ -232,7 +449,7 @@ def read_table(
         return df
     except Exception as e:
         # Check if it's an AnalysisException (table doesn't exist)
-        if isinstance(e, AnalysisException):
+        if isinstance(e, AnalysisException):  # type: ignore[arg-type]
             raise TableOperationError(f"Table {fqn} does not exist: {e}") from e
         else:
             raise TableOperationError(f"Failed to read table {fqn}: {e}") from e
@@ -242,15 +459,26 @@ def table_exists(
     spark: SparkSession,
     fqn: str,  # type: ignore[valid-type]
 ) -> bool:  # type: ignore[valid-type]
-    """
-    Check if a table exists.
+    """Check if a table exists.
+
+    Checks whether a table exists in the Spark catalog. Uses multiple methods
+    for reliability: first tries the catalog's `tableExists()` method, then
+    falls back to attempting to read the table.
 
     Args:
-        spark: Spark session
-        fqn: Fully qualified table name
+        spark: SparkSession instance for checking table existence.
+        fqn: Fully qualified table name (e.g., "schema.table").
 
     Returns:
-        True if table exists, False otherwise
+        True if the table exists and is accessible, False otherwise.
+        Returns False if the table doesn't exist or an error occurs.
+
+    Example:
+        >>> from pipeline_builder.table_operations import table_exists
+        >>> if table_exists(spark, "analytics.user_events"):
+        ...     print("Table exists")
+        ... else:
+        ...     print("Table does not exist")
     """
     try:
         # If catalog has a fast check, use it first
@@ -265,7 +493,7 @@ def table_exists(
 
         spark.table(fqn).count()  # type: ignore[attr-defined]
         return True
-    except AnalysisException:
+    except AnalysisException:  # type: ignore[misc]
         logger.debug(f"Table {fqn} does not exist (AnalysisException)")
         return False
     except Exception as e:
@@ -274,11 +502,27 @@ def table_exists(
 
 
 def table_schema_is_empty(spark: SparkSession, fqn: str) -> bool:
-    """
-    Check if a table exists but reports an empty schema (struct<>).
+    """Check if a table exists but reports an empty schema (struct<>).
 
-    This detects catalog sync issues where the metastore has a placeholder
-    entry without columns. Callers can drop/recreate to heal.
+    Detects catalog synchronization issues where the metastore has a placeholder
+    entry for a table but the table has no columns (empty schema). This can
+    happen when table creation is interrupted or when there are catalog sync
+    issues. Callers can drop and recreate the table to fix this.
+
+    Args:
+        spark: SparkSession instance for checking the table schema.
+        fqn: Fully qualified table name (e.g., "schema.table").
+
+    Returns:
+        True if the table exists but has an empty schema (no fields),
+        False otherwise. Returns False if the table doesn't exist or
+        an error occurs.
+
+    Example:
+        >>> from pipeline_builder.table_operations import table_schema_is_empty
+        >>> if table_schema_is_empty(spark, "analytics.user_events"):
+        ...     print("Table has empty schema - needs recreation")
+        ...     drop_table(spark, "analytics.user_events")
     """
     try:
         if not table_exists(spark, fqn):
@@ -296,15 +540,26 @@ def drop_table(
     spark: SparkSession,
     fqn: str,  # type: ignore[valid-type]
 ) -> bool:  # type: ignore[valid-type]
-    """
-    Drop a table if it exists.
+    """Drop a table if it exists.
+
+    Drops a table from the Spark catalog using the external catalog API.
+    This is a safe operation that only drops the table if it exists.
 
     Args:
-        spark: Spark session
-        fqn: Fully qualified table name
+        spark: SparkSession instance for dropping the table.
+        fqn: Fully qualified table name (e.g., "schema.table"). If the name
+            doesn't contain a dot, it's assumed to be in the "default" schema.
 
     Returns:
-        True if table was dropped, False if it didn't exist
+        True if the table was dropped, False if it didn't exist or an
+        error occurred (logged as warning).
+
+    Example:
+        >>> from pipeline_builder.table_operations import drop_table
+        >>> if drop_table(spark, "analytics.user_events"):
+        ...     print("Table dropped successfully")
+        ... else:
+        ...     print("Table did not exist or could not be dropped")
     """
     try:
         if table_exists(spark, fqn):

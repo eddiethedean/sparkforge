@@ -23,7 +23,7 @@ else:
     from pyspark.sql import functions as F
 
 from pipeline_builder.errors import ValidationError
-from pipeline_builder.models import  PipelineConfig, ValidationThresholds
+from pipeline_builder.models import PipelineConfig, ValidationThresholds
 
 # Import SparkForge modules
 
@@ -288,12 +288,9 @@ class SecurityTestSuite:
                 # This should fail validation
                 PipelineConfig(
                     schema="",  # Empty schema should not be allowed
-                    quality_thresholds=ValidationThresholds(
+                    thresholds=ValidationThresholds(
                         -1.0, 150.0, 200.0
                     ),  # Invalid thresholds
-                    parallel=ParallelConfig(
-                        enabled=True, max_workers=0
-                    ),  # Invalid workers
                 )
                 return {
                     "success": False,

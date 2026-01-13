@@ -7,7 +7,6 @@ for testing realistic bronze-silver-gold pipeline scenarios.
 
 import os
 import shutil
-import tempfile
 from datetime import datetime, timedelta
 from typing import Any, List
 
@@ -21,20 +20,20 @@ from pyspark.sql.types import (
 )
 
 # Import functions after setting environment
-from pipeline_builder.models import  PipelineConfig, ValidationThresholds
+from pipeline_builder.models import PipelineConfig, ValidationThresholds
 from pipeline_builder.writer import WriteMode, WriterConfig
 from pipeline_builder.writer.models import LogLevel
 import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from test_helpers.isolation import get_unique_warehouse_dir, get_unique_app_name
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from test_helpers.isolation import get_unique_warehouse_dir
 
 
 @pytest.fixture(scope="function")
 def spark_session(request):
     """
     Real Spark session for testing.
-    
+
     Function-scoped to ensure isolation between parallel tests.
     Each test gets its own Spark session with a unique warehouse directory and app name.
     """
@@ -59,7 +58,7 @@ def spark_session(request):
 
     # Generate a unique app name that includes test identifier
     # Use test node name + unique ID to ensure each test gets its own session
-    test_name = request.node.name if hasattr(request, 'node') else "unknown_test"
+    test_name = request.node.name if hasattr(request, "node") else "unknown_test"
     test_id = uuid.uuid4().hex[:8]
     unique_app_name = f"builder_pyspark_tests_{test_name}_{test_id}"
 
@@ -90,7 +89,7 @@ def spark_session(request):
         # Use getOrCreate() with unique app name - the unique app name ensures
         # each test gets its own session, and we've already stopped any existing session
         spark = configure_spark_with_delta_pip(builder).getOrCreate()
-        
+
         # Verify this is a new session by checking the app name matches our unique name
         actual_app_name = spark.sparkContext.getConf().get("spark.app.name", "")
         if actual_app_name != unique_app_name:
@@ -100,7 +99,7 @@ def spark_session(request):
                 spark = configure_spark_with_delta_pip(builder).getOrCreate()
             except Exception:
                 pass  # If stopping/recreating fails, continue with what we have
-        
+
         # Clear catalog cache at start to ensure clean state
         # This prevents stale table metadata from causing conflicts
         try:
@@ -124,7 +123,7 @@ def spark_session(request):
             .config("spark.sql.adaptive.coalescePartitions.enabled", "false")
             .getOrCreate()
         )
-        
+
         # Verify this is a new session by checking the app name matches our unique name
         actual_app_name = spark.sparkContext.getConf().get("spark.app.name", "")
         if actual_app_name != unique_app_name:
@@ -150,6 +149,30 @@ def spark_session(request):
 
     spark._warehouse_dir = warehouse_dir  # type: ignore[attr-defined]
 
+    # Configure pipeline_builder engine for PySpark
+    # This is critical - without this, the engine won't be configured and tests will fail
+    from pipeline_builder.engine_config import configure_engine
+    from pyspark.sql import functions as pyspark_functions
+    from pyspark.sql import types as pyspark_types
+    from pyspark.sql.functions import desc as pyspark_desc
+    from pyspark.sql.utils import AnalysisException as PySparkAnalysisException
+    from pyspark.sql.window import Window as PySparkWindow
+    from pyspark.sql import DataFrame as PySparkDataFrame
+    from pyspark.sql import SparkSession as PySparkSparkSession
+    from pyspark.sql import Column as PySparkColumn
+
+    configure_engine(
+        functions=pyspark_functions,
+        types=pyspark_types,
+        analysis_exception=PySparkAnalysisException,
+        window=PySparkWindow,
+        desc=pyspark_desc,
+        engine_name="pyspark",
+        dataframe_cls=PySparkDataFrame,
+        spark_session_cls=PySparkSparkSession,
+        column_cls=PySparkColumn,
+    )
+
     # Note: Each test should create its own schemas with unique names
     # We no longer create shared schemas to avoid conflicts in parallel execution
 
@@ -171,7 +194,7 @@ def spark_session(request):
 def cleanup_tables(spark_session):
     """
     Clean up tables after each test to avoid conflicts.
-    
+
     Note: Tests should clean up their own tables using unique schema names.
     This fixture clears the catalog cache and temp views to help with cleanup.
     """
@@ -181,7 +204,7 @@ def cleanup_tables(spark_session):
     try:
         # Clear all cached tables
         spark_session.catalog.clearCache()
-        
+
         # Clear all temporary views
         try:
             views = spark_session.catalog.listTables()

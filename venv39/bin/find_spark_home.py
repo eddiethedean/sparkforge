@@ -72,7 +72,10 @@ def _find_spark_home():
     try:
         return next(path for path in paths if is_spark_home(path))
     except StopIteration:
-        print("Could not find valid SPARK_HOME while searching {0}".format(paths), file=sys.stderr)
+        print(
+            f"Could not find valid SPARK_HOME while searching {paths}",
+            file=sys.stderr,
+        )
         if import_error_raised:
             print(
                 "\nDid you install PySpark via a package manager such as pip or Conda? If so,\n"

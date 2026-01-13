@@ -31,18 +31,25 @@ PipelineBuilder
 │   ├── Fluent API for pipeline construction
 │   ├── Step definition and validation
 │   └── Pipeline configuration
-├── PipelineRunner (pipeline/runner.py)
-│   ├── Initial load execution
-│   ├── Incremental execution
-│   └── Validation-only execution
-├── Validation System (validation/)
-│   ├── Data quality validation
-│   ├── Pipeline validation
-│   └── Progressive quality gates
+├── ExecutionEngine (execution.py)
+│   ├── Step-by-step execution orchestration
+│   ├── Dependency-aware execution
+│   └── Execution result aggregation
+├── Step Executors (step_executors/)
+│   ├── BronzeStepExecutor - Bronze layer execution
+│   ├── SilverStepExecutor - Silver layer execution
+│   └── GoldStepExecutor - Gold layer execution
+├── Services (Service-Oriented Architecture)
+│   ├── ExecutionValidator (validation/) - Data quality validation
+│   ├── TableService (storage/) - Table operations and schema management
+│   ├── WriteService (storage/) - Write operations to Delta Lake
+│   ├── TransformService (transformation/) - Transformation logic
+│   ├── ExecutionReporter (reporting/) - Execution reporting
+│   └── ErrorHandler (errors/) - Centralized error handling
 ├── Dependency Management (dependencies/)
 │   ├── Dependency analyzer
 │   ├── Dependency graph
-│   └── Parallel execution planning
+│   └── Execution order planning
 └── LogWriter (writer/)
     ├── Execution logging
     ├── Analytics and monitoring
@@ -78,15 +85,26 @@ Validation is treated as a first-class architectural component:
 PipelineBuilder automatically:
 - **Detects dependencies** between Bronze, Silver, and Gold steps
 - **Validates dependency chains** to prevent circular references
-- **Plans parallel execution** of independent steps
-- **Optimizes execution order** for maximum parallelism
+- **Plans execution order** based on dependencies
+- **Groups steps** by dependency level for sequential execution
 
-### 3.4 Separation of Concerns
+### 3.4 Service-Oriented Architecture
 
-- **Delta Lake tables** are passive storage (no business logic)
-- **PipelineBuilder** owns all business logic and state transitions
-- **Validation** is separate from transformation
-- **Logging** is independent of pipeline success/failure
+PipelineBuilder uses a service-oriented architecture with clear separation of concerns:
+
+- **Step Executors**: Handle execution logic for each step type (Bronze, Silver, Gold)
+- **ExecutionValidator**: Validates data according to step rules
+- **TableService**: Manages table operations and schema management
+- **WriteService**: Handles all write operations to Delta Lake
+- **TransformService**: Applies transformation logic to DataFrames
+- **ExecutionReporter**: Creates execution reports from results
+- **ErrorHandler**: Provides centralized error handling and context
+
+This architecture ensures:
+- **Modularity**: Each service has a single, well-defined responsibility
+- **Testability**: Services can be tested independently
+- **Maintainability**: Changes to one service don't affect others
+- **Extensibility**: New services can be added without modifying existing code
 
 ---
 
@@ -236,14 +254,30 @@ PipelineBuilder automatically:
 - **Executes steps sequentially** in the correct order
 - **Respects dependencies** across all layers (Bronze, Silver, Gold)
 
-### 8.2 Benefits
+### 8.2 Step Executor Pattern
+
+Each step type has a dedicated executor:
+
+- **BronzeStepExecutor**: Validates raw data without transformation
+- **SilverStepExecutor**: Transforms bronze data and handles incremental processing
+- **GoldStepExecutor**: Aggregates silver data into final metrics
+
+Each executor:
+- **Receives step configuration** and input data
+- **Delegates to services** for validation, transformation, and writing
+- **Returns execution results** with metrics and status
+- **Handles errors** through the centralized ErrorHandler
+
+### 8.3 Benefits
 
 - **Deterministic execution** – predictable execution order
 - **Automatic dependency analysis** – no manual configuration
 - **Simplified debugging** – easier to trace execution flow
 - **No concurrency issues** – no race conditions or thread safety concerns
+- **Clear separation of concerns** – each executor handles one step type
+- **Service composition** – executors compose services for complex operations
 
-### 8.3 Example
+### 8.4 Example
 
 ```python
 # These 3 bronze steps are analyzed and executed in dependency order
@@ -255,6 +289,11 @@ builder.with_bronze_rules(name="events_c", ...)
 builder.add_silver_transform(name="clean_a", source_bronze="events_a", ...)
 builder.add_silver_transform(name="clean_b", source_bronze="events_b", ...)
 builder.add_silver_transform(name="clean_c", source_bronze="events_c", ...)
+
+# Execution flow:
+# 1. BronzeStepExecutor executes "events_a", "events_b", "events_c" sequentially
+# 2. SilverStepExecutor executes "clean_a", "clean_b", "clean_c" sequentially
+# 3. Each executor uses services (ExecutionValidator, WriteService, etc.) internally
 ```
 
 ---
@@ -317,10 +356,11 @@ To add a new source:
 
 ### 10.3 Performance Optimization
 
-- **Parallel execution** for independent steps
+- **Sequential execution** with dependency-aware ordering
 - **Incremental processing** for large datasets
 - **Delta Lake optimizations** (Z-ordering, compaction)
-- **Configurable worker pools** for resource management
+- **Service-level caching** for schema and table metadata
+- **Efficient dependency analysis** for optimal execution order
 
 ---
 
@@ -335,10 +375,31 @@ To add a new source:
 
 ### 11.2 Error Handling
 
+The ErrorHandler service provides centralized error handling:
+
 - **Comprehensive error messages** with actionable suggestions
+- **Context-aware error wrapping** – errors include step and layer context
 - **Graceful failure handling** – partial failures don't crash pipeline
 - **Detailed error logging** to LogWriter
+- **Error recovery** – services handle errors and provide recovery suggestions
 - **Retry strategies** can be implemented at orchestration level
+
+### 11.3 Service Initialization
+
+Services are initialized by the ExecutionEngine:
+
+```python
+# Services are created internally by ExecutionEngine
+engine = ExecutionEngine(spark=spark, config=config)
+
+# Services available:
+# - engine.validator (ExecutionValidator)
+# - engine.table_service (TableService)
+# - engine.write_service (WriteService)
+# - engine.transform_service (TransformService)
+# - engine.reporter (ExecutionReporter)
+# - engine.error_handler (ErrorHandler)
+```
 
 ### 11.3 Schema Management
 
@@ -369,7 +430,8 @@ PipelineBuilder enforces strong data quality guarantees while remaining flexible
 - **Fault isolation** – multi-source pipelines with independent processing
 - **Enterprise-grade observability** – comprehensive logging and monitoring
 - **70% code reduction** – eliminate boilerplate, focus on business logic
-- **Automatic optimization** – parallel execution, dependency management
+- **Service-oriented design** – modular, testable, maintainable architecture
+- **Automatic dependency management** – correct execution order without manual configuration
 
 This architecture is suitable for both early-stage pipelines and mature data platforms, providing a solid foundation for production data engineering workflows.
 

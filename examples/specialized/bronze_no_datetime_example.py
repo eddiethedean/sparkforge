@@ -9,10 +9,11 @@ without temporal information.
 """
 
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
 from pipeline_builder import PipelineBuilder
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
 
 
 def main():
@@ -25,6 +26,10 @@ def main():
         .config("spark.sql.warehouse.dir", "/tmp/spark-warehouse")
         .getOrCreate()
     )
+
+    # Configure engine (required!)
+    configure_engine(spark=spark)
+    F = get_default_functions()
 
     try:
         # Create sample data WITHOUT datetime columns
@@ -76,6 +81,7 @@ def main():
         # Silver Layer: Cleaned and enriched data
         # This will use overwrite mode because Bronze has no incremental column
         def silver_transform(spark, bronze_df, prior_silvers):
+            F = get_default_functions()
             return (
                 bronze_df.withColumn("processed_at", F.current_timestamp())
                 .withColumn("event_date", F.current_date())
@@ -111,6 +117,7 @@ def main():
 
         # Gold Layer: Business analytics
         def gold_transform(spark, silvers):
+            F = get_default_functions()
             enriched_df = silvers["enriched_events"]
             return (
                 enriched_df.groupBy("device_category", "action")
@@ -148,14 +155,16 @@ def main():
         spark.sql("CREATE DATABASE no_datetime_schema")
 
         print("🚀 Running pipeline (initial load)...")
-        result = runner.initial_load(bronze_sources={"events_no_datetime": source_df})
+        result = runner.run_initial_load(
+            bronze_sources={"events_no_datetime": source_df}
+        )
 
         # Display results
         print("\n📊 Pipeline Results:")
-        print(f"   Status: {result.status}")
+        print(f"   Status: {result.status.value}")
         print(f"   Total rows processed: {result.metrics.total_rows_processed}")
         print(f"   Total rows written: {result.metrics.total_rows_written}")
-        print(f"   Execution time: {result.metrics.duration_secs:.2f}s")
+        print(f"   Execution time: {result.duration_seconds:.2f}s")
 
         # Show the final Gold table
         print("\n📈 Device Analytics (Gold Layer):")
@@ -173,7 +182,7 @@ def main():
             bronze_sources={"events_no_datetime": source_df}
         )
 
-        print(f"   Incremental run status: {result2.status}")
+        print(f"   Incremental run status: {result2.status.value}")
         print(
             "   Silver write mode: overwrite (forced by Bronze without incremental column)"
         )

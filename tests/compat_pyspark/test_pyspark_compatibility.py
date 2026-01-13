@@ -21,8 +21,9 @@ if os.environ.get("SPARK_MODE", "mock").lower() != "real":
     )
 
 import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from test_helpers.isolation import get_unique_schema
+from tests.test_helpers.isolation import get_unique_schema
 
 
 @pytest.fixture(scope="module")
@@ -46,24 +47,24 @@ def pyspark_available():
 def setup_pyspark_engine():
     """Set up PySpark as the engine for these tests."""
     from pipeline_builder.engine_config import configure_engine, get_engine
-    
+
     # Save current engine state
     try:
         current_engine = get_engine()
         saved_config = {
-            'functions': current_engine.functions,
-            'types': current_engine.types,
-            'analysis_exception': current_engine.analysis_exception,
-            'window': current_engine.window,
-            'desc': current_engine.desc,
-            'engine_name': current_engine.engine_name,
-            'dataframe_cls': current_engine.dataframe_cls,
-            'spark_session_cls': current_engine.spark_session_cls,
-            'column_cls': current_engine.column_cls,
+            "functions": current_engine.functions,
+            "types": current_engine.types,
+            "analysis_exception": current_engine.analysis_exception,
+            "window": current_engine.window,
+            "desc": current_engine.desc,
+            "engine_name": current_engine.engine_name,
+            "dataframe_cls": current_engine.dataframe_cls,
+            "spark_session_cls": current_engine.spark_session_cls,
+            "column_cls": current_engine.column_cls,
         }
     except Exception:
         saved_config = None
-    
+
     # Configure PySpark engine
     from pyspark.sql import functions as pyspark_functions
     from pyspark.sql import types as pyspark_types
@@ -73,7 +74,7 @@ def setup_pyspark_engine():
     from pyspark.sql import DataFrame as PySparkDataFrame
     from pyspark.sql import SparkSession as PySparkSparkSession
     from pyspark.sql import Column as PySparkColumn
-    
+
     configure_engine(
         functions=pyspark_functions,
         types=pyspark_types,
@@ -85,9 +86,9 @@ def setup_pyspark_engine():
         spark_session_cls=PySparkSparkSession,
         column_cls=PySparkColumn,
     )
-    
+
     yield
-    
+
     # Restore saved engine state
     if saved_config is not None:
         try:
@@ -377,7 +378,7 @@ class TestPySparkCompatibility:
 
         # Clean up any existing table and its data - use prepare_delta_overwrite to ensure Delta tables are properly dropped
         from pipeline_builder.table_operations import prepare_delta_overwrite
-        
+
         try:
             prepare_delta_overwrite(spark, table_name)
             spark.sql(f"DROP TABLE IF EXISTS {table_name}")

@@ -180,7 +180,9 @@ class TestExecuteStepComplete:
 
         # Execute step with validation
         context = {"test_bronze": test_df}
-        with patch("pipeline_builder.execution.apply_column_rules") as mock_apply_rules:
+        with patch(
+            "pipeline_builder.validation.execution_validator.apply_column_rules"
+        ) as mock_apply_rules:
             mock_apply_rules.return_value = (test_df, {}, {})
             result = engine.execute_step(silver_step, context, ExecutionMode.INITIAL)
 

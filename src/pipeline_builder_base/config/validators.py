@@ -40,7 +40,6 @@ def validate_pipeline_config(config: PipelineConfig) -> List[str]:
     threshold_errors = validate_thresholds(config.thresholds)
     errors.extend(threshold_errors)
 
-
     return errors
 
 
@@ -84,5 +83,3 @@ def validate_thresholds(thresholds: ValidationThresholds) -> List[str]:
         )
 
     return errors
-
-

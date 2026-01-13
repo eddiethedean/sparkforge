@@ -406,7 +406,7 @@ class TestExecutionEngine:
         engine = ExecutionEngine(mock_spark, mock_config)
 
         with patch("pipeline_builder.execution.fqn") as mock_fqn, patch(
-            "pipeline_builder.execution.apply_column_rules"
+            "pipeline_builder.validation.execution_validator.apply_column_rules"
         ) as mock_apply_rules:
             mock_fqn.return_value = "test_schema.test_table"
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
@@ -446,7 +446,7 @@ class TestExecutionEngine:
         engine = ExecutionEngine(mock_spark, mock_config)
 
         with patch("pipeline_builder.execution.fqn") as mock_fqn, patch(
-            "pipeline_builder.execution.apply_column_rules"
+            "pipeline_builder.validation.execution_validator.apply_column_rules"
         ) as mock_apply_rules:
             mock_fqn.return_value = "test_schema.test_table"
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
@@ -476,7 +476,7 @@ class TestExecutionEngine:
         engine = ExecutionEngine(mock_spark, mock_config)
 
         with patch("pipeline_builder.execution.fqn") as mock_fqn, patch(
-            "pipeline_builder.execution.apply_column_rules"
+            "pipeline_builder.validation.execution_validator.apply_column_rules"
         ) as mock_apply_rules:
             mock_fqn.return_value = "test_schema.test_table"
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
@@ -672,7 +672,7 @@ class TestExecutionEngine:
         engine = ExecutionEngine(mock_spark, mock_config)
 
         with patch("pipeline_builder.execution.fqn") as mock_fqn, patch(
-            "pipeline_builder.execution.apply_column_rules"
+            "pipeline_builder.validation.execution_validator.apply_column_rules"
         ) as mock_apply_rules:
             mock_fqn.return_value = "test_schema.test_table"
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
@@ -726,7 +726,7 @@ class TestExecutionEngine:
         engine = ExecutionEngine(mock_spark, mock_config)
 
         with patch("pipeline_builder.execution.fqn") as mock_fqn, patch(
-            "pipeline_builder.execution.apply_column_rules"
+            "pipeline_builder.validation.execution_validator.apply_column_rules"
         ) as mock_apply_rules:
             mock_fqn.return_value = "test_schema.test_table"
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
@@ -849,7 +849,7 @@ class TestExecutionEngine:
         engine = ExecutionEngine(mock_spark, mock_config)
 
         with patch("pipeline_builder.execution.fqn") as mock_fqn, patch(
-            "pipeline_builder.execution.apply_column_rules"
+            "pipeline_builder.validation.execution_validator.apply_column_rules"
         ) as mock_apply_rules:
             mock_fqn.return_value = "test_schema.test_table"
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
@@ -883,7 +883,7 @@ class TestExecutionEngine:
         engine = ExecutionEngine(mock_spark, mock_config)
 
         with patch("pipeline_builder.execution.fqn") as mock_fqn, patch(
-            "pipeline_builder.execution.apply_column_rules"
+            "pipeline_builder.validation.execution_validator.apply_column_rules"
         ) as mock_apply_rules:
             mock_fqn.return_value = "test_schema.test_table"
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)
@@ -937,7 +937,7 @@ class TestExecutionEngine:
         engine = ExecutionEngine(mock_spark, mock_config)
 
         with patch("pipeline_builder.execution.fqn") as mock_fqn, patch(
-            "pipeline_builder.execution.apply_column_rules"
+            "pipeline_builder.validation.execution_validator.apply_column_rules"
         ) as mock_apply_rules:
             mock_fqn.return_value = "test_schema.test_table"
             mock_apply_rules.return_value = (mock_df, mock_df, mock_stats)

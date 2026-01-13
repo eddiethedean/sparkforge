@@ -10,9 +10,10 @@ import random
 from datetime import datetime, timedelta
 
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
 
 from pipeline_builder import PipelineBuilder
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
 
 
 def create_sample_data(spark):
@@ -60,6 +61,10 @@ def main():
         .getOrCreate()
     )
 
+    # Configure engine (required!)
+    configure_engine(spark=spark)
+    F = get_default_functions()
+
     try:
         # Create sample data
         print("📊 Creating sample data with quality issues...")
@@ -68,6 +73,7 @@ def main():
 
         # Show data quality issues
         print("\n📋 Data Quality Issues:")
+        F = get_default_functions()
         print(
             f"Records with null user_id: {sample_df.filter(F.col('user_id').isNull()).count()}"
         )
@@ -101,6 +107,7 @@ def main():
 
         # Silver Layer
         def process_transactions(spark, bronze_df, prior_silvers):
+            F = get_default_functions()
             return (
                 bronze_df.withColumn("processed_at", F.current_timestamp())
                 .withColumn(
@@ -133,6 +140,7 @@ def main():
 
         # Gold Layer
         def daily_summary(spark, silvers):
+            F = get_default_functions()
             transactions_df = silvers["processed_transactions"]
             return transactions_df.groupBy(
                 "category", F.date_trunc("day", "timestamp").alias("date")
@@ -162,149 +170,48 @@ def main():
         pipeline = builder.to_pipeline()
 
         print("\n📋 Available steps:")
-        steps = pipeline.list_steps()
-        print(f"Bronze: {steps['bronze']}")
-        print(f"Silver: {steps['silver']}")
-        print(f"Gold: {steps['gold']}")
+        print(f"Bronze: {list(builder.bronze_steps.keys())}")
+        print(f"Silver: {list(builder.silver_steps.keys())}")
+        print(f"Gold: {list(builder.gold_steps.keys())}")
 
-        # Step 1: Debug Bronze step
+        # Step 1: Validate pipeline
         print("\n" + "=" * 60)
-        print("🥉 STEP 1: Debugging Bronze Layer")
+        print("🔍 STEP 1: Validating Pipeline")
         print("=" * 60)
 
-        bronze_result = pipeline.execute_bronze_step(
-            "transactions", input_data=sample_df
-        )
-        print(f"Bronze execution status: {bronze_result.status.value}")
-        print(
-            f"Bronze validation passed: {bronze_result.validation_result.validation_passed}"
-        )
-        print(
-            f"Bronze validation rate: {bronze_result.validation_result.validation_rate:.2f}%"
-        )
-        print(f"Bronze output rows: {bronze_result.output_count}")
-        print(f"Bronze duration: {bronze_result.duration_seconds:.2f}s")
-
-        if not bronze_result.validation_result.validation_passed:
-            print("\n❌ Bronze validation failed!")
-            print("Validation errors:")
-            for error in bronze_result.validation_result.validation_errors:
+        errors = builder.validate_pipeline()
+        if errors:
+            print("❌ Pipeline validation errors:")
+            for error in errors:
                 print(f"  - {error}")
+        else:
+            print("✅ Pipeline validation passed!")
 
-        # Step 2: Debug Silver step
+        # Step 2: Full pipeline execution
         print("\n" + "=" * 60)
-        print("🥈 STEP 2: Debugging Silver Layer")
+        print("🚀 STEP 2: Full Pipeline Execution")
         print("=" * 60)
-
-        silver_result = pipeline.execute_silver_step("processed_transactions")
-        print(f"Silver execution status: {silver_result.status.value}")
-        print(
-            f"Silver validation passed: {silver_result.validation_result.validation_passed}"
-        )
-        print(
-            f"Silver validation rate: {silver_result.validation_result.validation_rate:.2f}%"
-        )
-        print(f"Silver output rows: {silver_result.output_count}")
-        print(f"Silver duration: {silver_result.duration_seconds:.2f}s")
-
-        if silver_result.status.value == "completed":
-            print("\n✅ Silver step completed successfully!")
-
-            # Inspect Silver output
-            print("\n📊 Silver output sample:")
-            executor = pipeline.create_step_executor()
-            silver_output = executor.get_step_output("processed_transactions")
-            silver_output.show(10)
-
-            # Check data quality
-            print("\n📈 Silver data quality:")
-            print(
-                f"High value transactions: {silver_output.filter(F.col('amount_category') == 'high_value').count()}"
-            )
-            print(
-                f"Weekend transactions: {silver_output.filter(F.col('is_weekend') is True).count()}"
-            )
-
-        # Step 3: Debug Gold step
-        print("\n" + "=" * 60)
-        print("🥇 STEP 3: Debugging Gold Layer")
-        print("=" * 60)
-
-        gold_result = pipeline.execute_gold_step("daily_summary")
-        print(f"Gold execution status: {gold_result.status.value}")
-        print(
-            f"Gold validation passed: {gold_result.validation_result.validation_passed}"
-        )
-        print(
-            f"Gold validation rate: {gold_result.validation_result.validation_rate:.2f}%"
-        )
-        print(f"Gold output rows: {gold_result.output_count}")
-        print(f"Gold duration: {gold_result.duration_seconds:.2f}s")
-
-        if gold_result.status.value == "completed":
-            print("\n✅ Gold step completed successfully!")
-
-            # Inspect Gold output
-            print("\n📊 Gold output sample:")
-            gold_output = executor.get_step_output("daily_summary")
-            gold_output.show()
-
-            # Show summary statistics
-            print("\n📈 Summary statistics:")
-            gold_output.select(
-                F.sum("transaction_count").alias("total_transactions"),
-                F.sum("total_amount").alias("total_revenue"),
-                F.avg("avg_amount").alias("overall_avg_amount"),
-            ).show()
-
-        # Step 4: Get step information
-        print("\n" + "=" * 60)
-        print("ℹ️ STEP 4: Step Information")
-        print("=" * 60)
-
-        for step_name in ["transactions", "processed_transactions", "daily_summary"]:
-            step_info = pipeline.get_step_info(step_name)
-            print(f"\n{step_name}:")
-            print(f"  Type: {step_info['type']}")
-            print(f"  Dependencies: {step_info['dependencies']}")
-            print(f"  Dependents: {step_info['dependents']}")
-
-        # Step 5: Check execution state
-        print("\n" + "=" * 60)
-        print("📊 STEP 5: Execution State")
-        print("=" * 60)
-
-        completed_steps = executor.list_completed_steps()
-        failed_steps = executor.list_failed_steps()
-
-        print(f"Completed steps: {completed_steps}")
-        print(f"Failed steps: {failed_steps}")
-
-        # Step 6: Full pipeline execution
-        print("\n" + "=" * 60)
-        print("🚀 STEP 6: Full Pipeline Execution")
-        print("=" * 60)
-
-        # Clear execution state for fresh run
-        executor.clear_execution_state()
 
         # Run full pipeline
-        result = pipeline.initial_load(bronze_sources={"transactions": sample_df})
+        result = pipeline.run_initial_load(bronze_sources={"transactions": sample_df})
 
-        print(f"Pipeline success: {result.success}")
-        print(f"Total rows written: {result.totals['total_rows_written']}")
-        print(f"Total duration: {result.totals['total_duration_secs']:.2f}s")
+        print(f"Pipeline status: {result.status.value}")
+        print(f"Total rows written: {result.metrics.total_rows_written}")
+        print(f"Total duration: {result.duration_seconds:.2f}s")
 
-        if result.success:
+        if result.status.value == "completed":
             print("\n✅ Full pipeline completed successfully!")
 
             # Show final results
             print("\n📊 Final Results:")
-            spark.table("debug_demo.daily_summary").show()
+            try:
+                spark.table("debug_demo.daily_summary").show()
+            except Exception as e:
+                print(f"⚠️  Could not display table: {e}")
         else:
-            print(f"\n❌ Pipeline failed: {result.error_message}")
-            if result.failed_steps:
-                print(f"Failed steps: {result.failed_steps}")
+            print("\n❌ Pipeline failed")
+            if hasattr(result, "errors") and result.errors:
+                print(f"Errors: {result.errors}")
 
     except Exception as e:
         print(f"\n💥 Error: {e}")

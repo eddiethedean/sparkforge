@@ -8,7 +8,6 @@ and source reconciliation.
 
 import os
 
-import pytest
 
 # Import functions based on SPARK_MODE
 if os.environ.get("SPARK_MODE", "mock").lower() == "real":

@@ -1,31 +1,59 @@
-PipelineBuilder Documentation
-===============================
+SparkForge Documentation
+========================
 
-A simplified, production-ready PySpark + Delta Lake pipeline engine with the Medallion Architecture (Bronze → Silver → Gold). Build scalable data pipelines with clean, maintainable code and comprehensive validation.
+A production-ready PySpark + Delta Lake pipeline engine with the Medallion Architecture (Bronze → Silver → Gold). Build scalable data pipelines with clean, maintainable code and comprehensive validation.
 
 .. note::
 
-   PipelineBuilder provides a complete Medallion Architecture implementation with Bronze → Silver → Gold data layering.
+   **Engine Configuration Required**: Before using SparkForge, you must configure the engine:
+
+   .. code-block:: python
+
+      from pipeline_builder.engine_config import configure_engine
+      from pyspark.sql import SparkSession
+
+      spark = SparkSession.builder.getOrCreate()
+      configure_engine(spark=spark)
+
+Quick Links
+-----------
+
+**For Beginners:**
+- :doc:`getting_started` - Start here!
+- :doc:`quick_start_5_min` - 5-minute quick start
+- :doc:`hello_world` - Simplest example
+
+**For Users:**
+- :doc:`user_guide` - Comprehensive user guide
+- :doc:`progressive_examples` - Step-by-step examples
+- :doc:`api_reference` - Complete API reference
+
+**For Developers:**
+- :doc:`Architecture` - Architecture documentation
+- :doc:`api_reference` - Detailed API documentation
+- :doc:`DEPLOYMENT_GUIDE` - Deployment guide
 
 Quick Start
 -----------
 
-Get up and running with PipelineBuilder in under 5 minutes:
+Get up and running with SparkForge in under 5 minutes:
 
 .. code-block:: bash
 
-   git clone https://github.com/eddiethedean/sparkforge.git
-   cd sparkforge
-   pip install -e .
-   python examples/hello_world.py
+   pip install pyspark==3.5.0 delta-spark==3.0.0
+   python examples/core/hello_world.py
 
 .. code-block:: python
 
    from pipeline_builder import PipelineBuilder
-   from pyspark.sql import SparkSession, functions as F
+   from pipeline_builder.engine_config import configure_engine
+   from pipeline_builder.functions import get_default_functions
+   from pyspark.sql import SparkSession
 
-   # Start Spark
+   # Configure engine (required!)
    spark = SparkSession.builder.appName("My Pipeline").getOrCreate()
+   configure_engine(spark=spark)
+   F = get_default_functions()
 
    # Build pipeline
    builder = PipelineBuilder(spark=spark, schema="my_schema")
@@ -33,16 +61,26 @@ Get up and running with PipelineBuilder in under 5 minutes:
        name="events",
        rules={"user_id": [F.col("user_id").isNotNull()]}
    )
+   
+   def clean_events(spark, bronze_df, prior_silvers):
+       F = get_default_functions()
+       return bronze_df.filter(F.col("status") == "active")
+   
    builder.add_silver_transform(
        name="clean_events",
        source_bronze="events",
-       transform=lambda spark, df, silvers: df.filter(F.col("status") == "active"),
+       transform=clean_events,
        rules={"status": [F.col("status").isNotNull()]},
        table_name="clean_events"
    )
+   
+   def analytics(spark, silvers):
+       F = get_default_functions()
+       return silvers["clean_events"].groupBy("category").count()
+   
    builder.add_gold_transform(
        name="analytics",
-       transform=lambda spark, silvers: silvers["clean_events"].groupBy("category").count(),
+       transform=analytics,
        rules={"category": [F.col("category").isNotNull()]},
        table_name="analytics",
        source_silvers=["clean_events"]
@@ -51,21 +89,7 @@ Get up and running with PipelineBuilder in under 5 minutes:
    # Execute
    pipeline = builder.to_pipeline()
    result = pipeline.run_initial_load(bronze_sources={"events": source_df})
-
-What's New in v1.2.0
---------------------
-
-📊 **Enhanced Logging with Rich Metrics**
-   Unified format with timestamps, emojis, detailed metrics (rows processed/written, validation rates)
-
-⚡ **Real-Time Parallel Execution Visibility**
-   See concurrent step execution with interleaved log messages and performance metrics
-
-📈 **Detailed Step Results by Layer**
-   Access bronze_results, silver_results, gold_results dictionaries with comprehensive step information
-
-🎯 **Quality & Reliability**
-   1,441 tests passing, 100% type safety, zero security vulnerabilities
+   print(f"Status: {result.status.value}")
 
 Features
 --------
@@ -73,69 +97,62 @@ Features
 🏗️ **Medallion Architecture**
    Bronze → Silver → Gold data layering with automatic dependency management
 
-⚡ **Simplified Execution**
-   Clean, maintainable execution engine with step-by-step processing and parallel execution (3-5x faster!)
+⚡ **Service-Oriented Design**
+   Modular architecture with dedicated services for validation, storage, transformation, and reporting
 
-🎯 **Auto-Inference**
-   Automatically infers source dependencies, reducing boilerplate by 70%
+🎯 **Automatic Dependency Management**
+   Automatically analyzes step dependencies and executes in correct order
 
-🛠️ **Preset Configurations**
-   One-line setup for development, production, and testing environments
+🛠️ **Engine Configuration**
+   Works with both real PySpark and mock Spark for testing
 
-🔧 **Validation Helpers**
-   Built-in methods for common validation patterns (not_null, positive_numbers, etc.)
+🔧 **Validation System**
+   Built-in validation with configurable thresholds and string rule support
 
-📊 **Smart Detection**
-   Automatic timestamp column detection for watermarking
-
-🏢 **Multi-Schema Support**
-   Cross-schema data flows for multi-tenant, environment separation, and compliance
-
-🔍 **Step-by-Step Debugging**
-   Execute individual pipeline steps independently for troubleshooting
-
-✅ **Enhanced Data Validation**
-   Configurable validation thresholds with automatic security validation
-
-🎛️ **Column Filtering Control**
-   Explicit control over which columns are preserved after validation
-
-🔄 **Incremental Processing**
-   Watermarking and incremental updates with Delta Lake
+📊 **Incremental Processing**
+   Efficient incremental updates with Delta Lake watermarking
 
 💧 **Delta Lake Integration**
    Full support for ACID transactions, time travel, and schema evolution
 
-Documentation
--------------
+🔍 **Step Executors**
+   Dedicated executors for Bronze, Silver, and Gold steps
+
+✅ **Comprehensive Error Handling**
+   Centralized error handling with detailed context and suggestions
+
+📈 **Execution Reporting**
+   Detailed execution reports with metrics and timing
+
+Documentation by User Type
+---------------------------
+
+For Beginners
+~~~~~~~~~~~~~
+
+New to SparkForge? Start here:
 
 .. toctree::
    :maxdepth: 2
    :caption: Getting Started
 
-   quick_start_5_min
    getting_started
+   quick_start_5_min
    hello_world
+   QUICKSTART
+
+For Users
+~~~~~~~~~
+
+Building pipelines? These guides are for you:
 
 .. toctree::
    :maxdepth: 2
-   :caption: User Guide
+   :caption: User Guides
 
-   user_guide
+   USER_GUIDE
    progressive_examples
-   quick_reference
-
-.. toctree::
-   :maxdepth: 2
-   :caption: API Reference
-
-   api_reference
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Examples
-
-   examples/index
+   Architecture
 
 .. toctree::
    :maxdepth: 2
@@ -145,54 +162,66 @@ Documentation
    usecase_iot
    usecase_bi
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Advanced Topics
+For Developers
+~~~~~~~~~~~~~
 
-   decision_trees
-   migration_guides
-   troubleshooting
+Advanced topics and API documentation:
 
 .. toctree::
    :maxdepth: 2
-   :caption: Development
+   :caption: API Reference
 
-   notebooks/index
+   api_reference
+   ENHANCED_API_REFERENCE
+   writer_api_reference
 
-Installation
-------------
+.. toctree::
+   :maxdepth: 2
+   :caption: Technical Guides
 
-.. code-block:: bash
-
-   pip install pipeline_builder
-
-Prerequisites:
-- Python 3.8+
-- Java 8+ (for PySpark)
-- PySpark 3.5+
-- Delta Lake 1.2.0+
+   DEPLOYMENT_GUIDE
+   PERFORMANCE_TUNING_GUIDE
+   COMPREHENSIVE_TROUBLESHOOTING_GUIDE
 
 Examples
 --------
 
 **Hello World** - The simplest possible pipeline
+
 .. code-block:: python
 
    from pipeline_builder import PipelineBuilder
-   from pyspark.sql import functions as F
+   from pipeline_builder.engine_config import configure_engine
+   from pipeline_builder.functions import get_default_functions
+
+   configure_engine(spark=spark)
+   F = get_default_functions()
 
    builder = PipelineBuilder(spark=spark, schema="hello")
-   builder.with_bronze_rules(name="events", rules={"user": [F.col("user").isNotNull()]})
+   builder.with_bronze_rules(
+       name="events",
+       rules={"user": [F.col("user").isNotNull()]}
+   )
+   
+   def purchases_transform(spark, bronze_df, prior_silvers):
+       F = get_default_functions()
+       return bronze_df.filter(F.col("action") == "purchase")
+   
    builder.add_silver_transform(
        name="purchases",
        source_bronze="events",
-       transform=lambda spark, df, silvers: df.filter(F.col("action") == "purchase"),
+       transform=purchases_transform,
        rules={"action": [F.col("action") == "purchase"]},
        table_name="purchases"
    )
+   
+   def user_counts_transform(spark, silvers):
+       F = get_default_functions()
+       return silvers["purchases"].groupBy("user").count()
+   
    builder.add_gold_transform(
        name="user_counts",
-       transform=lambda spark, silvers: silvers["purchases"].groupBy("user").count(),
+       transform=user_counts_transform,
        rules={"user": [F.col("user").isNotNull()]},
        table_name="user_counts",
        source_silvers=["purchases"]
@@ -201,39 +230,18 @@ Examples
    pipeline = builder.to_pipeline()
    result = pipeline.run_initial_load(bronze_sources={"events": source_df})
 
-**E-commerce Analytics** - Real-world business intelligence
-.. code-block:: python
+Installation
+------------
 
-   # Track user behavior and purchases
-   builder.with_bronze_rules(
-       name="user_events",
-       rules={"user_id": [F.col("user_id").isNotNull()]},
-       incremental_col="timestamp"
-   )
-   builder.add_silver_transform(
-       name="user_sessions",
-       source_bronze="user_events",
-       transform=lambda spark, df, silvers: df.groupBy("user_id").agg(
-           F.count("*").alias("event_count"),
-           F.max("timestamp").alias("last_activity")
-       ),
-       rules={"event_count": [F.col("event_count") > 0]},
-       table_name="user_sessions"
-   )
+.. code-block:: bash
 
-**IoT Sensor Data** - Real-time sensor processing
-.. code-block:: python
+   pip install pyspark==3.5.0 delta-spark==3.0.0
 
-   # Process sensor readings with validation
-   builder.with_bronze_rules(
-       name="sensor_data",
-       rules={
-           "sensor_id": [F.col("sensor_id").isNotNull()],
-           "temperature": [F.col("temperature").between(-50, 150)],
-           "timestamp": [F.col("timestamp").isNotNull()]
-       },
-       incremental_col="timestamp"
-   )
+Prerequisites:
+- Python 3.8+
+- Java 17 (for Spark 3.5)
+- PySpark 3.5+
+- Delta Lake 3.0.0+
 
 Key Benefits
 ------------
@@ -244,6 +252,9 @@ Key Benefits
 **Production Ready**
    Built-in error handling, logging, and monitoring
 
+**Service-Oriented Architecture**
+   Modular design with dedicated services for each concern
+
 **Scalable Architecture**
    Designed for enterprise-scale data processing
 
@@ -251,23 +262,20 @@ Key Benefits
    ACID transactions, time travel, and schema evolution
 
 **Comprehensive Testing**
-   1,441 tests with 100% success rate
-
-**Active Community**
-   Regular updates and community support
+   Extensive test suite with high coverage
 
 Support
 -------
 
 - **Documentation**: Complete guides and API reference
-- **Examples**: Real-world pipeline examples
+- **Examples**: Real-world pipeline examples in `examples/` directory
 - **Community**: GitHub discussions and issues
 - **Professional**: Enterprise support available
 
 License
 -------
 
-This project is licensed under the MIT License - see the `LICENSE <https://github.com/eddiethedean/pipeline_builder/blob/main/LICENSE>`_ file for details.
+This project is licensed under the MIT License - see the `LICENSE <https://github.com/eddiethedean/sparkforge/blob/main/LICENSE>`_ file for details.
 
 Indices and tables
 ==================

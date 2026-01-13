@@ -4,7 +4,7 @@ A production-ready data pipeline framework for Apache Spark & Delta Lake that tr
 
 ## Overview
 
-Pipeline Builder provides a fluent API for constructing robust data pipelines with comprehensive validation, automatic dependency management, and enterprise-grade features. It eliminates 70% of boilerplate code while providing built-in data quality enforcement, parallel execution, and seamless incremental processing.
+Pipeline Builder provides a fluent API for constructing robust data pipelines with comprehensive validation, automatic dependency management, and enterprise-grade features. It eliminates 70% of boilerplate code while providing built-in data quality enforcement, service-oriented architecture, and seamless incremental processing.
 
 ## Architecture Diagrams
 
@@ -17,13 +17,13 @@ Pipeline Builder provides a fluent API for constructing robust data pipelines wi
 - **70% Less Boilerplate**: Transform 200+ lines of complex Spark code into 20-30 lines of clean, readable code
 - **Automatic Dependency Management**: Pipeline Builder automatically detects and validates dependencies between steps
 - **Built-in Validation**: Progressive quality gates at each layer (Bronze: 90%, Silver: 95%, Gold: 98%)
-- **Parallel Execution**: Automatic parallelization of independent steps (3-5x faster execution)
+- **Service-Oriented Architecture**: Modular design with dedicated services for validation, storage, transformation, and reporting
 - **Incremental Processing**: Seamless support for incremental updates with timestamp-based filtering
 - **String Rules Support**: Human-readable validation rules (`"not_null"`, `"gt", 0`, `"in", [...]`)
 - **Multi-Schema Support**: Enterprise-ready cross-schema data flows
 - **Comprehensive Error Handling**: Detailed error messages with actionable suggestions
 - **Delta Lake Integration**: Full support for ACID transactions, time travel, and schema evolution
-- **Flexible Engine Support**: Works with PySpark or mock-spark for testing
+- **Engine Configuration**: Works with both real PySpark and mock Spark for testing
 
 ## Installation
 
@@ -44,7 +44,7 @@ pip install -e ".[pyspark,dev,test]"
 
 **Prerequisites:**
 - Python 3.8 or higher
-- Java 11 (for PySpark 3.5)
+- Java 17 (for Spark 3.5)
 - Git
 
 **Note:** The `-e` flag installs the package in editable mode, so changes to the source code are immediately reflected.
@@ -55,10 +55,14 @@ pip install -e ".[pyspark,dev,test]"
 
 ```python
 from pipeline_builder import PipelineBuilder
-from pyspark.sql import SparkSession, functions as F
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
+from pyspark.sql import SparkSession
 
-# Initialize Spark
+# Initialize Spark and configure engine (required!)
 spark = SparkSession.builder.appName("MyPipeline").getOrCreate()
+configure_engine(spark=spark)
+F = get_default_functions()
 
 # Create sample data
 data = [("user1", "click", 100), ("user2", "purchase", 200)]
@@ -70,35 +74,43 @@ builder = PipelineBuilder(spark=spark, schema="analytics")
 # Bronze: Raw data validation
 builder.with_bronze_rules(
     name="events",
-    rules={"user_id": ["not_null"], "value": ["gt", 0]},
+    rules={"user_id": [F.col("user_id").isNotNull()], "value": [F.col("value") > 0]},
     incremental_col="timestamp"
 )
 
 # Silver: Data transformation
+def clean_events(spark, bronze_df, prior_silvers):
+    F = get_default_functions()
+    return bronze_df.filter(F.col("value") > 50)
+
 builder.add_silver_transform(
     name="clean_events",
     source_bronze="events",
-    transform=lambda spark, df, silvers: df.filter(F.col("value") > 50),
+    transform=clean_events,
     rules={"value": [F.col("value") > 50]},
     table_name="clean_events"
 )
 
 # Gold: Business analytics
+def daily_metrics(spark, silvers):
+    F = get_default_functions()
+    return silvers["clean_events"].groupBy("action").agg(
+        F.count("*").alias("count")
+    )
+
 builder.add_gold_transform(
     name="daily_metrics",
-    source_silvers=["clean_events"],
-    transform=lambda spark, silvers: silvers["clean_events"]
-        .groupBy("action")
-        .agg(F.count("*").alias("count")),
+    transform=daily_metrics,
     rules={"count": [F.col("count") > 0]},
-    table_name="daily_metrics"
+    table_name="daily_metrics",
+    source_silvers=["clean_events"]
 )
 
 # Execute pipeline
 pipeline = builder.to_pipeline()
 result = pipeline.run_initial_load(bronze_sources={"events": df})
 
-print(f"✅ Pipeline completed: {result.status}")
+print(f"✅ Pipeline completed: {result.status.value}")
 print(f"Rows written: {result.metrics.total_rows_written}")
 ```
 
@@ -248,27 +260,27 @@ rules = {
 - `"between", min, max` → `F.col("column").between(min, max)`
 - `"like", pattern` → `F.col("column").like(pattern)`
 
-## Parallel Execution
+## Dependency-Aware Sequential Execution
 
-Pipeline Builder automatically analyzes dependencies and executes independent steps in parallel:
+Pipeline Builder automatically analyzes dependencies and executes steps in the correct order:
 
 ```python
-# These 3 bronze steps will run in parallel
+# These 3 bronze steps execute sequentially in dependency order
 builder.with_bronze_rules(name="events_a", ...)
 builder.with_bronze_rules(name="events_b", ...)
 builder.with_bronze_rules(name="events_c", ...)
 
-# These 3 silver steps will also run in parallel (after bronze completes)
+# These 3 silver steps execute sequentially after their bronze dependencies
 builder.add_silver_transform(name="clean_a", source_bronze="events_a", ...)
 builder.add_silver_transform(name="clean_b", source_bronze="events_b", ...)
 builder.add_silver_transform(name="clean_c", source_bronze="events_c", ...)
 ```
 
 **Benefits:**
-- 3-5x faster execution for typical pipelines
+- Deterministic execution order
 - Automatic dependency analysis
-- Thread-safe execution
-- Configurable worker count (1-16+)
+- Easy debugging and troubleshooting
+- No race conditions or thread safety concerns
 
 ## Incremental Processing
 
@@ -488,16 +500,19 @@ builder = PipelineBuilder(
 )
 ```
 
-### Parallel Execution
+### Engine Configuration
 
 ```python
-from pipeline_builder.models import ParallelConfig
+from pipeline_builder.engine_config import configure_engine
+from pyspark.sql import SparkSession
 
-config = ParallelConfig(
-    enabled=True,
-    max_workers=4,      # Number of parallel workers
-    timeout_secs=600    # Timeout for parallel execution
-)
+# Configure engine (required before using pipeline components)
+spark = SparkSession.builder.getOrCreate()
+configure_engine(spark=spark)
+
+# Now you can use pipeline components
+from pipeline_builder import PipelineBuilder
+builder = PipelineBuilder(spark=spark, schema="analytics")
 ```
 
 ## Error Handling
@@ -505,12 +520,19 @@ config = ParallelConfig(
 Pipeline Builder provides comprehensive error handling:
 
 ```python
+from pipeline_builder.models.exceptions import (
+    PipelineConfigurationError,
+    PipelineExecutionError
+)
+
 try:
     result = pipeline.run_incremental(bronze_sources={"events": source_df})
-    if result.status != "completed":
+    if result.status.value != "completed":
         print(f"Pipeline failed: {result.errors}")
-except Exception as e:
-    print(f"Error: {e}")
+except PipelineConfigurationError as e:
+    print(f"Configuration error: {e}")
+except PipelineExecutionError as e:
+    print(f"Execution error: {e}")
     # Error messages include actionable suggestions
 ```
 
@@ -519,14 +541,20 @@ except Exception as e:
 Pipeline Builder supports both PySpark and mock-spark for testing:
 
 ```python
+from pipeline_builder.engine_config import configure_engine
+
 # With PySpark (production)
-pip install pipeline_builder[pyspark]
+from pyspark.sql import SparkSession
+spark = SparkSession.builder.getOrCreate()
+configure_engine(spark=spark)
 
 # With mock-spark (testing)
-pip install pipeline_builder[mock]
+from mock_spark import MockSparkSession
+mock_spark = MockSparkSession()
+configure_engine(spark=mock_spark)
 ```
 
-The framework automatically detects which engine is available.
+The framework requires explicit engine configuration before use.
 
 ## Documentation
 

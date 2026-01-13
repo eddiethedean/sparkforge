@@ -3,23 +3,38 @@ Writer Module - Refactored with Modular Architecture
 
 Enhanced log writer for PipelineBuilder reports with full framework integration.
 This module provides a comprehensive logging and reporting system for pipeline
-execution results, integrating seamlessly with the existing the ecosystem.
+execution results, integrating seamlessly with the existing framework ecosystem.
+
+**New Simplified API:**
+    The LogWriter now supports a simplified initialization API using `schema`
+    and `table_name` parameters directly:
+
+    >>> from pipeline_builder.writer import LogWriter
+    >>> writer = LogWriter(spark, schema="analytics", table_name="logs")
+
+**Deprecated API:**
+    The old API using `WriterConfig` is still supported but deprecated:
+
+    >>> from pipeline_builder.writer import LogWriter, WriterConfig, WriteMode
+    >>> config = WriterConfig(table_schema="analytics", table_name="logs")
+    >>> writer = LogWriter(spark, config=config)  # Deprecated
 
 Architecture:
-- Core: Main LogWriter class that orchestrates all components
-- Operations: Data processing and transformation operations
-- Storage: Delta Lake and table management operations
-- Monitoring: Performance tracking and metrics collection
-- Analytics: Data quality analysis and trend detection
+    - **Core**: Main LogWriter class that orchestrates all components
+    - **Operations**: Data processing and transformation operations
+    - **Storage**: Delta Lake and table management operations
+    - **Monitoring**: Performance tracking and metrics collection
+    - **Analytics**: Data quality analysis and trend detection
 
 Key Features:
-- Full integration with framework models (StepResult, ExecutionResult, PipelineMetrics)
-- Enhanced type safety with proper TypedDict definitions
-- Comprehensive error handling and validation
-- Performance monitoring and optimization
-- Flexible configuration system
-- Delta Lake integration for persistent logging
-- Modular architecture for better maintainability
+    - Simplified API with direct schema/table_name initialization
+    - Full integration with framework models (StepResult, ExecutionResult, PipelineMetrics)
+    - Enhanced type safety with proper TypedDict definitions
+    - Comprehensive error handling and validation
+    - Performance monitoring and optimization
+    - Flexible configuration system
+    - Delta Lake integration for persistent logging
+    - Modular architecture for better maintainability
 
 Classes:
     LogWriter: Main writer class for pipeline log operations
@@ -31,26 +46,31 @@ Classes:
     TrendAnalyzer: Analyzes execution trends
 
 Functions:
-    flatten_execution_result: Convert ExecutionResult to log rows
+    create_log_rows_from_execution_result: Convert ExecutionResult to log rows
     create_log_schema: Create Spark schema for log tables
     validate_log_data: Validate log data before writing
 
-Example:
-    from the framework.write  # type: ignore[attr-defined]r import LogWriter, WriterConfig
-    from the framework.models import ExecutionResult
+Example (New API):
+    >>> from pipeline_builder.writer import LogWriter
+    >>> from pipeline_builder.models.execution import ExecutionResult
+    >>>
+    >>> # Initialize with new simplified API
+    >>> writer = LogWriter(spark, schema="analytics", table_name="pipeline_logs")
+    >>>
+    >>> # Write execution result
+    >>> result = writer.write_execution_result(execution_result)
+    >>> print(f"Wrote {result['rows_written']} rows")
 
-    # Configure writer
-    config = WriterConfig(
-        table_schema="analytics",
-        table_name="pipeline_logs",
-        write_mode=WriteMode.APPEND
-    )
-
-    # Create writer
-    writer = LogWriter(spark, config)
-
-    # Write execution result
-    result = writer.write  # type: ignore[attr-defined]_execution_result(execution_result)
+Example (Deprecated API):
+    >>> from pipeline_builder.writer import LogWriter, WriterConfig, WriteMode
+    >>>
+    >>> # Old API (deprecated, emits warning)
+    >>> config = WriterConfig(
+    ...     table_schema="analytics",
+    ...     table_name="pipeline_logs",
+    ...     write_mode=WriteMode.APPEND
+    ... )
+    >>> writer = LogWriter(spark, config=config)  # DeprecationWarning
 """
 
 from .analytics import DataQualityAnalyzer, TrendAnalyzer

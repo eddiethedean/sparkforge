@@ -22,8 +22,10 @@ Use Cases:
 import logging
 
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -77,6 +79,7 @@ def create_test_data(spark: SparkSession):
 
 def clean_events_transform(spark, bronze_df, prior_silvers):
     """Clean and enrich events data."""
+    F = get_default_functions()
     return (
         bronze_df.filter(F.col("user_id").isNotNull())
         .withColumn("event_date", F.date_trunc("day", F.col("timestamp")))
@@ -92,6 +95,7 @@ def clean_events_transform(spark, bronze_df, prior_silvers):
 
 def enrich_events_transform(spark, bronze_df, prior_silvers):
     """Enrich events with additional business logic."""
+    F = get_default_functions()
     clean_events = prior_silvers["clean_events"]
 
     return clean_events.withColumn(
@@ -104,6 +108,7 @@ def enrich_events_transform(spark, bronze_df, prior_silvers):
 
 def daily_metrics_transform(spark, silvers):
     """Create daily metrics from silver data."""
+    F = get_default_functions()
     clean_events = silvers["clean_events"]
     enriched_events = silvers["enriched_events"]
 
@@ -132,6 +137,10 @@ def run_multi_schema_pipeline():
         .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
         .getOrCreate()
     )
+
+    # Configure engine (required!)
+    configure_engine(spark=spark)
+    F = get_default_functions()
 
     try:
         # Create test data
@@ -162,6 +171,7 @@ def run_multi_schema_pipeline():
         # Silver Layer: Write to processing schema
         builder.add_silver_transform(
             name="clean_events",
+            source_bronze="user_events",
             transform=clean_events_transform,
             rules={
                 "user_id": [F.col("user_id").isNotNull()],
@@ -172,12 +182,12 @@ def run_multi_schema_pipeline():
             },
             table_name="clean_user_events",
             watermark_col="timestamp",
-            schema="processing",  # Write to different schema
         )
 
         # Silver Layer: Write to staging schema
         builder.add_silver_transform(
             name="enriched_events",
+            source_bronze="user_events",
             transform=enrich_events_transform,
             rules={
                 "user_id": [F.col("user_id").isNotNull()],
@@ -188,7 +198,7 @@ def run_multi_schema_pipeline():
             },
             table_name="enriched_user_events",
             watermark_col="timestamp",
-            schema="staging",  # Write to different schema
+            source_silvers=["clean_events"],
         )
 
         # Gold Layer: Write to analytics schema
@@ -201,25 +211,25 @@ def run_multi_schema_pipeline():
                 "total_events": [F.col("total_events") > 0],
             },
             table_name="user_daily_metrics",
-            schema="analytics",  # Write to different schema
+            source_silvers=["clean_events", "enriched_events"],
         )
 
         # Build and run pipeline
         pipeline = builder.to_pipeline()
 
         logger.info("🚀 Running multi-schema pipeline...")
-        # For this example, we'll use initial_load with mock data
+        # For this example, we'll use run_initial_load with mock data
         # In a real scenario, you would provide actual bronze data sources
         mock_bronze_data = {
             "user_events": spark.sql("SELECT * FROM raw_data.user_events")
         }
-        result = pipeline.initial_load(bronze_sources=mock_bronze_data)
+        result = pipeline.run_initial_load(bronze_sources=mock_bronze_data)
 
         # Display results
         logger.info("📊 Pipeline execution completed!")
-        logger.info(f"✅ Bronze steps processed: {len(result.bronze_results)}")
-        logger.info(f"✅ Silver steps processed: {len(result.silver_results)}")
-        logger.info(f"✅ Gold steps processed: {len(result.gold_results)}")
+        logger.info(f"✅ Status: {result.status.value}")
+        logger.info(f"✅ Total rows written: {result.metrics.total_rows_written}")
+        logger.info(f"✅ Duration: {result.duration_seconds:.2f}s")
 
         # Show data distribution across schemas
         logger.info("\n📋 Data Distribution Across Schemas:")
@@ -297,6 +307,7 @@ def demonstrate_schema_validation():
     try:
         from pipeline_builder import PipelineBuilder
 
+        F = get_default_functions()
         builder = PipelineBuilder(spark=spark, schema="default")
 
         logger.info("🔍 Demonstrating schema validation...")

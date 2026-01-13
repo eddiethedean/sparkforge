@@ -72,7 +72,7 @@ Validation Requirements:
 
 __version__ = "2.5.2"
 __author__ = "Odos Matthews"
-__email__ = "odosmattthewsm@gmail.com"
+__email__ = "odosmatthews@gmail.com"
 __description__ = "A simplified, production-ready data pipeline builder for Apache Spark and Delta Lake"
 
 

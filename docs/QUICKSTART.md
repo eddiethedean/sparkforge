@@ -1,169 +1,251 @@
 # PipelineBuilder Quick Start Guide
 
-## ✅ Environment Setup Complete!
+Get up and running with PipelineBuilder in 5 minutes!
 
-Your Python 3.8 and PySpark 3.5 environment is ready to use.
-
-## 🚀 Getting Started
-
-### 1. Activate the Environment
-
-Every time you open a new terminal, run:
+## Installation
 
 ```bash
-cd /Users/odosmatthews/Documents/coding/pipeline_builder
-source activate_env.sh
+# Install the package
+pip install pipeline-builder
+
+# Or install with extras
+pip install pipeline-builder[pyspark]  # For PySpark support
+pip install pipeline-builder[dev,test]  # For development
 ```
 
-Or activate directly:
+## Quick Start (5 Minutes)
 
-```bash
-source venv38/bin/activate
-```
+### Step 1: Configure Engine
 
-### 2. Verify Everything Works
-
-```bash
-python test_environment.py
-```
-
-This will run comprehensive checks on all components.
-
-### 3. Run Tests
-
-```bash
-# Quick test
-python -m pytest tests/unit/test_constants_coverage.py -v
-
-# All tests
-python -m pytest tests/ -v
-
-# With coverage
-python -m pytest tests/ --cov=src/pipeline_builder --cov-report=html
-```
-
-## 📦 What's Installed
-
-- ✅ **Python 3.8.18**
-- ✅ **PySpark 3.5**
-- ✅ **Delta Lake 3.0.0**
-- ✅ **PipelineBuilder 0.8.0**
-- ✅ **pytest, hypothesis, mock-spark** (testing)
-- ✅ **black, mypy, isort, flake8, ruff** (dev tools)
-
-## 💡 Common Commands
-
-### Testing
-```bash
-python -m pytest tests/unit/ -v              # Unit tests
-python -m pytest tests/integration/ -v       # Integration tests
-python -m pytest tests/system/ -v            # System tests
-python -m pytest -k "test_name" -v           # Specific test
-```
-
-### Code Quality
-```bash
-black src/                                         # Format code
-isort src/                                         # Sort imports
-mypy src/                                          # Type checking
-flake8 src/                                        # Linting
-ruff check src/                                    # Fast linting
-```
-
-### Development
-```bash
-pip list                                     # Show installed packages
-pip install -e ".[dev,test,docs]"           # Reinstall dependencies
-python -c "import pipeline_builder; print(pipeline_builder.__version__)"  # Check version
-```
-
-## 🔍 Example Usage
+**Important**: You must configure the engine before using pipeline components.
 
 ```python
+from pipeline_builder.engine_config import configure_engine
 from pyspark.sql import SparkSession
-from pipeline_builder.pipeline.builder import PipelineBuilder
 
-# Create Spark session
+# Create Spark session with Delta Lake
 spark = SparkSession.builder \
-    .appName("MyApp") \
-    .master("local[*]") \
+    .appName("QuickStart") \
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
     .getOrCreate()
+
+# Configure engine (required!)
+configure_engine(spark=spark)
+```
+
+### Step 2: Build Your First Pipeline
+
+```python
+from pipeline_builder import PipelineBuilder
+from pipeline_builder.functions import get_default_functions
+F = get_default_functions()
 
 # Create sample data
 data = [
-    (1, "Alice", 25),
-    (2, "Bob", 30),
-    (3, "Charlie", 35)
+    ("user1", "click", "2024-01-01 10:00:00"),
+    ("user2", "purchase", "2024-01-01 11:00:00"),
+    ("user3", "view", "2024-01-01 12:00:00"),
 ]
-df = spark.createDataFrame(data, ["id", "name", "age"])
+source_df = spark.createDataFrame(data, ["user_id", "action", "timestamp"])
 
-# Use PipelineBuilder
-pipeline = PipelineBuilder(spark)
+# Build pipeline
+builder = PipelineBuilder(spark=spark, schema="analytics")
 
-# Build and execute your pipeline
-# ... your code here ...
+# Bronze: Validate raw events
+builder.with_bronze_rules(
+    name="events",
+    rules={
+        "user_id": [F.col("user_id").isNotNull()],
+        "action": [F.col("action").isNotNull()],
+        "timestamp": [F.col("timestamp").isNotNull()],
+    },
+    incremental_col="timestamp"
+)
 
-# Clean up
-spark.stop()
+# Silver: Clean events
+def clean_events(spark, bronze_df, prior_silvers):
+    return bronze_df.filter(F.col("action").isin(["click", "view", "purchase"]))
+
+builder.add_silver_transform(
+    name="clean_events",
+    source_bronze="events",
+    transform=clean_events,
+    rules={
+        "user_id": [F.col("user_id").isNotNull()],
+        "action": [F.col("action").isNotNull()],
+    },
+    table_name="clean_events"
+)
+
+# Gold: Daily summary
+def daily_summary(spark, silvers):
+    return silvers["clean_events"].groupBy("action").count()
+
+builder.add_gold_transform(
+    name="daily_summary",
+    transform=daily_summary,
+    rules={"action": [F.col("action").isNotNull()], "count": [F.col("count") > 0]},
+    table_name="daily_summary",
+    source_silvers=["clean_events"]
+)
 ```
 
-## 📚 Documentation Locations
+### Step 3: Execute Pipeline
 
-- **Main README**: `README.md`
-- **Environment Details**: `ENVIRONMENT_INFO.md`
-- **Documentation**: `docs/` directory
-- **Examples**: `examples/` directory
-- **Tests**: `tests/` directory
+```python
+# Build and execute
+pipeline = builder.to_pipeline()
+result = pipeline.run_initial_load(bronze_sources={"events": source_df})
 
-## 🔧 Troubleshooting
-
-### Environment not activating?
-```bash
-# Recreate the environment
-rm -rf venv38
-python3.8 -m venv venv38
-source venv38/bin/activate
-pip install --upgrade pip
-pip install -e ".[dev,test,docs]"
+# Check results
+print(f"✅ Pipeline completed: {result.status.value}")
+print(f"📊 Rows written: {result.metrics.total_rows_written}")
 ```
 
-### Import errors?
-```bash
-# Ensure you're in the virtual environment
-which python  # Should show: .../venv38/bin/python
+## Engine Configuration
 
-# Reinstall in editable mode
-pip install -e .
+### Real PySpark (Production)
+
+```python
+from pipeline_builder.engine_config import configure_engine
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder \
+    .appName("Production") \
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+    .getOrCreate()
+
+# Configure for real PySpark
+configure_engine(spark=spark)
 ```
 
-### Spark issues?
-```bash
-# Check Java is available
-java -version
+### Mock Spark (Testing)
 
-# Test Spark manually
-python -c "from pyspark.sql import SparkSession; spark = SparkSession.builder.appName('Test').master('local[1]').getOrCreate(); print(spark.version); spark.stop()"
+```python
+from pipeline_builder.engine_config import configure_engine
+from mock_spark import MockSparkSession
+
+# Create mock Spark for testing
+mock_spark = MockSparkSession()
+
+# Configure for mock Spark
+configure_engine(spark=mock_spark)
 ```
 
-## 📝 Notes
+## Common Patterns
 
-- The warnings about "loopback address" and "native-hadoop library" are normal and can be ignored
-- Java 11 or later is required for PySpark 3.5
-- The virtual environment must be activated in each new terminal session
-- Tests use both real Spark and mock-spark for different test scenarios
+### Pattern 1: Initial Load
 
-## 🎯 Next Steps
+```python
+# First-time data load
+result = pipeline.run_initial_load(
+    bronze_sources={"events": historical_data}
+)
+```
 
-1. ✅ Environment is set up
-2. ✅ All tests pass
-3. 🔄 Start developing your features
-4. 🔄 Run tests frequently
-5. 🔄 Use code quality tools before committing
+### Pattern 2: Incremental Load
+
+```python
+# Daily/hourly updates
+result = pipeline.run_incremental(
+    bronze_sources={"events": new_data}
+)
+```
+
+### Pattern 3: Full Refresh
+
+```python
+# Reprocess all data
+result = pipeline.run_full_refresh(
+    bronze_sources={"events": all_data}
+)
+```
+
+### Pattern 4: Validation Only
+
+```python
+# Test validation without writing
+result = pipeline.run_validation_only(
+    bronze_sources={"events": test_data}
+)
+```
+
+## String Rules (Simplified Syntax)
+
+You can use human-readable string rules:
+
+```python
+# Instead of PySpark expressions
+builder.with_bronze_rules(
+    name="events",
+    rules={
+        "user_id": ["not_null"],           # F.col("user_id").isNotNull()
+        "value": ["gt", 0],                # F.col("value") > 0
+        "status": ["in", ["active", "inactive"]],  # F.col("status").isin([...])
+    },
+    incremental_col="timestamp"
+)
+```
+
+## Logging Pipeline Executions
+
+```python
+from pipeline_builder.writer import LogWriter
+
+# Create LogWriter (new simplified API)
+log_writer = LogWriter(
+    spark=spark,
+    schema="monitoring",
+    table_name="pipeline_logs"
+)
+
+# Execute pipeline
+result = pipeline.run_initial_load(bronze_sources={"events": source_df})
+
+# Log execution
+log_writer.append(result, run_id="run_123")
+```
+
+## Next Steps
+
+- **Full Guide**: See [USER_GUIDE.md](USER_GUIDE.md) for comprehensive documentation
+- **API Reference**: See [api_reference.rst](api_reference.rst) for detailed API docs
+- **Examples**: See `examples/` directory for more examples
+- **Architecture**: See [Architecture.md](Architecture.md) for architecture details
+
+## Troubleshooting
+
+### Engine Not Configured
+
+```python
+# Error: Engine not configured
+# Solution: Always configure engine first
+from pipeline_builder.engine_config import configure_engine
+configure_engine(spark=spark)
+```
+
+### Delta Lake Not Available
+
+```python
+# Error: Delta Lake extensions not configured
+# Solution: Add Delta Lake configs to Spark session
+spark = SparkSession.builder \
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+    .getOrCreate()
+```
+
+### Validation Errors
+
+```python
+# Check validation errors
+errors = builder.validate_pipeline()
+if errors:
+    print(f"Validation errors: {errors}")
+```
 
 ---
 
-**Need Help?**
-- Check `ENVIRONMENT_INFO.md` for detailed information
-- Run `python test_environment.py` to verify setup
-- Review documentation in `docs/` directory
-
+**Happy Pipeline Building! 🚀**

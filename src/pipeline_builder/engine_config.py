@@ -55,7 +55,7 @@ def configure_engine(
 ) -> None:
     """
     Inject engine components.
-    
+
     Sets both thread-local and global engine state for backward compatibility.
     Thread-local state takes precedence in get_engine() for parallel test isolation.
     """
@@ -72,10 +72,10 @@ def configure_engine(
         spark_session_cls=spark_session_cls,
         column_cls=column_cls,
     )
-    
+
     # Set global state (for backward compatibility)
     _engine = engine_config
-    
+
     # Set thread-local state (for parallel test isolation)
     _thread_local.engine = engine_config
 
@@ -83,15 +83,16 @@ def configure_engine(
 def get_engine() -> EngineConfig:
     """
     Get the current engine config, raising if not configured.
-    
+
     Checks thread-local storage first (for parallel test isolation),
     then falls back to global state (for backward compatibility).
     """
 
     # Try thread-local first (for parallel test isolation)
-    if hasattr(_thread_local, 'engine') and _thread_local.engine is not None:
-        return _thread_local.engine
-    
+    if hasattr(_thread_local, "engine") and _thread_local.engine is not None:
+        engine: EngineConfig = _thread_local.engine
+        return engine
+
     # Fallback to global state (for backward compatibility)
     if _engine is None:
         raise RuntimeError(
@@ -103,12 +104,12 @@ def get_engine() -> EngineConfig:
 def reset_engine_state() -> None:
     """
     Reset thread-local engine state.
-    
+
     This is useful for test isolation - clears the thread-local engine
     so the next get_engine() call will use global state or raise an error.
     """
-    if hasattr(_thread_local, 'engine'):
-        delattr(_thread_local, 'engine')
+    if hasattr(_thread_local, "engine"):
+        delattr(_thread_local, "engine")
 
 
 __all__ = ["EngineConfig", "configure_engine", "get_engine", "reset_engine_state"]

@@ -7,8 +7,6 @@ and batch backfill capabilities.
 """
 
 import os
-import tempfile
-from uuid import uuid4
 
 import pytest
 
@@ -23,6 +21,7 @@ from pyspark.sql import functions as F
 
 from pipeline_builder.pipeline import PipelineBuilder
 import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from test_helpers.isolation import get_unique_schema
 
@@ -55,7 +54,6 @@ class TestStreamingHybridPipeline:
             min_gold_rate=99.0,
             verbose=True,
         )
-        builder.config.parallel = ParallelConfig.create_sequential()
 
         # Bronze Layer: Raw batch and streaming data validation
         builder.with_bronze_rules(
@@ -517,8 +515,10 @@ class TestStreamingHybridPipeline:
         try:
             import sys
             import os
-            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             from test_helpers.isolation import cleanup_test_tables
+
             cleanup_test_tables(spark_session, unique_schema)
         except Exception:
             pass  # Ignore cleanup errors
@@ -527,8 +527,10 @@ class TestStreamingHybridPipeline:
         try:
             import sys
             import os
-            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             from test_helpers.isolation import cleanup_test_tables
+
             cleanup_test_tables(spark_session, unique_schema)
         except Exception:
             pass  # Ignore cleanup errors
@@ -553,7 +555,6 @@ class TestStreamingHybridPipeline:
             min_gold_rate=99.0,
             verbose=False,
         )
-        builder.config.parallel = ParallelConfig.create_sequential()
 
         builder.with_bronze_rules(
             name="raw_batch_history",

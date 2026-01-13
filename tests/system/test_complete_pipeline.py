@@ -8,9 +8,9 @@ import pytest
 
 # Import AnalysisException - available in both PySpark and sparkless
 try:
-    from pyspark.sql.utils import AnalysisException
+    from pyspark.sql.utils import AnalysisException  # noqa: F401
 except ImportError:
-    from sparkless.errors import AnalysisException  # type: ignore[import]
+    pass  # type: ignore[import]
 
 from pipeline_builder.execution import ExecutionEngine
 from pipeline_builder.models import PipelineConfig, ValidationThresholds
@@ -226,7 +226,10 @@ class TestCompletePipeline:
         with pytest.raises(Exception) as exc_info:
             mock_spark_session.table("nonexistent.table")
         # Verify it's an AnalysisException (works for both PySpark and sparkless)
-        assert "AnalysisException" in type(exc_info.value).__name__ or "not found" in str(exc_info.value).lower()
+        assert (
+            "AnalysisException" in type(exc_info.value).__name__
+            or "not found" in str(exc_info.value).lower()
+        )
 
         # Verify pipeline components are still functional after error
         assert builder.spark == engine.spark
@@ -264,9 +267,9 @@ class TestCompletePipeline:
 
         # Create tables using standard Spark operations
         # Use appropriate types based on Spark mode
-        import os
+
         spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-        
+
         if spark_mode == "real":
             from pyspark.sql.types import (
                 DoubleType,

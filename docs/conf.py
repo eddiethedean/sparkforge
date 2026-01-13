@@ -37,10 +37,15 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
-    "sphinx.ext.napoleon",
+    "sphinx.ext.napoleon",  # Google-style docstring support
     "sphinx.ext.viewcode",
     "sphinx.ext.githubpages",
+    "sphinx.ext.todo",  # Support for todo items
+    "sphinx.ext.coverage",  # Coverage reporting
 ]
+
+# Enable todos
+todo_include_todos = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -78,18 +83,24 @@ autodoc_default_options = {
     "members": True,
     "member-order": "bysource",
     "special-members": "__init__",
-    "undoc-members": True,
+    "undoc-members": False,  # Don't show undocumented members
     "exclude-members": "__weakref__",
+    "show-inheritance": True,
 }
 
+# Autodoc settings for Google-style docstrings
+autodoc_mock_imports = ["pyspark", "delta"]  # Mock imports if not available
+autoclass_content = "both"  # Include both class and __init__ docstrings
+
 # -- Options for napoleon extension ------------------------------------------
+# Configure for Google-style docstrings
 napoleon_google_docstring = True
-napoleon_numpy_docstring = True
-napoleon_include_init_with_doc = False
+napoleon_numpy_docstring = False  # Use Google-style only
+napoleon_include_init_with_doc = True  # Include __init__ docstrings
 napoleon_include_private_with_doc = False
 napoleon_include_special_with_doc = True
-napoleon_use_admonition_for_examples = False
-napoleon_use_admonition_for_notes = False
+napoleon_use_admonition_for_examples = True  # Use admonitions for examples
+napoleon_use_admonition_for_notes = True
 napoleon_use_admonition_for_references = False
 napoleon_use_ivar = False
 napoleon_use_param = True
@@ -97,12 +108,18 @@ napoleon_use_rtype = True
 napoleon_preprocess_types = False
 napoleon_type_aliases = None
 napoleon_attr_annotations = True
+napoleon_use_keyword = True  # Support keyword arguments
 
 # -- Options for intersphinx extension ---------------------------------------
+# Cross-reference configuration for external documentation
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
     "pyspark": ("https://spark.apache.org/docs/latest/api/python/", None),
+    "delta": ("https://docs.delta.io/latest/", None),
 }
+
+# Enable cross-references
+intersphinx_disabled_reftypes = []
 
 # -- Options for myst_parser -------------------------------------------------
 myst_enable_extensions = [

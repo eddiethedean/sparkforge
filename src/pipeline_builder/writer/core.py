@@ -2,20 +2,54 @@
 Refactored LogWriter implementation with modular architecture.
 
 This module contains the main LogWriter class that orchestrates the various
-writer components for comprehensive logging functionality.
+writer components for comprehensive logging functionality. The LogWriter
+provides a simplified API for writing pipeline execution results to Delta
+Lake tables.
 
-# Depends on:
-#   compat
-#   functions
-#   logging
-#   models.execution
-#   validation.utils
-#   writer.analytics
-#   writer.exceptions
-#   writer.models
-#   writer.monitoring
-#   writer.operations
-#   writer.storage
+**New Simplified API:**
+    The LogWriter now supports a simplified initialization API using `schema`
+    and `table_name` parameters directly, replacing the previous `WriterConfig`
+    approach. The old API is still supported but deprecated.
+
+**Key Features:**
+    - Simplified initialization with schema and table_name
+    - Modular architecture with dedicated components
+    - Comprehensive error handling and validation
+    - Performance monitoring and optimization
+    - Data quality analysis and trend detection
+    - Delta Lake integration for persistent logging
+
+**Migration Guide:**
+    Old API (deprecated):
+        >>> config = WriterConfig(table_schema="analytics", table_name="logs")
+        >>> writer = LogWriter(spark, config=config)
+
+    New API (recommended):
+        >>> writer = LogWriter(spark, schema="analytics", table_name="logs")
+
+Dependencies:
+    - compat: Spark/PySpark compatibility layer
+    - functions: Functions protocol for DataFrame operations
+    - logging: Pipeline logging utilities
+    - models.execution: ExecutionResult and StepResult models
+    - validation.utils: Data validation utilities
+    - writer.analytics: Analytics and trend analysis
+    - writer.exceptions: Writer-specific exceptions
+    - writer.models: Writer models and type definitions
+    - writer.monitoring: Performance monitoring
+    - writer.operations: Data processing operations
+    - writer.storage: Delta Lake storage management
+
+Example:
+    >>> from pipeline_builder.writer import LogWriter
+    >>> from pipeline_builder.models.execution import ExecutionResult
+    >>>
+    >>> # Initialize with new simplified API
+    >>> writer = LogWriter(spark, schema="analytics", table_name="pipeline_logs")
+    >>>
+    >>> # Write execution result
+    >>> result = writer.write_execution_result(execution_result)
+    >>> print(f"Wrote {result['rows_written']} rows")
 """
 
 from __future__ import annotations
@@ -212,19 +246,55 @@ def create_log_rows_from_execution_result(
 
 
 class LogWriter:
-    """
-    Refactored LogWriter with modular architecture.
+    """Refactored LogWriter with modular architecture.
 
-    This class orchestrates the various writer components to provide
-    comprehensive logging functionality for pipeline execution results.
+    Main class for writing pipeline execution results to Delta Lake tables.
+    Provides a simplified API for logging pipeline runs, steps, and metrics
+    with comprehensive error handling, performance monitoring, and data quality
+    analysis.
 
-    Components:
-    - DataProcessor: Handles data processing and transformations
-    - StorageManager: Manages Delta Lake storage operations
-    - PerformanceMonitor: Tracks performance metrics
-    - AnalyticsEngine: Provides analytics and trend analysis
-    - DataQualityAnalyzer: Analyzes data quality metrics
-    - TrendAnalyzer: Analyzes execution trends
+    **New Simplified API:**
+        The LogWriter now supports direct initialization with `schema` and
+        `table_name` parameters, making it easier to use:
+
+        >>> writer = LogWriter(spark, schema="analytics", table_name="logs")
+
+    **Deprecated API:**
+        The old API using `WriterConfig` is still supported but deprecated:
+
+        >>> config = WriterConfig(table_schema="analytics", table_name="logs")
+        >>> writer = LogWriter(spark, config=config)  # Deprecated
+
+    **Components:**
+        - **DataProcessor**: Handles data processing and transformations
+        - **StorageManager**: Manages Delta Lake storage operations
+        - **PerformanceMonitor**: Tracks performance metrics
+        - **AnalyticsEngine**: Provides analytics and trend analysis
+        - **DataQualityAnalyzer**: Analyzes data quality metrics
+        - **TrendAnalyzer**: Analyzes execution trends
+
+    **Key Methods:**
+        - `write_execution_result()`: Write ExecutionResult to log table
+        - `write_step_results()`: Write StepResult dictionary to log table
+        - `write_log_rows()`: Write raw LogRow list to log table
+        - `create_table()`: Create/overwrite table from PipelineReport
+        - `append()`: Append PipelineReport to existing table
+        - `optimize_table()`: Optimize Delta table for performance
+        - `vacuum_table()`: Vacuum Delta table to remove old files
+        - `analyze_quality_trends()`: Analyze data quality trends
+        - `analyze_execution_trends()`: Analyze execution trends
+
+    Example:
+        >>> from pipeline_builder.writer import LogWriter
+        >>> from pipeline_builder.models.execution import ExecutionResult
+        >>>
+        >>> # Initialize with new simplified API
+        >>> writer = LogWriter(spark, schema="analytics", table_name="logs")
+        >>>
+        >>> # Write execution result
+        >>> result = writer.write_execution_result(execution_result)
+        >>> print(f"Success: {result['success']}")
+        >>> print(f"Rows written: {result['rows_written']}")
     """
 
     def __init__(
@@ -236,26 +306,62 @@ class LogWriter:
         functions: Optional[FunctionsProtocol] = None,
         logger: Optional[PipelineLogger] = None,
     ) -> None:
-        """
-        Initialize the LogWriter with modular components.
+        """Initialize the LogWriter with modular components.
+
+        Creates a new LogWriter instance with the specified schema and table
+        name. The writer will automatically create the log table if it doesn't
+        exist when data is first written.
+
+        **New Simplified API (Recommended):**
+            Use `schema` and `table_name` parameters directly:
+
+            >>> writer = LogWriter(spark, schema="analytics", table_name="logs")
+
+        **Deprecated API:**
+            The old API using `WriterConfig` is still supported but will emit
+            a deprecation warning:
+
+            >>> config = WriterConfig(table_schema="analytics", table_name="logs")
+            >>> writer = LogWriter(spark, config=config)  # Deprecated
 
         Args:
-            spark: Spark session
-            schema: Database schema name (simplified API)
-            table_name: Table name (simplified API)
-            config: Writer configuration (deprecated, use schema and table_name instead)
-            functions: Functions protocol (optional, uses default if not provided)
-            logger: Pipeline logger (optional)
+            spark: SparkSession instance for DataFrame operations. Required.
+            schema: Database schema name for the log table. Required if using
+                new API. Must be a non-empty string.
+            table_name: Table name for the log table. Required if using new API.
+                Must be a non-empty string.
+            config: WriterConfig instance (deprecated). Use `schema` and
+                `table_name` instead. If provided, `schema` and `table_name`
+                are ignored.
+            functions: FunctionsProtocol instance for DataFrame operations.
+                Optional. Uses default functions if not provided.
+            logger: PipelineLogger instance for logging. Optional. Creates a
+                new logger if not provided.
 
         Raises:
-            WriterConfigurationError: If configuration is invalid
+            WriterConfigurationError: If configuration is invalid, such as:
+                - Neither `config` nor both `schema` and `table_name` provided
+                - Schema or table_name is empty
+                - WriterConfig validation fails
 
-        Example (new simplified API):
-            >>> writer = LogWriter(spark, schema="analytics", table_name="pipeline_logs")
-
-        Example (old API, deprecated):
-            >>> config = WriterConfig(table_schema="analytics", table_name="pipeline_logs")
-            >>> writer = LogWriter(spark, config=config)
+        Example:
+            >>> from pipeline_builder.writer import LogWriter
+            >>>
+            >>> # New simplified API (recommended)
+            >>> writer = LogWriter(
+            ...     spark,
+            ...     schema="analytics",
+            ...     table_name="pipeline_logs"
+            ... )
+            >>>
+            >>> # Old API (deprecated, emits warning)
+            >>> from pipeline_builder.writer import WriterConfig, WriteMode
+            >>> config = WriterConfig(
+            ...     table_schema="analytics",
+            ...     table_name="pipeline_logs",
+            ...     write_mode=WriteMode.APPEND
+            ... )
+            >>> writer = LogWriter(spark, config=config)  # DeprecationWarning
         """
         self.spark = spark
 
@@ -356,22 +462,56 @@ class LogWriter:
         run_mode: str = "initial",
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """
-        Write execution result to log table.
+        """Write execution result to log table.
+
+        Writes an ExecutionResult instance to the log table, creating one log
+        row per step in the execution. The table is automatically created if
+        it doesn't exist.
 
         Args:
-            execution_result: The execution result to write
-            run_id: Unique run identifier (generated if not provided)
-            run_mode: Mode of the run (initial, incremental, etc.)
-            metadata: Additional metadata
+            execution_result: ExecutionResult instance containing execution
+                context, step results, and metrics. Required.
+            run_id: Unique run identifier. Optional. If not provided, a UUID
+                is automatically generated.
+            run_mode: Execution mode string. Defaults to "initial". Valid values:
+                - "initial": First-time execution
+                - "incremental": Incremental processing
+                - "full_refresh": Full refresh execution
+                - "validation_only": Validation-only execution
+            metadata: Additional metadata dictionary to include in log rows.
+                Optional. Can contain any key-value pairs.
 
         Returns:
-            Dict containing write results and metrics
+            Dictionary containing write results with the following keys:
+                - `success`: Boolean indicating if write succeeded
+                - `run_id`: The run identifier used
+                - `operation_id`: Unique operation identifier
+                - `rows_written`: Number of rows written to the table
+                - `write_result`: WriteResult dictionary with detailed results
+                - `operation_metrics`: Performance metrics for the operation
+                - `threshold_violations`: List of performance threshold violations
 
         Raises:
-            WriterValidationError: If validation fails
-            WriterTableError: If table operations fail
-            WriterPerformanceError: If performance thresholds exceeded
+            WriterValidationError: If log data validation fails (e.g., missing
+                required fields, invalid data types)
+            WriterTableError: If table operations fail (e.g., table creation,
+                write operation)
+            WriterPerformanceError: If performance thresholds are exceeded
+                (if enabled in configuration)
+
+        Example:
+            >>> from pipeline_builder.writer import LogWriter
+            >>> from pipeline_builder.models.execution import ExecutionResult
+            >>>
+            >>> writer = LogWriter(spark, schema="analytics", table_name="logs")
+            >>> result = writer.write_execution_result(
+            ...     execution_result=execution_result,
+            ...     run_id="run_123",
+            ...     run_mode="incremental",
+            ...     metadata={"environment": "production", "version": "1.0"}
+            ... )
+            >>> print(f"Wrote {result['rows_written']} rows")
+            >>> print(f"Success: {result['success']}")
         """
         operation_id = str(uuid.uuid4())
         if run_id is None:
@@ -1350,27 +1490,45 @@ class LogWriter:
     def create_table(
         self, report: PipelineReport, run_id: Optional[str] = None
     ) -> Dict[str, Any]:
-        """
-        Create or overwrite the log table with data from a PipelineReport.
+        """Create or overwrite the log table with data from a PipelineReport.
 
-        This method creates the log table if it doesn't exist, and writes
-        the report data using OVERWRITE mode (replacing any existing data).
+        Creates the log table if it doesn't exist, and writes the report data
+        using OVERWRITE mode (replacing any existing data). This method is
+        useful for initial table creation or full refresh scenarios.
+
+        **Note:** This method uses OVERWRITE mode, which will replace all
+        existing data in the table. Use `append()` if you want to add data
+        to an existing table.
 
         Args:
-            report: PipelineReport to write
-            run_id: Optional run ID (generated if not provided)
+            report: PipelineReport instance containing pipeline execution
+                results. Required. The report should contain results for
+                bronze, silver, and gold steps.
+            run_id: Unique run identifier. Optional. If not provided, a UUID
+                is automatically generated.
 
         Returns:
-            Dictionary with write results including:
-                - success: Whether the operation succeeded
-                - run_id: The run identifier used
-                - rows_written: Number of rows written
-                - table_fqn: Fully qualified table name
+            Dictionary with write results containing:
+                - `success`: Boolean indicating if operation succeeded
+                - `run_id`: The run identifier used
+                - `operation_id`: Unique operation identifier
+                - `rows_written`: Number of rows written to the table
+                - `table_fqn`: Fully qualified table name (schema.table_name)
+                - `write_result`: WriteResult dictionary with detailed results
+                - `operation_metrics`: Performance metrics for the operation
+
+        Raises:
+            WriterTableError: If table creation or write operation fails
+            WriterValidationError: If report data validation fails
 
         Example:
+            >>> from pipeline_builder.writer import LogWriter
+            >>> from pipeline_builder.pipeline.models import PipelineReport
+            >>>
             >>> writer = LogWriter(spark, schema="analytics", table_name="logs")
-            >>> result = writer.create_table(pipeline_report)
+            >>> result = writer.create_table(pipeline_report, run_id="run_123")
             >>> print(f"Created table with {result['rows_written']} rows")
+            >>> print(f"Table: {result['table_fqn']}")
         """
         operation_id = str(uuid.uuid4())
         if run_id is None:
@@ -1440,26 +1598,44 @@ class LogWriter:
     def append(
         self, report: PipelineReport, run_id: Optional[str] = None
     ) -> Dict[str, Any]:
-        """
-        Append data from a PipelineReport to the log table.
+        """Append data from a PipelineReport to the log table.
 
-        This method appends the report data to an existing log table. If the
-        table doesn't exist, it will be created first.
+        Appends the report data to an existing log table using APPEND mode.
+        If the table doesn't exist, it will be created first. This method is
+        useful for incremental logging scenarios where you want to preserve
+        historical data.
+
+        **Note:** This method uses APPEND mode, which adds new data to the
+        existing table. Use `create_table()` if you want to replace all
+        existing data.
 
         Args:
-            report: PipelineReport to append
-            run_id: Optional run ID (generated if not provided)
+            report: PipelineReport instance containing pipeline execution
+                results. Required. The report should contain results for
+                bronze, silver, and gold steps.
+            run_id: Unique run identifier. Optional. If not provided, a UUID
+                is automatically generated.
 
         Returns:
-            Dictionary with write results including:
-                - success: Whether the operation succeeded
-                - run_id: The run identifier used
-                - rows_written: Number of rows written
-                - table_fqn: Fully qualified table name
+            Dictionary with write results containing:
+                - `success`: Boolean indicating if operation succeeded
+                - `run_id`: The run identifier used
+                - `operation_id`: Unique operation identifier
+                - `rows_written`: Number of rows written to the table
+                - `table_fqn`: Fully qualified table name (schema.table_name)
+                - `write_result`: WriteResult dictionary with detailed results
+                - `operation_metrics`: Performance metrics for the operation
+
+        Raises:
+            WriterTableError: If table creation or write operation fails
+            WriterValidationError: If report data validation fails
 
         Example:
+            >>> from pipeline_builder.writer import LogWriter
+            >>> from pipeline_builder.pipeline.models import PipelineReport
+            >>>
             >>> writer = LogWriter(spark, schema="analytics", table_name="logs")
-            >>> result = writer.append(pipeline_report)
+            >>> result = writer.append(pipeline_report, run_id="run_123")
             >>> print(f"Appended {result['rows_written']} rows to {result['table_fqn']}")
         """
         operation_id = str(uuid.uuid4())

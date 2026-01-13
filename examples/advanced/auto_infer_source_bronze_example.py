@@ -7,9 +7,10 @@ parameter when adding silver transforms, making the API more convenient.
 """
 
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
 
 from pipeline_builder import PipelineBuilder
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
 
 
 def main():
@@ -20,6 +21,10 @@ def main():
         .master("local[*]")
         .getOrCreate()
     )
+
+    # Configure engine (required!)
+    configure_engine(spark=spark)
+    F = get_default_functions()
 
     try:
         # Create sample data
@@ -53,6 +58,7 @@ def main():
 
         def clean_events(spark, bronze_df, prior_silvers):
             """Clean and filter events data."""
+            F = get_default_functions()
             return (
                 bronze_df.filter(F.col("action").isin(["click", "view", "purchase"]))
                 .withColumn("event_date", F.date_trunc("day", F.col("timestamp")))
@@ -61,7 +67,7 @@ def main():
 
         builder.add_silver_transform(
             name="clean_events",
-            # source_bronze is omitted - will auto-infer from "events"
+            source_bronze="events",
             transform=clean_events,
             rules={
                 "user_id": [F.col("user_id").isNotNull()],
@@ -80,6 +86,7 @@ def main():
 
         def enriched_events(spark, bronze_df, prior_silvers):
             """Enrich events with additional features."""
+            F = get_default_functions()
             clean_df = prior_silvers["clean_events"]
             return (
                 clean_df.withColumn("hour_of_day", F.hour("timestamp"))
@@ -94,7 +101,7 @@ def main():
 
         builder.add_silver_transform(
             name="enriched_events",
-            # source_bronze is omitted - will auto-infer from "events"
+            source_bronze="events",
             transform=enriched_events,
             rules={
                 "user_id": [F.col("user_id").isNotNull()],
@@ -109,6 +116,7 @@ def main():
             },
             table_name="enriched_events",
             watermark_col="timestamp",
+            source_silvers=["clean_events"],
         )
 
         # Add gold step
@@ -116,6 +124,7 @@ def main():
 
         def daily_analytics(spark, silvers):
             """Create daily analytics from silver data."""
+            F = get_default_functions()
             enriched_df = silvers["enriched_events"]
             return (
                 enriched_df.groupBy("event_date", "user_activity_level")
@@ -150,28 +159,34 @@ def main():
         pipeline = builder.to_pipeline()
 
         print("📊 Running pipeline...")
-        result = pipeline.initial_load(bronze_sources={"events": events_df})
+        result = pipeline.run_initial_load(bronze_sources={"events": events_df})
 
         # Display results
         print("\n✅ Pipeline execution completed!")
-        print(f"📈 Bronze steps executed: {len(result.bronze_results)}")
-        print(f"📈 Silver steps executed: {len(result.silver_results)}")
-        print(f"📈 Gold steps executed: {len(result.gold_results)}")
-        print(f"⏱️  Total duration: {result.totals['total_duration_secs']:.2f}s")
+        print(f"📈 Status: {result.status.value}")
+        print(f"📈 Total steps: {result.metrics.total_steps}")
+        print(f"📈 Successful steps: {result.metrics.successful_steps}")
+        print(f"📈 Failed steps: {result.metrics.failed_steps}")
+        print(f"⏱️  Total duration: {result.duration_seconds:.2f}s")
 
-        # Show the auto-inferred source_bronze values
-        print("\n🔍 Auto-inferred source_bronze values:")
-        for name, step in pipeline.silver_steps.items():
-            print(f"  - {name}: source_bronze = {step.source_bronze}")
+        # Show step information
+        print("\n🔍 Pipeline steps:")
+        print(f"  Bronze steps: {list(builder.bronze_steps.keys())}")
+        print(f"  Silver steps: {list(builder.silver_steps.keys())}")
+        print(f"  Gold steps: {list(builder.gold_steps.keys())}")
 
         # Display sample results
         print("\n📋 Sample results from enriched_events:")
-        enriched_df = result.silver_results["enriched_events"]["dataframe"]
-        enriched_df.show(5, truncate=False)
+        try:
+            spark.table("analytics.enriched_events").show(5, truncate=False)
+        except Exception as e:
+            print(f"⚠️  Could not display: {e}")
 
         print("\n📋 Sample results from daily_analytics:")
-        analytics_df = result.gold_results["daily_analytics"]["dataframe"]
-        analytics_df.show(5, truncate=False)
+        try:
+            spark.table("analytics.daily_analytics").show(5, truncate=False)
+        except Exception as e:
+            print(f"⚠️  Could not display: {e}")
 
     finally:
         spark.stop()

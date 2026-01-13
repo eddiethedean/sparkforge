@@ -7,7 +7,6 @@ It shows how to create a simple bronze-to-silver-to-gold pipeline with data vali
 """
 
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
 from pyspark.sql.types import (
     DoubleType,
     IntegerType,
@@ -16,8 +15,9 @@ from pyspark.sql.types import (
     StructType,
 )
 
-from pipeline_builder.models import PipelineConfig
-from pipeline_builder.pipeline.builder import PipelineBuilder
+from pipeline_builder import PipelineBuilder
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
 
 
 def main():
@@ -33,6 +33,10 @@ def main():
         .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
         .getOrCreate()
     )
+
+    # Configure engine (required!)
+    configure_engine(spark=spark)
+    F = get_default_functions()
 
     try:
         # Create sample data
@@ -58,70 +62,96 @@ def main():
         raw_df = spark.createDataFrame(data, schema)
         print(f"Created {raw_df.count()} records")
 
-        # Configure pipeline
-        print("\n⚙️ Configuring pipeline...")
-        config = PipelineConfig.create_default("quickstart")
-        print(f"Using schema: {config.schema}")
-        print(
-            f"Validation thresholds: Bronze={config.min_bronze_rate}%, Silver={config.min_silver_rate}%, Gold={config.min_gold_rate}%"
-        )
-
         # Build pipeline
         print("\n🔨 Building pipeline...")
-        pipeline = (
-            PipelineBuilder(config)
-            .add_bronze_step("raw_orders", raw_df)
-            .add_silver_step(
-                "clean_orders",
-                "raw_orders",
-                transform_func=lambda df: df.filter(F.col("quantity") > 0),
-                validation_rules={
-                    "user_id": ["not_null"],
-                    "product_id": ["not_null"],
-                    "quantity": ["positive"],
-                    "price": ["positive"],
-                },
-            )
-            .add_gold_step(
-                "order_summary",
-                "clean_orders",
-                transform_func=lambda df: df.groupBy("product_id").agg(
+        builder = PipelineBuilder(
+            spark=spark,
+            schema="quickstart",
+            min_bronze_rate=90.0,
+            min_silver_rate=95.0,
+            min_gold_rate=98.0,
+        )
+
+        # Bronze: Validate raw orders
+        builder.with_bronze_rules(
+            name="raw_orders",
+            rules={
+                "user_id": [F.col("user_id").isNotNull()],
+                "product_id": [F.col("product_id").isNotNull()],
+                "quantity": [F.col("quantity") > 0],
+                "price": [F.col("price") > 0],
+                "timestamp": [F.col("timestamp").isNotNull()],
+            },
+            incremental_col="timestamp",
+        )
+
+        # Silver: Clean orders
+        def clean_orders(spark, bronze_df, prior_silvers):
+            F = get_default_functions()
+            return bronze_df.filter(F.col("quantity") > 0)
+
+        builder.add_silver_transform(
+            name="clean_orders",
+            source_bronze="raw_orders",
+            transform=clean_orders,
+            rules={
+                "user_id": [F.col("user_id").isNotNull()],
+                "product_id": [F.col("product_id").isNotNull()],
+                "quantity": [F.col("quantity") > 0],
+                "price": [F.col("price") > 0],
+            },
+            table_name="clean_orders",
+        )
+
+        # Gold: Order summary
+        def order_summary(spark, silvers):
+            F = get_default_functions()
+            return (
+                silvers["clean_orders"]
+                .groupBy("product_id")
+                .agg(
                     F.count("*").alias("total_orders"),
                     F.sum("quantity").alias("total_quantity"),
                     F.avg("price").alias("avg_price"),
                     F.max("price").alias("max_price"),
                     F.min("price").alias("min_price"),
-                ),
+                )
             )
-            .build()
+
+        builder.add_gold_transform(
+            name="order_summary",
+            transform=order_summary,
+            rules={
+                "product_id": [F.col("product_id").isNotNull()],
+                "total_orders": [F.col("total_orders") > 0],
+                "total_quantity": [F.col("total_quantity") > 0],
+            },
+            table_name="order_summary",
+            source_silvers=["clean_orders"],
         )
 
+        # Create and execute pipeline
+        pipeline = builder.to_pipeline()
         print("Pipeline built successfully!")
 
         # Execute pipeline
         print("\n▶️ Executing pipeline...")
-        results = pipeline.execute()
+        result = pipeline.run_initial_load(bronze_sources={"raw_orders": raw_df})
 
         # Display results
         print("\n📈 Pipeline Results:")
         print("-" * 30)
-
-        for step_name, result in results.items():
-            print(f"\n{step_name.upper()}:")
-            if hasattr(result, "count"):
-                count = result.count()
-                print(f"  Records: {count}")
-                if count > 0:
-                    print("  Sample data:")
-                    result.show(5, truncate=False)
-            else:
-                print(f"  Result: {result}")
+        print(f"Status: {result.status.value}")
+        print(f"Total rows written: {result.metrics.total_rows_written}")
+        print(f"Execution time: {result.duration_seconds:.2f}s")
 
         # Show final gold data
         print("\n🏆 Final Gold Data (Order Summary):")
-        gold_data = results.get("order_summary")
-        if gold_data:
-            gold_data.show(truncate=False)
+        try:
+            gold_table = spark.table("quickstart.order_summary")
+            gold_table.show(truncate=False)
+        except Exception as e:
+            print(f"⚠️  Could not display table: {e}")
 
         print("\n✅ Quick start example completed successfully!")
 

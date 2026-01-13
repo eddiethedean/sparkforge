@@ -7,9 +7,10 @@ This demonstrates the Bronze → Silver → Gold flow with minimal complexity.
 """
 
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
 
 from pipeline_builder import PipelineBuilder
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
 
 
 def main():
@@ -20,6 +21,10 @@ def main():
 
     # Start Spark
     spark = SparkSession.builder.appName("Hello World").master("local[*]").getOrCreate()
+
+    # Configure engine (required!)
+    configure_engine(spark=spark)
+    F = get_default_functions()
 
     try:
         # Create the simplest possible data
@@ -70,7 +75,7 @@ def main():
         pipeline = builder.to_pipeline()
         result = pipeline.run_initial_load(bronze_sources={"events": df})
 
-        print(f"\n✅ Pipeline completed: {result.status}")
+        print(f"\n✅ Pipeline completed: {result.status.value}")
 
         # Show the results (if Delta Lake is available)
         try:

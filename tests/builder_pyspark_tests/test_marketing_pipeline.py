@@ -21,6 +21,7 @@ from pyspark.sql import functions as F
 from pipeline_builder.pipeline import PipelineBuilder
 import sys
 import os
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from test_helpers.isolation import get_unique_schema
 
@@ -532,8 +533,10 @@ class TestMarketingPipeline:
         try:
             import sys
             import os
-            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             from test_helpers.isolation import cleanup_test_tables
+
             cleanup_test_tables(spark_session, bronze_schema)
         except Exception:
             pass  # Ignore cleanup errors
@@ -611,8 +614,10 @@ class TestMarketingPipeline:
         try:
             import sys
             import os
-            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             from test_helpers.isolation import cleanup_test_tables
+
             cleanup_test_tables(spark_session, bronze_schema)
         except Exception:
             pass  # Ignore cleanup errors

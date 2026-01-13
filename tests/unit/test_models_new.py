@@ -212,8 +212,7 @@ class TestPipelineConfig:
     def test_pipeline_config_creation(self):
         """Test PipelineConfig creation."""
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
-        config = PipelineConfig(
-            schema="test_schema", thresholds=thresholds)
+        config = PipelineConfig(schema="test_schema", thresholds=thresholds)
 
         assert config.schema == "test_schema"
         assert config.thresholds == thresholds
@@ -221,14 +220,15 @@ class TestPipelineConfig:
     def test_pipeline_config_validation(self):
         """Test PipelineConfig validation."""
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
-        config = PipelineConfig(
-            schema="test_schema", thresholds=thresholds)
+        config = PipelineConfig(schema="test_schema", thresholds=thresholds)
 
         config.validate()  # Should not raise
 
     def test_pipeline_config_invalid_schema(self):
         """Test PipelineConfig with invalid schema."""
-        thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)        # The current implementation doesn't validate schema during construction
+        thresholds = ValidationThresholds(
+            bronze=95.0, silver=98.0, gold=99.0
+        )  # The current implementation doesn't validate schema during construction
         # So these should succeed
         config1 = PipelineConfig(schema="", thresholds=thresholds)
         assert config1.schema == ""

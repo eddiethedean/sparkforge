@@ -32,7 +32,9 @@ class TestTrap6HasattrChecks:
         engine = ExecutionEngine(spark=spark_session, config=test_config, logger=Mock())
 
         # Mock the apply_column_rules function
-        with patch("pipeline_builder.execution.apply_column_rules") as mock_apply:
+        with patch(
+            "pipeline_builder.validation.execution_validator.apply_column_rules"
+        ) as mock_apply:
             mock_apply.return_value = (Mock(), Mock(), Mock())
 
             # Create a mock DataFrame

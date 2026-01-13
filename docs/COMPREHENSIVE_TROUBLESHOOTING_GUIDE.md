@@ -1,19 +1,20 @@
 # SparkForge Comprehensive Troubleshooting Guide
 
-This guide provides detailed solutions for common issues encountered when using SparkForge in production environments.
+This guide provides detailed solutions for common issues encountered when using SparkForge in production environments, including service-specific troubleshooting.
 
 ## Table of Contents
 
 1. [Installation Issues](#installation-issues)
-2. [Configuration Problems](#configuration-problems)
-3. [Pipeline Execution Errors](#pipeline-execution-errors)
-4. [Data Validation Issues](#data-validation-issues)
-5. [Performance Problems](#performance-problems)
-6. [Memory and Resource Issues](#memory-and-resource-issues)
-7. [Network and Connectivity Issues](#network-and-connectivity-issues)
-8. [Deployment Issues](#deployment-issues)
-9. [Monitoring and Logging Issues](#monitoring-and-logging-issues)
-10. [Advanced Troubleshooting](#advanced-troubleshooting)
+2. [Engine Configuration Issues](#engine-configuration-issues)
+3. [Service Initialization Issues](#service-initialization-issues)
+4. [Configuration Problems](#configuration-problems)
+5. [Pipeline Execution Errors](#pipeline-execution-errors)
+6. [Data Validation Issues](#data-validation-issues)
+7. [Service-Specific Issues](#service-specific-issues)
+8. [Performance Problems](#performance-problems)
+9. [Memory and Resource Issues](#memory-and-resource-issues)
+10. [Delta Lake Issues](#delta-lake-issues)
+11. [Advanced Troubleshooting](#advanced-troubleshooting)
 
 ## Installation Issues
 
@@ -22,8 +23,8 @@ This guide provides detailed solutions for common issues encountered when using 
 **Problem**: SparkForge requires Python 3.8 or higher.
 
 **Symptoms**:
-- ImportError when importing pipeline_builder
-- SyntaxError in Python 3.7 or earlier
+- `ImportError` when importing pipeline_builder
+- `SyntaxError` in Python 3.7 or earlier
 
 **Solutions**:
 
@@ -44,16 +45,9 @@ conda create -n pipeline_builder python=3.8
 conda activate pipeline_builder
 ```
 
-3. **Verify Installation**:
-```python
-import sys
-print(sys.version)
-# Should show Python 3.8+
-```
-
 ### Java Dependencies
 
-**Problem**: PySpark requires Java 11 or higher.
+**Problem**: PySpark requires Java 17 for Spark 3.5.
 
 **Symptoms**:
 - `Java gateway process exited before sending its port number`
@@ -61,35 +55,35 @@ print(sys.version)
 
 **Solutions**:
 
-1. **Install Java 11**:
+1. **Install Java 17**:
 ```bash
 # Ubuntu/Debian
 sudo apt update
-sudo apt install openjdk-11-jdk
+sudo apt install openjdk-17-jdk
 
 # macOS
-brew install openjdk@11
+brew install openjdk@17
 
 # Windows
 # Download from Oracle or use Chocolatey
-choco install openjdk11
+choco install openjdk17
 ```
 
 2. **Set JAVA_HOME**:
 ```bash
 # Linux/macOS
-export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 export PATH=$JAVA_HOME/bin:$PATH
 
 # Windows
-set JAVA_HOME=C:\Program Files\Java\jdk-11
+set JAVA_HOME=C:\Program Files\Java\jdk-17
 set PATH=%JAVA_HOME%\bin;%PATH%
 ```
 
 3. **Verify Java Installation**:
 ```bash
 java -version
-# Should show Java 11 or higher
+# Should show Java 17
 ```
 
 ### Package Dependencies
@@ -97,25 +91,162 @@ java -version
 **Problem**: Missing or incompatible dependencies.
 
 **Symptoms**:
-- ImportError for specific modules
+- `ImportError` for specific modules
 - Version conflicts
 
 **Solutions**:
 
-1. **Clean Installation**:
+1. **Install Required Packages**:
 ```bash
-pip uninstall pipeline_builder
-pip install --no-cache-dir pipeline_builder
+pip install pyspark==3.5.0 delta-spark==3.0.0
 ```
 
 2. **Check Dependencies**:
 ```bash
-pip list | grep -E "(pyspark|pandas|numpy)"
+pip list | grep -E "(pyspark|delta-spark)"
 ```
 
-3. **Install Specific Versions**:
-```bash
-pip install pyspark>=3.5.0,<3.6.0 pandas>=1.3.0 numpy>=1.21.0
+## Engine Configuration Issues
+
+### Engine Not Configured
+
+**Problem**: Engine not configured before using pipeline components.
+
+**Symptoms**:
+- `RuntimeError: Engine not configured`
+- `AttributeError: 'NoneType' object has no attribute 'functions'`
+
+**Solutions**:
+
+1. **Configure Engine First**:
+```python
+from pipeline_builder.engine_config import configure_engine
+from pyspark.sql import SparkSession
+
+# Create Spark session
+spark = SparkSession.builder.getOrCreate()
+
+# Configure engine (required!)
+configure_engine(spark=spark)
+
+# Now you can use pipeline components
+from pipeline_builder import PipelineBuilder
+builder = PipelineBuilder(spark=spark, schema="analytics")
+```
+
+2. **Check Configuration**:
+```python
+from pipeline_builder.compat import is_mock_spark
+
+if is_mock_spark():
+    print("Using mock Spark")
+else:
+    print("Using real PySpark")
+```
+
+### Functions Not Available
+
+**Problem**: Functions not available after engine configuration.
+
+**Symptoms**:
+- `AttributeError: 'NoneType' object has no attribute 'col'`
+- Functions return None
+
+**Solutions**:
+
+1. **Use get_default_functions()**:
+```python
+from pipeline_builder.functions import get_default_functions
+
+# Get functions after engine configuration
+F = get_default_functions()
+
+# Use functions
+df = df.withColumn("new_col", F.col("old_col"))
+```
+
+2. **Check Engine Configuration**:
+```python
+from pipeline_builder.engine_config import get_engine
+
+engine = get_engine()
+if engine is None:
+    raise RuntimeError("Engine not configured")
+```
+
+## Service Initialization Issues
+
+### ExecutionEngine Service Initialization
+
+**Problem**: Services fail to initialize.
+
+**Symptoms**:
+- `AttributeError: 'ExecutionEngine' object has no attribute 'validator'`
+- Services are None
+
+**Solutions**:
+
+1. **Check Spark Session**:
+```python
+from pipeline_builder.execution import ExecutionEngine
+from pipeline_builder.models import PipelineConfig
+
+# Ensure Spark session is valid
+if spark is None:
+    raise ValueError("Spark session is None")
+
+# Create config
+config = PipelineConfig.create_default(schema="production")
+
+# Create engine (services initialized automatically)
+engine = ExecutionEngine(spark=spark, config=config)
+
+# Verify services
+assert engine.validator is not None
+assert engine.table_service is not None
+assert engine.write_service is not None
+```
+
+2. **Check Delta Lake Availability**:
+```python
+from pipeline_builder.table_operations import is_delta_lake_available
+
+if not is_delta_lake_available(spark):
+    raise ValueError("Delta Lake is not available. Configure Spark with Delta extensions.")
+```
+
+### TableService Issues
+
+**Problem**: TableService fails to access tables.
+
+**Symptoms**:
+- `TableOperationError: Table does not exist`
+- Schema operations fail
+
+**Solutions**:
+
+1. **Ensure Schema Exists**:
+```python
+from pipeline_builder.execution import ExecutionEngine
+
+engine = ExecutionEngine(spark=spark, config=config)
+
+# Ensure schema exists
+engine.table_service.ensure_schema_exists()
+
+# Check if table exists
+if not engine.table_service.table_exists("my_table"):
+    print("Table does not exist")
+```
+
+2. **Check Permissions**:
+```python
+# Verify Spark has permissions to create schemas
+try:
+    spark.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
+    spark.sql("DROP SCHEMA IF EXISTS test_schema")
+except Exception as e:
+    print(f"Permission error: {e}")
 ```
 
 ## Configuration Problems
@@ -125,66 +256,67 @@ pip install pyspark>=3.5.0,<3.6.0 pandas>=1.3.0 numpy>=1.21.0
 **Problem**: PipelineConfig validation fails.
 
 **Symptoms**:
-- `ConfigurationError: Invalid configuration`
+- `PipelineConfigurationError: Invalid configuration`
 - `ValidationError: Schema name cannot be empty`
 
 **Solutions**:
 
 1. **Check Schema Name**:
 ```python
+from pipeline_builder.models import PipelineConfig
+
 # ❌ Invalid
-config = PipelineConfig(schema="", quality_thresholds=thresholds)
+config = PipelineConfig(schema="", thresholds=thresholds)
 
 # ✅ Valid
-config = PipelineConfig(schema="analytics", quality_thresholds=thresholds)
+config = PipelineConfig(schema="analytics", thresholds=thresholds)
 ```
 
 2. **Validate Quality Thresholds**:
 ```python
+from pipeline_builder.models import ValidationThresholds
+
 # ❌ Invalid - thresholds must be between 0 and 100
 thresholds = ValidationThresholds(bronze=150.0, silver=85.0, gold=90.0)
 
 # ✅ Valid
 thresholds = ValidationThresholds(bronze=80.0, silver=85.0, gold=90.0)
+thresholds.validate()  # Validates thresholds
 ```
 
-3. **Check Parallel Configuration**:
-```python
-# ❌ Invalid - max_workers must be positive
-parallel = ParallelConfig(enabled=True, max_workers=0)
+### Pipeline Builder Configuration
 
-# ✅ Valid
-parallel = ParallelConfig(enabled=True, max_workers=4)
-```
-
-### Environment Variables
-
-**Problem**: Missing or incorrect environment variables.
+**Problem**: PipelineBuilder configuration errors.
 
 **Symptoms**:
-- `KeyError: 'SPARKFORGE_ENV'`
-- Configuration not loading properly
+- `ValueError: min_bronze_rate must be between 0 and 100`
+- Invalid validation thresholds
 
 **Solutions**:
 
-1. **Set Required Environment Variables**:
-```bash
-export SPARKFORGE_ENV=production
-export SPARKFORGE_LOG_LEVEL=INFO
-export SPARKFORGE_DATA_PATH=/data/pipeline_builder
-export SPARKFORGE_CONFIG_PATH=/config/pipeline_builder
+1. **Use Valid Thresholds**:
+```python
+from pipeline_builder import PipelineBuilder
+
+# ✅ Valid configuration
+builder = PipelineBuilder(
+    spark=spark,
+    schema="analytics",
+    min_bronze_rate=90.0,  # Between 0 and 100
+    min_silver_rate=95.0,
+    min_gold_rate=98.0,
+    verbose=True
+)
 ```
 
-2. **Create Configuration File**:
+2. **Validate Pipeline**:
 ```python
-# config.py
-import os
-
-class Config:
-    SPARKFORGE_ENV = os.getenv('SPARKFORGE_ENV', 'development')
-    LOG_LEVEL = os.getenv('SPARKFORGE_LOG_LEVEL', 'INFO')
-    DATA_PATH = os.getenv('SPARKFORGE_DATA_PATH', './data')
-    CONFIG_PATH = os.getenv('SPARKFORGE_CONFIG_PATH', './config')
+# Validate pipeline before execution
+errors = builder.validate_pipeline()
+if errors:
+    print(f"Validation errors: {errors}")
+    for error in errors:
+        print(f"  - {error}")
 ```
 
 ## Pipeline Execution Errors
@@ -194,24 +326,22 @@ class Config:
 **Problem**: Pipeline steps fail validation.
 
 **Symptoms**:
-- `ValidationError: Rules must be a non-empty dictionary`
-- `ValidationError: Transform function must be callable`
+- `PipelineConfigurationError: Rules must be a non-empty dictionary`
+- `PipelineConfigurationError: Transform function must be callable`
 
 **Solutions**:
 
 1. **Fix Validation Rules**:
 ```python
+from pipeline_builder.functions import get_default_functions
+F = get_default_functions()
+
 # ❌ Invalid - empty rules
-bronze_step = BronzeStep(
-    name="events",
-    transform=transform_func,
-    rules={}  # Empty rules
-)
+builder.with_bronze_rules(name="events", rules={})
 
 # ✅ Valid - non-empty rules
-bronze_step = BronzeStep(
+builder.with_bronze_rules(
     name="events",
-    transform=transform_func,
     rules={
         "user_id": [F.col("user_id").isNotNull()],
         "timestamp": [F.col("timestamp").isNotNull()]
@@ -222,20 +352,25 @@ bronze_step = BronzeStep(
 2. **Check Transform Functions**:
 ```python
 # ❌ Invalid - not callable
-bronze_step = BronzeStep(
-    name="events",
+builder.add_silver_transform(
+    name="clean_events",
+    source_bronze="events",
     transform="not_a_function",  # String instead of function
-    rules=validation_rules
+    rules={...},
+    table_name="clean_events"
 )
 
 # ✅ Valid - callable function
-def transform_func(df):
-    return df.withColumn("processed_at", F.current_timestamp())
+def clean_events(spark, bronze_df, prior_silvers):
+    F = get_default_functions()
+    return bronze_df.filter(F.col("status") == "active")
 
-bronze_step = BronzeStep(
-    name="events",
-    transform=transform_func,  # Callable function
-    rules=validation_rules
+builder.add_silver_transform(
+    name="clean_events",
+    source_bronze="events",
+    transform=clean_events,
+    rules={...},
+    table_name="clean_events"
 )
 ```
 
@@ -244,68 +379,105 @@ bronze_step = BronzeStep(
 **Problem**: Steps have incorrect dependencies.
 
 **Symptoms**:
-- `PipelineError: Circular dependency detected`
-- `PipelineError: Missing source step`
+- `PipelineConfigurationError: Circular dependency detected`
+- `PipelineConfigurationError: Missing source step`
 
 **Solutions**:
 
 1. **Check Step Dependencies**:
 ```python
 # ❌ Invalid - circular dependency
-builder.add_silver_step("step1", transform_func, rules, source_bronze="step2")
-builder.add_silver_step("step2", transform_func, rules, source_bronze="step1")
+builder.add_silver_transform(
+    name="step1",
+    source_bronze="events",
+    transform=transform1,
+    rules={...},
+    table_name="step1",
+    source_silvers=["step2"]  # Circular!
+)
+builder.add_silver_transform(
+    name="step2",
+    source_bronze="events",
+    transform=transform2,
+    rules={...},
+    table_name="step2",
+    source_silvers=["step1"]  # Circular!
+)
 
 # ✅ Valid - no circular dependency
-builder.add_bronze_step("bronze_step", transform_func, rules)
-builder.add_silver_step("silver_step", transform_func, rules, source_bronze="bronze_step")
+builder.with_bronze_rules(name="events", rules={...})
+builder.add_silver_transform(
+    name="step1",
+    source_bronze="events",
+    transform=transform1,
+    rules={...},
+    table_name="step1"
+)
+builder.add_silver_transform(
+    name="step2",
+    source_bronze="events",
+    transform=transform2,
+    rules={...},
+    table_name="step2",
+    source_silvers=["step1"]  # Valid dependency
+)
 ```
 
 2. **Verify Source Steps**:
 ```python
 # ❌ Invalid - source step doesn't exist
-builder.add_silver_step("silver_step", transform_func, rules, source_bronze="nonexistent_step")
+builder.add_silver_transform(
+    name="silver_step",
+    source_bronze="nonexistent_step",  # Doesn't exist!
+    transform=transform_func,
+    rules={...},
+    table_name="silver_step"
+)
 
 # ✅ Valid - source step exists
-builder.add_bronze_step("bronze_step", transform_func, rules)
-builder.add_silver_step("silver_step", transform_func, rules, source_bronze="bronze_step")
+builder.with_bronze_rules(name="events", rules={...})
+builder.add_silver_transform(
+    name="silver_step",
+    source_bronze="events",  # Exists!
+    transform=transform_func,
+    rules={...},
+    table_name="silver_step"
+)
 ```
 
-### Execution Timeouts
+### Execution Errors
 
-**Problem**: Pipeline execution times out.
+**Problem**: Pipeline execution fails.
 
 **Symptoms**:
-- `TimeoutError: Pipeline execution timed out`
-- Long-running steps never complete
+- `PipelineExecutionError: Step execution failed`
+- `RuntimeError: Transform function raised exception`
 
 **Solutions**:
 
-1. **Increase Timeout**:
+1. **Check Transform Functions**:
 ```python
-# Set longer timeout
-runner = SimplePipelineRunner(timeout=3600)  # 1 hour timeout
+# Add error handling in transform functions
+def safe_transform(spark, bronze_df, prior_silvers):
+    try:
+        F = get_default_functions()
+        return bronze_df.filter(F.col("status") == "active")
+    except Exception as e:
+        print(f"Transform error: {e}")
+        # Return empty DataFrame or handle error
+        return spark.createDataFrame([], bronze_df.schema)
 ```
 
-2. **Optimize Transform Functions**:
+2. **Check Execution Results**:
 ```python
-# ❌ Inefficient - processing all data
-def inefficient_transform(df):
-    return df.collect()  # Collects all data to driver
+result = pipeline.run_initial_load(bronze_sources={"events": df})
 
-# ✅ Efficient - processing in parallel
-def efficient_transform(df):
-    return df.repartition(20).withColumn("processed", F.current_timestamp())
-```
-
-3. **Check Data Volume**:
-```python
-# Check data size before processing
-row_count = df.count()
-print(f"Processing {row_count:,} records")
-
-if row_count > 1000000:  # 1M records
-    print("Large dataset detected - consider partitioning")
-    df = df.repartition(100)
+if result.status.value != "completed":
+    print(f"Pipeline failed: {result.errors}")
+    if hasattr(result, 'step_results'):
+        for step_result in result.step_results:
+            if not step_result.success:
+                print(f"Step {step_result.step_name} failed: {step_result.error_message}")
 ```
 
 ## Data Validation Issues
@@ -322,33 +494,39 @@ if row_count > 1000000:  # 1M records
 
 1. **Investigate Data Quality**:
 ```python
-# Check data quality
-quality_result = assess_data_quality(df, validation_rules)
-print(f"Quality score: {quality_result['quality_score']}%")
-print(f"Invalid records: {quality_result['invalid_records']}")
+from pipeline_builder.execution import ExecutionEngine
+from pipeline_builder.models import PipelineConfig
 
-# Analyze invalid records
-invalid_df = df.filter(~validation_predicate)
-invalid_df.show(10)
+config = PipelineConfig.create_default(schema="production")
+engine = ExecutionEngine(spark=spark, config=config)
+
+# Check validation results
+validation_result = engine.validator.validate_step_output(
+    df=output_df,
+    step=bronze_step,
+    stage="bronze"
+)
+
+print(f"Validation rate: {validation_result.validation_rate:.2f}%")
+print(f"Valid rows: {validation_result.valid_rows}")
+print(f"Invalid rows: {validation_result.invalid_rows}")
+
+if not validation_result.validation_passed:
+    print(f"Validation errors: {validation_result.errors}")
 ```
 
 2. **Adjust Quality Thresholds**:
 ```python
+from pipeline_builder.models import ValidationThresholds
+
 # Lower thresholds for development
 thresholds = ValidationThresholds(
     bronze=70.0,  # Lower threshold
     silver=75.0,
     gold=80.0
 )
-```
 
-3. **Fix Data Issues**:
-```python
-# Clean data before validation
-def clean_data(df):
-    return df.filter(F.col("user_id").isNotNull()) \
-            .filter(F.col("timestamp") > F.lit("2020-01-01")) \
-            .filter(F.col("amount") > 0)
+config = PipelineConfig(schema="development", thresholds=thresholds)
 ```
 
 ### Schema Validation Failures
@@ -356,7 +534,7 @@ def clean_data(df):
 **Problem**: DataFrame schema doesn't match expected schema.
 
 **Symptoms**:
-- `ValidationError: Schema validation failed`
+- `SchemaError: Schema validation failed`
 - Missing or extra columns
 
 **Solutions**:
@@ -368,29 +546,115 @@ df.printSchema()
 
 # Check column names
 print("Current columns:", df.columns)
-print("Expected columns:", expected_columns)
 ```
 
-2. **Fix Schema Issues**:
+2. **Use SchemaManager**:
 ```python
-# Add missing columns
-if "missing_column" not in df.columns:
-    df = df.withColumn("missing_column", F.lit(None))
+from pipeline_builder.execution import ExecutionEngine
 
-# Remove extra columns
-df = df.select(*expected_columns)
+engine = ExecutionEngine(spark=spark, config=config)
 
-# Rename columns
-df = df.withColumnRenamed("old_name", "new_name")
-```
+# Get table schema
+schema = engine.schema_manager.get_table_schema("my_table")
 
-3. **Validate Schema**:
-```python
-# Validate schema
-is_valid = validate_dataframe_schema(df, expected_columns)
+# Validate schema match
+is_valid = engine.schema_manager.validate_schema_match(
+    df_schema=df.schema,
+    table_schema=schema
+)
+
 if not is_valid:
-    print("Schema validation failed")
-    # Handle schema mismatch
+    print("Schema mismatch detected")
+```
+
+## Service-Specific Issues
+
+### ExecutionValidator Issues
+
+**Problem**: Validation service fails.
+
+**Symptoms**:
+- `ValidationError: Validation service error`
+- Validation results are incorrect
+
+**Solutions**:
+
+1. **Check Validation Rules**:
+```python
+from pipeline_builder.execution import ExecutionEngine
+
+engine = ExecutionEngine(spark=spark, config=config)
+
+# Ensure validation rules are valid
+from pipeline_builder.functions import get_default_functions
+F = get_default_functions()
+
+rules = {
+    "user_id": [F.col("user_id").isNotNull()],
+    "amount": [F.col("amount") > 0]
+}
+
+# Validate step output
+result = engine.validator.validate_step_output(
+    df=df,
+    step=bronze_step,
+    stage="bronze"
+)
+```
+
+### TableService Issues
+
+**Problem**: Table operations fail.
+
+**Symptoms**:
+- `TableOperationError: Table does not exist`
+- Schema operations fail
+
+**Solutions**:
+
+1. **Ensure Schema Exists**:
+```python
+engine.table_service.ensure_schema_exists()
+
+# Check table existence
+if not engine.table_service.table_exists("my_table"):
+    print("Table does not exist - will be created on first write")
+```
+
+2. **Check Table Schema**:
+```python
+# Get table schema
+schema = engine.table_service.get_table_schema("my_table")
+print(f"Table schema: {schema}")
+```
+
+### WriteService Issues
+
+**Problem**: Write operations fail.
+
+**Symptoms**:
+- `WriteError: Failed to write DataFrame`
+- Delta Lake write errors
+
+**Solutions**:
+
+1. **Check Delta Lake Configuration**:
+```python
+from pipeline_builder.table_operations import is_delta_lake_available
+
+if not is_delta_lake_available(spark):
+    raise ValueError("Delta Lake is not available")
+```
+
+2. **Check Write Permissions**:
+```python
+# Test write permissions
+try:
+    test_df = spark.createDataFrame([(1, "test")], ["id", "value"])
+    test_df.write.format("delta").mode("overwrite").saveAsTable("test_schema.test_table")
+    spark.sql("DROP TABLE IF EXISTS test_schema.test_table")
+except Exception as e:
+    print(f"Write permission error: {e}")
 ```
 
 ## Performance Problems
@@ -402,29 +666,13 @@ if not is_valid:
 **Symptoms**:
 - Long execution times
 - High resource usage
-- Timeout errors
 
 **Solutions**:
 
-1. **Enable Parallel Processing**:
-```python
-# Enable parallel processing
-parallel_config = ParallelConfig(
-    enabled=True,
-    max_workers=4  # Adjust based on available cores
-)
-
-config = PipelineConfig(
-    schema="analytics",
-    parallel=parallel_config
-)
-```
-
-2. **Optimize Transform Functions**:
+1. **Optimize Transform Functions**:
 ```python
 # ❌ Inefficient - UDF for simple operations
 from pyspark.sql.functions import udf
-from pyspark.sql.types import StringType
 
 def get_category(amount):
     if amount > 1000:
@@ -437,506 +685,133 @@ def get_category(amount):
 category_udf = udf(get_category, StringType())
 
 # ✅ Efficient - use Spark SQL functions
-def efficient_transform(df):
-    return df.withColumn("category",
+def efficient_transform(spark, bronze_df, prior_silvers):
+    F = get_default_functions()
+    return bronze_df.withColumn("category",
                         F.when(F.col("amount") > 1000, "premium")
                          .when(F.col("amount") > 500, "standard")
                          .otherwise("basic"))
 ```
 
-3. **Optimize Data Partitioning**:
+2. **Check Execution Metrics**:
 ```python
-# Partition data for better performance
-df = df.repartition(F.col("date"), 20)  # 20 partitions per date
+result = pipeline.run_initial_load(bronze_sources={"events": df})
 
-# Coalesce small partitions
-df = df.coalesce(10)  # Reduce to 10 partitions
-```
+print(f"Total duration: {result.duration_seconds:.2f}s")
+print(f"Bronze duration: {result.metrics.bronze_duration:.2f}s")
+print(f"Silver duration: {result.metrics.silver_duration:.2f}s")
+print(f"Gold duration: {result.metrics.gold_duration:.2f}s")
 
-### Memory Issues
-
-**Problem**: Out of memory errors during execution.
-
-**Symptoms**:
-- `OutOfMemoryError`
-- High memory usage
-- Slow performance
-
-**Solutions**:
-
-1. **Increase Memory Allocation**:
-```python
-# Configure Spark memory
-spark.conf.set("spark.driver.memory", "4g")
-spark.conf.set("spark.executor.memory", "8g")
-spark.conf.set("spark.driver.maxResultSize", "2g")
-```
-
-2. **Optimize Data Types**:
-```python
-# Use appropriate data types
-df = df.withColumn("user_id", F.col("user_id").cast("integer")) \
-        .withColumn("amount", F.col("amount").cast("double")) \
-        .withColumn("timestamp", F.col("timestamp").cast("timestamp"))
-```
-
-3. **Implement Data Filtering**:
-```python
-# Filter data early to reduce memory usage
-df = df.filter(F.col("date") >= F.lit("2023-01-01")) \
-        .filter(F.col("amount") > 0) \
-        .select("user_id", "amount", "date")  # Select only needed columns
+# Identify slow steps
+if result.metrics.silver_duration > 300:
+    print("Silver step is slow - consider optimization")
 ```
 
 ## Memory and Resource Issues
 
-### Driver Memory Issues
+### Out of Memory Errors
 
-**Problem**: Driver runs out of memory.
+**Problem**: Pipeline runs out of memory.
 
 **Symptoms**:
-- `OutOfMemoryError` in driver
-- Slow response times
-- Application crashes
+- `OutOfMemoryError`
+- Spark executor failures
 
 **Solutions**:
 
-1. **Increase Driver Memory**:
+1. **Increase Spark Memory**:
 ```python
-# Set driver memory
-spark.conf.set("spark.driver.memory", "8g")
-spark.conf.set("spark.driver.maxResultSize", "4g")
+spark.conf.set("spark.executor.memory", "8g")
+spark.conf.set("spark.driver.memory", "4g")
+spark.conf.set("spark.driver.maxResultSize", "2g")
 ```
 
-2. **Avoid Collecting Large Datasets**:
+2. **Optimize Data Processing**:
 ```python
-# ❌ Dangerous - collects all data to driver
-large_data = df.collect()
-
-# ✅ Safe - process data in parallel
-result = df.groupBy("category").count()
-result.show()
+# Filter data early
+def optimized_transform(spark, bronze_df, prior_silvers):
+    F = get_default_functions()
+    return bronze_df \
+        .filter(F.col("status") == "active") \
+        .select("user_id", "timestamp", "amount")  # Select only needed columns
 ```
 
-3. **Use Broadcast Variables**:
-```python
-# Broadcast small datasets
-small_df = spark.createDataFrame([(1, "A"), (2, "B")], ["id", "value"])
-broadcast_df = broadcast(small_df)
+## Delta Lake Issues
 
-# Join with broadcast
-result = large_df.join(broadcast_df, "id")
-```
+### Delta Lake Not Available
 
-### Executor Memory Issues
-
-**Problem**: Executors run out of memory.
+**Problem**: Delta Lake extensions not configured.
 
 **Symptoms**:
-- Executor failures
-- Task retries
-- Slow performance
+- `DeltaLakeError: Delta Lake extensions not configured`
+- Delta operations fail
 
 **Solutions**:
 
-1. **Increase Executor Memory**:
+1. **Configure Delta Lake**:
 ```python
-# Set executor memory
-spark.conf.set("spark.executor.memory", "16g")
-spark.conf.set("spark.executor.memoryFraction", "0.8")
+spark = SparkSession.builder \
+    .appName("Pipeline") \
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+    .getOrCreate()
 ```
 
-2. **Optimize Data Partitioning**:
+2. **Verify Delta Lake**:
 ```python
-# Increase number of partitions
-df = df.repartition(200)  # More partitions = less data per partition
+from pipeline_builder.table_operations import is_delta_lake_available
 
-# Or use coalesce to reduce partitions
-df = df.coalesce(50)  # Fewer partitions = more data per partition
-```
-
-3. **Enable Adaptive Query Execution**:
-```python
-# Enable adaptive query execution
-spark.conf.set("spark.sql.adaptive.enabled", "true")
-spark.conf.set("spark.sql.adaptive.coalescePartitions.enabled", "true")
-spark.conf.set("spark.sql.adaptive.skewJoin.enabled", "true")
-```
-
-## Network and Connectivity Issues
-
-### Database Connection Issues
-
-**Problem**: Cannot connect to database.
-
-**Symptoms**:
-- `ConnectionError: Unable to connect to database`
-- Timeout errors
-- Authentication failures
-
-**Solutions**:
-
-1. **Check Connection Parameters**:
-```python
-# Verify connection parameters
-database_url = "postgresql://user:password@host:port/database"
-print(f"Connecting to: {database_url}")
-
-# Test connection
-try:
-    connection = psycopg2.connect(database_url)
-    print("Database connection successful")
-except Exception as e:
-    print(f"Database connection failed: {e}")
-```
-
-2. **Check Network Connectivity**:
-```bash
-# Test network connectivity
-telnet database_host 5432
-ping database_host
-```
-
-3. **Verify Credentials**:
-```python
-# Check environment variables
-import os
-print(f"Database URL: {os.getenv('DATABASE_URL')}")
-print(f"Database User: {os.getenv('DATABASE_USER')}")
-```
-
-### Spark Cluster Connectivity
-
-**Problem**: Cannot connect to Spark cluster.
-
-**Symptoms**:
-- `SparkException: Failed to connect to cluster`
-- Connection timeout
-- Authentication failures
-
-**Solutions**:
-
-1. **Check Spark Configuration**:
-```python
-# Verify Spark configuration
-print(f"Spark Master: {spark.conf.get('spark.master')}")
-print(f"Spark App Name: {spark.conf.get('spark.app.name')}")
-```
-
-2. **Test Cluster Connectivity**:
-```bash
-# Test cluster connectivity
-telnet spark_master_host 7077
-```
-
-3. **Check Authentication**:
-```python
-# Verify authentication
-if spark.conf.get('spark.authenticate') == 'true':
-    print("Authentication enabled")
-    # Check authentication configuration
-```
-
-## Deployment Issues
-
-### Container Deployment Issues
-
-**Problem**: SparkForge fails to start in container.
-
-**Symptoms**:
-- Container exits immediately
-- Port binding failures
-- Volume mount issues
-
-**Solutions**:
-
-1. **Check Container Logs**:
-```bash
-# View container logs
-docker logs pipeline_builder-container
-
-# Follow logs in real-time
-docker logs -f pipeline_builder-container
-```
-
-2. **Verify Port Binding**:
-```bash
-# Check port binding
-docker port pipeline_builder-container
-
-# Test port connectivity
-telnet localhost 8080
-```
-
-3. **Check Volume Mounts**:
-```bash
-# Verify volume mounts
-docker inspect pipeline_builder-container | grep -A 10 "Mounts"
-
-# Test volume access
-docker exec pipeline_builder-container ls -la /data
-```
-
-### Kubernetes Deployment Issues
-
-**Problem**: SparkForge pods fail to start in Kubernetes.
-
-**Symptoms**:
-- Pods in CrashLoopBackOff state
-- Image pull failures
-- Resource quota exceeded
-
-**Solutions**:
-
-1. **Check Pod Status**:
-```bash
-# Check pod status
-kubectl get pods -n pipeline_builder
-
-# Describe pod for details
-kubectl describe pod <pod-name> -n pipeline_builder
-```
-
-2. **Check Pod Logs**:
-```bash
-# View pod logs
-kubectl logs <pod-name> -n pipeline_builder
-
-# Follow logs
-kubectl logs -f <pod-name> -n pipeline_builder
-```
-
-3. **Check Resource Quotas**:
-```bash
-# Check resource quotas
-kubectl describe quota -n pipeline_builder
-
-# Check resource usage
-kubectl top pods -n pipeline_builder
-```
-
-## Monitoring and Logging Issues
-
-### Logging Configuration Issues
-
-**Problem**: Logs are not being generated or are incomplete.
-
-**Symptoms**:
-- No log files created
-- Incomplete log information
-- Wrong log levels
-
-**Solutions**:
-
-1. **Check Logging Configuration**:
-```python
-import logging
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('/logs/pipeline_builder.log'),
-        logging.StreamHandler()
-    ]
-)
-
-logger = logging.getLogger('pipeline_builder')
-logger.info("Logging configured successfully")
-```
-
-2. **Verify Log Directory**:
-```bash
-# Check log directory permissions
-ls -la /logs/
-chmod 755 /logs/
-chown pipeline_builder:pipeline_builder /logs/
-```
-
-3. **Test Logging**:
-```python
-# Test logging
-logger.debug("Debug message")
-logger.info("Info message")
-logger.warning("Warning message")
-logger.error("Error message")
-```
-
-### Performance Monitoring Issues
-
-**Problem**: Performance monitoring is not working.
-
-**Symptoms**:
-- No performance metrics collected
-- Performance data is inaccurate
-- Monitoring overhead is too high
-
-**Solutions**:
-
-1. **Enable Performance Monitoring**:
-```python
-# Enable performance monitoring
-config = PipelineConfig(
-    schema="analytics",
-    performance_monitoring=True
-)
-```
-
-2. **Check Performance Data**:
-```python
-# Get performance summary
-performance_summary = builder.get_performance_summary()
-print(f"Performance data: {performance_summary}")
-
-# Check if monitoring is active
-if performance_summary.total_tests == 0:
-    print("Performance monitoring not active")
-```
-
-3. **Optimize Monitoring Overhead**:
-```python
-# Reduce monitoring frequency
-monitor = PerformanceMonitor(sample_rate=0.1)  # 10% sampling
+if not is_delta_lake_available(spark):
+    raise ValueError("Delta Lake is not available. Install delta-spark package.")
 ```
 
 ## Advanced Troubleshooting
 
 ### Debug Mode
 
-Enable debug mode for detailed troubleshooting:
+Enable debug logging:
 
 ```python
-# Enable debug mode
-config = PipelineConfig(
-    schema="analytics",
-    debug_mode=True
+import logging
+
+# Enable debug logging
+logging.getLogger("pipeline_builder").setLevel(logging.DEBUG)
+
+# Build pipeline with verbose mode
+builder = PipelineBuilder(spark=spark, schema="debug", verbose=True)
+```
+
+### Step-by-Step Debugging
+
+Debug individual steps:
+
+```python
+from pipeline_builder.execution import ExecutionEngine
+from pipeline_builder.models.enums import ExecutionMode
+
+engine = ExecutionEngine(spark=spark, config=config)
+
+# Execute single step
+result = engine.execute_step(
+    step=bronze_step,
+    sources={"events": source_df},
+    mode=ExecutionMode.INITIAL
 )
 
-# Set debug logging
-import logging
-logging.getLogger("pipeline_builder").setLevel(logging.DEBUG)
+print(f"Step result: {result}")
 ```
 
-### Performance Profiling
+### Common Error Patterns
 
-Profile pipeline performance:
+1. **Engine not configured**: Always call `configure_engine(spark=spark)` first
+2. **Functions not available**: Use `get_default_functions()` after engine configuration
+3. **Service initialization fails**: Check Spark session and Delta Lake configuration
+4. **Validation failures**: Check validation rules and thresholds
+5. **Schema mismatches**: Use SchemaManager to validate schemas
 
-```python
-import cProfile
-import pstats
+---
 
-# Profile pipeline execution
-profiler = cProfile.Profile()
-profiler.enable()
-
-# Run pipeline
-runner.run_pipeline(builder)
-
-profiler.disable()
-
-# Analyze results
-stats = pstats.Stats(profiler)
-stats.sort_stats('cumulative')
-stats.print_stats(10)  # Top 10 functions
-```
-
-### Memory Profiling
-
-Profile memory usage:
-
-```python
-import tracemalloc
-
-# Start memory tracing
-tracemalloc.start()
-
-# Run pipeline
-runner.run_pipeline(builder)
-
-# Get memory snapshot
-snapshot = tracemalloc.take_snapshot()
-top_stats = snapshot.statistics('lineno')
-
-# Print top memory usage
-for stat in top_stats[:10]:
-    print(stat)
-```
-
-### Network Troubleshooting
-
-Debug network issues:
-
-```python
-import socket
-import urllib.parse
-
-def test_connection(host, port):
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(5)
-        result = sock.connect_ex((host, port))
-        sock.close()
-        return result == 0
-    except Exception as e:
-        print(f"Connection test failed: {e}")
-        return False
-
-# Test database connection
-db_url = "postgresql://user:pass@host:port/db"
-parsed = urllib.parse.urlparse(db_url)
-if test_connection(parsed.hostname, parsed.port):
-    print("Database connection successful")
-else:
-    print("Database connection failed")
-```
-
-## Getting Help
-
-### Log Collection
-
-Collect comprehensive logs for troubleshooting:
-
-```bash
-# Collect system logs
-journalctl -u pipeline_builder > system.log
-
-# Collect application logs
-kubectl logs -l app=pipeline_builder > application.log
-
-# Collect configuration
-kubectl get configmap pipeline_builder-config -o yaml > config.yaml
-```
-
-### Support Information
-
-When seeking help, provide:
-
-1. **System Information**:
-   - Python version
-   - Java version
-   - Operating system
-   - Spark version
-
-2. **Configuration**:
-   - Pipeline configuration
-   - Environment variables
-   - Resource allocation
-
-3. **Error Information**:
-   - Complete error messages
-   - Stack traces
-   - Log files
-
-4. **Reproduction Steps**:
-   - Steps to reproduce the issue
-   - Sample data (if applicable)
-   - Expected vs actual behavior
-
-### Contact Information
-
-- **GitHub Issues**: [SparkForge Issues](https://github.com/eddiethedean/pipeline_builder/issues)
-- **Documentation**: [SparkForge Docs](https://pipeline_builder.readthedocs.io/)
-- **Community**: [SparkForge Discussions](https://github.com/eddiethedean/pipeline_builder/discussions)
-
-This comprehensive troubleshooting guide should help resolve most issues encountered when using SparkForge. For additional support, refer to the specific error messages and contact the development team with detailed information about your issue.
+For more help, see:
+- [User Guide](USER_GUIDE.md) for usage examples
+- [Deployment Guide](DEPLOYMENT_GUIDE.md) for deployment issues
+- [Performance Tuning Guide](PERFORMANCE_TUNING_GUIDE.md) for performance optimization

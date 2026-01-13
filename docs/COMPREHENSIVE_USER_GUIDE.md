@@ -1,7 +1,10 @@
 # Comprehensive User Guide: PipelineBuilder Framework
 
+**⚠️ DEPRECATED**: This guide has been consolidated into `USER_GUIDE.md`.  
+Please refer to `USER_GUIDE.md` for the most up-to-date documentation.
+
 **Version**: 1.3.3  
-**Last Updated**: January 2025
+**Last Updated**: January 2025 (Deprecated - see USER_GUIDE.md)
 
 ![PipelineBuilder Architecture Diagram](pipelinebuilder-diagram.png)
 

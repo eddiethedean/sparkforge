@@ -45,7 +45,6 @@ class PipelineConfig(BaseModel):
         """Get gold validation threshold."""
         return self.thresholds.gold
 
-
     def validate(self) -> None:
         """Validate pipeline configuration."""
         if not self.schema or not isinstance(self.schema, str):

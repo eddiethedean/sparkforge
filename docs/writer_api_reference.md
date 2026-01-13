@@ -23,10 +23,14 @@ The main class for writing pipeline execution logs to Delta tables.
 ```python
 from pipeline_builder.writer import LogWriter
 
-# Initialize with simplified API (recommended)
-writer = LogWriter(spark, schema="analytics", table_name="pipeline_logs")
+# New Simplified API (Recommended)
+writer = LogWriter(
+    spark=spark,
+    schema="monitoring",
+    table_name="pipeline_logs"
+)
 
-# Legacy API (deprecated)
+# Deprecated API (Still supported but not recommended)
 from pipeline_builder.writer.models import WriterConfig, WriteMode
 config = WriterConfig(
     table_schema="analytics",
@@ -50,18 +54,60 @@ LogWriter(
 ```
 
 **Parameters:**
-- `spark`: SparkSession instance for DataFrame operations
-- `schema`: Database schema name (recommended - use with table_name)
-- `table_name`: Table name (recommended - use with schema)
-- `config`: WriterConfig instance (deprecated - use schema and table_name instead)
-- `functions`: Optional FunctionsProtocol for PySpark operations
-- `logger`: Optional PipelineLogger instance (defaults to new instance)
+- `spark` (SparkSession): SparkSession instance for DataFrame operations
+- `schema` (str, optional): Database schema name (recommended - use with table_name)
+- `table_name` (str, optional): Table name (recommended - use with schema)
+- `config` (WriterConfig, optional): WriterConfig instance (deprecated - use schema and table_name instead)
+- `functions` (FunctionsProtocol, optional): Optional FunctionsProtocol for PySpark operations
+- `logger` (PipelineLogger, optional): Optional PipelineLogger instance (defaults to new instance)
+
+**Note:** The `WriterConfig` approach is deprecated. Use `schema` and `table_name` parameters instead.
 
 #### Methods
 
-##### `write_execution_result(execution_result, run_id=None)`
+##### `append(pipeline_report, run_id=None)`
 
-Write an ExecutionResult to the log table.
+Append a PipelineReport to the log table (New Simplified API).
+
+```python
+from pipeline_builder_base.models import PipelineReport
+
+# Execute pipeline
+result = pipeline.run_initial_load(bronze_sources={"events": source_df})
+
+# Append to log table
+write_result = writer.append(result, run_id="run-123")
+print(f"Success: {write_result['success']}")
+print(f"Rows written: {write_result['rows_written']}")
+```
+
+**Parameters:**
+- `pipeline_report` (PipelineReport): PipelineReport instance to log
+- `run_id` (str, optional): Optional run identifier (defaults to UUID)
+
+**Returns:**
+- `dict`: Result containing success status, rows_written, table_fqn, and metadata
+
+##### `create_table(pipeline_report, run_id=None)`
+
+Create or overwrite the log table with a PipelineReport (New Simplified API).
+
+```python
+# Create or overwrite table
+write_result = writer.create_table(result, run_id="run-123")
+print(f"Table created/overwritten: {write_result['table_fqn']}")
+```
+
+**Parameters:**
+- `pipeline_report` (PipelineReport): PipelineReport instance to log
+- `run_id` (str, optional): Optional run identifier (defaults to UUID)
+
+**Returns:**
+- `dict`: Result containing success status, rows_written, table_fqn, and metadata
+
+##### `write_execution_result(execution_result, run_id=None)` (Deprecated)
+
+Write an ExecutionResult to the log table (Deprecated - use `append()` instead).
 
 ```python
 result = writer.write_execution_result(execution_result, run_id="run-123")
@@ -73,6 +119,8 @@ result = writer.write_execution_result(execution_result, run_id="run-123")
 
 **Returns:**
 - `dict`: Result containing success status, metrics, and metadata
+
+**Note:** This method is deprecated. Use `append()` or `create_table()` instead.
 
 ##### `write_step_results(step_results, execution_context, run_id=None)`
 
@@ -339,9 +387,35 @@ parquet_data = writer.export_analytics_data(format="parquet", limit=2000)
 
 ## Configuration
 
-### WriterConfig
+### New Simplified API (Recommended)
 
-Configuration class for LogWriter behavior.
+The new simplified API uses direct parameters:
+
+```python
+from pipeline_builder.writer import LogWriter
+
+# Simple initialization
+writer = LogWriter(
+    spark=spark,
+    schema="monitoring",      # Database schema
+    table_name="pipeline_logs"  # Table name
+)
+```
+
+**Parameters:**
+- `spark` (SparkSession): Spark session instance
+- `schema` (str): Database schema name
+- `table_name` (str): Table name
+
+**Benefits:**
+- Simpler API
+- Automatic schema management
+- Built-in optimization
+- No configuration objects needed
+
+### WriterConfig (Deprecated)
+
+**Note:** `WriterConfig` is deprecated. Use the simplified API with `schema` and `table_name` parameters instead.
 
 ```python
 from pipeline_builder.writer.models import WriterConfig, WriteMode
@@ -584,17 +658,46 @@ except WriterSchemaError as e:
 
 ## Usage Examples
 
-### Basic Usage
+### Basic Usage (New Simplified API)
 
 ```python
 from pyspark.sql import SparkSession
 from pipeline_builder.writer import LogWriter
-from pipeline_builder.writer.models import WriterConfig, WriteMode
+from pipeline_builder import PipelineBuilder
 
 # Initialize Spark session
 spark = SparkSession.builder.appName("WriterExample").getOrCreate()
 
-# Create writer configuration
+# Create writer (new simplified API)
+writer = LogWriter(
+    spark=spark,
+    schema="monitoring",
+    table_name="pipeline_logs"
+)
+
+# Execute pipeline
+builder = PipelineBuilder(spark=spark, schema="analytics")
+# ... build pipeline ...
+pipeline = builder.to_pipeline()
+result = pipeline.run_initial_load(bronze_sources={"events": source_df})
+
+# Append execution result
+write_result = writer.append(result, run_id="example-run")
+print(f"Write successful: {write_result['success']}")
+print(f"Rows written: {write_result['rows_written']}")
+print(f"Table: {write_result['table_fqn']}")
+
+# Show recent logs
+writer.show_logs(limit=10)
+```
+
+### Basic Usage (Deprecated API)
+
+```python
+from pipeline_builder.writer import LogWriter
+from pipeline_builder.writer.models import WriterConfig, WriteMode
+
+# Create writer configuration (deprecated)
 config = WriterConfig(
     table_schema="analytics",
     table_name="pipeline_logs",
@@ -602,7 +705,7 @@ config = WriterConfig(
 )
 
 # Initialize writer
-writer = LogWriter(spark, config)
+writer = LogWriter(spark, config=config)
 
 # Write log rows
 log_rows = [
@@ -621,10 +724,14 @@ print(f"Write successful: {result['success']}")
 print(f"Rows written: {result['rows_written']}")
 ```
 
-### Advanced Configuration
+### Advanced Configuration (Deprecated)
+
+**Note:** The `WriterConfig` approach is deprecated. The new simplified API uses `schema` and `table_name` parameters. Advanced configuration options may be added in future versions.
 
 ```python
-# Advanced configuration with all features enabled
+# Advanced configuration with all features enabled (deprecated)
+from pipeline_builder.writer.models import WriterConfig, WriteMode
+
 config = WriterConfig(
     table_schema="analytics",
     table_name="pipeline_logs",
@@ -657,7 +764,22 @@ config = WriterConfig(
     retry_exponential_backoff=True,
 )
 
-writer = LogWriter(spark, config)
+writer = LogWriter(spark, config=config)
+```
+
+### New Simplified API
+
+```python
+# Simple initialization (recommended)
+writer = LogWriter(
+    spark=spark,
+    schema="monitoring",
+    table_name="pipeline_logs"
+)
+
+# All advanced features are handled automatically
+# Table optimization, schema evolution, and error handling
+# are built into the writer
 ```
 
 ### Batch Processing
@@ -900,14 +1022,52 @@ config = WriterConfig(
 )
 ```
 
+## Migration Guide
+
+### From WriterConfig to Simplified API
+
+**Old Way (Deprecated):**
+
+```python
+from pipeline_builder.writer import LogWriter
+from pipeline_builder.writer.models import WriterConfig, WriteMode
+
+config = WriterConfig(
+    table_schema="analytics",
+    table_name="pipeline_logs",
+    write_mode=WriteMode.APPEND
+)
+writer = LogWriter(spark, config=config)
+result = writer.write_execution_result(execution_result)
+```
+
+**New Way (Recommended):**
+
+```python
+from pipeline_builder.writer import LogWriter
+
+writer = LogWriter(
+    spark=spark,
+    schema="monitoring",
+    table_name="pipeline_logs"
+)
+result = writer.append(pipeline_report)
+```
+
+**Key Changes:**
+- `WriterConfig` → Direct `schema` and `table_name` parameters
+- `write_execution_result()` → `append()` or `create_table()`
+- Automatic schema management and optimization
+- Simpler API with fewer configuration options
+
 ## Best Practices
 
 ### 1. Configuration Management
 
-- Use environment-specific configurations
+- Use the new simplified API with `schema` and `table_name`
+- Avoid deprecated `WriterConfig` for new code
+- Use environment-specific schema names
 - Enable data quality features in production
-- Set appropriate batch sizes based on data volume
-- Configure proper error handling and retry policies
 
 ### 2. Performance Optimization
 

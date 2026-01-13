@@ -7,10 +7,11 @@ for troubleshooting and debugging pipeline steps independently.
 """
 
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
 from pipeline_builder import PipelineBuilder
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
 
 
 def create_sample_data(spark):
@@ -45,6 +46,10 @@ def main():
         .getOrCreate()
     )
 
+    # Configure engine (required!)
+    configure_engine(spark=spark)
+    F = get_default_functions()
+
     try:
         print("🚀 Step-by-Step Execution Example")
         print("=" * 50)
@@ -77,6 +82,7 @@ def main():
 
         # Silver step: Clean and enrich data
         def silver_transform(spark, df, silvers):
+            F = get_default_functions()
             return (
                 df.withColumn("event_date", F.to_date("timestamp"))
                 .withColumn("processed_at", F.current_timestamp())
@@ -100,6 +106,7 @@ def main():
 
         # Gold step: Aggregate data
         def gold_transform(spark, silvers):
+            F = get_default_functions()
             events_df = silvers.get("silver_events")
             if events_df is not None:
                 return (
@@ -152,10 +159,9 @@ def main():
         result = pipeline.run_initial_load(bronze_sources={"events": source_df})
 
         print("\n📊 Pipeline Results:")
-        print(f"   Status: {result.status}")
-        print(f"   Total steps: {result.total_steps}")
-        print(f"   Successful steps: {result.successful_steps}")
-        print(f"   Failed steps: {result.failed_steps}")
+        print(f"   Status: {result.status.value}")
+        print(f"   Total rows written: {result.metrics.total_rows_written}")
+        print(f"   Execution time: {result.duration_seconds:.2f}s")
 
         # Show results
         try:
@@ -174,6 +180,7 @@ def main():
 
         # Create a modified silver transform for debugging
         def debug_silver_transform(spark, df, silvers):
+            F = get_default_functions()
             print("   🔍 Debug: Input data shape:", df.count(), "rows")
             print("   🔍 Debug: Input columns:", df.columns)
 
@@ -215,8 +222,8 @@ def main():
         )
 
         print("\n📊 Debug Pipeline Results:")
-        print(f"   Status: {debug_result.status}")
-        print(f"   Total steps: {debug_result.total_steps}")
+        print(f"   Status: {debug_result.status.value}")
+        print(f"   Total rows written: {debug_result.metrics.total_rows_written}")
 
         # Show debug results
         try:

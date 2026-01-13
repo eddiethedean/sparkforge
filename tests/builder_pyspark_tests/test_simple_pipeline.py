@@ -15,6 +15,7 @@ if os.environ.get("SPARK_MODE", "mock").lower() != "real":
 from pipeline_builder.pipeline import PipelineBuilder
 import sys
 import os
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from test_helpers.isolation import get_unique_schema
 

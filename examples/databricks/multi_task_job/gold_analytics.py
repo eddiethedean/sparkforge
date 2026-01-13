@@ -9,12 +9,14 @@ Depends on: Task 2 (Silver Processing)
 """
 
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
 
 try:
     import dbutils
 except ImportError:
     dbutils = None
+
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
 
 
 def main():
@@ -27,6 +29,10 @@ def main():
     print("=" * 80)
 
     spark = SparkSession.builder.getOrCreate()
+
+    # Configure engine (required!)
+    configure_engine(spark=spark)
+    F = get_default_functions()
 
     try:
         from pipeline_builder import PipelineBuilder
@@ -94,6 +100,7 @@ def main():
 
         # Gold: Create daily analytics
         def daily_analytics(spark, silvers):
+            F = get_default_functions()
             return (
                 silvers["enriched_events"]
                 .groupBy("event_date")
@@ -149,9 +156,9 @@ def main():
 
         result = pipeline.run_initial_load(bronze_sources={"dummy": dummy_bronze})
 
-        print(f"✅ Gold analytics completed: {result.status}")
+        print(f"✅ Gold analytics completed: {result.status.value}")
         print(f"   Rows written: {result.metrics.total_rows_written}")
-        print(f"   Duration: {result.metrics.total_duration_secs:.2f}s")
+        print(f"   Duration: {result.duration_seconds:.2f}s")
 
         # Show results
         print("\n📊 Daily Analytics (Gold Layer):")

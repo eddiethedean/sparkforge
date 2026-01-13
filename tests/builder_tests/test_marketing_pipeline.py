@@ -8,7 +8,6 @@ conversions, and campaign performance metrics.
 
 import os
 
-import pytest
 
 # Import functions based on SPARK_MODE
 if os.environ.get("SPARK_MODE", "mock").lower() == "real":
@@ -542,7 +541,9 @@ class TestMarketingPipeline:
     ):
         """Test incremental processing of new marketing data."""
         # Setup schemas - use SQL for real PySpark, storage API for mock
-        if hasattr(spark_session, 'storage') and hasattr(spark_session.storage, 'create_schema'):
+        if hasattr(spark_session, "storage") and hasattr(
+            spark_session.storage, "create_schema"
+        ):
             # Mock Spark (sparkless)
             spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
             spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")

@@ -386,7 +386,6 @@ class TestWriteModeRegression:
     def test_incremental_mode_uses_append_for_silver_steps(self, spark_session):
         """Incremental silver writes must append to prevent data loss."""
         from pipeline_builder.models import (
-            
             PipelineConfig,
             SilverStep,
             ValidationThresholds,

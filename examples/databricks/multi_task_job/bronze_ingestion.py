@@ -19,13 +19,15 @@ Use this pattern when:
 """
 
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
 
 try:
     # Databricks context is available in notebooks
     import dbutils
 except ImportError:
     dbutils = None
+
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
 
 
 def main():
@@ -38,6 +40,10 @@ def main():
     print("=" * 80)
 
     spark = SparkSession.builder.getOrCreate()
+
+    # Configure engine (required!)
+    configure_engine(spark=spark)
+    F = get_default_functions()
 
     try:
         from pipeline_builder import PipelineBuilder
@@ -131,7 +137,7 @@ def main():
         # Run validation only - this task doesn't write data
         result = pipeline.run_validation_only(bronze_sources={"events": source_df})
 
-        print(f"✅ Bronze validation completed: {result.status}")
+        print(f"✅ Bronze validation completed: {result.status.value}")
         print(f"   Validation rate: {result.metrics.total_rows_processed}")
 
         # Store bronze data for next task

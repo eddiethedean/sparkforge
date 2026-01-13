@@ -7,9 +7,10 @@ to log pipeline execution results.
 """
 
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
 
-from pipeline_builder.pipeline import PipelineBuilder
+from pipeline_builder import PipelineBuilder
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
 from pipeline_builder.writer import LogWriter
 
 
@@ -29,6 +30,10 @@ def main():
         .getOrCreate()
     )
 
+    # Configure engine (required!)
+    configure_engine(spark=spark)
+    F = get_default_functions()
+
     try:
         # ====================================================================
         # Step 1: Create sample data
@@ -45,6 +50,7 @@ def main():
         source_df = spark.createDataFrame(
             sample_data, ["user_id", "action", "value", "timestamp"]
         )
+        F = get_default_functions()
         source_df = source_df.withColumn("timestamp", F.to_timestamp("timestamp"))
 
         print(f"✅ Created sample data with {source_df.count()} rows")
@@ -53,30 +59,33 @@ def main():
         # Step 2: Build and run pipeline
         # ====================================================================
         print("\n🏗️  Building pipeline...")
-        builder = PipelineBuilder(spark, schema="logwriter_example")
+        builder = PipelineBuilder(spark=spark, schema="logwriter_example")
 
         # Add bronze step
-        builder.add_bronze_step(
-            "events", rules={"user_id": [F.col("user_id").isNotNull()]}
+        builder.with_bronze_rules(
+            name="events", rules={"user_id": [F.col("user_id").isNotNull()]}
         )
 
         # Add silver step
         def silver_transform(spark, df, silvers):
+            F = get_default_functions()
             return (
                 df.withColumn("event_date", F.to_date("timestamp"))
                 .withColumn("processed_at", F.current_timestamp())
                 .select("user_id", "action", "value", "event_date", "processed_at")
             )
 
-        builder.add_silver_step(
+        builder.add_silver_transform(
             name="processed_events",
             source_bronze="events",
             transform=silver_transform,
             rules={"value": [F.col("value") > 0]},
+            table_name="processed_events",
         )
 
         # Add gold step
         def gold_transform(spark, silvers):
+            F = get_default_functions()
             return (
                 silvers["processed_events"]
                 .groupBy("event_date")
@@ -87,10 +96,12 @@ def main():
                 )
             )
 
-        builder.add_gold_step(
+        builder.add_gold_transform(
             name="daily_summary",
-            source_silvers=["processed_events"],
             transform=gold_transform,
+            rules={"event_date": [F.col("event_date").isNotNull()]},
+            table_name="daily_summary",
+            source_silvers=["processed_events"],
         )
 
         # Build pipeline
@@ -151,6 +162,7 @@ def main():
         incremental_df = spark.createDataFrame(
             incremental_data, ["user_id", "action", "value", "timestamp"]
         )
+        F = get_default_functions()
         incremental_df = incremental_df.withColumn(
             "timestamp", F.to_timestamp("timestamp")
         )

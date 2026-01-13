@@ -9,10 +9,47 @@ and catch edge cases that might be missed by traditional unit tests.
 from typing import List
 from unittest.mock import Mock
 
-from hypothesis import given, settings
-from hypothesis import strategies as st
+import pytest
+
+try:
+    from hypothesis import given, settings
+    from hypothesis import strategies as st
+
+    HYPOTHESIS_AVAILABLE = True
+except ImportError:
+    HYPOTHESIS_AVAILABLE = False
+
+    # Create dummy decorators and strategies if hypothesis is not available
+    def given(*args, **kwargs):
+        def decorator(func):
+            return func
+
+        return decorator
+
+    def settings(*args, **kwargs):
+        def decorator(func):
+            return func
+
+        return decorator
+
+    # Create a dummy strategies object
+    class DummyStrategies:
+        def floats(self, *args, **kwargs):
+            return None
+
+        def text(self, *args, **kwargs):
+            return None
+
+        def lists(self, *args, **kwargs):
+            return None
+
+    st = DummyStrategies()  # type: ignore
 
 from pipeline_builder.validation import safe_divide, validate_dataframe_schema
+
+pytestmark = pytest.mark.skipif(
+    not HYPOTHESIS_AVAILABLE, reason="hypothesis library is not installed"
+)
 
 
 class TestValidationPropertyBased:

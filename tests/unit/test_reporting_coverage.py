@@ -262,7 +262,7 @@ class TestReportingCoverage:
         # Check that module has expected structure
         assert hasattr(reporting, "__file__")
         assert hasattr(reporting, "__package__")
-        assert reporting.__package__ == "pipeline_builder"
+        assert reporting.__package__ == "pipeline_builder.reporting"
 
     def test_reporting_function_signatures(self):
         """Test that reporting functions have expected signatures."""

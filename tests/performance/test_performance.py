@@ -113,14 +113,16 @@ class TestValidationPerformance:
         # Test with sparkless DataFrame to verify it works
         # This will help identify any sparkless-specific issues
         from pipeline_builder.validation import assess_data_quality
-        
+
         # Create test DataFrame using the spark_session fixture
         data = [(1, "Alice", 25), (2, "Bob", 30), (3, "Charlie", None)]
         df = spark_session.createDataFrame(data, ["id", "name", "age"])
-        
+
         # Test assess_data_quality with sparkless DataFrame
-        result = assess_data_quality(df, {"id": ["id > 0"], "name": ["name IS NOT NULL"]})
-        
+        result = assess_data_quality(
+            df, {"id": ["id > 0"], "name": ["name IS NOT NULL"]}
+        )
+
         assert result is not None
         # assess_data_quality returns a dict with keys like 'quality_rate', 'total_rows', etc.
         assert "quality_rate" in result

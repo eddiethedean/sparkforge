@@ -1,61 +1,88 @@
 # mypy: ignore-errors
-"""
-Production-ready execution system for the framework pipelines.
+"""Production-ready execution system for pipeline execution.
 
 This module provides a robust execution engine that handles pipeline execution
 with comprehensive error handling, step-by-step processing, and detailed reporting.
+The engine uses a service-oriented architecture with dedicated step executors,
+validation services, and storage services for clean separation of concerns.
 
 Key Features:
-- **Step-by-Step Execution**: Process pipeline steps individually with detailed tracking
-- **Comprehensive Error Handling**: Detailed error messages with context and suggestions
-- **Multiple Execution Modes**: Initial load, incremental, full refresh, and validation-only
-- **Dependency-Aware Execution**: Automatically analyzes step dependencies and executes in correct order
-- **Detailed Reporting**: Comprehensive execution reports with metrics and timing
-- **Validation Integration**: Built-in validation with configurable thresholds
+    - Step-by-Step Execution: Process pipeline steps individually with detailed tracking
+    - Comprehensive Error Handling: Detailed error messages with context and suggestions
+    - Multiple Execution Modes: Initial load, incremental, full refresh, and validation-only
+    - Dependency-Aware Execution: Automatically analyzes step dependencies and executes
+      in correct order
+    - Detailed Reporting: Comprehensive execution reports with metrics and timing
+    - Validation Integration: Built-in validation with configurable thresholds
+    - Service-Oriented Architecture: Clean separation with step executors, validators,
+      and storage services
 
 Execution Modes:
-    - INITIAL: First-time pipeline execution with full data processing
-    - INCREMENTAL: Process only new data based on watermark columns
-    - FULL_REFRESH: Reprocess all data, overwriting existing results
-    - VALIDATION_ONLY: Validate data without writing results
+    INITIAL: First-time pipeline execution with full data processing. Allows schema
+        changes and creates tables from scratch.
+    INCREMENTAL: Process only new data based on watermark columns. Requires exact
+        schema matching with existing tables.
+    FULL_REFRESH: Reprocess all data, overwriting existing results. Requires exact
+        schema matching.
+    VALIDATION_ONLY: Validate data without writing results. Useful for testing
+        validation rules.
 
 Dependency Analysis:
     The engine automatically analyzes step dependencies and executes steps
     sequentially in the correct order based on their dependencies. Steps are
-    grouped by dependencies, and groups are executed sequentially.
+    grouped by dependencies, and groups are executed sequentially to respect
+    dependency constraints.
+
+Service Architecture:
+    The execution engine delegates to specialized services:
+    - Step Executors: BronzeStepExecutor, SilverStepExecutor, GoldStepExecutor
+        handle step-specific execution logic
+    - ExecutionValidator: Validates data according to step rules
+    - TableService: Manages table operations and schema management
+    - WriteService: Handles all write operations to Delta Lake
 
 Example:
-    >>> from the framework.execution import ExecutionEngine, ExecutionMode
-    >>> from the framework.models import BronzeStep, PipelineConfig
+    Basic usage with a single step:
+
+    >>> from pipeline_builder.execution import ExecutionEngine
+    >>> from pipeline_builder_base.models import ExecutionMode, PipelineConfig
+    >>> from pipeline_builder.models import BronzeStep
     >>> from pipeline_builder.functions import get_default_functions
+    >>> F = get_default_functions()
     >>>
     >>> # Create execution engine
+    >>> config = PipelineConfig.create_default(schema="my_schema")
     >>> engine = ExecutionEngine(spark, config)
     >>>
     >>> # Execute a single step
     >>> result = engine.execute_step(
     ...     step=BronzeStep(name="events", rules={"id": [F.col("id").isNotNull()]}),
-    ...     sources={"events": source_df},
+    ...     context={"events": source_df},
     ...     mode=ExecutionMode.INITIAL
     ... )
-    >>>
-    >>> # Execute entire pipeline
+    >>> print(f"Step completed: {result.status}, rows: {result.rows_processed}")
+
+    Full pipeline execution:
+
     >>> result = engine.execute_pipeline(
     ...     steps=[bronze_step, silver_step, gold_step],
-    ...     sources={"events": source_df},
-    ...     mode=ExecutionMode.INITIAL
+    ...     mode=ExecutionMode.INITIAL,
+    ...     context={"events": source_df}
     ... )
+    >>> print(f"Pipeline completed: {result.status}")
+    >>> print(f"Execution groups: {result.execution_groups_count}")
 
-# Depends on:
-#   compat
-#   dependencies
-#   errors
-#   functions
-#   logging
-#   models.pipeline
-#   models.steps
-#   table_operations
-#   validation.data_validation
+Note:
+    This module depends on:
+    - compat: Spark compatibility layer
+    - dependencies: Dependency analysis
+    - errors: Error handling
+    - functions: PySpark function protocols
+    - logging: Pipeline logging
+    - models.pipeline: Pipeline configuration models
+    - models.steps: Step models
+    - table_operations: Table utility functions
+    - validation.data_validation: Data validation logic
 """
 
 from __future__ import annotations
@@ -63,7 +90,7 @@ from __future__ import annotations
 import os
 import tempfile
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, Optional, Union, cast
@@ -87,8 +114,14 @@ from pipeline_builder_base.models import (
 from .compat import AnalysisException, DataFrame, F, SparkSession
 from .functions import FunctionsProtocol
 from .models import BronzeStep, GoldStep, SilverStep
-from .table_operations import fqn, prepare_delta_overwrite, table_exists, table_schema_is_empty
-from .validation import apply_column_rules
+from .step_executors import (
+    BronzeStepExecutor,
+    GoldStepExecutor,
+    SilverStepExecutor,
+)
+from .storage import TableService, WriteService
+from .table_operations import fqn, table_exists, table_schema_is_empty
+from .validation.execution_validator import ExecutionValidator
 
 # Handle optional Delta Lake dependency
 try:
@@ -104,17 +137,25 @@ _delta_availability_cache_execution: Dict[str, bool] = {}
 
 
 def _is_delta_lake_available_execution(spark: SparkSession) -> bool:  # type: ignore[valid-type]
-    """
-    Check if Delta Lake is actually available and working in the Spark session.
+    """Check if Delta Lake is available and working in the Spark session.
 
-    This function checks configuration and optionally tests Delta functionality.
-    Results are cached per Spark session for performance.
+    This function checks Spark configuration and optionally tests Delta
+    functionality by attempting to write a test DataFrame. Results are cached
+    per Spark session for performance.
 
     Args:
-        spark: Spark session to test
+        spark: SparkSession instance to test for Delta Lake availability.
 
     Returns:
-        True if Delta Lake is available and working, False otherwise
+        True if Delta Lake is available and working, False otherwise.
+
+    Note:
+        The function checks:
+        1. If delta package is installed
+        2. Spark configuration for Delta extensions and catalog
+        3. Actual Delta write capability via test write operation
+
+        Results are cached per Spark session using the session's JVM ID.
     """
     # Use Spark session's underlying SparkContext ID as cache key
     try:
@@ -176,20 +217,8 @@ def _is_delta_lake_available_execution(spark: SparkSession) -> bool:  # type: ig
     return False
 
 
-# Legacy function - use prepare_delta_overwrite from table_operations instead
-def _prepare_delta_overwrite(
-    spark: SparkSession,  # type: ignore[valid-type]
-    table_name: str,
-) -> None:
-    """
-    Legacy function - delegates to prepare_delta_overwrite() from table_operations.
-    
-    This function is kept for backward compatibility but now uses the centralized
-    prepare_delta_overwrite() function from table_operations module.
-    """
-    # Only prepare if Delta is available
-    if HAS_DELTA and _is_delta_lake_available_execution(spark):
-        prepare_delta_overwrite(spark, table_name)
+# Removed _check_batch_mode_with_delta() - Delta Lake does support batch operations
+# in real Spark mode. The previous restriction was incorrect.
 
 
 def _create_dataframe_writer(
@@ -199,25 +228,32 @@ def _create_dataframe_writer(
     table_name: Optional[str] = None,
     **options: Any,
 ) -> Any:
-    """
-    Create a DataFrameWriter using the standardized Delta overwrite pattern.
-    
-    For overwrite mode: uses format("delta").mode("overwrite").option("overwriteSchema", "true")
-    Always uses Delta format - failures will propagate if Delta is not available.
-    
+    """Create a DataFrameWriter using the standardized Delta write pattern.
+
+    Creates a DataFrameWriter configured for Delta Lake format with appropriate
+    options based on the write mode. For overwrite mode, includes
+    overwriteSchema option to allow schema evolution.
+
     Args:
-        df: DataFrame to write
-        spark: Spark session
-        mode: Write mode ("overwrite", "append", etc.)
-        table_name: Optional table name for preparing Delta overwrite
-        **options: Additional write options
+        df: DataFrame to write.
+        spark: SparkSession instance (used for Delta overwrite preparation).
+        mode: Write mode ("overwrite", "append", etc.).
+        table_name: Optional fully qualified table name for preparing Delta
+            overwrite operations.
+        **options: Additional write options to apply to the writer.
+
+    Returns:
+        Configured DataFrameWriter instance ready for saveAsTable().
+
+    Note:
+        Always uses Delta format. Failures will propagate if Delta is not
+        available. For overwrite mode, uses format("delta").mode("overwrite")
+        .option("overwriteSchema", "true").
     """
     # Use standardized overwrite pattern: overwrite + overwriteSchema
     if mode == "overwrite":
         writer = (
-            df.write.format("delta")
-            .mode("overwrite")
-            .option("overwriteSchema", "true")
+            df.write.format("delta").mode("overwrite").option("overwriteSchema", "true")
         )
     else:
         # Append or other modes - always use Delta
@@ -230,20 +266,28 @@ def _create_dataframe_writer(
 
 
 def _get_existing_schema_safe(spark: Any, table_name: str) -> Optional[Any]:
-    """
-    Safely get the schema of an existing table.
+    """Safely get the schema of an existing table.
 
-    Tries multiple methods to get the schema:
-    1. Direct schema from spark.table()
-    2. If empty schema (catalog sync issue), try DESCRIBE TABLE
-    3. If still empty, try reading a sample of data to infer schema
+    Attempts multiple methods to retrieve the table schema, handling catalog
+    sync issues where Spark may report empty schemas. Tries progressively
+    more expensive methods until schema is found or all methods are exhausted.
 
     Args:
-        spark: Spark session
-        table_name: Fully qualified table name
+        spark: SparkSession instance.
+        table_name: Fully qualified table name (schema.table).
 
     Returns:
-        StructType schema if table exists and schema is readable (may be empty struct<>), None if table doesn't exist or schema can't be read
+        StructType schema if table exists and schema is readable (may be
+        empty struct<>), None if table doesn't exist or schema can't be read.
+
+    Note:
+        Tries methods in order:
+        1. Direct schema from spark.table()
+        2. If empty schema (catalog sync issue), try DESCRIBE TABLE
+        3. If still empty, try reading a sample row to infer schema
+
+        Returns empty struct<> if table exists but schema cannot be determined,
+        allowing callers to handle catalog sync issues appropriately.
     """
     try:
         table_df = spark.table(table_name)  # type: ignore[attr-defined]
@@ -277,16 +321,28 @@ def _get_existing_schema_safe(spark: Any, table_name: str) -> Optional[Any]:
 
 
 def _schemas_match(existing_schema: Any, output_schema: Any) -> tuple[bool, list[str]]:
-    """
-    Compare two schemas and determine if they match exactly.
+    """Compare two schemas and determine if they match exactly.
+
+    Compares field names, types, and nullability between existing and output
+    schemas. Returns detailed information about any mismatches found.
 
     Args:
-        existing_schema: Schema of the existing table
-        output_schema: Schema of the output DataFrame
+        existing_schema: StructType schema of the existing table.
+        output_schema: StructType schema of the output DataFrame.
 
     Returns:
-        Tuple of (matches: bool, differences: list[str])
-        differences contains descriptions of any mismatches
+        Tuple of (matches: bool, differences: list[str]) where:
+        - matches: True if schemas match exactly, False otherwise
+        - differences: List of human-readable descriptions of mismatches
+
+    Note:
+        Checks for:
+        - Missing columns in output
+        - New columns in output
+        - Type mismatches in common columns
+        - Nullable changes (informational only - doesn't fail validation)
+
+        Column order differences are noted but don't affect the match result.
     """
     differences = []
 
@@ -320,14 +376,14 @@ def _schemas_match(existing_schema: Any, output_schema: Any) -> tuple[bool, list
     for col in common_columns:
         existing_field = existing_fields[col]
         output_field = output_fields[col]
-        
+
         # Check type mismatch
         if existing_field.dataType != output_field.dataType:
             type_mismatches.append(
                 f"{col}: existing={existing_field.dataType}, "
                 f"output={output_field.dataType}"
             )
-        
+
         # Check nullable changes (nullable -> non-nullable is stricter, non-nullable -> nullable is more lenient)
         existing_nullable = getattr(existing_field, "nullable", True)
         output_nullable = getattr(output_field, "nullable", True)
@@ -342,41 +398,58 @@ def _schemas_match(existing_schema: Any, output_schema: Any) -> tuple[bool, list
                 nullable_changes.append(
                     f"{col}: nullable changed from True to False (stricter - may cause issues if data has nulls)"
                 )
-    
+
     if type_mismatches:
         differences.append(f"Type mismatches: {', '.join(type_mismatches)}")
-    
+
     if nullable_changes:
         # Note nullable changes but don't fail validation for them (Delta Lake handles this)
-        differences.append(f"Nullable changes (informational): {', '.join(nullable_changes)}")
-    
+        differences.append(
+            f"Nullable changes (informational): {', '.join(nullable_changes)}"
+        )
+
     # Check for column order differences (informational only - order doesn't affect functionality)
     existing_order = list(existing_fields.keys())
     output_order = list(output_fields.keys())
-    if existing_order != output_order and common_columns == existing_columns == output_columns:
+    if (
+        existing_order != output_order
+        and common_columns == existing_columns == output_columns
+    ):
         # All columns match, just order is different
         differences.append(
             f"Column order differs (informational - order doesn't affect functionality): "
             f"existing={existing_order}, output={output_order}"
         )
 
-    return len([d for d in differences if "informational" not in d.lower()]) == 0, differences
+    return len(
+        [d for d in differences if "informational" not in d.lower()]
+    ) == 0, differences
 
 
 def _recover_table_schema(spark: Any, table_name: str) -> Optional[Any]:
-    """
-    Attempt to recover table schema when catalog shows empty schema.
+    """Attempt to recover table schema when catalog shows empty schema.
 
-    Tries multiple methods:
-    1. DESCRIBE TABLE and refresh, then re-read schema
-    2. Read table DataFrame and use its schema (even if catalog shows empty)
+    Attempts to recover schema information when Spark catalog reports an
+    empty schema (struct<>), which can occur due to catalog sync issues
+    with Delta Lake tables.
 
     Args:
-        spark: Spark session
-        table_name: Fully qualified table name
+        spark: SparkSession instance.
+        table_name: Fully qualified table name (schema.table).
 
     Returns:
-        Recovered StructType schema or None if recovery fails
+        Recovered StructType schema if recovery succeeds, None if all
+        recovery methods fail.
+
+    Note:
+        Tries methods in order:
+        1. REFRESH TABLE and re-read schema
+        2. DESCRIBE TABLE to get column information
+        3. Read sample data to force schema resolution
+        4. Force schema evaluation by reading a row
+
+        This is a best-effort recovery - may return None if table doesn't
+        exist or all recovery methods fail.
     """
     try:
         # Method 1: Try DESCRIBE TABLE and REFRESH to force catalog sync
@@ -446,7 +519,15 @@ def _recover_table_schema(spark: Any, table_name: str) -> Optional[Any]:
 
 
 class StepStatus(Enum):
-    """Step execution status."""
+    """Execution status of a pipeline step.
+
+    Attributes:
+        PENDING: Step is queued but not yet started.
+        RUNNING: Step is currently executing.
+        COMPLETED: Step completed successfully.
+        FAILED: Step execution failed with an error.
+        SKIPPED: Step was skipped (e.g., due to dependencies).
+    """
 
     PENDING = "pending"
     RUNNING = "running"
@@ -456,7 +537,13 @@ class StepStatus(Enum):
 
 
 class StepType(Enum):
-    """Types of pipeline steps."""
+    """Types of pipeline steps in the Medallion architecture.
+
+    Attributes:
+        BRONZE: Raw data ingestion and validation step.
+        SILVER: Cleaned and enriched data step.
+        GOLD: Business analytics and aggregation step.
+    """
 
     BRONZE = "bronze"
     SILVER = "silver"
@@ -464,9 +551,34 @@ class StepType(Enum):
 
 
 @dataclass
-@dataclass
 class StepExecutionResult:
-    """Result of step execution."""
+    """Result of a single pipeline step execution.
+
+    Contains comprehensive information about step execution including timing,
+    validation metrics, resource usage, and output details.
+
+    Attributes:
+        step_name: Name of the executed step.
+        step_type: Type of step (BRONZE, SILVER, or GOLD).
+        status: Execution status (PENDING, RUNNING, COMPLETED, FAILED, SKIPPED).
+        start_time: Timestamp when step execution started.
+        end_time: Timestamp when step execution completed (None if still running).
+        duration: Execution duration in seconds (calculated from start/end times).
+        error: Error message if step failed (None if successful).
+        rows_processed: Number of rows processed by the step.
+        output_table: Fully qualified name of output table (None for Bronze steps).
+        write_mode: Write mode used ("overwrite", "append", or None).
+        validation_rate: Percentage of rows that passed validation (0-100).
+        rows_written: Number of rows written to output table (None for Bronze steps).
+        input_rows: Number of input rows (same as rows_processed for most steps).
+        memory_usage_mb: Peak memory usage in megabytes (if psutil available).
+        cpu_usage_percent: CPU usage percentage (if psutil available).
+
+    Note:
+        Duration is automatically calculated in __post_init__ if both start_time
+        and end_time are provided. Bronze steps don't write to tables, so
+        output_table and rows_written will be None for them.
+    """
 
     step_name: str
     step_type: StepType
@@ -485,13 +597,36 @@ class StepExecutionResult:
     cpu_usage_percent: Optional[float] = None
 
     def __post_init__(self) -> None:
+        """Calculate duration if both start and end times are available."""
         if self.end_time and self.start_time:
             self.duration = (self.end_time - self.start_time).total_seconds()
 
 
 @dataclass
 class ExecutionResult:
-    """Result of pipeline execution."""
+    """Result of complete pipeline execution.
+
+    Contains comprehensive information about pipeline execution including
+    all step results, timing, dependency analysis results, and overall status.
+
+    Attributes:
+        execution_id: Unique identifier for this execution run.
+        mode: Execution mode used (INITIAL, INCREMENTAL, FULL_REFRESH, VALIDATION_ONLY).
+        start_time: Timestamp when pipeline execution started.
+        end_time: Timestamp when pipeline execution completed (None if still running).
+        duration: Total execution duration in seconds (calculated from start/end times).
+        status: Overall pipeline status ("running", "completed", "failed").
+        steps: List of StepExecutionResult for each step in the pipeline.
+        error: Error message if pipeline failed (None if successful).
+        parallel_efficiency: Deprecated - always 0.0 (kept for backward compatibility).
+        execution_groups_count: Number of dependency groups executed.
+        max_group_size: Maximum number of steps in any execution group.
+
+    Note:
+        Duration is automatically calculated in __post_init__ if both start_time
+        and end_time are provided. Steps list is initialized to empty list if None.
+        The status field tracks overall pipeline status based on individual step results.
+    """
 
     execution_id: str
     mode: ExecutionMode
@@ -506,6 +641,7 @@ class ExecutionResult:
     max_group_size: int = 0
 
     def __post_init__(self) -> None:
+        """Initialize steps list and calculate duration if times are available."""
         if self.steps is None:
             self.steps = []
         if self.end_time and self.start_time:
@@ -513,11 +649,47 @@ class ExecutionResult:
 
 
 class ExecutionEngine:
-    """
-    Simplified execution engine for the framework pipelines.
+    """Execution engine for pipeline execution with service-oriented architecture.
 
-    This engine handles both individual step execution and full pipeline execution
-    with a clean, unified interface.
+    This engine orchestrates pipeline execution using specialized services for
+    clean separation of concerns. It handles both individual step execution and
+    full pipeline execution with dependency-aware sequential processing.
+
+    The engine uses a service-oriented architecture:
+    - Step Executors: BronzeStepExecutor, SilverStepExecutor, GoldStepExecutor
+      handle step-specific execution logic
+    - ExecutionValidator: Validates data according to step rules
+    - TableService: Manages table operations and schema management
+    - WriteService: Handles all write operations to Delta Lake
+
+    Key Features:
+        - Dependency-aware execution: Automatically analyzes and respects step
+          dependencies
+        - Sequential execution: Steps execute in correct order within dependency groups
+        - Comprehensive validation: Built-in validation with configurable thresholds
+        - Error handling: Detailed error messages with context and suggestions
+        - Resource tracking: Monitors memory and CPU usage (if psutil available)
+
+    Example:
+        >>> from pipeline_builder.execution import ExecutionEngine
+        >>> from pipeline_builder_base.models import PipelineConfig, ExecutionMode
+        >>>
+        >>> config = PipelineConfig.create_default(schema="analytics")
+        >>> engine = ExecutionEngine(spark, config)
+        >>>
+        >>> # Execute a single step
+        >>> result = engine.execute_step(
+        ...     step=bronze_step,
+        ...     context={"events": source_df},
+        ...     mode=ExecutionMode.INITIAL
+        ... )
+        >>>
+        >>> # Execute full pipeline
+        >>> result = engine.execute_pipeline(
+        ...     steps=[bronze, silver, gold],
+        ...     mode=ExecutionMode.INITIAL,
+        ...     context={"events": source_df}
+        ... )
     """
 
     def __init__(
@@ -527,14 +699,25 @@ class ExecutionEngine:
         logger: Optional[PipelineLogger] = None,
         functions: Optional[FunctionsProtocol] = None,
     ):
-        """
-        Initialize the execution engine.
+        """Initialize the execution engine.
+
+        Creates an ExecutionEngine instance with all required services. The
+        engine initializes step executors, validation service, and storage
+        services for handling pipeline execution.
 
         Args:
-            spark: Active SparkSession instance
-            config: Pipeline configuration
-            logger: Optional logger instance
-            functions: Optional functions object for PySpark operations
+            spark: Active SparkSession instance for DataFrame operations.
+            config: PipelineConfig containing pipeline configuration including
+                schema, validation thresholds, and other settings.
+            logger: Optional PipelineLogger instance. If None, creates a default
+                logger.
+            functions: Optional FunctionsProtocol instance for PySpark operations.
+                If None, uses get_default_functions() to get appropriate functions
+                based on engine configuration.
+
+        Note:
+            All services are initialized during construction. The engine is ready
+            to execute steps immediately after initialization.
         """
         self.spark: SparkSession = spark  # type: ignore[valid-type]
         self.config = config
@@ -551,15 +734,33 @@ class ExecutionEngine:
         else:
             self.functions = functions
 
+        # Initialize step executors
+        self.bronze_executor = BronzeStepExecutor(spark, self.logger, self.functions)
+        self.silver_executor = SilverStepExecutor(spark, self.logger, self.functions)
+        self.gold_executor = GoldStepExecutor(spark, self.logger, self.functions)
+
+        # Initialize validation service
+        self.validator = ExecutionValidator(self.logger, self.functions)
+
+        # Initialize storage services
+        self.table_service = TableService(spark, self.logger)
+        self.write_service = WriteService(spark, self.table_service, self.logger)
+
     def _ensure_schema_exists(self, schema: str) -> None:
-        """
-        Ensure a schema exists, creating it if necessary.
+        """Ensure a schema exists, creating it if necessary.
+
+        Attempts to create the specified schema if it doesn't already exist.
+        Uses SQL CREATE SCHEMA IF NOT EXISTS for idempotent creation.
 
         Args:
-            schema: Schema name to create
+            schema: Schema name to create or verify.
 
         Raises:
-            ExecutionError: If schema creation fails
+            ExecutionError: If schema creation fails after all attempts.
+
+        Note:
+            First checks if schema exists in catalog, then attempts creation
+            using SQL. If creation fails, raises ExecutionError with context.
         """
         # Check if schema already exists
         try:
@@ -587,11 +788,21 @@ class ExecutionEngine:
 
     @staticmethod
     def _collect_resource_metrics() -> tuple[Optional[float], Optional[float]]:
-        """
-        Collect current memory and CPU usage metrics.
+        """Collect current memory and CPU usage metrics.
+
+        Uses psutil to collect resource usage metrics for the current process.
+        Returns None values if psutil is not available.
 
         Returns:
-            Tuple of (memory_usage_mb, cpu_usage_percent) or (None, None) if psutil unavailable
+            Tuple of (memory_usage_mb, cpu_usage_percent) where:
+            - memory_usage_mb: Memory usage in megabytes (RSS)
+            - cpu_usage_percent: CPU usage percentage
+
+            Returns (None, None) if psutil is unavailable or metrics collection fails.
+
+        Note:
+            Memory is measured as RSS (Resident Set Size) in megabytes.
+            CPU usage is measured over a 0.1 second interval.
         """
         if not HAS_PSUTIL:
             return None, None
@@ -606,61 +817,55 @@ class ExecutionEngine:
             # If metrics collection fails, return None values
             return None, None
 
-    def _ensure_materialized_for_validation(
-        self,
-        df: DataFrame,  # type: ignore[valid-type]
-        rules: Dict[str, Any],
-    ) -> DataFrame:  # type: ignore[valid-type]
-        """
-        Force DataFrame materialization before validation to avoid CTE optimization issues.
-
-        Mock-spark's CTE optimization can fail when validation rules reference columns
-        created by transforms (via withColumn). By materializing the DataFrame first,
-        we ensure all columns are available in the validation context.
-
-        Args:
-            df: DataFrame to potentially materialize
-            rules: Validation rules dictionary
-
-        Returns:
-            Materialized DataFrame (or original if materialization not needed/available)
-        """
-        # Check if rules reference columns that might be new (not in original input)
-        # Materialize before validation so downstream rules see all columns.
-        if not rules:
-            return df
-
-        try:
-            if hasattr(df, "cache"):
-                df = df.cache()  # type: ignore[assignment]
-            _ = df.count()  # type: ignore[attr-defined]
-        except Exception as e:
-            # Surface materialization problems instead of masking them
-            self.logger.debug(f"Could not materialize DataFrame before validation: {e}")
-
-        return df
-
     def execute_step(
         self,
         step: Union[BronzeStep, SilverStep] | GoldStep,
         context: Dict[str, DataFrame],  # type: ignore[valid-type]
         mode: ExecutionMode = ExecutionMode.INITIAL,
     ) -> StepExecutionResult:
-        """
-        Execute a single pipeline step.
+        """Execute a single pipeline step.
+
+        Executes a single step (Bronze, Silver, or Gold) with validation,
+        transformation, and optional table writing. Uses specialized step
+        executors for step-specific logic.
 
         Args:
-            step: The step to execute
-            context: Execution context with available DataFrames
-            mode: Execution mode
+            step: The step to execute (BronzeStep, SilverStep, or GoldStep).
+            context: Dictionary mapping step names to DataFrames. Must contain
+                required source data for the step (e.g., bronze data for Silver
+                steps, silver data for Gold steps).
+            mode: Execution mode (INITIAL, INCREMENTAL, FULL_REFRESH,
+                VALIDATION_ONLY). Defaults to INITIAL.
 
         Returns:
-            StepExecutionResult with execution details
+            StepExecutionResult containing execution details including:
+            - Status (COMPLETED, FAILED)
+            - Timing information
+            - Row counts (processed, written)
+            - Validation metrics
+            - Resource usage (if available)
+
+        Raises:
+            ExecutionError: If step execution fails for any reason.
+
+        Example:
+            >>> result = engine.execute_step(
+            ...     step=silver_step,
+            ...     context={"events": bronze_df},
+            ...     mode=ExecutionMode.INITIAL
+            ... )
+            >>> print(f"Status: {result.status}, Rows: {result.rows_processed}")
+
+        Note:
+            - Bronze steps only validate data, they don't write to tables
+            - Silver and Gold steps write to Delta Lake tables
+            - Validation is applied according to step rules
+            - Schema validation is performed for INCREMENTAL and FULL_REFRESH modes
         """
         start_time = datetime.now()
         # Collect initial resource metrics
         start_memory, start_cpu = self._collect_resource_metrics()
-        
+
         # Determine step type based on class
         if isinstance(step, BronzeStep):
             step_type = StepType.BRONZE
@@ -682,14 +887,14 @@ class ExecutionEngine:
             # Use logger's step_start method for consistent formatting with emoji and uppercase
             self.logger.step_start(step_type.value, step.name)
 
-            # Execute the step based on type
+            # Execute the step based on type using executors
             output_df: DataFrame  # type: ignore[valid-type]
             if isinstance(step, BronzeStep):
-                output_df = self._execute_bronze_step(step, context)
+                output_df = self.bronze_executor.execute(step, context, mode)
             elif isinstance(step, SilverStep):
-                output_df = self._execute_silver_step(step, context, mode)
+                output_df = self.silver_executor.execute(step, context, mode)
             elif isinstance(step, GoldStep):
-                output_df = self._execute_gold_step(step, context)
+                output_df = self.gold_executor.execute(step, context, mode)
             else:
                 raise ExecutionError(f"Unknown step type: {type(step)}")
 
@@ -699,26 +904,19 @@ class ExecutionEngine:
             if mode != ExecutionMode.VALIDATION_ONLY:
                 # All step types (Bronze, Silver, Gold) have rules attribute
                 if step.rules:
-                    # CRITICAL: Force materialization before validation to avoid CTE optimization issues
-                    # When transforms create new columns with withColumn(), mock-spark's CTE optimization
-                    # can fail because those columns aren't visible in CTE context during validation.
-                    # Materializing ensures all columns are available.
-                    output_df = self._ensure_materialized_for_validation(
-                        output_df, step.rules
-                    )
-                    output_df, _, validation_stats = apply_column_rules(
-                        output_df,
-                        step.rules,
-                        "pipeline",
-                        step.name,
-                        functions=self.functions,
-                    )
-                    # Capture validation stats for logging (handle different return types for test mocking)
-                    if validation_stats is not None:
-                        validation_rate = getattr(
-                            validation_stats, "validation_rate", 100.0
+                    # Use validation service for validation
+                    output_df, _, validation_stats = (
+                        self.validator.validate_step_output(
+                            output_df,
+                            step.name,
+                            step.rules,
+                            "pipeline",
                         )
-                        invalid_rows = getattr(validation_stats, "invalid_rows", 0)
+                    )
+                    # Extract validation metrics
+                    validation_rate, invalid_rows = (
+                        self.validator.get_validation_metrics(validation_stats)
+                    )
 
             # Write output if not in validation-only mode
             # Note: Bronze steps only validate data, they don't write to tables
@@ -759,8 +957,8 @@ class ExecutionEngine:
                 # Determine write mode
                 # - Gold steps always use overwrite to prevent duplicate aggregates
                 # - Silver steps append during incremental runs to preserve history
-                # - INITIAL mode uses append (Delta tables don't support overwrite with saveAsTable)
-                # - FULL_REFRESH uses overwrite (will use DELETE + append for Delta tables)
+                # - INITIAL mode uses overwrite
+                # - FULL_REFRESH uses overwrite
                 if isinstance(step, GoldStep):
                     write_mode_str = "overwrite"
                 elif mode == ExecutionMode.INCREMENTAL:
@@ -913,10 +1111,12 @@ class ExecutionEngine:
                                         )
 
                             if delete_succeeded:
-                                # Write with append mode and overwriteSchema option
+                                # Write with overwrite mode and overwriteSchema option
+                                # Note: Delta Lake doesn't support append in batch mode
                                 try:
                                     (
-                                        output_df.write.mode("append")
+                                        output_df.write.format("delta")
+                                        .mode("overwrite")
                                         .option("overwriteSchema", "true")
                                         .saveAsTable(output_table)  # type: ignore[attr-defined]
                                     )
@@ -1005,13 +1205,13 @@ class ExecutionEngine:
                                     # Table was created by another thread - verify it exists and retry
                                     if table_exists(self.spark, output_table):
                                         self.logger.debug(
-                                            f"Table {output_table} was created by another thread, retrying with append mode"
+                                            f"Table {output_table} was created by another thread, retrying with overwrite mode"
                                         )
-                                        # Retry with append mode and overwriteSchema
+                                        # Retry with overwrite mode (append not supported in batch mode for Delta)
                                         retry_writer = _create_dataframe_writer(
                                             output_df,
                                             self.spark,
-                                            "append",
+                                            "overwrite",
                                             overwriteSchema="true",
                                         )
                                         retry_writer.saveAsTable(output_table)  # type: ignore[attr-defined]
@@ -1113,17 +1313,21 @@ class ExecutionEngine:
                                     # Skip normal write path - table already written
                                     writer = None
                                 else:
-                                    # Schema matches - use DELETE + append for Delta tables
+                                    # Schema matches - use DELETE + overwrite for Delta tables
                                     # or CREATE OR REPLACE TABLE for atomic replacement
+                                    # Note: Delta Lake doesn't support append in batch mode, so we use overwrite
                                     if _is_delta_lake_available_execution(self.spark):
-                                        # For Delta tables, use DELETE + append
+                                        # For Delta tables, use DELETE + overwrite (append not supported in batch mode)
                                         try:
                                             self.spark.sql(
                                                 f"DELETE FROM {output_table}"
                                             )  # type: ignore[attr-defined]
-                                            # DELETE succeeded, use append mode
+                                            # DELETE succeeded, use overwrite mode (append not supported in batch mode)
                                             writer = _create_dataframe_writer(
-                                                output_df, self.spark, "append", table_name=output_table
+                                                output_df,
+                                                self.spark,
+                                                "overwrite",
+                                                table_name=output_table,
                                             )
                                         except Exception as delete_error:
                                             # If DELETE fails, fall back to CREATE OR REPLACE TABLE
@@ -1150,12 +1354,18 @@ class ExecutionEngine:
                                     else:
                                         # Not Delta table, use normal overwrite
                                         writer = _create_dataframe_writer(
-                                            output_df, self.spark, "overwrite", table_name=output_table
+                                            output_df,
+                                            self.spark,
+                                            "overwrite",
+                                            table_name=output_table,
                                         )
                         else:
                             # Table doesn't exist - proceed with normal write
                             writer = _create_dataframe_writer(
-                                output_df, self.spark, write_mode_str, table_name=output_table
+                                output_df,
+                                self.spark,
+                                write_mode_str,
+                                table_name=output_table,
                             )
                     # Heal catalog entries that report empty schema (struct<>) before choosing writer
                     if table_exists(self.spark, output_table) and table_schema_is_empty(
@@ -1169,137 +1379,19 @@ class ExecutionEngine:
                         except Exception:
                             pass
 
-                    if isinstance(step, GoldStep) and write_mode_str == "overwrite":
-                        # Gold steps always use overwrite, but Delta tables don't support overwrite with saveAsTable
-                        # Use DELETE + append or DROP + CREATE for Delta tables
-                        if _is_delta_lake_available_execution(self.spark):
-                            if table_exists(self.spark, output_table):
-                                # Table exists - use DELETE + append
-                                try:
-                                    self.spark.sql(f"DELETE FROM {output_table}")  # type: ignore[attr-defined]
-                                    # DELETE succeeded, use append mode
-                                    writer = _create_dataframe_writer(
-                                        output_df, self.spark, "append", table_name=output_table
-                                    )
-                                except Exception as delete_error:
-                                    # If DELETE fails, fall back to DROP + CREATE
-                                    self.logger.warning(
-                                        f"DELETE FROM failed for '{output_table}': {delete_error}. "
-                                        f"Using DROP + CREATE instead."
-                                    )
-                                    temp_view_name = (
-                                        f"_temp_{step.name}_{uuid.uuid4().hex[:8]}"
-                                    )
-                                    output_df.createOrReplaceTempView(temp_view_name)  # type: ignore[attr-defined]
-                                    self.spark.sql(
-                                        f"DROP TABLE IF EXISTS {output_table}"
-                                    )  # type: ignore[attr-defined]
-                                    self.spark.sql(f"""
-                                        CREATE TABLE {output_table}
-                                        USING DELTA
-                                        AS SELECT * FROM {temp_view_name}
-                                    """)  # type: ignore[attr-defined]
-                                    try:
-                                        self.spark.sql(
-                                            f"DROP VIEW IF EXISTS {temp_view_name}"
-                                        )  # type: ignore[attr-defined]
-                                    except Exception:
-                                        pass
-                                    writer = None
-                            else:
-                                # Table doesn't exist - use append to create it
-                                writer = _create_dataframe_writer(
-                                    output_df, self.spark, "append", table_name=output_table
-                                )
-                        else:
-                            # Not Delta table, use normal overwrite
-                            writer = _create_dataframe_writer(
-                                output_df, self.spark, "overwrite", table_name=output_table
-                            )
-                    else:
-                        # For INCREMENTAL and FULL_REFRESH modes (non-Gold), schema validation already done above
-                        # Just create writer with appropriate mode
-                        writer = _create_dataframe_writer(
-                            output_df, self.spark, write_mode_str, table_name=output_table
-                        )
+                    # Create writer with appropriate mode
+                    writer = _create_dataframe_writer(
+                        output_df, self.spark, write_mode_str, table_name=output_table
+                    )
 
                     # Execute write
                     if writer is not None:
                         try:
-                            # For overwrite mode with Delta, always drop existing table right before write
-                            # This avoids "truncate in batch mode" errors
-                            # We drop unconditionally because Spark may create the table during the write
-                            # and then try to use truncate semantics, which Delta doesn't support
-                            if write_mode_str == "overwrite" and _is_delta_lake_available_execution(self.spark):
-                                # Clear catalog cache to ensure we have fresh table metadata
-                                try:
-                                    self.spark.catalog.clearCache()  # type: ignore[attr-defined]
-                                except Exception:
-                                    pass  # Ignore cache clearing errors
-                                
-                                # Always try to drop - if table doesn't exist, this is a no-op
-                                try:
-                                    self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
-                                    # Clear cache again after drop to ensure catalog is updated
-                                    try:
-                                        self.spark.catalog.clearCache()  # type: ignore[attr-defined]
-                                    except Exception:
-                                        pass
-                                except Exception:
-                                    # If drop fails, try the more sophisticated check
-                                    _prepare_delta_overwrite(self.spark, output_table)
-                            
                             writer.saveAsTable(output_table)  # type: ignore[attr-defined]
                         except Exception as write_error:
-                            # Handle "truncate in batch mode" errors for Delta tables
                             error_msg = str(write_error).lower()
-                            truncate_handled = False
-                            if "truncate in batch mode" in error_msg and _is_delta_lake_available_execution(self.spark):
-                                # Delta table doesn't support truncate - drop and recreate
-                                self.logger.warning(
-                                    f"Delta table '{output_table}' doesn't support truncate. "
-                                    f"Dropping and recreating with fresh data."
-                                )
-                                try:
-                                    # Clear catalog cache before retry to ensure fresh metadata
-                                    try:
-                                        self.spark.catalog.clearCache()  # type: ignore[attr-defined]
-                                    except Exception:
-                                        pass
-                                    
-                                    # Drop table and recreate using CREATE TABLE AS SELECT
-                                    # This avoids truncate semantics entirely
-                                    self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
-                                    
-                                    # Clear cache again after drop
-                                    try:
-                                        self.spark.catalog.clearCache()  # type: ignore[attr-defined]
-                                    except Exception:
-                                        pass
-                                    
-                                    temp_view_name = f"_temp_{step.name}_{uuid.uuid4().hex[:8]}"
-                                    output_df.createOrReplaceTempView(temp_view_name)  # type: ignore[attr-defined]
-                                    self.spark.sql(f"""
-                                        CREATE TABLE {output_table}
-                                        USING DELTA
-                                        AS SELECT * FROM {temp_view_name}
-                                    """)  # type: ignore[attr-defined]
-                                    try:
-                                        self.spark.sql(f"DROP VIEW IF EXISTS {temp_view_name}")  # type: ignore[attr-defined]
-                                    except Exception:
-                                        pass
-                                    # Success - truncate error handled, don't process other errors
-                                    truncate_handled = True
-                                except Exception as retry_error:
-                                    # If retry also fails, fall through to other error handling
-                                    write_error = retry_error
-                                    error_msg = str(retry_error).lower()
-                            
-                            # If we successfully handled the truncate error, skip other error handling
-                            if truncate_handled:
-                                pass  # Write succeeded, continue normally
                             # Handle catalog sync issues where Spark reports empty schema (struct<>)
-                            elif (
+                            if (
                                 "struct<>" in error_msg
                                 or "column number of the existing table" in error_msg
                             ):
@@ -1467,16 +1559,16 @@ class ExecutionEngine:
                                 or "table_or_view_already_exists" in error_msg
                                 or isinstance(write_error, AnalysisException)
                             ):
-                                # Table was created by another thread - verify it exists and retry with append mode
+                                # Table was created by another thread - verify it exists and retry with overwrite mode
                                 if table_exists(self.spark, output_table):
                                     self.logger.debug(
-                                        f"Table {output_table} was created by another thread, retrying with append mode"
+                                        f"Table {output_table} was created by another thread, retrying with overwrite mode"
                                     )
-                                    # Retry with append mode to preserve data from both steps
+                                    # Retry with overwrite mode (append not supported in batch mode for Delta)
                                     retry_writer = _create_dataframe_writer(
                                         output_df,
                                         self.spark,
-                                        "append",
+                                        "overwrite",
                                         table_name=output_table,
                                     )
                                     retry_writer.saveAsTable(output_table)  # type: ignore[attr-defined]
@@ -1513,7 +1605,7 @@ class ExecutionEngine:
 
             # Collect final resource metrics
             end_memory, end_cpu = self._collect_resource_metrics()
-            
+
             # Calculate metrics (use end values, or delta if both available)
             if end_memory is not None:
                 if start_memory is not None:
@@ -1523,7 +1615,7 @@ class ExecutionEngine:
                     result.memory_usage_mb = end_memory
             if end_cpu is not None:
                 result.cpu_usage_percent = end_cpu
-            
+
             result.status = StepStatus.COMPLETED
             result.end_time = datetime.now()
             result.duration = (result.end_time - result.start_time).total_seconds()
@@ -1555,7 +1647,7 @@ class ExecutionEngine:
         except Exception as e:
             # Collect final resource metrics even on failure
             end_memory, end_cpu = self._collect_resource_metrics()
-            
+
             # Calculate metrics (use end values, or delta if both available)
             if end_memory is not None:
                 if start_memory is not None:
@@ -1565,7 +1657,7 @@ class ExecutionEngine:
                     result.memory_usage_mb = end_memory
             if end_cpu is not None:
                 result.cpu_usage_percent = end_cpu
-            
+
             result.status = StepStatus.FAILED
             result.error = str(e)
             result.end_time = datetime.now()
@@ -1586,28 +1678,52 @@ class ExecutionEngine:
         max_workers: int = 4,
         context: Optional[Dict[str, DataFrame]] = None,  # type: ignore[valid-type]
     ) -> ExecutionResult:
-        """
-        Execute a complete pipeline with dependency-aware sequential execution.
+        """Execute a complete pipeline with dependency-aware sequential execution.
 
-        This method automatically analyzes step dependencies and executes steps
-        sequentially in the correct order based on their dependencies. Steps are
-        grouped by dependencies, and groups are executed sequentially to respect
-        dependencies.
+        Analyzes step dependencies and executes steps sequentially in the correct
+        order. Steps are grouped by dependencies, and groups are executed
+        sequentially to respect dependency constraints.
 
         Args:
-            steps: List of steps to execute
-            mode: Execution mode (INITIAL, INCREMENTAL, FULL_REFRESH, VALIDATION_ONLY)
-            max_workers: Deprecated parameter (ignored, kept for backward compatibility)
-            context: Optional initial execution context with DataFrames
+            steps: List of steps to execute. Can include Bronze, Silver, and
+                Gold steps in any order - dependencies are automatically analyzed.
+            mode: Execution mode (INITIAL, INCREMENTAL, FULL_REFRESH,
+                VALIDATION_ONLY). Defaults to INITIAL.
+            max_workers: Deprecated parameter. Ignored, kept for backward
+                compatibility. Execution is always sequential.
+            context: Optional initial execution context dictionary mapping step
+                names to DataFrames. Must contain bronze source data. If None,
+                empty dictionary is used.
 
         Returns:
-            ExecutionResult with execution details
+            ExecutionResult containing:
+            - Overall pipeline status
+            - List of StepExecutionResult for each step
+            - Execution timing
+            - Dependency analysis results (execution_groups_count, max_group_size)
+
+        Raises:
+            ExecutionError: If pipeline execution fails.
+            TypeError: If context is not a dictionary.
 
         Example:
             >>> config = PipelineConfig.create_default(schema="my_schema")
             >>> engine = ExecutionEngine(spark, config)
-            >>> result = engine.execute_pipeline(steps=[bronze, silver1, silver2, gold])
+            >>> result = engine.execute_pipeline(
+            ...     steps=[bronze, silver1, silver2, gold],
+            ...     mode=ExecutionMode.INITIAL,
+            ...     context={"events": source_df}
+            ... )
+            >>> print(f"Status: {result.status}")
             >>> print(f"Execution groups: {result.execution_groups_count}")
+            >>> print(f"Steps completed: {len([s for s in result.steps if s.status == StepStatus.COMPLETED])}")
+
+        Note:
+            - All required schemas are created upfront before execution
+            - Steps are grouped by dependencies using DependencyAnalyzer
+            - Groups execute sequentially, steps within groups execute sequentially
+            - Context is updated after each step completion for downstream steps
+            - Failed steps are recorded but don't stop execution of remaining steps
         """
         execution_id = str(uuid.uuid4())
         start_time = datetime.now()
@@ -1702,7 +1818,10 @@ class ExecutionEngine:
                             result.steps.append(step_result)
 
                         # Update context with step output for downstream steps
-                        if step_result.status == StepStatus.COMPLETED and not isinstance(step, BronzeStep):
+                        if (
+                            step_result.status == StepStatus.COMPLETED
+                            and not isinstance(step, BronzeStep)
+                        ):
                             table_name = getattr(step, "table_name", step.name)
                             schema = getattr(step, "schema", None)
                             if schema is not None:
@@ -1728,22 +1847,14 @@ class ExecutionEngine:
                                 f"Step {step_name} failed: {step_result.error}"
                             )
                     except Exception as e:
-                        self.logger.error(
-                            f"Exception executing step {step_name}: {e}"
-                        )
+                        self.logger.error(f"Exception executing step {step_name}: {e}")
                         # Determine correct step type
                         step_obj = step_map.get(step_name)
-                        if step_obj is not None and isinstance(
-                            step_obj, BronzeStep
-                        ):
+                        if step_obj is not None and isinstance(step_obj, BronzeStep):
                             step_type_enum = StepType.BRONZE
-                        elif step_obj is not None and isinstance(
-                            step_obj, SilverStep
-                        ):
+                        elif step_obj is not None and isinstance(step_obj, SilverStep):
                             step_type_enum = StepType.SILVER
-                        elif step_obj is not None and isinstance(
-                            step_obj, GoldStep
-                        ):
+                        elif step_obj is not None and isinstance(step_obj, GoldStep):
                             step_type_enum = StepType.GOLD
                         else:
                             step_type_enum = StepType.BRONZE  # fallback
@@ -1779,9 +1890,7 @@ class ExecutionEngine:
                 )
             else:
                 result.status = "completed"
-                self.logger.info(
-                    f"Completed pipeline execution: {execution_id}"
-                )
+                self.logger.info(f"Completed pipeline execution: {execution_id}")
 
             result.end_time = datetime.now()
 
@@ -1794,13 +1903,33 @@ class ExecutionEngine:
 
         return result
 
-
     def _execute_bronze_step(
         self,
         step: BronzeStep,
         context: Dict[str, DataFrame],  # type: ignore[valid-type]  # type: ignore[valid-type]
     ) -> DataFrame:  # type: ignore[valid-type]
-        """Execute a bronze step."""
+        """Execute a bronze step.
+
+        Bronze steps validate existing data but don't transform or write it.
+        The step name must exist in the context dictionary with the source DataFrame.
+
+        Args:
+            step: BronzeStep instance to execute.
+            context: Dictionary mapping step names to DataFrames. Must contain
+                the step name as a key.
+
+        Returns:
+            DataFrame from context (validated but unchanged).
+
+        Raises:
+            ExecutionError: If step name not found in context or DataFrame is
+                invalid.
+
+        Note:
+            Bronze steps are for validating raw data. They don't write to tables
+            or perform transformations. Validation is applied separately by the
+            execution engine.
+        """
         # Bronze steps require data to be provided in context
         # This is the expected behavior - bronze steps validate existing data
         if step.name not in context:
@@ -1828,7 +1957,28 @@ class ExecutionEngine:
         context: Dict[str, DataFrame],  # type: ignore[valid-type]
         mode: ExecutionMode,
     ) -> DataFrame:  # type: ignore[valid-type]
-        """Execute a silver step."""
+        """Execute a silver step.
+
+        Silver steps transform bronze data into cleaned and enriched data.
+        For INCREMENTAL mode, filters bronze input to only process new rows.
+
+        Args:
+            step: SilverStep instance to execute.
+            context: Dictionary mapping step names to DataFrames. Must contain
+                the source bronze step name.
+            mode: Execution mode. INCREMENTAL mode triggers incremental filtering.
+
+        Returns:
+            Transformed DataFrame ready for validation and writing.
+
+        Raises:
+            ExecutionError: If source bronze step not found in context.
+
+        Note:
+            - Applies incremental filtering if mode is INCREMENTAL
+            - Calls step.transform() with bronze DataFrame and empty silvers dict
+            - Transformation logic is defined in the step's transform function
+        """
 
         # Get source bronze data
         if step.source_bronze not in context:
@@ -1849,12 +1999,36 @@ class ExecutionEngine:
         step: SilverStep,
         bronze_df: DataFrame,  # type: ignore[valid-type]  # type: ignore[valid-type]
     ) -> DataFrame:  # type: ignore[valid-type]
-        """
-        Filter bronze input rows that were already processed in previous incremental runs.
+        """Filter bronze input rows already processed in previous incremental runs.
 
-        Uses the source bronze step's incremental column and the silver step's watermark
-        column to eliminate rows whose incremental value is less than or equal to the
-        last processed watermark.
+        Filters bronze DataFrame to only include rows that haven't been processed
+        yet. Uses the source bronze step's incremental column and the silver step's
+        watermark column to determine which rows to exclude.
+
+        Args:
+            step: SilverStep instance with incremental configuration.
+            bronze_df: Bronze DataFrame to filter.
+
+        Returns:
+            Filtered DataFrame containing only new rows to process. Returns
+            original DataFrame if filtering cannot be performed (missing columns,
+            table doesn't exist, etc.).
+
+        Raises:
+            ExecutionError: If filtering fails due to column or type issues.
+
+        Note:
+            Filtering logic:
+            1. Reads existing silver table to get maximum watermark value
+            2. Filters bronze rows where incremental_col > max_watermark
+            3. Returns original DataFrame if table doesn't exist (first run)
+
+            Requires:
+            - step.source_incremental_col: Column in bronze DataFrame
+            - step.watermark_col: Column in existing silver table
+            - step.schema and step.table_name: To locate existing table
+
+            Skips filtering gracefully if requirements not met (returns original DataFrame).
         """
 
         incremental_col = getattr(step, "source_incremental_col", None)
@@ -1871,18 +2045,20 @@ class ExecutionEngine:
                 f"not present in bronze DataFrame; skipping incremental filter"
             )
             return bronze_df
-        
+
         # Validate that incremental column type is appropriate for filtering
         try:
             schema = bronze_df.schema  # type: ignore[attr-defined]
             col_field = schema[incremental_col]  # type: ignore[index]
             col_type = col_field.dataType  # type: ignore[attr-defined]
             col_type_name = str(col_type)
-            
+
             # Check if type is comparable (numeric, date, timestamp, string)
             # Non-comparable types: boolean, array, map, struct
             non_comparable_types = ["boolean", "array", "map", "struct", "binary"]
-            if any(non_comp in col_type_name.lower() for non_comp in non_comparable_types):
+            if any(
+                non_comp in col_type_name.lower() for non_comp in non_comparable_types
+            ):
                 self.logger.warning(
                     f"Silver step {step.name}: incremental column '{incremental_col}' "
                     f"has type '{col_type_name}' which may not be suitable for comparison operations. "
@@ -1996,7 +2172,26 @@ class ExecutionEngine:
 
     @staticmethod
     def _extract_row_value(row: Any, column: str) -> Optional[object]:
-        """Safely extract a column value from a Row-like object."""
+        """Safely extract a column value from a Row-like object.
+
+        Attempts multiple methods to extract a column value from Spark Row objects,
+        handling different Row implementations and access patterns.
+
+        Args:
+            row: Row-like object (Spark Row, dict, or similar).
+            column: Column name to extract.
+
+        Returns:
+            Extracted value if found, None otherwise.
+
+        Note:
+            Tries methods in order:
+            1. Direct indexing: row[column]
+            2. Positional indexing: row[0]
+            3. Dictionary access: row.asDict().get(column)
+
+            Returns None if all methods fail or value is not found.
+        """
         if hasattr(row, "__getitem__"):
             try:
                 result: Optional[object] = row[column]  # type: ignore[assignment]
@@ -2020,7 +2215,28 @@ class ExecutionEngine:
         step: GoldStep,
         context: Dict[str, DataFrame],  # type: ignore[valid-type]  # type: ignore[valid-type]
     ) -> DataFrame:  # type: ignore[valid-type]
-        """Execute a gold step."""
+        """Execute a gold step.
+
+        Gold steps transform silver data into business analytics and aggregations.
+        Builds a dictionary of source silver DataFrames from step.source_silvers.
+
+        Args:
+            step: GoldStep instance to execute.
+            context: Dictionary mapping step names to DataFrames. Must contain
+                all source silver step names listed in step.source_silvers.
+
+        Returns:
+            Transformed DataFrame ready for validation and writing.
+
+        Raises:
+            ExecutionError: If any source silver step not found in context.
+
+        Note:
+            - Builds silvers dictionary from step.source_silvers
+            - Calls step.transform() with SparkSession and silvers dictionary
+            - Transformation logic is defined in the step's transform function
+            - Gold steps typically perform aggregations and business metrics
+        """
 
         # Build silvers dict from source_silvers
         silvers = {}
