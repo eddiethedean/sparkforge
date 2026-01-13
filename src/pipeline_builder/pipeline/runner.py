@@ -59,7 +59,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
         logger: Optional[PipelineLogger] = None,
         functions: Optional[FunctionsProtocol] = None,
         # Abstracts.Runner compatibility - these will be set if using abstracts interface
-        steps: Optional[list[BronzeStep | SilverStep | GoldStep]] = None,
+        steps: Optional[list[Union[BronzeStep, SilverStep, GoldStep]]] = None,
         engine: Optional[
             Any
         ] = None,  # Engine from abstracts, but we use ExecutionEngine
@@ -107,7 +107,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
 
     def run_pipeline(
         self,
-        steps: list[Union[BronzeStep, SilverStep] | GoldStep],
+        steps: list[Union[BronzeStep, SilverStep, GoldStep]],
         mode: PipelineMode = PipelineMode.INITIAL,
         bronze_sources: Optional[Dict[str, DataFrame]] = None,  # type: ignore[valid-type]
     ) -> PipelineReport:

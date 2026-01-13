@@ -817,7 +817,7 @@ class ExecutionEngine:
 
     def execute_step(
         self,
-        step: Union[BronzeStep, SilverStep] | GoldStep,
+        step: Union[BronzeStep, SilverStep, GoldStep],
         context: Dict[str, DataFrame],  # type: ignore[valid-type]
         mode: ExecutionMode = ExecutionMode.INITIAL,
     ) -> StepExecutionResult:
@@ -1671,7 +1671,7 @@ class ExecutionEngine:
 
     def execute_pipeline(
         self,
-        steps: list[Union[BronzeStep, SilverStep] | GoldStep],
+        steps: list[Union[BronzeStep, SilverStep, GoldStep]],
         mode: ExecutionMode = ExecutionMode.INITIAL,
         context: Optional[Dict[str, DataFrame]] = None,  # type: ignore[valid-type]
     ) -> ExecutionResult:
