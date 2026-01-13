@@ -185,15 +185,14 @@ class SparkEngine(Engine):
         df: DataFrame = source  # type: ignore[valid-type]
 
         # Type check: step should be a concrete step type
-        # Cast to Any first to avoid Protocol isinstance issues with mypy
-        step_any: Any = step
-        if not isinstance(step_any, (BronzeStep, SilverStep, GoldStep)):
+        # Don't use Any annotation to avoid Python 3.8 isinstance() issues
+        # Direct isinstance check works fine even with Protocol types
+        if not isinstance(step, (BronzeStep, SilverStep, GoldStep)):
             raise TypeError(
                 f"Step must be BronzeStep, SilverStep, or GoldStep, got {type(step)}"
             )
         # Cast to help mypy - we know it's one of the concrete types after isinstance
-        # Use step_any directly since isinstance already narrowed the type
-        concrete_step: Union[BronzeStep, SilverStep, GoldStep] = step_any
+        concrete_step: Union[BronzeStep, SilverStep, GoldStep] = step  # type: ignore[assignment]
 
         # Bronze steps don't write to tables
         if isinstance(concrete_step, BronzeStep):
