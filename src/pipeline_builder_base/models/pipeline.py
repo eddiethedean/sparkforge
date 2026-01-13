@@ -96,7 +96,6 @@ class PipelineMetrics(BaseModel):
         total_rows_processed: Total rows processed
         total_rows_written: Total rows written
         avg_validation_rate: Average validation rate
-        parallel_efficiency: Parallel execution efficiency
         cache_hit_rate: Cache hit rate
         error_count: Number of errors
         retry_count: Number of retries
@@ -113,7 +112,6 @@ class PipelineMetrics(BaseModel):
     total_rows_processed: int = 0
     total_rows_written: int = 0
     avg_validation_rate: float = 0.0
-    parallel_efficiency: float = 0.0
     cache_hit_rate: float = 0.0
     error_count: int = 0
     retry_count: int = 0

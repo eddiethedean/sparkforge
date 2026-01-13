@@ -603,7 +603,6 @@ class TestPipelineMetrics:
         assert metrics.gold_duration == 0.0
         assert metrics.total_rows_processed == 0
         assert metrics.total_rows_written == 0
-        assert metrics.parallel_efficiency == 0.0
         assert metrics.cache_hit_rate == 0.0
         assert metrics.error_count == 0
         assert metrics.retry_count == 0
@@ -621,7 +620,6 @@ class TestPipelineMetrics:
             gold_duration=50.0,
             total_rows_processed=10000,
             total_rows_written=9500,
-            parallel_efficiency=0.85,
             cache_hit_rate=0.90,
             error_count=2,
             retry_count=1,
@@ -637,7 +635,6 @@ class TestPipelineMetrics:
         assert metrics.gold_duration == 50.0
         assert metrics.total_rows_processed == 10000
         assert metrics.total_rows_written == 9500
-        assert metrics.parallel_efficiency == 0.85
         assert metrics.cache_hit_rate == 0.90
         assert metrics.error_count == 2
         assert metrics.retry_count == 1
@@ -678,14 +675,12 @@ class TestSilverDependencyInfo:
             step_name="silver_step",
             source_bronze="bronze_step",
             depends_on_silvers={"other_silver"},
-            can_run_parallel=True,
             execution_group=1,
         )
 
         assert dep_info.step_name == "silver_step"
         assert dep_info.source_bronze == "bronze_step"
         assert dep_info.depends_on_silvers == {"other_silver"}
-        assert dep_info.can_run_parallel is True
         assert dep_info.execution_group == 1
 
     def test_silver_dependency_info_validation_success(self):
@@ -694,7 +689,6 @@ class TestSilverDependencyInfo:
             step_name="silver_step",
             source_bronze="bronze_step",
             depends_on_silvers=set(),
-            can_run_parallel=True,
             execution_group=1,
         )
 
@@ -707,7 +701,6 @@ class TestSilverDependencyInfo:
             step_name="",
             source_bronze="bronze_step",
             depends_on_silvers=set(),
-            can_run_parallel=True,
             execution_group=1,
         )
 
@@ -722,7 +715,6 @@ class TestSilverDependencyInfo:
             step_name="silver_step",
             source_bronze="",
             depends_on_silvers=set(),
-            can_run_parallel=True,
             execution_group=1,
         )
 

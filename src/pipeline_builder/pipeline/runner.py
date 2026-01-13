@@ -416,7 +416,6 @@ class SimplePipelineRunner(BaseRunner, Runner):
                 gold_duration=gold_duration,
                 total_rows_processed=total_rows_processed,
                 total_rows_written=total_rows_written,
-                parallel_efficiency=execution_result.parallel_efficiency,
             ),
             bronze_results=bronze_results,
             silver_results=silver_results,

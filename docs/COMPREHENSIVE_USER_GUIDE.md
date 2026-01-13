@@ -38,7 +38,7 @@ Please refer to `USER_GUIDE.md` for the most up-to-date documentation.
 
 - **70% Less Boilerplate**: Clean API vs raw Spark code
 - **Built-in Validation**: Data quality checks at every layer
-- **Automatic Parallelization**: Dependency-aware parallel execution
+- **Dependency-Aware Execution**: Automatic execution ordering based on dependencies
 - **Production Ready**: Error handling, monitoring, alerting
 - **Delta Lake Integration**: ACID transactions, time travel, schema evolution
 
@@ -319,7 +319,7 @@ USER CODE
 │  │  │ • Silver steps: Depend on Bronze + optional other Silvers    │  │    │
 │  │  │ • Gold steps: Depend on Silver steps                         │  │    │
 │  │  │                                                              │  │    │
-│  │  │ Creates execution groups for parallel processing:            │  │    │
+│  │  │ Creates execution groups for sequential processing:          │  │    │
 │  │  │   Group 0: [bronze_events, bronze_users, bronze_products]    │  │    │
 │  │  │   Group 1: [silver_clean_events, silver_clean_users]         │  │    │
 │  │  │   Group 2: [silver_enriched_events] (depends on group 1)     │  │    │
@@ -327,21 +327,20 @@ USER CODE
 │  │  └──────────────────────────────────────────────────────────────┘  │    │
 │  │                                                                    │    │
 │  │  ┌──────────────────────────────────────────────────────────────┐  │    │
-│  │  │ PHASE 2: PARALLEL EXECUTION                                  │  │    │
+│  │  │ PHASE 2: SEQUENTIAL EXECUTION                                │  │    │
 │  │  │ ─────────────────────────                                    │  │    │
-│  │  │ ThreadPoolExecutor (max_workers=4 by default)                │  │    │
 │  │  │                                                              │  │    │
 │  │  │ For each execution group (in order):                         │  │    │
-│  │  │   Submit all steps in group to thread pool                   │  │    │
+│  │  │   Execute all steps in group sequentially                    │  │    │
 │  │  │   Wait for all steps in group to complete                    │  │    │
 │  │  │   Move to next group                                         │  │    │
 │  │  │                                                              │  │    │
 │  │  │ Example timeline:                                            │  │    │
-│  │  │   t0: Group 0 starts → [Bronze1, Bronze2, Bronze3] parallel  │  │    │
+│  │  │   t0: Group 0 starts → [Bronze1, Bronze2, Bronze3] sequential│  │    │
 │  │  │   t1: Group 0 done                                           │  │    │
-│  │  │   t1: Group 1 starts → [Silver1, Silver2] parallel           │  │    │
+│  │  │   t1: Group 1 starts → [Silver1, Silver2] sequential          │  │    │
 │  │  │   t2: Group 1 done                                           │  │    │
-│  │  │   t2: Group 2 starts → [Gold1, Gold2] parallel               │  │    │
+│  │  │   t2: Group 2 starts → [Gold1, Gold2] sequential              │  │    │
 │  │  │   t3: All done                                               │  │    │
 │  │  └──────────────────────────────────────────────────────────────┘  │    │
 │  │                                                                    │    │
@@ -416,7 +415,6 @@ USER CODE
 │  │      - total_steps / successful_steps / failed_steps               │    │
 │  │      - total_rows_processed / total_rows_written                   │    │
 │  │      - bronze_duration / silver_duration / gold_duration           │    │
-│  │      - parallel_efficiency (0-100%)                                │    │
 │  │  • bronze_results: {step_name: {status, duration, rows, ...}}      │    │
 │  │  • silver_results: {step_name: {status, duration, rows, ...}}      │    │
 │  │  • gold_results: {step_name: {status, duration, rows, ...}}        │    │
@@ -1044,9 +1042,9 @@ print(f"⏱️  Duration: {result.duration_seconds:.2f}s")
 ```
 
 **Execution Flow**:
-1. All Bronze steps execute first (can run in parallel)
-2. All Silver steps execute after their Bronze dependencies (can run in parallel)
-3. All Gold steps execute based on their Silver dependencies (can run in parallel)
+1. All Bronze steps execute first (sequentially within their group)
+2. All Silver steps execute after their Bronze dependencies (sequentially within their group)
+3. All Gold steps execute based on their Silver dependencies (sequentially within their group)
 4. Multiple Gold tables can be created from the same Silver sources
 
 ---
@@ -1252,7 +1250,7 @@ if result.status.value != "completed":
 
 ### 2. Performance
 
-- Enable parallel execution for independent steps
+- Optimize execution order for independent steps
 - Use appropriate partitioning strategies
 - Monitor execution times and optimize slow steps
 - Use Delta Lake OPTIMIZE for better query performance

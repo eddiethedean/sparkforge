@@ -174,7 +174,6 @@ class WriterConfig:
     batch_size: int = 1000
     max_file_size_mb: int = 128
     enable_optimization: bool = True
-    parallel_write_threads: int = 4
     memory_fraction: float = 0.6
 
     # Feature flags
@@ -216,8 +215,6 @@ class WriterConfig:
             raise ValueError("Max retries cannot be negative")
         if self.retry_delay_secs < 0:
             raise ValueError("Retry delay cannot be negative")
-        if self.parallel_write_threads <= 0:
-            raise ValueError("Parallel write threads must be positive")
         if not 0 < self.memory_fraction <= 1:
             raise ValueError("Memory fraction must be between 0 and 1")
         if self.schema_validation_mode not in ["strict", "lenient", "ignore"]:

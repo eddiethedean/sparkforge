@@ -259,8 +259,6 @@ class PipelineMetrics(BaseModel):
             all steps. Defaults to 0.
         avg_validation_rate: Average validation success rate across all steps
             (0-100). Defaults to 0.0.
-        parallel_efficiency: Parallel execution efficiency (0-100). Not
-            currently used in sequential execution. Defaults to 0.0.
         cache_hit_rate: Cache hit rate (0-100). Defaults to 0.0.
         error_count: Total number of errors encountered. Defaults to 0.
         retry_count: Total number of retries attempted. Defaults to 0.
@@ -296,7 +294,6 @@ class PipelineMetrics(BaseModel):
     total_rows_processed: int = 0
     total_rows_written: int = 0
     avg_validation_rate: float = 0.0
-    parallel_efficiency: float = 0.0
     cache_hit_rate: float = 0.0
     error_count: int = 0
     retry_count: int = 0

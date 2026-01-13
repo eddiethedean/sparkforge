@@ -360,31 +360,17 @@ class SqlExecutionEngine:
         execution_groups = analysis.execution_groups
         step_results: list[StepResult] = []
 
-        # Execute steps in dependency order
+        # Execute steps in dependency order (sequential execution)
         for group in execution_groups:
-            if self.is_async and self.config.parallel.enabled:
-                # Parallel async execution
-                step_results.extend(
-                    self._execute_group_async(
-                        group,
-                        bronze_steps,
-                        silver_steps,
-                        gold_steps,
-                        execution_context,
-                        mode,
-                    )
+            for step_name in group:
+                step = (
+                    bronze_steps.get(step_name)
+                    or silver_steps.get(step_name)
+                    or gold_steps.get(step_name)
                 )
-            else:
-                # Sequential execution
-                for step_name in group:
-                    step = (
-                        bronze_steps.get(step_name)
-                        or silver_steps.get(step_name)
-                        or gold_steps.get(step_name)
-                    )
-                    if step:
-                        result = self.execute_step(step, execution_context, mode)
-                        step_results.append(result)
+                if step:
+                    result = self.execute_step(step, execution_context, mode)
+                    step_results.append(result)
 
         context.finish()
 
@@ -398,30 +384,3 @@ class SqlExecutionEngine:
             metrics=metrics,
             success=success,
         )
-
-    def _execute_group_async(
-        self,
-        group: list[str],
-        bronze_steps: Dict[str, SqlBronzeStep],
-        silver_steps: Dict[str, SqlSilverStep],
-        gold_steps: Dict[str, SqlGoldStep],
-        execution_context: Dict[str, Any],
-        mode: ExecutionMode,
-    ) -> list[StepResult]:
-        """Execute a group of steps in parallel using async."""
-        # For now, fall back to sequential
-        # Full async implementation would require async/await throughout
-        self.logger.warning(
-            "Async parallel execution not fully implemented, using sequential"
-        )
-        results = []
-        for step_name in group:
-            step = (
-                bronze_steps.get(step_name)
-                or silver_steps.get(step_name)
-                or gold_steps.get(step_name)
-            )
-            if step:
-                result = self.execute_step(step, execution_context, mode)
-                results.append(result)
-        return results

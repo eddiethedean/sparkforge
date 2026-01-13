@@ -28,7 +28,9 @@ else:
 
         StructType = compat_types.StructType  # type: ignore[assignment]
     except Exception:
-        StructType = Any  # type: ignore[assignment]
+        # Use object instead of Any for Python 3.8 compatibility
+        # Any cannot be used with isinstance() in Python 3.8
+        StructType = object  # type: ignore[assignment]
 
 
 @dataclass
@@ -192,7 +194,7 @@ class SilverStep(BaseModel):
     existing: bool = False
     schema: Optional[str] = None
     source_incremental_col: Optional[str] = None
-    schema_override: Optional[Any] = None
+    schema_override: Optional[StructType] = None
 
     def __post_init__(self) -> None:
         """Validate required fields after initialization."""
@@ -316,7 +318,7 @@ class GoldStep(BaseModel):
     table_name: str
     source_silvers: Optional[list[str]] = None
     schema: Optional[str] = None
-    schema_override: Optional[Any] = None
+    schema_override: Optional[StructType] = None
 
     def __post_init__(self) -> None:
         """Validate required fields after initialization."""

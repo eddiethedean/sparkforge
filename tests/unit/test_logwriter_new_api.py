@@ -115,7 +115,6 @@ class TestConvertReportToLogRows:
                 total_rows_processed=10000,
                 total_rows_written=9500,
                 avg_validation_rate=98.5,
-                parallel_efficiency=85.0,
             ),
             bronze_results={
                 "bronze_step_1": {

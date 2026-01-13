@@ -82,11 +82,6 @@ class PipelineReport:
         """Number of failed steps."""
         return self.metrics.failed_steps
 
-    @property
-    def parallel_efficiency(self) -> float:
-        """Parallel execution efficiency percentage."""
-        return self.metrics.parallel_efficiency
-
     def to_dict(self) -> Dict[str, Any]:
         """Convert report to dictionary."""
         return {
@@ -108,7 +103,6 @@ class PipelineReport:
                 "gold_duration": self.metrics.gold_duration,
                 "total_rows_processed": self.metrics.total_rows_processed,
                 "total_rows_written": self.metrics.total_rows_written,
-                "parallel_efficiency": self.metrics.parallel_efficiency,
                 "cache_hit_rate": self.metrics.cache_hit_rate,
                 "error_count": self.metrics.error_count,
                 "retry_count": self.metrics.retry_count,
@@ -122,7 +116,7 @@ class PipelineReport:
         }
 
 
-# ParallelConfig and PipelineConfig moved to main models.py to avoid duplication
+# PipelineConfig moved to main models.py to avoid duplication
 
 
 @dataclass

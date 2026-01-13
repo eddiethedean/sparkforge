@@ -429,7 +429,6 @@ config = WriterConfig(
     # Performance settings
     batch_size=1000,
     max_file_size_mb=128,
-    parallel_write_threads=4,
     memory_fraction=0.8,
     
     # Data quality settings
@@ -460,7 +459,6 @@ config = WriterConfig(
 ##### Performance Settings
 - `batch_size`: Batch size for large operations (default: 1000)
 - `max_file_size_mb`: Maximum file size in MB (default: 128)
-- `parallel_write_threads`: Number of parallel write threads (default: 4)
 - `memory_fraction`: Memory fraction to use (default: 0.6)
 
 ##### Data Quality Settings
@@ -740,7 +738,6 @@ config = WriterConfig(
     # Performance optimization
     batch_size=2000,
     max_file_size_mb=256,
-    parallel_write_threads=8,
     memory_fraction=0.8,
     enable_optimization=True,
     
@@ -951,15 +948,13 @@ print(f"Peak Memory Usage: {metrics['memory_usage_peak_mb']} MB")
 # For high-volume data
 config = WriterConfig(
     batch_size=5000,  # Larger batches for high volume
-    max_file_size_mb=512,
-    parallel_write_threads=8
+    max_file_size_mb=512
 )
 
 # For low-latency requirements
 config = WriterConfig(
     batch_size=100,   # Smaller batches for low latency
-    max_file_size_mb=64,
-    parallel_write_threads=2
+    max_file_size_mb=64
 )
 ```
 
@@ -969,15 +964,13 @@ config = WriterConfig(
 # For memory-constrained environments
 config = WriterConfig(
     memory_fraction=0.4,  # Use less memory
-    batch_size=500,
-    parallel_write_threads=2
+    batch_size=500
 )
 
 # For memory-rich environments
 config = WriterConfig(
     memory_fraction=0.8,  # Use more memory
-    batch_size=2000,
-    parallel_write_threads=8
+    batch_size=2000
 )
 ```
 
@@ -1074,7 +1067,7 @@ result = writer.append(pipeline_report)
 - Monitor memory usage and adjust `memory_fraction`
 - Use appropriate batch sizes for your workload
 - Enable table optimization for large datasets
-- Use parallel write threads for better throughput
+- Optimize batch size and memory fraction for better throughput
 
 ### 3. Data Quality
 

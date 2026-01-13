@@ -389,7 +389,7 @@ logs.show()
 - ✅ **Works with PipelineReport** - Direct integration with pipeline results
 - ✅ **Easy methods** - `create_table()` and `append()` for intuitive workflow
 - ✅ **Comprehensive metrics** - Tracks rows processed, durations, success rates
-- ✅ **Detailed metadata** - Layer durations, parallel efficiency, warnings, recommendations
+- ✅ **Detailed metadata** - Layer durations, warnings, recommendations
 - ✅ **Emoji-rich output** - Visual feedback during execution (📊✅❌)
 
 ### What Gets Logged
@@ -398,7 +398,7 @@ Each pipeline execution is logged with:
 - **Run information**: run_id, mode (initial/incremental), timestamps
 - **Execution metrics**: total steps, successful/failed counts, durations by layer
 - **Data metrics**: rows processed, rows written, validation rates
-- **Performance**: parallel efficiency, execution groups, max parallelism
+- **Performance**: execution groups, dependency analysis
 - **Status**: success/failure, error messages, warnings, recommendations
 
 ### Example Log Query
@@ -604,7 +604,7 @@ Each service has a single responsibility and can be tested independently.
 - ✅ **Detailed metrics** - Rows processed, rows written, invalid counts, validation rates
 - ✅ **Visual indicators** - 🚀 Starting, ✅ Completed, ❌ Failed with clear status
 - ✅ **Smart formatting** - Bronze shows "processed", Silver/Gold show "written"
-- ✅ **Execution insights** - Duration tracking, parallel efficiency, group information
+- ✅ **Execution insights** - Duration tracking, group information
 
 ```
 13:08:09 - PipelineRunner - INFO - 🚀 Starting BRONZE step: bronze_events

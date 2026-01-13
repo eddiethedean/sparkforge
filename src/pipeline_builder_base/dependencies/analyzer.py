@@ -316,7 +316,7 @@ class DependencyAnalyzer:
         stats = graph.get_stats()
         if stats["average_dependencies"] > 3:
             recommendations.append(
-                "Consider reducing step dependencies for better parallelization"
+                "Consider reducing step dependencies for better performance"
             )
 
         if len(graph.nodes) > 10:

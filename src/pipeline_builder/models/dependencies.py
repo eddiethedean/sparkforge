@@ -25,14 +25,12 @@ class SilverDependencyInfo(BaseModel):
         step_name: Name of the silver step
         source_bronze: Source bronze step name
         depends_on_silvers: Set of silver step names this step depends on
-        can_run_parallel: Whether this step can run in parallel
-        execution_group: Execution group for parallel processing
+        execution_group: Execution group for sequential processing
     """
 
     step_name: str
     source_bronze: str
     depends_on_silvers: set[str]
-    can_run_parallel: bool
     execution_group: int
 
     def validate(self) -> None:
@@ -113,12 +111,12 @@ class UnifiedExecutionPlan(BaseModel):
     Attributes:
         steps: List of unified step configurations
         execution_order: Ordered list of step names for execution
-        parallel_groups: Groups of steps that can run in parallel
+        execution_groups: Groups of steps organized by dependency level
     """
 
     steps: list[UnifiedStepConfig]
     execution_order: list[str]
-    parallel_groups: list[list[str]]
+    execution_groups: list[list[str]]
 
     def validate(self) -> None:
         """Validate unified execution plan."""
@@ -126,8 +124,8 @@ class UnifiedExecutionPlan(BaseModel):
             raise PipelineValidationError("Steps must be a list")
         if not isinstance(self.execution_order, list):
             raise PipelineValidationError("Execution order must be a list")
-        if not isinstance(self.parallel_groups, list):
-            raise PipelineValidationError("Parallel groups must be a list")
+        if not isinstance(self.execution_groups, list):
+            raise PipelineValidationError("Execution groups must be a list")
 
         # Validate that all steps in execution order exist
         step_names = {step.step_name for step in self.steps}

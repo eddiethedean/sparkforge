@@ -618,7 +618,6 @@ class ExecutionResult:
         status: Overall pipeline status ("running", "completed", "failed").
         steps: List of StepExecutionResult for each step in the pipeline.
         error: Error message if pipeline failed (None if successful).
-        parallel_efficiency: Deprecated - always 0.0 (kept for backward compatibility).
         execution_groups_count: Number of dependency groups executed.
         max_group_size: Maximum number of steps in any execution group.
 
@@ -636,7 +635,6 @@ class ExecutionResult:
     status: str = "running"
     steps: Optional[list[StepExecutionResult]] = None
     error: Optional[str] = None
-    parallel_efficiency: float = 0.0
     execution_groups_count: int = 0
     max_group_size: int = 0
 
@@ -1675,7 +1673,6 @@ class ExecutionEngine:
         self,
         steps: list[Union[BronzeStep, SilverStep] | GoldStep],
         mode: ExecutionMode = ExecutionMode.INITIAL,
-        max_workers: int = 4,
         context: Optional[Dict[str, DataFrame]] = None,  # type: ignore[valid-type]
     ) -> ExecutionResult:
         """Execute a complete pipeline with dependency-aware sequential execution.
@@ -1689,8 +1686,6 @@ class ExecutionEngine:
                 Gold steps in any order - dependencies are automatically analyzed.
             mode: Execution mode (INITIAL, INCREMENTAL, FULL_REFRESH,
                 VALIDATION_ONLY). Defaults to INITIAL.
-            max_workers: Deprecated parameter. Ignored, kept for backward
-                compatibility. Execution is always sequential.
             context: Optional initial execution context dictionary mapping step
                 names to DataFrames. Must contain bronze source data. If None,
                 empty dictionary is used.

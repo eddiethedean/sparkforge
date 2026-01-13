@@ -33,7 +33,6 @@ class StepNode:
     dependencies: set[str] = field(default_factory=set)
     dependents: set[str] = field(default_factory=set)
     execution_group: int = 0
-    can_run_parallel: bool = True
     estimated_duration: float = 0.0
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -147,7 +146,12 @@ class DependencyGraph:
         return result
 
     def get_execution_groups(self) -> list[list[str]]:
-        """Get execution groups for parallel execution."""
+        """Get execution groups for sequential execution.
+
+        Groups steps by their level in the dependency tree. Steps in the same
+        group have no dependencies on each other. Groups are executed
+        sequentially, and steps within each group are also executed sequentially.
+        """
         # Use topological sort to determine execution order
         sorted_nodes = self.topological_sort()
 
@@ -177,11 +181,6 @@ class DependencyGraph:
             groups[level].append(node)
 
         return [groups[level] for level in sorted(groups.keys())]
-
-    def get_parallel_candidates(self) -> list[list[str]]:
-        """Get groups of steps that can run in parallel."""
-        execution_groups = self.get_execution_groups()
-        return execution_groups
 
     def validate(self) -> list[str]:
         """Validate the dependency graph and return any issues."""

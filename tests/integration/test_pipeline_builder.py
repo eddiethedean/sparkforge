@@ -68,7 +68,6 @@ class TestPipelineMetrics(unittest.TestCase):
             gold_duration=1.0,
             total_rows_processed=1000,
             total_rows_written=950,
-            parallel_efficiency=0.8,
             cache_hit_rate=0.6,
             error_count=2,
             retry_count=1,
@@ -84,7 +83,6 @@ class TestPipelineMetrics(unittest.TestCase):
         self.assertEqual(metrics.gold_duration, 1.0)
         self.assertEqual(metrics.total_rows_processed, 1000)
         self.assertEqual(metrics.total_rows_written, 950)
-        self.assertEqual(metrics.parallel_efficiency, 0.8)
         self.assertEqual(metrics.cache_hit_rate, 0.6)
         self.assertEqual(metrics.error_count, 2)
         self.assertEqual(metrics.retry_count, 1)

@@ -392,7 +392,7 @@ class StorageManager:
                         f"Delta table created successfully: {self.table_fqn}"
                     )
                 except Exception as create_error:
-                    # Handle race condition in parallel execution - table might already exist
+                    # Handle race condition - table might already exist
                     error_msg = str(create_error).lower()
                     # Check for various "table already exists" error formats
                     if (
@@ -402,7 +402,7 @@ class StorageManager:
                         and "already exists" in error_msg
                     ):
                         self.logger.debug(
-                            f"Table {self.table_fqn} already exists (likely created by parallel execution), continuing..."
+                            f"Table {self.table_fqn} already exists, continuing..."
                         )
                         # Verify table exists and has correct schema - if not, re-raise
                         if not table_exists(self.spark, self.table_fqn):

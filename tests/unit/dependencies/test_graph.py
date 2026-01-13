@@ -142,17 +142,3 @@ class TestDependencyGraph:
         assert stats["total_edges"] == 1
         assert stats["average_dependencies"] == 0.5
 
-    def test_get_parallel_candidates(self):
-        """Test get_parallel_candidates method."""
-        graph = DependencyGraph()
-
-        # Add nodes
-        graph.add_node(StepNode("step1", StepType.BRONZE, set()))
-        graph.add_node(StepNode("step2", StepType.SILVER, set()))
-        graph.add_dependency("step1", "step2")
-
-        candidates = graph.get_parallel_candidates()
-
-        assert len(candidates) == 2
-        assert ["step1"] in candidates
-        assert ["step2"] in candidates

@@ -867,10 +867,10 @@ class TestExecutionEngine:
             assert result.steps[1].step_type == StepType.SILVER
             assert result.steps[2].step_type == StepType.GOLD
 
-    def test_execute_pipeline_with_max_workers(
+    def test_execute_pipeline_sequential(
         self, mock_spark, mock_config, sample_bronze_step
     ):
-        """Test pipeline execution with max_workers parameter."""
+        """Test pipeline execution with sequential execution."""
         # Mock DataFrame
         mock_df = Mock(spec=DataFrame)
         mock_df.count.return_value = 100
@@ -893,7 +893,6 @@ class TestExecutionEngine:
             result = engine.execute_pipeline(
                 [sample_bronze_step],
                 ExecutionMode.INITIAL,
-                max_workers=8,
                 context=context,
             )
 

@@ -3,21 +3,21 @@ Dependency graph representation for the framework pipelines.
 
 This module provides a clean, efficient representation of pipeline dependencies
 that can be used for dependency analysis, cycle detection, execution planning,
-and optimization. The graph supports topological sorting, parallel execution
+and optimization. The graph supports topological sorting and execution grouping
 grouping, and validation.
 
 **Key Features:**
     - **Dependency Tracking**: Track dependencies and dependents for each step
     - **Cycle Detection**: Detect circular dependencies in the pipeline
     - **Topological Sort**: Order steps by dependency requirements
-    - **Execution Groups**: Group steps that can run in parallel
+    - **Execution Groups**: Group steps by dependency level for sequential execution
     - **Validation**: Validate graph structure and detect issues
 
 **Common Use Cases:**
     - Analyze pipeline dependencies before execution
     - Detect circular dependencies that would cause execution failures
     - Determine execution order for sequential processing
-    - Group steps for parallel execution (if supported)
+    - Group steps by dependency level for sequential execution
 
 Example:
     >>> from pipeline_builder.dependencies.graph import (
@@ -89,9 +89,7 @@ class StepNode:
         dependents: Set of step names that depend on this step. These steps
             cannot execute until this step completes.
         execution_group: Group number for execution ordering. Steps in the
-            same group can potentially run in parallel (if supported).
-        can_run_parallel: Whether this step can run in parallel with other
-            steps. Defaults to True.
+            same group have no dependencies on each other.
         estimated_duration: Estimated execution duration in seconds. Used
             for optimization and scheduling. Defaults to 0.0.
         metadata: Dictionary for storing custom metadata about the step.
@@ -112,7 +110,6 @@ class StepNode:
     dependencies: set[str] = field(default_factory=set)
     dependents: set[str] = field(default_factory=set)
     execution_group: int = 0
-    can_run_parallel: bool = True
     estimated_duration: float = 0.0
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -360,16 +357,16 @@ class DependencyGraph:
         return result
 
     def get_execution_groups(self) -> list[list[str]]:
-        """Get execution groups for parallel execution.
+        """Get execution groups for sequential execution.
 
         Groups steps by their level in the dependency tree. Steps in the same
-        group have no dependencies on each other and can potentially run in
-        parallel (if parallel execution is supported).
+        group have no dependencies on each other. Groups are executed
+        sequentially, and steps within each group are also executed sequentially.
 
         Returns:
             List of execution groups, where each group is a list of step names
-            that can run in parallel. Groups are ordered by dependency level
-            (earlier groups must complete before later groups).
+            that have no dependencies on each other. Groups are ordered by
+            dependency level (earlier groups must complete before later groups).
 
         Example:
             >>> graph = DependencyGraph()
@@ -410,11 +407,6 @@ class DependencyGraph:
             groups[level].append(node)
 
         return [groups[level] for level in sorted(groups.keys())]
-
-    def get_parallel_candidates(self) -> list[list[str]]:
-        """Get groups of steps that can run in parallel."""
-        execution_groups = self.get_execution_groups()
-        return execution_groups
 
     def validate(self) -> list[str]:
         """Validate the dependency graph and return any issues.
