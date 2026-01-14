@@ -163,13 +163,9 @@ def and_all_rules(
         # Check if it's a Column-like object (has column operations)
         if isinstance(expr, str):
             column_expressions.append(functions.expr(expr))
-        elif isinstance(expr, Column):
-            column_expressions.append(expr)
-        else:
-            # This handles Column-like objects that aren't str or Column
-            # Check if it has Column-like methods
-            if hasattr(expr, "__and__") and hasattr(expr, "__invert__"):
-                column_expressions.append(cast(Column, expr))
+        elif hasattr(expr, "__and__") and hasattr(expr, "__invert__"):
+            # Column-like object (use duck typing for Python 3.8 compatibility)
+            column_expressions.append(cast(Column, expr))
 
     if not column_expressions:
         return True
@@ -276,7 +272,7 @@ def apply_column_rules(
         total_rows = df.count()
         valid_rows = total_rows
         invalid_rows = 0
-    elif isinstance(validation_predicate, Column) or (
+    elif (
         hasattr(validation_predicate, "__and__")
         and hasattr(validation_predicate, "__invert__")
         and not isinstance(validation_predicate, bool)
@@ -287,7 +283,10 @@ def apply_column_rules(
         # sparkless and PySpark
         if isinstance(validation_predicate, str):
             validation_predicate = functions.expr(validation_predicate)
-        elif not isinstance(validation_predicate, Column):
+        elif not (
+            hasattr(validation_predicate, "__and__")
+            and hasattr(validation_predicate, "__invert__")
+        ):
             # Check if we're in real PySpark mode and predicate is not a PySpark Column
             # This can happen when tests use sparkless functions in real PySpark mode
             try:

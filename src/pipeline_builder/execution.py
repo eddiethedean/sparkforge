@@ -111,7 +111,7 @@ from pipeline_builder_base.models import (
     PipelineConfig,
 )
 
-from .compat import AnalysisException, DataFrame, F, SparkSession
+from .compat import DataFrame, F, SparkSession
 from .functions import FunctionsProtocol
 from .models import BronzeStep, GoldStep, SilverStep
 from .step_executors import (
@@ -1131,7 +1131,6 @@ class ExecutionEngine:
                                     if (
                                         "already exists" in error_msg
                                         or "table_or_view_already_exists" in error_msg
-                                        or isinstance(write_error, AnalysisException)
                                     ):
                                         # Table was created by another thread - verify it exists and retry with overwrite mode
                                         if table_exists(self.spark, output_table):
@@ -1168,7 +1167,6 @@ class ExecutionEngine:
                                     if (
                                         "already exists" in error_msg
                                         or "table_or_view_already_exists" in error_msg
-                                        or isinstance(write_error, AnalysisException)
                                     ):
                                         # Table was created by another thread - verify it exists and retry with overwrite mode
                                         if table_exists(self.spark, output_table):
@@ -1205,7 +1203,6 @@ class ExecutionEngine:
                                 if (
                                     "already exists" in error_msg
                                     or "table_or_view_already_exists" in error_msg
-                                    or isinstance(write_error, AnalysisException)
                                 ):
                                     # Table was created by another thread - verify it exists and retry
                                     if table_exists(self.spark, output_table):
@@ -1562,7 +1559,6 @@ class ExecutionEngine:
                             elif (
                                 "already exists" in error_msg
                                 or "table_or_view_already_exists" in error_msg
-                                or isinstance(write_error, AnalysisException)
                             ):
                                 # Table was created by another thread - verify it exists and retry with overwrite mode
                                 if table_exists(self.spark, output_table):

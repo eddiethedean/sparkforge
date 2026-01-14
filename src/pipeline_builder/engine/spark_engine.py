@@ -152,7 +152,7 @@ class SparkEngine(Engine):
                     )
                 # For gold steps, source should be a dict of silvers (Dict[str, DataFrame]  # type: ignore[valid-type])
                 # The abstracts interface expects Source, but we accept dict for gold steps
-                if isinstance(source, dict):
+                if type(source) is dict:
                     silvers = source
                 else:
                     # If single DataFrame, this is an error for gold steps
@@ -179,9 +179,9 @@ class SparkEngine(Engine):
         Returns:
             WriteReport with write results
         """
-        # Type check: source should be a DataFrame
-        if not isinstance(source, DataFrame):
-            raise TypeError(f"Source must be a DataFrame, got {type(source)}")
+        # Duck-type: must expose DataFrameProtocol surface (avoids isinstance issues in Python 3.8)
+        if not hasattr(source, "schema") or not hasattr(source, "count"):
+            raise TypeError(f"Source must be DataFrame-like, got {type(source)}")
 
         df: DataFrame = source  # type: ignore[valid-type]
 

@@ -448,8 +448,9 @@ def read_table(
         logger.info(f"Successfully read table {fqn}")
         return df
     except Exception as e:
-        # Check if it's an AnalysisException (table doesn't exist)
-        if isinstance(e, AnalysisException):  # type: ignore[arg-type]
+        # Check if it's an AnalysisException (table doesn't exist) - use type name check for Python 3.8 compatibility
+        error_type_name = type(e).__name__
+        if "AnalysisException" in error_type_name:
             raise TableOperationError(f"Table {fqn} does not exist: {e}") from e
         else:
             raise TableOperationError(f"Failed to read table {fqn}: {e}") from e

@@ -23,7 +23,7 @@ from typing import Dict, Optional, TypedDict, Union, cast
 
 from pipeline_builder_base.logging import PipelineLogger
 
-from ..compat import AnalysisException, DataFrame, SparkSession, types
+from ..compat import DataFrame, SparkSession, types
 from ..functions import FunctionsProtocol, get_default_functions
 from ..table_operations import (
     prepare_delta_overwrite,
@@ -398,8 +398,6 @@ class StorageManager:
                     if (
                         "already exists" in error_msg
                         or "table_or_view_already_exists" in error_msg
-                        or isinstance(create_error, AnalysisException)
-                        and "already exists" in error_msg
                     ):
                         self.logger.debug(
                             f"Table {self.table_fqn} already exists, continuing..."
@@ -586,10 +584,6 @@ class StorageManager:
                 if (
                     "already exists" in error_msg
                     or "table_or_view_already_exists" in error_msg
-                    or (
-                        isinstance(write_error, AnalysisException)
-                        and "already exists" in error_msg
-                    )
                 ):
                     if table_exists(self.spark, self.table_fqn):
                         self.logger.debug(
