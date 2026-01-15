@@ -133,6 +133,9 @@ class PipelineBuilder(BasePipelineBuilder):
         bronze_steps: Dictionary of BronzeStep instances.
         silver_steps: Dictionary of SilverStep instances.
         gold_steps: Dictionary of GoldStep instances.
+        execution_order: List of step names in execution order (topological sort).
+            Populated automatically after successful pipeline validation.
+            None if validation hasn't been run or failed.
 
     Example:
         Basic pipeline construction:
@@ -271,6 +274,9 @@ class PipelineBuilder(BasePipelineBuilder):
         # NOTE: We use runtime type checks in validate_pipeline() to catch any mismatches
         validator: PipelineValidator = cast(PipelineValidator, self.validator)  # type: ignore[redundant-cast]
         self._base_validator: PipelineValidator = validator
+        
+        # Execution order will be populated after validation
+        self.execution_order: Optional[List[str]] = None
 
         # Override base validator with spark_validator for backward compatibility
         # This allows add_validator() to work on self.validator
@@ -1056,10 +1062,58 @@ class PipelineBuilder(BasePipelineBuilder):
             )
             for error in all_errors:
                 self.logger.error(f"  - {error}")
+            # Clear execution order if validation fails
+            self.execution_order = None
         else:
             self.logger.info("✅ Pipeline validation passed")
+            # Calculate execution order after successful validation
+            self._calculate_execution_order()
 
         return all_errors
+
+    def _calculate_execution_order(self) -> None:
+        """Calculate and store execution order based on step dependencies.
+        
+        Uses DependencyAnalyzer to determine the topological sort order of steps.
+        This is called automatically after successful pipeline validation.
+        
+        Note:
+            Execution order is stored in self.execution_order attribute.
+            If dependency analysis fails, execution_order is set to None.
+        """
+        try:
+            from pipeline_builder_base.dependencies import DependencyAnalyzer
+            
+            # Convert step dictionaries to format expected by DependencyAnalyzer
+            bronze_dict = {name: step for name, step in self.bronze_steps.items()}
+            silver_dict = {name: step for name, step in self.silver_steps.items()}
+            gold_dict = {name: step for name, step in self.gold_steps.items()}
+            
+            # Analyze dependencies
+            analyzer = DependencyAnalyzer()
+            analysis = analyzer.analyze_dependencies(
+                bronze_steps=bronze_dict,
+                silver_steps=silver_dict,
+                gold_steps=gold_dict,
+            )
+            
+            # Store execution order
+            self.execution_order = analysis.execution_order
+            
+            # Log execution order
+            if self.execution_order:
+                self.logger.info(
+                    f"📋 Execution order ({len(self.execution_order)} steps): "
+                    f"{' → '.join(self.execution_order)}"
+                )
+            else:
+                self.logger.warning("Execution order is empty - no steps to execute")
+        except Exception as e:
+            self.logger.warning(
+                f"Could not calculate execution order: {e}. "
+                f"Execution order will not be available."
+            )
+            self.execution_order = None
 
     # ============================================================================
     # PRESET CONFIGURATIONS AND HELPER METHODS

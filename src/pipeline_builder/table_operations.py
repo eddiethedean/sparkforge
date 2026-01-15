@@ -177,6 +177,10 @@ def create_dataframe_writer(
     """
     # Use standardized overwrite pattern: overwrite + overwriteSchema
     if mode == "overwrite":
+        # Prepare Delta table for overwrite by dropping it if it exists
+        # This avoids "Table does not support truncate in batch mode" errors
+        if table_name is not None:
+            prepare_delta_overwrite(spark, table_name)
         writer = (
             df.write.format("delta").mode("overwrite").option("overwriteSchema", "true")
         )
@@ -235,11 +239,28 @@ def prepare_delta_overwrite(
         # Delta tables don't support truncate, so we must drop before overwrite
         # Use DROP TABLE IF EXISTS to avoid errors if table doesn't exist
         try:
+            # First try using SQL DROP TABLE
             spark.sql(f"DROP TABLE IF EXISTS {table_name}")  # type: ignore[attr-defined]
             logger.debug(f"Dropped table {table_name} before overwrite (if it existed)")
+            
+            # For Delta tables, also try using DeltaTable API if available
+            # This ensures the table is fully removed, including metadata
+            if HAS_DELTA:
+                try:
+                    # Try to get the table path and delete using DeltaTable
+                    # This is a more thorough cleanup for Delta tables
+                    table_info = spark.sql(f"DESCRIBE TABLE EXTENDED {table_name}").collect()  # type: ignore[attr-defined]
+                    # If we get here, table still exists - try DeltaTable.delete()
+                    delta_table = DeltaTable.forName(spark, table_name)  # type: ignore[attr-defined,assignment]
+                    delta_table.delete()  # type: ignore[attr-defined]
+                    logger.debug(f"Deleted Delta table {table_name} using DeltaTable API")
+                except Exception:
+                    # DeltaTable API might not work or table might not be Delta
+                    # This is fine - SQL DROP should have worked
+                    pass
         except Exception as e:
-            # If drop fails, log warning but continue - the write might still work
-            # If it's a Delta table, the write will fail with truncate error
+            # If drop fails, log warning but continue
+            # The write might still work if table doesn't exist
             logger.warning(f"Could not drop table {table_name} before overwrite: {e}")
     else:
         # It's a path - check if Delta table exists at that path
