@@ -506,3 +506,161 @@ class TestSilverDependencyIntegration:
         assert builder.execution_order == expected_order, (
             f"Expected execution order {expected_order}, got {builder.execution_order}"
         )
+
+    def test_deterministic_ordering_by_creation_order(self, spark, F):
+        """Test that steps without explicit dependencies execute in creation order."""
+        # Create sample bronze data
+        data = [("user1", "event1", 100), ("user2", "event2", 200)]
+        bronze_df = spark.createDataFrame(data, ["user_id", "event_type", "value"])
+
+        # Build pipeline
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
+
+        # Add bronze step
+        builder.with_bronze_rules(
+            name="bronze_events",
+            rules={"user_id": [F.col("user_id").isNotNull()]},
+        )
+
+        # Add two silver steps that both depend on bronze but NOT on each other
+        # They should execute in creation order (silver_first, then silver_second)
+        builder.add_silver_transform(
+            name="silver_first",
+            source_bronze="bronze_events",
+            transform=lambda spark, bronze_df, prior_silvers: bronze_df.withColumn(
+                "processed", F.lit(True)
+            ),
+            rules={"user_id": [F.col("user_id").isNotNull()]},
+            table_name="silver_first",
+            # No source_silvers - no explicit dependency on other silvers
+        )
+
+        builder.add_silver_transform(
+            name="silver_second",
+            source_bronze="bronze_events",
+            transform=lambda spark, bronze_df, prior_silvers: bronze_df.withColumn(
+                "enriched", F.lit(True)
+            ),
+            rules={"user_id": [F.col("user_id").isNotNull()]},
+            table_name="silver_second",
+            # No source_silvers - no explicit dependency on other silvers
+        )
+
+        # Validate pipeline
+        validation_errors = builder.validate_pipeline()
+        assert len(validation_errors) == 0, (
+            f"Pipeline validation should pass, got errors: {validation_errors}"
+        )
+
+        # Verify execution order respects creation order
+        assert builder.execution_order is not None, (
+            "execution_order should be populated after validation"
+        )
+
+        # bronze_events should come first (depends on nothing)
+        assert builder.execution_order[0] == "bronze_events", (
+            "bronze_events should be first"
+        )
+
+        # silver_first should come before silver_second (created first)
+        bronze_idx = builder.execution_order.index("bronze_events")
+        silver_first_idx = builder.execution_order.index("silver_first")
+        silver_second_idx = builder.execution_order.index("silver_second")
+
+        assert bronze_idx < silver_first_idx, (
+            "bronze_events should execute before silver_first"
+        )
+        assert bronze_idx < silver_second_idx, (
+            "bronze_events should execute before silver_second"
+        )
+        assert silver_first_idx < silver_second_idx, (
+            "silver_first should execute before silver_second (creation order)"
+        )
+
+        # Verify exact order: bronze → silver_first → silver_second
+        expected_order = ["bronze_events", "silver_first", "silver_second"]
+        assert builder.execution_order == expected_order, (
+            f"Expected execution order {expected_order} based on creation order, "
+            f"got {builder.execution_order}"
+        )
+
+    def test_source_silvers_overrides_creation_order(self, spark, F):
+        """Test that source_silvers explicitly declared dependencies override creation order."""
+        # Create sample bronze data
+        data = [("user1", "event1", 100), ("user2", "event2", 200)]
+        bronze_df = spark.createDataFrame(data, ["user_id", "event_type", "value"])
+
+        # Build pipeline
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
+
+        # Add bronze step
+        builder.with_bronze_rules(
+            name="bronze_events",
+            rules={"user_id": [F.col("user_id").isNotNull()]},
+        )
+
+        # Add silver_second FIRST (created before silver_main)
+        # But it explicitly depends on silver_main via source_silvers
+        builder.add_silver_transform(
+            name="silver_second",
+            source_bronze="bronze_events",
+            transform=lambda spark, bronze_df, prior_silvers: bronze_df.withColumn(
+                "enriched", F.lit(True)
+            ),
+            rules={"user_id": [F.col("user_id").isNotNull()]},
+            table_name="silver_second",
+            source_silvers=["silver_main"],  # Explicit dependency - should override creation order
+        )
+
+        # Add silver_main SECOND (created after silver_second)
+        # Should execute FIRST due to explicit dependency from silver_second
+        builder.add_silver_transform(
+            name="silver_main",
+            source_bronze="bronze_events",
+            transform=lambda spark, bronze_df, prior_silvers: bronze_df.withColumn(
+                "processed", F.lit(True)
+            ),
+            rules={"user_id": [F.col("user_id").isNotNull()]},
+            table_name="silver_main",
+            # No source_silvers - no explicit dependencies
+        )
+
+        # Validate pipeline
+        validation_errors = builder.validate_pipeline()
+        assert len(validation_errors) == 0, (
+            f"Pipeline validation should pass, got errors: {validation_errors}"
+        )
+
+        # Verify execution order respects explicit dependencies over creation order
+        assert builder.execution_order is not None, (
+            "execution_order should be populated after validation"
+        )
+
+        # bronze_events should come first (depends on nothing)
+        assert builder.execution_order[0] == "bronze_events", (
+            "bronze_events should be first"
+        )
+
+        # silver_main should come before silver_second (explicit dependency overrides creation order)
+        bronze_idx = builder.execution_order.index("bronze_events")
+        silver_main_idx = builder.execution_order.index("silver_main")
+        silver_second_idx = builder.execution_order.index("silver_second")
+
+        assert bronze_idx < silver_main_idx, (
+            "bronze_events should execute before silver_main"
+        )
+        assert bronze_idx < silver_second_idx, (
+            "bronze_events should execute before silver_second"
+        )
+        assert silver_main_idx < silver_second_idx, (
+            "silver_main should execute before silver_second "
+            "(source_silvers dependency overrides creation order)"
+        )
+
+        # Verify exact order: bronze → silver_main → silver_second
+        # (silver_main created second but executes first due to explicit dependency)
+        expected_order = ["bronze_events", "silver_main", "silver_second"]
+        assert builder.execution_order == expected_order, (
+            f"Expected execution order {expected_order} with source_silvers overriding "
+            f"creation order, got {builder.execution_order}"
+        )

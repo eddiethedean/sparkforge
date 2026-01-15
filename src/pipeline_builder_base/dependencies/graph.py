@@ -11,7 +11,7 @@ import logging
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -124,13 +124,23 @@ class DependencyGraph:
 
         return cycles
 
-    def topological_sort(self) -> list[str]:
+    def topological_sort(self, creation_order: Optional[Dict[str, int]] = None) -> list[str]:
         """
         Perform topological sort of the dependency graph.
 
         Returns nodes in an order such that dependencies come before dependents.
         Uses reverse adjacency list since add_dependency(A, B) means A depends on B,
         so B must come before A in the sort.
+        
+        **Explicit dependencies (e.g., source_silvers) always override creation order.**
+        When multiple nodes have the same in-degree, creation_order is used as a
+        tie-breaker for deterministic ordering based on step creation order.
+
+        Args:
+            creation_order: Optional dictionary mapping step names to creation order
+                (lower number = created earlier). Used as tie-breaker for deterministic
+                ordering when steps have no explicit dependencies. Explicit dependencies
+                (via source_silvers, source_bronze, etc.) always take precedence.
         """
         in_degree = dict.fromkeys(self.nodes, 0)
 
@@ -140,8 +150,22 @@ class DependencyGraph:
             for dependent in self._reverse_adjacency_list[node]:
                 in_degree[dependent] += 1
 
+        # Helper function to get creation order for sorting
+        def get_sort_key(node_name: str) -> tuple[int, int]:
+            """Return sort key: (in_degree, creation_order).
+            
+            Lower creation_order (earlier created) comes first.
+            If creation_order not available, use a large number to sort to end.
+            """
+            creation_ord = creation_order.get(node_name, float('inf')) if creation_order else float('inf')
+            return (in_degree[node_name], creation_ord)
+
         # Find nodes with no incoming edges (no dependencies)
-        queue = deque([node for node, degree in in_degree.items() if degree == 0])
+        # Sort by creation order for deterministic ordering
+        ready_nodes = [node for node, degree in in_degree.items() if degree == 0]
+        if creation_order:
+            ready_nodes.sort(key=get_sort_key)
+        queue = deque(ready_nodes)
         result = []
 
         while queue:
@@ -153,6 +177,12 @@ class DependencyGraph:
                 in_degree[dependent] -= 1
                 if in_degree[dependent] == 0:
                     queue.append(dependent)
+                    # Re-sort queue to maintain creation order when adding new nodes
+                    # Convert to list, sort, convert back to deque
+                    if creation_order and len(queue) > 1:
+                        queue_list = list(queue)
+                        queue_list.sort(key=get_sort_key)
+                        queue = deque(queue_list)
 
         return result
 

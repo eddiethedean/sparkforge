@@ -104,6 +104,7 @@ class DependencyAnalyzer:
         silver_steps: Optional[Dict[str, SilverStepProtocol]] = None,
         gold_steps: Optional[Dict[str, GoldStepProtocol]] = None,
         force_refresh: bool = False,
+        creation_order: Optional[Dict[str, int]] = None,
     ) -> DependencyAnalysisResult:
         """
         Analyze dependencies across all step types.
@@ -131,8 +132,10 @@ class DependencyAnalyzer:
         )
 
         try:
-            # Step 1: Build dependency graph
-            graph = self._build_dependency_graph(bronze_steps, silver_steps, gold_steps)
+            # Step 1: Build dependency graph with creation order
+            graph = self._build_dependency_graph(
+                bronze_steps, silver_steps, gold_steps, creation_order=creation_order
+            )
 
             # Step 2: Detect cycles
             cycles = graph.detect_cycles()
@@ -145,8 +148,8 @@ class DependencyAnalyzer:
             if conflicts:
                 self.logger.warning(f"Detected {len(conflicts)} dependency conflicts")
 
-            # Step 4: Generate execution order (topological sort)
-            execution_order = graph.topological_sort()
+            # Step 4: Generate execution order (topological sort with creation order tie-breaker)
+            execution_order = graph.topological_sort(creation_order=creation_order)
 
             # Step 5: Generate recommendations
             recommendations = self._generate_recommendations(graph, cycles, conflicts)
@@ -182,6 +185,7 @@ class DependencyAnalyzer:
         bronze_steps: Optional[Dict[str, BronzeStepProtocol]],
         silver_steps: Optional[Dict[str, SilverStepProtocol]],
         gold_steps: Optional[Dict[str, GoldStepProtocol]],
+        creation_order: Optional[Dict[str, int]] = None,
     ) -> DependencyGraph:
         """Build the dependency graph from all step types."""
         graph = DependencyGraph()
@@ -189,83 +193,104 @@ class DependencyAnalyzer:
         # Add bronze steps
         if bronze_steps:
             for name, step in bronze_steps.items():
+                metadata = {"step": step}
+                if creation_order and name in creation_order:
+                    metadata["creation_order"] = creation_order[name]
                 node = StepNode(
-                    name=name, step_type=StepType.BRONZE, metadata={"step": step}
+                    name=name, step_type=StepType.BRONZE, metadata=metadata
                 )
                 graph.add_node(node)
 
-        # Add silver steps
+        # Add silver steps - first pass: add all nodes
+        silver_step_info = {}  # Store step info for dependency processing
         if silver_steps:
             for name, silver_step in silver_steps.items():
+                metadata = {"step": silver_step}
+                if creation_order and name in creation_order:
+                    metadata["creation_order"] = creation_order[name]
                 node = StepNode(
-                    name=name, step_type=StepType.SILVER, metadata={"step": silver_step}
+                    name=name, step_type=StepType.SILVER, metadata=metadata
                 )
                 graph.add_node(node)
+                # Store step info for second pass
+                silver_step_info[name] = silver_step
 
-                # Add dependencies
-                # SilverStep always has source_bronze attribute
-                source_bronze = getattr(silver_step, "source_bronze", None)
-                if source_bronze:
-                    # Check if the source bronze step exists
-                    if source_bronze in graph.nodes:
-                        graph.add_dependency(name, source_bronze)
-                    else:
-                        # Log warning about missing dependency
-                        self.logger.warning(
-                            f"Silver step {name} references non-existent bronze step {source_bronze}"
-                        )
+        # Second pass: add dependencies (now all nodes exist in graph)
+        for name, silver_step in silver_step_info.items():
+            # Add dependencies
+            # SilverStep always has source_bronze attribute
+            source_bronze = getattr(silver_step, "source_bronze", None)
+            if source_bronze:
+                # Check if the source bronze step exists
+                if source_bronze in graph.nodes:
+                    graph.add_dependency(name, source_bronze)
+                else:
+                    # Log warning about missing dependency
+                    self.logger.warning(
+                        f"Silver step {name} references non-existent bronze step {source_bronze}"
+                    )
 
-                # Check for silver-to-silver dependencies via source_silvers
-                # This allows silver steps to depend on other silver steps
-                source_silvers = getattr(silver_step, "source_silvers", None)
-                if source_silvers:
-                    if isinstance(source_silvers, (list, tuple)):
-                        for dep in source_silvers:
-                            if dep in graph.nodes:
-                                graph.add_dependency(name, dep)
-                            else:
-                                self.logger.warning(
-                                    f"Silver step {name} references non-existent silver step {dep}"
-                                )
-                    elif isinstance(source_silvers, str):
-                        if source_silvers in graph.nodes:
-                            graph.add_dependency(name, source_silvers)
-                        else:
-                            self.logger.warning(
-                                f"Silver step {name} references non-existent silver step {source_silvers}"
-                            )
-
-                # Check for additional dependencies (backward compatibility)
-                if hasattr(silver_step, "depends_on"):
-                    depends_on = getattr(silver_step, "depends_on", None)
-                    if depends_on and isinstance(depends_on, (list, tuple, set)):
-                        for dep in depends_on:
-                            if dep in graph.nodes:
-                                graph.add_dependency(name, dep)
-                            else:
-                                self.logger.warning(
-                                    f"Silver step {name} references non-existent dependency {dep}"
-                                )
-
-        # Add gold steps
-        if gold_steps:
-            for name, gold_step in gold_steps.items():
-                node = StepNode(
-                    name=name, step_type=StepType.GOLD, metadata={"step": gold_step}
-                )
-                graph.add_node(node)
-
-                # Add dependencies
-                # GoldStep always has source_silvers attribute (can be None)
-                source_silvers = getattr(gold_step, "source_silvers", None)
-                if source_silvers:
+            # Check for silver-to-silver dependencies via source_silvers
+            # This allows silver steps to depend on other silver steps
+            # IMPORTANT: source_silvers overrides creation order
+            source_silvers = getattr(silver_step, "source_silvers", None)
+            if source_silvers:
+                if isinstance(source_silvers, (list, tuple)):
                     for dep in source_silvers:
                         if dep in graph.nodes:
                             graph.add_dependency(name, dep)
                         else:
                             self.logger.warning(
-                                f"Gold step {name} references non-existent silver step {dep}"
+                                f"Silver step {name} references non-existent silver step {dep}"
                             )
+                elif isinstance(source_silvers, str):
+                    if source_silvers in graph.nodes:
+                        graph.add_dependency(name, source_silvers)
+                    else:
+                        self.logger.warning(
+                            f"Silver step {name} references non-existent silver step {source_silvers}"
+                        )
+
+            # Check for additional dependencies (backward compatibility)
+            if hasattr(silver_step, "depends_on"):
+                depends_on = getattr(silver_step, "depends_on", None)
+                if depends_on and isinstance(depends_on, (list, tuple, set)):
+                    for dep in depends_on:
+                        if dep in graph.nodes:
+                            graph.add_dependency(name, dep)
+                        else:
+                            self.logger.warning(
+                                f"Silver step {name} references non-existent dependency {dep}"
+                            )
+
+        # Add gold steps - first pass: add all nodes
+        gold_step_info = {}  # Store step info for dependency processing
+        if gold_steps:
+            for name, gold_step in gold_steps.items():
+                metadata = {"step": gold_step}
+                if creation_order and name in creation_order:
+                    metadata["creation_order"] = creation_order[name]
+                node = StepNode(
+                    name=name, step_type=StepType.GOLD, metadata=metadata
+                )
+                graph.add_node(node)
+                # Store step info for second pass
+                gold_step_info[name] = gold_step
+
+        # Second pass: add dependencies (now all nodes exist in graph)
+        for name, gold_step in gold_step_info.items():
+            # Add dependencies
+            # GoldStep always has source_silvers attribute (can be None)
+            # IMPORTANT: source_silvers overrides creation order
+            source_silvers = getattr(gold_step, "source_silvers", None)
+            if source_silvers:
+                for dep in source_silvers:
+                    if dep in graph.nodes:
+                        graph.add_dependency(name, dep)
+                    else:
+                        self.logger.warning(
+                            f"Gold step {name} references non-existent silver step {dep}"
+                        )
 
         return graph
 

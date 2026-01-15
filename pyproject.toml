@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pipeline_builder"
-version = "2.7.1"
+version = "2.7.2"
 description = "A simplified, production-ready data pipeline builder for Apache Spark and Delta Lake"
 readme = "README.md"
 license = {text = "MIT"}
