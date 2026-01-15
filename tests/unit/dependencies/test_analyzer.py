@@ -43,7 +43,7 @@ class TestDependencyAnalysisResult:
         graph = DependencyGraph()
         result = DependencyAnalysisResult(
             graph=graph,
-            execution_groups=[["step1"], ["step2"]],
+            execution_order=["step1", "step2"],
             cycles=[],
             conflicts=[],
             recommendations=["test recommendation"],
@@ -51,7 +51,7 @@ class TestDependencyAnalysisResult:
             analysis_duration=1.5,
         )
         assert result.graph == graph
-        assert result.execution_groups == [["step1"], ["step2"]]
+        assert result.execution_order == ["step1", "step2"]
         assert result.cycles == []
         assert result.conflicts == []
         assert result.recommendations == ["test recommendation"]
@@ -86,7 +86,7 @@ class TestDependencyAnalyzer:
         assert isinstance(result, DependencyAnalysisResult)
         # Use BaseDependencyGraph for isinstance check since result.graph is from base package
         assert isinstance(result.graph, BaseDependencyGraph)
-        assert result.execution_groups == []
+        assert result.execution_order == []
         assert result.cycles == []
         assert result.conflicts == []
         assert result.analysis_duration >= 0
@@ -391,7 +391,8 @@ class TestDependencyAnalyzer:
         with patch.object(analyzer, "_build_dependency_graph") as mock_build_graph:
             mock_graph = Mock()
             mock_graph.detect_cycles.return_value = [["step1", "step2"]]
-            mock_graph.get_execution_groups.return_value = [["step1"], ["step2"]]
+            mock_graph.topological_sort.return_value = ["step1", "step2"]
+            mock_graph.topological_sort.return_value = ["step1", "step2"]
             mock_graph.get_stats.return_value = {
                 "total_steps": 2,
                 "average_dependencies": 1,
@@ -422,7 +423,8 @@ class TestDependencyAnalyzer:
         with patch.object(analyzer, "_build_dependency_graph") as mock_build_graph:
             mock_graph = Mock()
             mock_graph.detect_cycles.return_value = []
-            mock_graph.get_execution_groups.return_value = [["step1"], ["step2"]]
+            mock_graph.topological_sort.return_value = ["step1", "step2"]
+            mock_graph.topological_sort.return_value = ["step1", "step2"]
             mock_graph.get_stats.return_value = {
                 "total_steps": 2,
                 "average_dependencies": 1,

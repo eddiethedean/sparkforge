@@ -2,8 +2,6 @@
 Tests for the dependencies/graph.py module.
 """
 
-from unittest.mock import patch
-
 import pytest
 
 from pipeline_builder.dependencies.graph import DependencyGraph, StepNode, StepType
@@ -62,28 +60,6 @@ class TestDependencyGraph:
         assert len(cycles) > 0
         assert any("step1" in cycle and "step2" in cycle for cycle in cycles)
 
-    def test_get_execution_groups_missing_dependency(self):
-        """Test get_execution_groups with missing dependency."""
-        graph = DependencyGraph()
-
-        # Add nodes
-        graph.add_node(StepNode("step1", StepType.BRONZE, set()))
-        graph.add_node(StepNode("step2", StepType.SILVER, set()))
-
-        # Manually add a dependency to a missing node
-        graph.nodes["step2"].dependencies.add("missing_step")
-
-        with patch("pipeline_builder.dependencies.graph.logger") as mock_logger:
-            groups = graph.get_execution_groups()
-
-            # Check that warning was logged
-            mock_logger.warning.assert_any_call(
-                "Dependency missing_step not found in levels for node step2"
-            )
-
-            # Check that groups were still calculated
-            assert len(groups) > 0
-
     def test_validate_cycles(self):
         """Test validate method with cycles."""
         graph = DependencyGraph()
@@ -112,21 +88,6 @@ class TestDependencyGraph:
         assert len(issues) > 0
         assert any("depends on missing node missing_step" in issue for issue in issues)
 
-    def test_get_execution_groups(self):
-        """Test get_execution_groups method."""
-        graph = DependencyGraph()
-
-        # Add nodes
-        graph.add_node(StepNode("step1", StepType.BRONZE, set()))
-        graph.add_node(StepNode("step2", StepType.SILVER, set()))
-        graph.add_dependency("step1", "step2")
-
-        groups = graph.get_execution_groups()
-
-        assert len(groups) == 2
-        assert ["step1"] in groups
-        assert ["step2"] in groups
-
     def test_get_stats(self):
         """Test get_stats method."""
         graph = DependencyGraph()
@@ -141,4 +102,3 @@ class TestDependencyGraph:
         assert stats["total_nodes"] == 2
         assert stats["total_edges"] == 1
         assert stats["average_dependencies"] == 0.5
-

@@ -65,7 +65,6 @@ class ExecutionReporter:
             - status: Overall pipeline status
             - duration: Total execution duration in seconds
             - steps_count: Total number of steps
-            - execution_groups_count: Number of dependency groups
             - completed_steps: Number of successfully completed steps
             - failed_steps: Number of failed steps
             - total_rows_processed: Sum of rows processed across all steps
@@ -80,7 +79,6 @@ class ExecutionReporter:
             "status": result.status,
             "duration": result.duration,
             "steps_count": len(result.steps) if result.steps else 0,
-            "execution_groups_count": result.execution_groups_count,
         }
 
         if result.steps:

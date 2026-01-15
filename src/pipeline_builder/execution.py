@@ -29,9 +29,8 @@ Execution Modes:
 
 Dependency Analysis:
     The engine automatically analyzes step dependencies and executes steps
-    sequentially in the correct order based on their dependencies. Steps are
-    grouped by dependencies, and groups are executed sequentially to respect
-    dependency constraints.
+    sequentially in the correct order using topological sort. Steps execute
+    one at a time in dependency order to respect dependency constraints.
 
 Service Architecture:
     The execution engine delegates to specialized services:
@@ -70,7 +69,7 @@ Example:
     ...     context={"events": source_df}
     ... )
     >>> print(f"Pipeline completed: {result.status}")
-    >>> print(f"Execution groups: {result.execution_groups_count}")
+    >>> print(f"Steps executed: {len(result.steps) if result.steps else 0}")
 
 Note:
     This module depends on:
@@ -618,8 +617,6 @@ class ExecutionResult:
         status: Overall pipeline status ("running", "completed", "failed").
         steps: List of StepExecutionResult for each step in the pipeline.
         error: Error message if pipeline failed (None if successful).
-        execution_groups_count: Number of dependency groups executed.
-        max_group_size: Maximum number of steps in any execution group.
 
     Note:
         Duration is automatically calculated in __post_init__ if both start_time
@@ -635,8 +632,6 @@ class ExecutionResult:
     status: str = "running"
     steps: Optional[list[StepExecutionResult]] = None
     error: Optional[str] = None
-    execution_groups_count: int = 0
-    max_group_size: int = 0
 
     def __post_init__(self) -> None:
         """Initialize steps list and calculate duration if times are available."""
@@ -663,7 +658,7 @@ class ExecutionEngine:
     Key Features:
         - Dependency-aware execution: Automatically analyzes and respects step
           dependencies
-        - Sequential execution: Steps execute in correct order within dependency groups
+        - Sequential execution: Steps execute in correct dependency order (topological sort)
         - Comprehensive validation: Built-in validation with configurable thresholds
         - Error handling: Detailed error messages with context and suggestions
         - Resource tracking: Monitors memory and CPU usage (if psutil available)
@@ -1689,8 +1684,8 @@ class ExecutionEngine:
         """Execute a complete pipeline with dependency-aware sequential execution.
 
         Analyzes step dependencies and executes steps sequentially in the correct
-        order. Steps are grouped by dependencies, and groups are executed
-        sequentially to respect dependency constraints.
+        order using topological sort. Steps execute one at a time in dependency
+        order to respect dependency constraints.
 
         Args:
             steps: List of steps to execute. Can include Bronze, Silver, and
@@ -1706,7 +1701,7 @@ class ExecutionEngine:
             - Overall pipeline status
             - List of StepExecutionResult for each step
             - Execution timing
-            - Dependency analysis results (execution_groups_count, max_group_size)
+            - Dependency analysis results
 
         Raises:
             ExecutionError: If pipeline execution fails.
@@ -1721,13 +1716,14 @@ class ExecutionEngine:
             ...     context={"events": source_df}
             ... )
             >>> print(f"Status: {result.status}")
-            >>> print(f"Execution groups: {result.execution_groups_count}")
+            >>> print(f"Steps executed: {len(result.steps) if result.steps else 0}")
+            >>> print(f"Execution order: {[s.step_name for s in result.steps] if result.steps else []}")
             >>> print(f"Steps completed: {len([s for s in result.steps if s.status == StepStatus.COMPLETED])}")
 
         Note:
             - All required schemas are created upfront before execution
-            - Steps are grouped by dependencies using DependencyAnalyzer
-            - Groups execute sequentially, steps within groups execute sequentially
+            - Steps are ordered by dependencies using DependencyAnalyzer (topological sort)
+            - Steps execute sequentially one at a time in dependency order
             - Context is updated after each step completion for downstream steps
             - Failed steps are recorded but don't stop execution of remaining steps
         """
@@ -1774,7 +1770,7 @@ class ExecutionEngine:
             silver_steps = [s for s in steps if s.step_type.value == "silver"]
             gold_steps = [s for s in steps if s.step_type.value == "gold"]
 
-            # Build dependency graph and get execution groups
+            # Build dependency graph and get execution order
             analyzer = DependencyAnalyzer()
             analysis = analyzer.analyze_dependencies(
                 bronze_steps={s.name: s for s in bronze_steps},
@@ -1782,122 +1778,104 @@ class ExecutionEngine:
                 gold_steps={s.name: s for s in gold_steps},
             )
 
-            execution_groups = analysis.execution_groups
-            result.execution_groups_count = len(execution_groups)
-            result.max_group_size = (
-                max(len(group) for group in execution_groups) if execution_groups else 0
-            )
+            # Get execution order (topologically sorted steps)
+            execution_order = analysis.execution_order
 
             # Log dependency analysis results
             self.logger.info(
-                f"Dependency analysis complete: {len(execution_groups)} execution groups, "
-                f"max group size: {result.max_group_size}"
+                f"Dependency analysis complete: {len(execution_order)} steps to execute"
             )
 
             # Create a mapping of step names to step objects
             step_map = {s.name: s for s in steps}
 
-            # Execute each group sequentially
-            for group_idx, group in enumerate(execution_groups):
-                group_start = datetime.now()
-                self.logger.info(
-                    f"Executing group {group_idx + 1}/{len(execution_groups)}: "
-                    f"{len(group)} steps - {', '.join(group)}"
-                )
+            # Execute steps in dependency order
+            for step_name in execution_order:
+                if step_name not in step_map:
+                    self.logger.warning(
+                        f"Step {step_name} in execution order but not found in step list"
+                    )
+                    continue
 
-                # Execute steps sequentially within each group
-                for step_name in group:
-                    if step_name not in step_map:
-                        self.logger.warning(
-                            f"Step {step_name} in execution group but not found in step list"
-                        )
-                        continue
+                step = step_map[step_name]
+                try:
+                    step_result = self.execute_step(
+                        step,
+                        context,
+                        mode,
+                    )
+                    if result.steps is not None:
+                        result.steps.append(step_result)
 
-                    step = step_map[step_name]
-                    try:
-                        step_result = self.execute_step(
-                            step,
-                            context,
-                            mode,
-                        )
-                        if result.steps is not None:
-                            result.steps.append(step_result)
-
-                        # Update context with step output for downstream steps
-                        # Note: output_df is already stored in context by execute_step after completion
-                        # This table read is a fallback/refresh to ensure we have the latest data from the table
-                        if (
-                            step_result.status == StepStatus.COMPLETED
-                            and step_result.step_type != StepType.BRONZE
-                        ):
-                            table_name = getattr(step, "table_name", step.name)
-                            schema = getattr(step, "schema", None)
-                            if schema is not None:
-                                table_fqn = fqn(schema, table_name)
+                    # Update context with step output for downstream steps
+                    # Note: output_df is already stored in context by execute_step after completion
+                    # This table read is a fallback/refresh to ensure we have the latest data from the table
+                    if (
+                        step_result.status == StepStatus.COMPLETED
+                        and step_result.step_type != StepType.BRONZE
+                    ):
+                        table_name = getattr(step, "table_name", step.name)
+                        schema = getattr(step, "schema", None)
+                        if schema is not None:
+                            table_fqn = fqn(schema, table_name)
+                            try:
+                                # Refresh table first to ensure we see the latest data
                                 try:
-                                    # Refresh table first to ensure we see the latest data
-                                    try:
-                                        self.spark.sql(f"REFRESH TABLE {table_fqn}")  # type: ignore[attr-defined]
-                                    except Exception:
-                                        pass  # Refresh might fail for some table types - continue anyway
-                                    # Read table and add to context (overwrites output_df with table data)
-                                    # Only update if read succeeds - if it fails, keep the output_df from execute_step
-                                    table_df = self.spark.table(table_fqn)  # type: ignore[attr-defined,valid-type]
-                                    context[step.name] = table_df  # type: ignore[valid-type]
-                                except Exception as e:
-                                    # If reading fails, the output_df stored by execute_step is still in context
-                                    # This is fine - we'll use the output_df that was stored during execution
-                                    # Only log if the step name is not already in context (meaning execute_step didn't store it)
-                                    if step.name not in context:
-                                        self.logger.warning(
-                                            f"Could not read table '{table_fqn}' to add to context, "
-                                            f"and execute_step did not store output_df. "
-                                            f"Downstream steps may not have access to this step's output. Error: {e}"
-                                        )
-                                    else:
-                                        self.logger.debug(
-                                            f"Could not read table '{table_fqn}' to refresh context. "
-                                            f"Using output_df stored during execution. Error: {e}"
-                                        )
+                                    self.spark.sql(f"REFRESH TABLE {table_fqn}")  # type: ignore[attr-defined]
+                                except Exception:
+                                    pass  # Refresh might fail for some table types - continue anyway
+                                # Read table and add to context (overwrites output_df with table data)
+                                # Only update if read succeeds - if it fails, keep the output_df from execute_step
+                                table_df = self.spark.table(table_fqn)  # type: ignore[attr-defined,valid-type]
+                                context[step.name] = table_df  # type: ignore[valid-type]
+                            except Exception as e:
+                                # If reading fails, the output_df stored by execute_step is still in context
+                                # This is fine - we'll use the output_df that was stored during execution
+                                # Only log if the step name is not already in context (meaning execute_step didn't store it)
+                                if step.name not in context:
+                                    self.logger.warning(
+                                        f"Could not read table '{table_fqn}' to add to context, "
+                                        f"and execute_step did not store output_df. "
+                                        f"Downstream steps may not have access to this step's output. Error: {e}"
+                                    )
+                                else:
+                                    self.logger.debug(
+                                        f"Could not read table '{table_fqn}' to refresh context. "
+                                        f"Using output_df stored during execution. Error: {e}"
+                                    )
 
-                        if step_result.status == StepStatus.FAILED:
-                            self.logger.error(
-                                f"Step {step_name} failed: {step_result.error}"
-                            )
-                    except Exception as e:
-                        self.logger.error(f"Exception executing step {step_name}: {e}")
-                        # Determine correct step type
-                        step_obj = step_map.get(step_name)
-                        if step_obj is not None:
-                            phase = step_obj.step_type
-                            if phase.value == "bronze":
-                                step_type_enum = StepType.BRONZE
-                            elif phase.value == "silver":
-                                step_type_enum = StepType.SILVER
-                            elif phase.value == "gold":
-                                step_type_enum = StepType.GOLD
-                            else:
-                                step_type_enum = StepType.BRONZE  # fallback
+                    if step_result.status == StepStatus.FAILED:
+                        self.logger.error(
+                            f"Step {step_name} failed: {step_result.error}"
+                        )
+                except Exception as e:
+                    self.logger.error(f"Exception executing step {step_name}: {e}")
+                    # Determine correct step type
+                    step_obj = step_map.get(step_name)
+                    if step_obj is not None:
+                        phase = step_obj.step_type
+                        if phase.value == "bronze":
+                            step_type_enum = StepType.BRONZE
+                        elif phase.value == "silver":
+                            step_type_enum = StepType.SILVER
+                        elif phase.value == "gold":
+                            step_type_enum = StepType.GOLD
                         else:
                             step_type_enum = StepType.BRONZE  # fallback
+                    else:
+                        step_type_enum = StepType.BRONZE  # fallback
 
-                        step_result = StepExecutionResult(
-                            step_name=step_name,
-                            step_type=step_type_enum,
-                            status=StepStatus.FAILED,
-                            error=str(e),
-                            start_time=datetime.now(),
-                            end_time=datetime.now(),
-                            duration=0.0,
-                        )
-                        if result.steps is not None:
-                            result.steps.append(step_result)
-
-                group_end = datetime.now()
-                group_duration = (group_end - group_start).total_seconds()
-                self.logger.info(
-                    f"Group {group_idx + 1} completed in {group_duration:.2f}s"
-                )
+                    step_result = StepExecutionResult(
+                        step_name=step_name,
+                        step_type=step_type_enum,
+                        status=StepStatus.FAILED,
+                        error=str(e),
+                        start_time=datetime.now(),
+                        end_time=datetime.now(),
+                        duration=0.0,
+                    )
+                    if result.steps is not None:
+                        result.steps.append(step_result)
 
             # Determine overall pipeline status based on step results
             if result.steps is None:
@@ -2018,7 +1996,7 @@ class ExecutionEngine:
         # Otherwise, include all previously executed steps (excluding bronze and current step)
         prior_silvers: Dict[str, DataFrame] = {}  # type: ignore[valid-type]
         source_silvers = getattr(step, "source_silvers", None)
-        
+
         if source_silvers:
             # Only include explicitly specified silver steps
             for silver_name in source_silvers:
@@ -2027,7 +2005,11 @@ class ExecutionEngine:
                 elif silver_name not in context:
                     # Log warning if expected silver step is not in context
                     # This helps debug dependency issues
-                    available_keys = [k for k in context.keys() if k != step.name and k != step.source_bronze]
+                    available_keys = [
+                        k
+                        for k in context.keys()
+                        if k != step.name and k != step.source_bronze
+                    ]
                     self.logger.warning(
                         f"Silver step {step.name} expects {silver_name} in prior_silvers "
                         f"(via source_silvers), but it's not in context. "

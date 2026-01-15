@@ -256,9 +256,7 @@ silver_step = SilverStep(
     transform=transform_func,
     rules=validation_rules,
     source_bronze="user_events",
-    depends_on_silvers=["user_profiles", "product_analytics"],
-    can_run_parallel=False,  # Must run after dependencies
-    execution_group="analytics"
+    source_silvers=["user_profiles", "product_analytics"],  # Declares dependencies
 )
 ```
 

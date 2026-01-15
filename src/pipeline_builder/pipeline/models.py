@@ -59,8 +59,6 @@ class PipelineReport:
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     recommendations: list[str] = field(default_factory=list)
-    execution_groups_count: int = 0
-    max_group_size: int = 0
 
     @property
     def success(self) -> bool:

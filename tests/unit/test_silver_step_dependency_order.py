@@ -35,7 +35,7 @@ class TestSilverStepDependencyOrder:
 
     def test_silver_steps_execute_in_wrong_order(self, mock_spark, bronze_df):
         """Test that silver steps execute in wrong order when second depends on first.
-        
+
         This test reproduces the bug where:
         - silver_step_1 should run first
         - silver_step_2 depends on silver_step_1 via prior_silvers
@@ -86,7 +86,7 @@ class TestSilverStepDependencyOrder:
         engine = ExecutionEngine(mock_spark, config)
 
         # Execute pipeline - with source_silvers declared, silver_step_1 should run first
-        result = engine.execute_pipeline(
+        engine.execute_pipeline(
             steps=[silver_step_1, silver_step_2],
             mode=ExecutionMode.INITIAL,
             context={"bronze_step": bronze_df},
@@ -100,7 +100,9 @@ class TestSilverStepDependencyOrder:
         # Verify execution groups show correct dependency ordering
         # silver_step_1 should be in an earlier group than silver_step_2
         # This is verified by the log output showing 2 execution groups
-        assert len(execution_order) == 2, f"Expected 2 steps to execute, got {len(execution_order)}"
+        assert len(execution_order) == 2, (
+            f"Expected 2 steps to execute, got {len(execution_order)}"
+        )
         assert execution_order[0] == "silver_step_1", (
             f"silver_step_1 should execute first, but got: {execution_order}"
         )

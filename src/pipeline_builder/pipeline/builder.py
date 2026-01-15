@@ -750,7 +750,9 @@ class PipelineBuilder(BasePipelineBuilder):
         source_incremental_col = self.bronze_steps[source_bronze].incremental_col
 
         # Use source_silvers if provided, otherwise fall back to depends_on for backward compatibility
-        final_source_silvers = source_silvers if source_silvers is not None else depends_on
+        final_source_silvers = (
+            source_silvers if source_silvers is not None else depends_on
+        )
 
         # Create silver step
         silver_step = SilverStep(

@@ -135,7 +135,7 @@ The framework implements the proven Medallion Architecture pattern, organizing d
 
 **1. Automatic Dependency Management**
 - The framework analyzes all data transformations and determines the optimal execution order
-- Parallel processing is automatically applied where safe
+- Steps execute sequentially in dependency order (topological sort)
 - No manual orchestration required - the system handles it all
 
 **2. Built-in Data Validation**
@@ -267,7 +267,7 @@ Delta.daily_    Delta.user_     Delta.product_
    revenue         lifetime        performance
 ```
 
-**Key Insight**: Notice how Bronze steps run in parallel (all 3 start at once), then Silver steps run in parallel, and finally Gold steps create business insights. The framework automatically optimizes execution order while ensuring data quality at each stage.
+**Key Insight**: Notice how Bronze steps execute first in dependency order, then Silver steps execute after their bronze dependencies complete, and finally Gold steps create business insights. The framework automatically determines execution order using topological sort while ensuring data quality at each stage.
 
 ## Key Features
 

@@ -250,8 +250,8 @@ Checks data quality without writing:
 
 PipelineBuilder automatically:
 - **Analyzes dependencies** between steps
-- **Identifies execution groups** based on dependencies
-- **Executes steps sequentially** in the correct order
+- **Determines execution order** using topological sort
+- **Executes steps sequentially** in dependency order
 - **Respects dependencies** across all layers (Bronze, Silver, Gold)
 
 ### 8.2 Step Executor Pattern

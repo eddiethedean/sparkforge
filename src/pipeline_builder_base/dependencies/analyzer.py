@@ -36,7 +36,9 @@ class DependencyAnalysisResult:
     """Result of dependency analysis."""
 
     graph: DependencyGraph
-    execution_groups: list[list[str]]
+    execution_order: list[
+        str
+    ]  # Topologically sorted step names for sequential execution
     cycles: list[list[str]]
     conflicts: list[str]
     recommendations: list[str]
@@ -77,11 +79,11 @@ class DependencyAnalyzer:
     It analyzes dependencies across bronze, silver, and gold steps.
 
     Features:
-    - Single analyzer for all step types (Bronze, Silver, Gold)
-    - Multiple analysis strategies
-    - Cycle detection and resolution
-    - Execution group optimization
-    - Performance analysis and recommendations
+        - Single analyzer for all step types (Bronze, Silver, Gold)
+        - Multiple analysis strategies
+        - Cycle detection and resolution
+        - Topological sort for execution order
+        - Performance analysis and recommendations
     """
 
     def __init__(
@@ -143,8 +145,8 @@ class DependencyAnalyzer:
             if conflicts:
                 self.logger.warning(f"Detected {len(conflicts)} dependency conflicts")
 
-            # Step 4: Generate execution groups
-            execution_groups = graph.get_execution_groups()
+            # Step 4: Generate execution order (topological sort)
+            execution_order = graph.topological_sort()
 
             # Step 5: Generate recommendations
             recommendations = self._generate_recommendations(graph, cycles, conflicts)
@@ -155,7 +157,7 @@ class DependencyAnalyzer:
             # Create result
             result = DependencyAnalysisResult(
                 graph=graph,
-                execution_groups=execution_groups,
+                execution_order=execution_order,
                 cycles=cycles,
                 conflicts=conflicts,
                 recommendations=recommendations,

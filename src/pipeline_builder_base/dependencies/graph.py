@@ -26,7 +26,18 @@ class StepType(Enum):
 
 @dataclass
 class StepNode:
-    """Represents a single step in the dependency graph."""
+    """Represents a single step in the dependency graph.
+
+    Attributes:
+        name: Unique identifier for this step.
+        step_type: Type of step (BRONZE, SILVER, or GOLD).
+        dependencies: Set of step names that this step depends on.
+        dependents: Set of step names that depend on this step.
+        execution_group: (Deprecated) Legacy field, no longer used. Execution
+            order is determined by topological sort.
+        estimated_duration: Estimated execution duration in seconds.
+        metadata: Dictionary for storing custom metadata about the step.
+    """
 
     name: str
     step_type: StepType
@@ -144,43 +155,6 @@ class DependencyGraph:
                     queue.append(dependent)
 
         return result
-
-    def get_execution_groups(self) -> list[list[str]]:
-        """Get execution groups for sequential execution.
-
-        Groups steps by their level in the dependency tree. Steps in the same
-        group have no dependencies on each other. Groups are executed
-        sequentially, and steps within each group are also executed sequentially.
-        """
-        # Use topological sort to determine execution order
-        sorted_nodes = self.topological_sort()
-
-        # Group nodes by their level in the dependency tree
-        levels = {}
-        for node in sorted_nodes:
-            if not self.nodes[node].dependencies:
-                levels[node] = 0
-            else:
-                # Ensure all dependencies have been processed
-                max_dep_level = 0
-                for dep in self.nodes[node].dependencies:
-                    if dep in levels:
-                        max_dep_level = max(max_dep_level, levels[dep])
-                    else:
-                        # If dependency not found, it might be missing from the graph
-                        # This could happen if the dependency graph is incomplete
-                        logger.warning(
-                            f"Dependency {dep} not found in levels for node {node}"
-                        )
-                        max_dep_level = max(max_dep_level, 0)
-                levels[node] = max_dep_level + 1
-
-        # Group nodes by level
-        groups = defaultdict(list)
-        for node, level in levels.items():
-            groups[level].append(node)
-
-        return [groups[level] for level in sorted(groups.keys())]
 
     def validate(self) -> list[str]:
         """Validate the dependency graph and return any issues."""

@@ -319,24 +319,23 @@ USER CODE
 │  │  │ • Silver steps: Depend on Bronze + optional other Silvers    │  │    │
 │  │  │ • Gold steps: Depend on Silver steps                         │  │    │
 │  │  │                                                              │  │    │
-│  │  │ Creates execution groups for sequential processing:          │  │    │
-│  │  │   Group 0: [bronze_events, bronze_users, bronze_products]    │  │    │
-│  │  │   Group 1: [silver_clean_events, silver_clean_users]         │  │    │
-│  │  │   Group 2: [silver_enriched_events] (depends on group 1)     │  │    │
-│  │  │   Group 3: [gold_daily_metrics, gold_user_summary]           │  │    │
+│  │  │ Determines execution order using topological sort:           │  │    │
+│  │  │   bronze_events → bronze_users → bronze_products            │  │    │
+│  │  │   → silver_clean_events → silver_clean_users                │  │    │
+│  │  │   → silver_enriched_events (depends on silver_clean_*)       │  │    │
+│  │  │   → gold_daily_metrics → gold_user_summary                   │  │    │
 │  │  └──────────────────────────────────────────────────────────────┘  │    │
 │  │                                                                    │    │
 │  │  ┌──────────────────────────────────────────────────────────────┐  │    │
 │  │  │ PHASE 2: SEQUENTIAL EXECUTION                                │  │    │
 │  │  │ ─────────────────────────                                    │  │    │
 │  │  │                                                              │  │    │
-│  │  │ For each execution group (in order):                         │  │    │
-│  │  │   Execute all steps in group sequentially                    │  │    │
-│  │  │   Wait for all steps in group to complete                    │  │    │
-│  │  │   Move to next group                                         │  │    │
+│  │  │ Execute steps in dependency order (topological sort):        │  │    │
+│  │  │   Each step executes after its dependencies complete         │  │    │
+│  │  │   Steps execute one at a time in correct order               │  │    │
 │  │  │                                                              │  │    │
 │  │  │ Example timeline:                                            │  │    │
-│  │  │   t0: Group 0 starts → [Bronze1, Bronze2, Bronze3] sequential│  │    │
+│  │  │   t0: bronze_events → t1: bronze_users → t2: bronze_products│  │    │
 │  │  │   t1: Group 0 done                                           │  │    │
 │  │  │   t1: Group 1 starts → [Silver1, Silver2] sequential          │  │    │
 │  │  │   t2: Group 1 done                                           │  │    │

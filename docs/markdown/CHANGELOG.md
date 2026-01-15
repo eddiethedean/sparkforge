@@ -25,6 +25,23 @@ All notable changes to SparkForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 🔧 Simplified Execution Flow
+
+#### Changed
+- **Simplified execution**: Removed execution groups abstraction, now uses topological sort directly
+  - Steps execute sequentially in dependency order (topological sort)
+  - Removed `execution_groups`, `execution_groups_count`, and `max_group_size` fields
+  - Cleaner, more straightforward execution flow
+  - Same functionality with less complexity
+
+#### Removed
+- `execution_groups` field from `DependencyAnalysisResult`
+- `execution_groups_count` and `max_group_size` from `ExecutionResult` and `PipelineReport`
+- `get_execution_groups()` method from `DependencyGraph` classes
+- Execution group-specific tests
+
 ## [1.2.0] - 2025-10-17
 
 ### 📊 Enhanced Logging & Monitoring
@@ -40,28 +57,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 🚀 Starting steps
   - ✅ Completed steps
   - ❌ Failed steps
-  - 📦 Execution groups
+  - 📦 Execution order
 - **Smart formatting** that differentiates:
   - Bronze steps: Show "rows processed" (validation only, no writes)
   - Silver/Gold steps: Show "rows written" and "rows processed" separately
-- **Parallel execution visibility** in logs:
-  - Group-based execution logging
-  - Interleaved logs from concurrent steps
-  - Parallel efficiency metrics
+- **Execution visibility** in logs:
+  - Step-by-step execution logging
+  - Clear dependency order tracking
   
 #### Logging Methods
 - `logger.step_start(step_type, step_name)` - Consistent step start logging
 - `logger.step_complete(step_type, step_name, duration, rows_processed, rows_written, invalid_rows, validation_rate)` - Detailed completion logging
 - `logger.step_failed(step_type, step_name, error, duration)` - Standardized error logging
 
-### ⚡ Parallel Execution Enhancements
+### ⚡ Execution Enhancements
 
 #### Improved
-- **Real-time parallel logging** - See concurrent step execution with interleaved log messages
-- **Enhanced execution reporting** with:
-  - `execution_groups_count` - Number of parallel execution groups
-  - `max_group_size` - Maximum concurrent steps in any group
-  - `parallel_efficiency` - Percentage efficiency of parallelization
+- **Clear execution logging** - See step execution in dependency order
+- **Enhanced execution reporting** with step-by-step progress tracking
 - **Better dependency analysis** logging and visibility
 
 ### 📈 Pipeline Report Improvements
@@ -162,26 +175,13 @@ No unreleased changes.
 ## [1.0.0] - 2025-10-15
 
 ### Added
-- **Smart Parallel Execution**: Automatic dependency-aware parallel execution of pipeline steps
+- **Smart Sequential Execution**: Automatic dependency-aware sequential execution of pipeline steps
   - **Automatic dependency analysis**: Builds dependency graph to determine execution order
-  - **Concurrent execution**: Independent steps run in parallel using ThreadPoolExecutor
-  - **Thread-safe**: Built-in locks prevent race conditions in shared context
-  - **Performance metrics**: Tracks parallel efficiency, execution groups, and max parallelism
-  - **Zero configuration**: Enabled by default with 4 workers
-  - **Highly configurable**: Supports 1-16+ workers for different performance needs
-  - **3-5x faster**: For pipelines with independent steps
+  - **Topological sort**: Ensures steps execute in correct dependency order
+  - **Sequential execution**: Steps execute one at a time in dependency order
+  - **Deterministic**: Predictable execution order for easier debugging
+  - **Zero configuration**: Works automatically with correct dependency ordering
   - **Backward compatible**: Works seamlessly with existing code
-  - New metrics in `ExecutionResult`:
-    - `parallel_efficiency`: Percentage of ideal parallelization achieved
-    - `execution_groups_count`: Number of sequential execution phases
-    - `max_group_size`: Maximum concurrent steps executed
-  - New properties in `PipelineReport`:
-    - `execution_groups_count`: Direct access to execution group count
-    - `max_group_size`: Direct access to max parallelism achieved
-  - Configuration options via `PipelineConfig.parallel`:
-    - `enabled`: Enable/disable parallel execution (default: True)
-    - `max_workers`: Maximum concurrent workers (default: 4)
-    - `timeout_secs`: Timeout for operations (default: 300)
   - Presets available:
     - `PipelineConfig.create_default()`: 4 workers (balanced)
     - `PipelineConfig.create_high_performance()`: 16 workers (maximum throughput)

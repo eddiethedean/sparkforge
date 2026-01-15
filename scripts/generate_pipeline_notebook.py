@@ -633,50 +633,61 @@ def remove_sparkforge_imports(code: str) -> str:
             # Extract what's being imported
             match = re.search(r"import\s+(.+)", line)
             imported_items = match.group(1).strip() if match else ""
-            
+
             # Comment out the import
             indent = len(line) - len(line.lstrip())
             comment = (
                 "# " + line.strip() + "  # Removed: defined in notebook cells above"
             )
             new_lines.append(" " * indent + comment)
-            
+
             # Add fallback: define a no-op decorator that will work until performance module is loaded
             # Since modules execute in order, if performance comes after, we need a temporary decorator
             if "time_operation" in imported_items:
                 new_lines.append(
-                    " " * indent + "# Fallback: time_operation decorator (will be replaced when performance module loads)\n"
-                    + " " * indent + "def time_operation(name):\n"
-                    + " " * (indent + 4) + "def decorator(func):\n"
-                    + " " * (indent + 8) + "return func\n"
-                    + " " * (indent + 4) + "return decorator\n"
+                    " " * indent
+                    + "# Fallback: time_operation decorator (will be replaced when performance module loads)\n"
+                    + " " * indent
+                    + "def time_operation(name):\n"
+                    + " " * (indent + 4)
+                    + "def decorator(func):\n"
+                    + " " * (indent + 8)
+                    + "return func\n"
+                    + " " * (indent + 4)
+                    + "return decorator\n"
                 )
             continue
         # Check for any relative imports (starting with one or more dots)
         elif re.match(r"^\s*from\s+\.", line):
             # Check if this import includes F or types from compat - we need to handle it specially
-            imports_f_from_compat = "F" in line and ("compat" in line or "..compat" in line)
-            imports_types_from_compat = "types" in line and ("compat" in line or "..compat" in line)
-            
+            imports_f_from_compat = "F" in line and (
+                "compat" in line or "..compat" in line
+            )
+            imports_types_from_compat = "types" in line and (
+                "compat" in line or "..compat" in line
+            )
+
             # Comment out the import
             indent = len(line) - len(line.lstrip())
             comment = (
                 "# " + line.strip() + "  # Removed: defined in notebook cells above"
             )
             new_lines.append(" " * indent + comment)
-            
+
             # If this import includes F from compat, add a fallback
             # F is imported in the imports cell as: from pyspark.sql import functions as F
             # In standalone notebooks, we use the global F from pyspark
             if imports_f_from_compat:
                 # Add import to ensure F is available
                 new_lines.append(
-                    " " * indent + "from pyspark.sql import functions as F  # F from pyspark (not from compat)"
+                    " " * indent
+                    + "from pyspark.sql import functions as F  # F from pyspark (not from compat)"
                 )
             if imports_types_from_compat:
                 # Add import to ensure types is available
                 new_lines.append(
-                    " " * indent + "from pyspark.sql import types  # types from pyspark (not from compat)"
+                    " " * indent
+                    + "from pyspark.sql import types  # types from pyspark (not from compat)"
                 )
 
             # Check if this starts a multi-line import
@@ -767,20 +778,20 @@ def remove_sparkforge_imports(code: str) -> str:
     code = re.sub(r'"SparkForge"', '"PipelineFramework"', code)
     code = re.sub(r"'SparkForge'", "'PipelineFramework'", code)
 
-        # Fix: When compat imports are commented out, ensure F is available
+    # Fix: When compat imports are commented out, ensure F is available
     # For cells that use F after compat import is commented out, add explicit fallback
     # Pattern: "# from ..compat import ... F ..." followed by "col = F.col"
     if "# from ..compat import" in code and "F" in code and "col = F.col" in code:
-            # Ensure F is available - add import if needed
-            # In standalone notebooks, F should be from pyspark.sql.functions
-            if "from pyspark.sql import functions as F" not in code:
-                # Add import before col = F.col
-                code = re.sub(
-                    r"(\s*col = F\.col)",
-                    r"\n    # Ensure F is available from pyspark (imported in imports cell)\n    from pyspark.sql import functions as F\1",
-                    code,
-                    flags=re.MULTILINE,
-                )
+        # Ensure F is available - add import if needed
+        # In standalone notebooks, F should be from pyspark.sql.functions
+        if "from pyspark.sql import functions as F" not in code:
+            # Add import before col = F.col
+            code = re.sub(
+                r"(\s*col = F\.col)",
+                r"\n    # Ensure F is available from pyspark (imported in imports cell)\n    from pyspark.sql import functions as F\1",
+                code,
+                flags=re.MULTILINE,
+            )
 
     # Finally, normalize excessive blank lines to avoid large gaps in the
     # generated notebook when it is executed via `%run` in environments like
@@ -1032,7 +1043,7 @@ except ImportError:
                 # Actually, since performance module is in the notebook, time_operation should be available
                 # We just need to make sure the import path works
                 # The performance module defines time_operation, so it should be in namespace
-        
+
         # Fix compat module to use global F from pyspark instead of engine
         if module_path == "pipeline_builder.compat":
             # In standalone notebooks, F should come from pyspark.sql.functions (imported in imports cell)
@@ -1103,11 +1114,11 @@ _original_configure_engine_for_pyspark = configure_engine
 
 def configure_engine_pyspark(spark):
     \"\"\"Configure engine with PySpark components for standalone notebooks.
-    
+
     This is a convenience function for notebooks that automatically configures
     the engine with PySpark components. In standalone notebooks, we only
     support PySpark (not mock Spark/sparkless).
-    
+
     Args:
         spark: SparkSession instance
     \"\"\"
@@ -1118,7 +1129,7 @@ def configure_engine_pyspark(spark):
     )
     from pyspark.sql.utils import AnalysisException
     from pyspark.sql.window import Window
-    
+
     # Configure engine with PySpark components
     # Use the original configure_engine function (stored before wrapping)
     # Note: engine_name, dataframe_cls, spark_session_cls, column_cls are optional
@@ -1149,7 +1160,7 @@ def configure_engine_pyspark(spark):
 
 def configure_engine_wrapper(*, spark=None, **kwargs):
     \"\"\"Configure engine - accepts spark parameter for convenience.
-    
+
     In standalone notebooks, you can call configure_engine(spark=spark)
     and it will automatically configure with PySpark components.
     \"\"\"

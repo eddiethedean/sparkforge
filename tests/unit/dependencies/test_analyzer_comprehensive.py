@@ -44,7 +44,7 @@ class TestDependencyAnalysisResult(unittest.TestCase):
         from pipeline_builder.dependencies.graph import DependencyGraph
 
         graph = DependencyGraph()
-        execution_groups = [["step1"], ["step2", "step3"]]
+        execution_order = ["step1", "step2", "step3"]
         cycles = []
         conflicts = []
         stats = {"total_steps": 3}
@@ -52,7 +52,7 @@ class TestDependencyAnalysisResult(unittest.TestCase):
 
         result = DependencyAnalysisResult(
             graph=graph,
-            execution_groups=execution_groups,
+            execution_order=execution_order,
             cycles=cycles,
             conflicts=conflicts,
             recommendations=recommendations,
@@ -60,7 +60,7 @@ class TestDependencyAnalysisResult(unittest.TestCase):
             analysis_duration=0.1,
         )
 
-        self.assertEqual(result.execution_groups, execution_groups)
+        self.assertEqual(result.execution_order, execution_order)
         self.assertEqual(result.cycles, cycles)
         self.assertEqual(result.conflicts, conflicts)
         self.assertEqual(result.stats, stats)
@@ -72,7 +72,7 @@ class TestDependencyAnalysisResult(unittest.TestCase):
 
         result = DependencyAnalysisResult(
             graph=DependencyGraph(),
-            execution_groups=[["step1"], ["step2"]],
+            execution_order=["step1", "step2"],
             cycles=[],
             conflicts=[],
             recommendations=[],
@@ -88,7 +88,7 @@ class TestDependencyAnalysisResult(unittest.TestCase):
 
         result = DependencyAnalysisResult(
             graph=DependencyGraph(),
-            execution_groups=[["step1"], ["step2", "step3"]],
+            execution_order=["step1", "step2", "step3"],
             cycles=[],
             conflicts=[],
             recommendations=[],
@@ -96,15 +96,9 @@ class TestDependencyAnalysisResult(unittest.TestCase):
             analysis_duration=0.0,
         )
 
-        # Calculate parallelization ratio: parallel steps / total steps
-        total_steps = sum(len(group) for group in result.execution_groups)
-        parallel_steps = sum(
-            len(group) for group in result.execution_groups if len(group) > 1
-        )
-        ratio = parallel_steps / total_steps if total_steps > 0 else 0.0
-
-        # 2 groups with 1 and 2 steps respectively = 2/3 parallelization ratio
-        self.assertEqual(ratio, 2 / 3)
+        # Verify execution order
+        self.assertEqual(len(result.execution_order), 3)
+        self.assertEqual(result.execution_order, ["step1", "step2", "step3"])
 
 
 class TestDependencyAnalyzer(unittest.TestCase):
@@ -164,7 +158,7 @@ class TestDependencyAnalyzer(unittest.TestCase):
         result = analyzer.analyze_dependencies()
         self.assertIsInstance(result, DependencyAnalysisResult)
         self.assertIsNotNone(result.graph)
-        self.assertIsInstance(result.execution_groups, list)
+        self.assertIsInstance(result.execution_order, list)
         self.assertIsInstance(result.cycles, list)
         self.assertIsInstance(result.conflicts, list)
         self.assertIsInstance(result.recommendations, list)
@@ -216,7 +210,7 @@ class TestDependencyAnalyzer(unittest.TestCase):
         result2 = analyzer.analyze_dependencies()
 
         # Results should be the same
-        self.assertEqual(result1.execution_groups, result2.execution_groups)
+        self.assertEqual(result1.execution_order, result2.execution_order)
         self.assertEqual(result1.cycles, result2.cycles)
         self.assertEqual(result1.conflicts, result2.conflicts)
 
@@ -231,7 +225,7 @@ class TestDependencyAnalyzer(unittest.TestCase):
         result2 = analyzer.analyze_dependencies(force_refresh=True)
 
         # Results should be the same but cache should be refreshed
-        self.assertEqual(result1.execution_groups, result2.execution_groups)
+        self.assertEqual(result1.execution_order, result2.execution_order)
 
 
 class TestDependencyAnalyzerIntegration(unittest.TestCase):
@@ -284,7 +278,7 @@ class TestDependencyAnalyzerIntegration(unittest.TestCase):
 
         self.assertIsInstance(result, DependencyAnalysisResult)
         self.assertIsNotNone(result.graph)
-        self.assertIsInstance(result.execution_groups, list)
+        self.assertIsInstance(result.execution_order, list)
         self.assertIsInstance(result.cycles, list)
         self.assertIsInstance(result.conflicts, list)
         self.assertIsInstance(result.recommendations, list)

@@ -3,21 +3,18 @@ Dependency graph representation for the framework pipelines.
 
 This module provides a clean, efficient representation of pipeline dependencies
 that can be used for dependency analysis, cycle detection, execution planning,
-and optimization. The graph supports topological sorting and execution grouping
-grouping, and validation.
+and optimization. The graph supports topological sorting and validation.
 
 **Key Features:**
     - **Dependency Tracking**: Track dependencies and dependents for each step
     - **Cycle Detection**: Detect circular dependencies in the pipeline
-    - **Topological Sort**: Order steps by dependency requirements
-    - **Execution Groups**: Group steps by dependency level for sequential execution
+    - **Topological Sort**: Order steps by dependency requirements for sequential execution
     - **Validation**: Validate graph structure and detect issues
 
 **Common Use Cases:**
     - Analyze pipeline dependencies before execution
     - Detect circular dependencies that would cause execution failures
-    - Determine execution order for sequential processing
-    - Group steps by dependency level for sequential execution
+    - Determine execution order for sequential processing using topological sort
 
 Example:
     >>> from pipeline_builder.dependencies.graph import (
@@ -88,8 +85,8 @@ class StepNode:
             this set must complete before this step can execute.
         dependents: Set of step names that depend on this step. These steps
             cannot execute until this step completes.
-        execution_group: Group number for execution ordering. Steps in the
-            same group have no dependencies on each other.
+        execution_group: (Deprecated) Legacy field, no longer used. Execution
+            order is determined by topological sort.
         estimated_duration: Estimated execution duration in seconds. Used
             for optimization and scheduling. Defaults to 0.0.
         metadata: Dictionary for storing custom metadata about the step.
@@ -124,8 +121,7 @@ class DependencyGraph:
     **Key Operations:**
         - Add nodes and dependencies
         - Detect circular dependencies
-        - Perform topological sort
-        - Group steps for execution
+        - Perform topological sort for execution order
         - Validate graph structure
 
     Attributes:
@@ -355,58 +351,6 @@ class DependencyGraph:
                     queue.append(dependent)
 
         return result
-
-    def get_execution_groups(self) -> list[list[str]]:
-        """Get execution groups for sequential execution.
-
-        Groups steps by their level in the dependency tree. Steps in the same
-        group have no dependencies on each other. Groups are executed
-        sequentially, and steps within each group are also executed sequentially.
-
-        Returns:
-            List of execution groups, where each group is a list of step names
-            that have no dependencies on each other. Groups are ordered by
-            dependency level (earlier groups must complete before later groups).
-
-        Example:
-            >>> graph = DependencyGraph()
-            >>> graph.add_node(StepNode("bronze1", StepType.BRONZE))
-            >>> graph.add_node(StepNode("bronze2", StepType.BRONZE))
-            >>> graph.add_node(StepNode("silver", StepType.SILVER))
-            >>> graph.add_dependency("silver", "bronze1")
-            >>> graph.add_dependency("silver", "bronze2")
-            >>> groups = graph.get_execution_groups()
-            >>> print(groups)  # [["bronze1", "bronze2"], ["silver"]]
-        """
-        # Use topological sort to determine execution order
-        sorted_nodes = self.topological_sort()
-
-        # Group nodes by their level in the dependency tree
-        levels = {}
-        for node in sorted_nodes:
-            if not self.nodes[node].dependencies:
-                levels[node] = 0
-            else:
-                # Ensure all dependencies have been processed
-                max_dep_level = 0
-                for dep in self.nodes[node].dependencies:
-                    if dep in levels:
-                        max_dep_level = max(max_dep_level, levels[dep])
-                    else:
-                        # If dependency not found, it might be missing from the graph
-                        # This could happen if the dependency graph is incomplete
-                        logger.warning(
-                            f"Dependency {dep} not found in levels for node {node}"
-                        )
-                        max_dep_level = max(max_dep_level, 0)
-                levels[node] = max_dep_level + 1
-
-        # Group nodes by level
-        groups = defaultdict(list)
-        for node, level in levels.items():
-            groups[level].append(node)
-
-        return [groups[level] for level in sorted(groups.keys())]
 
     def validate(self) -> list[str]:
         """Validate the dependency graph and return any issues.

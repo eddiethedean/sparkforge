@@ -350,20 +350,19 @@ class SqlExecutionEngine:
             else None,
         )
 
-        execution_groups = analysis.execution_groups
+        execution_order = analysis.execution_order
         step_results: list[StepResult] = []
 
         # Execute steps in dependency order (sequential execution)
-        for group in execution_groups:
-            for step_name in group:
-                step = (
-                    bronze_steps.get(step_name)
-                    or silver_steps.get(step_name)
-                    or gold_steps.get(step_name)
-                )
-                if step:
-                    result = self.execute_step(step, execution_context, mode)
-                    step_results.append(result)
+        for step_name in execution_order:
+            step = (
+                bronze_steps.get(step_name)
+                or silver_steps.get(step_name)
+                or gold_steps.get(step_name)
+            )
+            if step:
+                result = self.execute_step(step, execution_context, mode)
+                step_results.append(result)
 
         context.finish()
 

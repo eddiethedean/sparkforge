@@ -11,7 +11,6 @@ import pytest
 
 from pipeline_builder.functions import get_default_functions
 from pipeline_builder.models import SilverStep
-from pipeline_builder_base.models import PipelineConfig
 from pipeline_builder.dependencies import DependencyAnalyzer
 
 F = get_default_functions()
@@ -56,7 +55,7 @@ class TestSilverStepDependencyEdgeCases:
         # The graph may show cycles in cycles list, or they may be resolved
         assert analysis is not None, "Analysis should complete even with cycles"
         # Cycles may be detected or resolved - either is acceptable
-        assert len(analysis.execution_groups) > 0, "Should have execution groups"
+        assert len(analysis.execution_order) > 0, "Should have execution order"
 
     def test_self_dependency_handled(self, mock_spark):
         """Test that a silver step depending on itself is handled gracefully."""
@@ -107,9 +106,9 @@ class TestSilverStepDependencyEdgeCases:
         )
 
         # Should handle duplicates gracefully
-        silver_1_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_1" in group)
-        silver_2_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_2" in group)
-        assert silver_1_group < silver_2_group, "silver_1 should execute before silver_2"
+        silver_1_idx = analysis.execution_order.index("silver_1")
+        silver_2_idx = analysis.execution_order.index("silver_2")
+        assert silver_1_idx < silver_2_idx, "silver_1 should execute before silver_2"
 
     def test_source_silvers_with_mixed_valid_invalid(self, mock_spark):
         """Test source_silvers with mix of valid and invalid step names."""
@@ -139,16 +138,16 @@ class TestSilverStepDependencyEdgeCases:
         )
 
         # Should still create valid dependency for silver_1
-        silver_1_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_1" in group)
-        silver_2_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_2" in group)
-        assert silver_1_group < silver_2_group, "Valid dependency should be respected"
+        silver_1_idx = analysis.execution_order.index("silver_1")
+        silver_2_idx = analysis.execution_order.index("silver_2")
+        assert silver_1_idx < silver_2_idx, "Valid dependency should be respected"
 
     def test_large_dependency_graph(self, mock_spark):
         """Test dependency graph with many silver steps."""
         # Create 10 silver steps in a chain
         silver_steps = {}
         for i in range(10):
-            prev_step = f"silver_{i-1}" if i > 0 else None
+            prev_step = f"silver_{i - 1}" if i > 0 else None
             silver_steps[f"silver_{i}"] = SilverStep(
                 name=f"silver_{i}",
                 source_bronze="bronze_step",
@@ -166,26 +165,24 @@ class TestSilverStepDependencyEdgeCases:
         )
 
         # Verify all steps are in correct order
-        groups = {}
-        for i, group in enumerate(analysis.execution_groups):
-            for step_name in group:
-                if step_name.startswith("silver_"):
-                    groups[step_name] = i
-
-        # Verify chain order
+        # Verify chain order using execution_order
         for i in range(1, 10):
-            assert groups[f"silver_{i-1}"] < groups[f"silver_{i}"], (
-                f"silver_{i-1} should execute before silver_{i}"
+            prev_idx = analysis.execution_order.index(f"silver_{i - 1}")
+            curr_idx = analysis.execution_order.index(f"silver_{i}")
+            assert prev_idx < curr_idx, (
+                f"silver_{i - 1} should execute before silver_{i}"
             )
 
     def test_silver_depends_on_gold_should_fail(self, mock_spark):
         """Test that silver step depending on gold step is invalid."""
         # Create a proper gold step mock
         from pipeline_builder.models import GoldStep
-        
+
         gold_step = GoldStep(
             name="gold_step",
-            transform=lambda spark, silvers: silvers.get("silver_1") if silvers else None,
+            transform=lambda spark, silvers: silvers.get("silver_1")
+            if silvers
+            else None,
             rules={"user_id": [F.col("user_id").isNotNull()]},
             table_name="gold_step",
             source_silvers=["silver_1"],  # Gold step needs non-empty source_silvers
@@ -246,7 +243,7 @@ class TestSilverStepDependencyEdgeCases:
         )
 
         # Both should behave the same (no silver dependencies)
-        assert len(analysis_none.execution_groups) == len(analysis_empty.execution_groups)
+        assert len(analysis_none.execution_order) == len(analysis_empty.execution_order)
 
     def test_prior_silvers_includes_only_executed_steps(self, mock_spark):
         """Test that prior_silvers only includes steps that have been executed."""
@@ -281,15 +278,19 @@ class TestSilverStepDependencyEdgeCases:
         analyzer = DependencyAnalyzer()
         analysis = analyzer.analyze_dependencies(
             bronze_steps={"bronze_step": Mock(name="bronze_step")},
-            silver_steps={"silver_1": silver_1, "silver_2": silver_2, "silver_3": silver_3},
+            silver_steps={
+                "silver_1": silver_1,
+                "silver_2": silver_2,
+                "silver_3": silver_3,
+            },
             gold_steps={},
         )
 
         # Verify execution order ensures prior_silvers will be populated correctly
-        silver_1_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_1" in group)
-        silver_2_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_2" in group)
-        silver_3_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_3" in group)
+        silver_1_idx = analysis.execution_order.index("silver_1")
+        silver_2_idx = analysis.execution_order.index("silver_2")
+        silver_3_idx = analysis.execution_order.index("silver_3")
 
-        assert silver_1_group < silver_2_group < silver_3_group, (
+        assert silver_1_idx < silver_2_idx < silver_3_idx, (
             "Execution order ensures prior_silvers will be populated correctly"
         )

@@ -33,7 +33,7 @@ Key Features:
 - Single analyzer for all step types
 - Dependency graph construction
 - Cycle detection and resolution
-- Execution group optimization
+- Execution order optimization (topological sort)
 - Performance analysis
 """
 

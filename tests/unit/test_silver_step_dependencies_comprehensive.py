@@ -11,8 +11,6 @@ import pytest
 
 from pipeline_builder.functions import get_default_functions
 from pipeline_builder.models import SilverStep
-from pipeline_builder_base.models import ExecutionMode, PipelineConfig
-from pipeline_builder.execution import ExecutionEngine
 from pipeline_builder.dependencies import DependencyAnalyzer
 
 F = get_default_functions()
@@ -26,7 +24,7 @@ class TestSilverStepDependencyOrdering:
         """Create a mock SparkSession."""
         spark = Mock()
         spark.table.return_value.count.return_value = 0
-        
+
         # Mock DataFrame operations
         def create_mock_df(data, schema):
             df = Mock()
@@ -37,7 +35,7 @@ class TestSilverStepDependencyOrdering:
             df.groupBy.return_value = Mock()
             df.groupBy.return_value.agg.return_value = df
             return df
-        
+
         spark.createDataFrame = create_mock_df
         return spark
 
@@ -77,9 +75,6 @@ class TestSilverStepDependencyOrdering:
             source_silvers=["silver_1"],
         )
 
-        config = PipelineConfig.create_default(schema="test")
-        engine = ExecutionEngine(mock_spark, config)
-
         # Analyze dependencies
         analyzer = DependencyAnalyzer()
         analysis = analyzer.analyze_dependencies(
@@ -89,12 +84,10 @@ class TestSilverStepDependencyOrdering:
         )
 
         # Verify dependency graph has correct edges
-        # bronze_step is in group 0, silver_1 in group 1, silver_2 in group 2
-        assert len(analysis.execution_groups) >= 2, "Should have at least 2 silver execution groups"
-        # Find which groups contain the silver steps
-        silver_1_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_1" in group)
-        silver_2_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_2" in group)
-        assert silver_1_group < silver_2_group, "silver_1 should execute before silver_2"
+        # silver_1 should execute before silver_2
+        silver_1_idx = analysis.execution_order.index("silver_1")
+        silver_2_idx = analysis.execution_order.index("silver_2")
+        assert silver_1_idx < silver_2_idx, "silver_1 should execute before silver_2"
 
     def test_three_silver_steps_chain_dependency(self, mock_spark, bronze_df):
         """Test chain of three silver steps: silver_1 -> silver_2 -> silver_3."""
@@ -141,24 +134,25 @@ class TestSilverStepDependencyOrdering:
             source_silvers=["silver_2"],
         )
 
-        config = PipelineConfig.create_default(schema="test")
-        engine = ExecutionEngine(mock_spark, config)
-
         # Analyze dependencies
         analyzer = DependencyAnalyzer()
         analysis = analyzer.analyze_dependencies(
             bronze_steps={"bronze_step": Mock(name="bronze_step")},
-            silver_steps={"silver_1": silver_1, "silver_2": silver_2, "silver_3": silver_3},
+            silver_steps={
+                "silver_1": silver_1,
+                "silver_2": silver_2,
+                "silver_3": silver_3,
+            },
             gold_steps={},
         )
 
-        # Verify execution groups - bronze is in group 0, then silver steps in order
-        assert len(analysis.execution_groups) >= 3, "Should have at least 3 silver execution groups"
-        # Find which groups contain each silver step
-        silver_1_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_1" in group)
-        silver_2_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_2" in group)
-        silver_3_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_3" in group)
-        assert silver_1_group < silver_2_group < silver_3_group, "Chain order: silver_1 -> silver_2 -> silver_3"
+        # Verify execution order - chain: silver_1 -> silver_2 -> silver_3
+        silver_1_idx = analysis.execution_order.index("silver_1")
+        silver_2_idx = analysis.execution_order.index("silver_2")
+        silver_3_idx = analysis.execution_order.index("silver_3")
+        assert silver_1_idx < silver_2_idx < silver_3_idx, (
+            "Chain order: silver_1 -> silver_2 -> silver_3"
+        )
 
     def test_multiple_silver_dependencies(self, mock_spark, bronze_df):
         """Test silver step that depends on multiple other silver steps."""
@@ -203,28 +197,27 @@ class TestSilverStepDependencyOrdering:
             source_silvers=["silver_1", "silver_2"],  # Depends on both
         )
 
-        config = PipelineConfig.create_default(schema="test")
-        engine = ExecutionEngine(mock_spark, config)
-
         # Analyze dependencies
         analyzer = DependencyAnalyzer()
         analysis = analyzer.analyze_dependencies(
             bronze_steps={"bronze_step": Mock(name="bronze_step")},
-            silver_steps={"silver_1": silver_1, "silver_2": silver_2, "silver_3": silver_3},
+            silver_steps={
+                "silver_1": silver_1,
+                "silver_2": silver_2,
+                "silver_3": silver_3,
+            },
             gold_steps={},
         )
 
-        # Verify execution groups
-        # bronze is in group 0, silver_1 and silver_2 can run in parallel (same group after bronze)
-        # silver_3 depends on both, so it's in a later group
-        silver_1_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_1" in group)
-        silver_2_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_2" in group)
-        silver_3_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_3" in group)
-        # silver_1 and silver_2 can be in the same group (parallel)
-        assert silver_1_group == silver_2_group, "silver_1 and silver_2 can run in parallel"
-        # silver_3 must be after both
-        assert silver_3_group > silver_1_group, "silver_3 should execute after silver_1"
-        assert silver_3_group > silver_2_group, "silver_3 should execute after silver_2"
+        # Verify execution order
+        # silver_1 and silver_2 can execute in any order (no dependency between them)
+        # silver_3 depends on both, so it must be after both
+        silver_1_idx = analysis.execution_order.index("silver_1")
+        silver_2_idx = analysis.execution_order.index("silver_2")
+        silver_3_idx = analysis.execution_order.index("silver_3")
+        # silver_3 must be after both silver_1 and silver_2
+        assert silver_3_idx > silver_1_idx, "silver_3 should execute after silver_1"
+        assert silver_3_idx > silver_2_idx, "silver_3 should execute after silver_2"
 
     def test_silver_without_dependencies_still_works(self, mock_spark, bronze_df):
         """Test that silver steps without source_silvers still work (backward compatibility)."""
@@ -260,9 +253,6 @@ class TestSilverStepDependencyOrdering:
             # No source_silvers - backward compatible
         )
 
-        config = PipelineConfig.create_default(schema="test")
-        engine = ExecutionEngine(mock_spark, config)
-
         # Analyze dependencies - should work without errors
         analyzer = DependencyAnalyzer()
         analysis = analyzer.analyze_dependencies(
@@ -273,9 +263,10 @@ class TestSilverStepDependencyOrdering:
 
         # Both should be in the same group (no dependencies between them)
         # bronze is in group 0, silvers in group 1
-        silver_1_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_1" in group)
-        silver_2_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_2" in group)
-        assert silver_1_group == silver_2_group, "silver_1 and silver_2 should be in same group"
+        # silver_1 and silver_2 have no dependencies, so order doesn't matter
+        # Just verify both are in execution order
+        assert "silver_1" in analysis.execution_order
+        assert "silver_2" in analysis.execution_order
 
     def test_silver_depends_on_nonexistent_silver_warns(self, mock_spark, bronze_df):
         """Test that depending on non-existent silver step logs a warning."""
@@ -289,7 +280,7 @@ class TestSilverStepDependencyOrdering:
         )
 
         analyzer = DependencyAnalyzer()
-        
+
         # Should not raise, but should log warning
         analysis = analyzer.analyze_dependencies(
             bronze_steps={"bronze_step": Mock(name="bronze_step")},
@@ -298,7 +289,7 @@ class TestSilverStepDependencyOrdering:
         )
 
         # Should still create execution groups
-        assert len(analysis.execution_groups) > 0
+        assert len(analysis.execution_order) > 0
 
     def test_mixed_bronze_and_silver_dependencies(self, mock_spark, bronze_df):
         """Test silver step that depends on both bronze (via source_bronze) and silver (via source_silvers)."""
@@ -331,9 +322,6 @@ class TestSilverStepDependencyOrdering:
             source_silvers=["silver_1"],  # Also depends on silver_1
         )
 
-        config = PipelineConfig.create_default(schema="test")
-        engine = ExecutionEngine(mock_spark, config)
-
         # Analyze dependencies
         analyzer = DependencyAnalyzer()
         analysis = analyzer.analyze_dependencies(
@@ -343,11 +331,11 @@ class TestSilverStepDependencyOrdering:
         )
 
         # Verify both bronze and silver dependencies are respected
-        bronze_group = next(i for i, group in enumerate(analysis.execution_groups) if "bronze_step" in group)
-        silver_1_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_1" in group)
-        silver_2_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_2" in group)
-        assert bronze_group < silver_1_group, "bronze should execute before silver_1"
-        assert silver_1_group < silver_2_group, "silver_1 should execute before silver_2"
+        bronze_idx = analysis.execution_order.index("bronze_step")
+        silver_1_idx = analysis.execution_order.index("silver_1")
+        silver_2_idx = analysis.execution_order.index("silver_2")
+        assert bronze_idx < silver_1_idx, "bronze should execute before silver_1"
+        assert silver_1_idx < silver_2_idx, "silver_1 should execute before silver_2"
 
     def test_complex_dependency_graph(self, mock_spark, bronze_df):
         """Test complex dependency graph with multiple paths."""
@@ -361,6 +349,7 @@ class TestSilverStepDependencyOrdering:
             def transform(spark, bronze_df, prior_silvers):
                 execution_order.append(name)
                 return bronze_df
+
             return transform
 
         silver_1 = SilverStep(
@@ -413,15 +402,12 @@ class TestSilverStepDependencyOrdering:
         # bronze_step in group 0
         # silver_1, silver_2, silver_4 can run in parallel (same group after bronze)
         # silver_3 depends on silver_1 and silver_2, so it's in a later group
-        silver_1_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_1" in group)
-        silver_2_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_2" in group)
-        silver_3_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_3" in group)
-        silver_4_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_4" in group)
-        # silver_1, silver_2, silver_4 can be in same group
-        assert silver_1_group == silver_2_group == silver_4_group, "silver_1, silver_2, silver_4 can run in parallel"
-        # silver_3 must be after silver_1 and silver_2
-        assert silver_3_group > silver_1_group, "silver_3 should execute after silver_1"
-        assert silver_3_group > silver_2_group, "silver_3 should execute after silver_2"
+        silver_1_idx = analysis.execution_order.index("silver_1")
+        silver_2_idx = analysis.execution_order.index("silver_2")
+        silver_3_idx = analysis.execution_order.index("silver_3")
+        # silver_3 must be after silver_1 and silver_2 (it depends on both)
+        assert silver_3_idx > silver_1_idx, "silver_3 should execute after silver_1"
+        assert silver_3_idx > silver_2_idx, "silver_3 should execute after silver_2"
 
     def test_prior_silvers_only_includes_specified_steps(self, mock_spark, bronze_df):
         """Test that prior_silvers only includes steps specified in source_silvers."""
@@ -466,21 +452,22 @@ class TestSilverStepDependencyOrdering:
             source_silvers=["silver_1"],  # Only depends on silver_1, not silver_2
         )
 
-        config = PipelineConfig.create_default(schema="test")
-        engine = ExecutionEngine(mock_spark, config)
-
         # Analyze dependencies
         analyzer = DependencyAnalyzer()
         analysis = analyzer.analyze_dependencies(
             bronze_steps={"bronze_step": Mock(name="bronze_step")},
-            silver_steps={"silver_1": silver_1, "silver_2": silver_2, "silver_3": silver_3},
+            silver_steps={
+                "silver_1": silver_1,
+                "silver_2": silver_2,
+                "silver_3": silver_3,
+            },
             gold_steps={},
         )
 
         # Verify silver_3 only depends on silver_1
-        silver_1_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_1" in group)
-        silver_3_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_3" in group)
-        assert silver_1_group < silver_3_group, "silver_3 should execute after silver_1"
+        silver_1_idx = analysis.execution_order.index("silver_1")
+        silver_3_idx = analysis.execution_order.index("silver_3")
+        assert silver_1_idx < silver_3_idx, "silver_3 should execute after silver_1"
 
     def test_empty_source_silvers_list(self, mock_spark, bronze_df):
         """Test that empty source_silvers list is handled correctly."""
@@ -501,7 +488,7 @@ class TestSilverStepDependencyOrdering:
         )
 
         # Should work without errors
-        assert len(analysis.execution_groups) > 0
+        assert len(analysis.execution_order) > 0
 
     def test_source_silvers_with_single_string(self, mock_spark, bronze_df):
         """Test that source_silvers can be a single string (backward compatibility)."""
@@ -543,6 +530,6 @@ class TestSilverStepDependencyOrdering:
         )
 
         # Should work correctly - bronze in group 0, silvers in later groups
-        silver_1_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_1" in group)
-        silver_2_group = next(i for i, group in enumerate(analysis.execution_groups) if "silver_2" in group)
-        assert silver_1_group < silver_2_group, "silver_1 should execute before silver_2"
+        silver_1_idx = analysis.execution_order.index("silver_1")
+        silver_2_idx = analysis.execution_order.index("silver_2")
+        assert silver_1_idx < silver_2_idx, "silver_1 should execute before silver_2"

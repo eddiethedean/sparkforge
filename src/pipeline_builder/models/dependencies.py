@@ -25,7 +25,8 @@ class SilverDependencyInfo(BaseModel):
         step_name: Name of the silver step
         source_bronze: Source bronze step name
         depends_on_silvers: Set of silver step names this step depends on
-        execution_group: Execution group for sequential processing
+        execution_group: (Deprecated) Legacy field, no longer used. Execution
+            order is determined by topological sort.
     """
 
     step_name: str
@@ -111,12 +112,10 @@ class UnifiedExecutionPlan(BaseModel):
     Attributes:
         steps: List of unified step configurations
         execution_order: Ordered list of step names for execution
-        execution_groups: Groups of steps organized by dependency level
     """
 
     steps: list[UnifiedStepConfig]
     execution_order: list[str]
-    execution_groups: list[list[str]]
 
     def validate(self) -> None:
         """Validate unified execution plan."""
@@ -124,8 +123,6 @@ class UnifiedExecutionPlan(BaseModel):
             raise PipelineValidationError("Steps must be a list")
         if not isinstance(self.execution_order, list):
             raise PipelineValidationError("Execution order must be a list")
-        if not isinstance(self.execution_groups, list):
-            raise PipelineValidationError("Execution groups must be a list")
 
         # Validate that all steps in execution order exist
         step_names = {step.step_name for step in self.steps}

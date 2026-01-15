@@ -152,39 +152,6 @@ class TestDependencyGraph:
         cycles = graph.detect_cycles()
         assert len(cycles) > 0
 
-    def test_get_execution_groups(self):
-        """Test execution group calculation."""
-        graph = DependencyGraph()
-        node1 = StepNode(name="step1", step_type=StepType.BRONZE)
-        node2 = StepNode(name="step2", step_type=StepType.SILVER)
-        node3 = StepNode(name="step3", step_type=StepType.GOLD)
-        graph.add_node(node1)
-        graph.add_node(node2)
-        graph.add_node(node3)
-        graph.add_dependency("step2", "step1")  # step2 depends on step1
-        graph.add_dependency("step3", "step2")  # step3 depends on step2
-
-        groups = graph.get_execution_groups()
-        assert isinstance(groups, list)
-        assert len(groups) > 0
-
-    def test_get_execution_groups_parallel(self):
-        """Test parallel execution groups."""
-        graph = DependencyGraph()
-        node1 = StepNode(name="step1", step_type=StepType.BRONZE)
-        node2 = StepNode(name="step2", step_type=StepType.BRONZE)
-        node3 = StepNode(name="step3", step_type=StepType.SILVER)
-        graph.add_node(node1)
-        graph.add_node(node2)
-        graph.add_node(node3)
-        # step1 and step2 can run in parallel, step3 depends on both
-        graph.add_dependency("step3", "step1")  # step3 depends on step1
-        graph.add_dependency("step3", "step2")  # step3 depends on step2
-
-        groups = graph.get_execution_groups()
-        # step1 and step2 should be in same group, step3 in next
-        assert len(groups) >= 2
-
 
 class TestStepNode:
     """Test StepNode dataclass."""

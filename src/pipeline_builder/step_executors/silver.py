@@ -96,7 +96,7 @@ class SilverStepExecutor(BaseStepExecutor):
         # Otherwise, include all previously executed steps (excluding bronze and current step)
         prior_silvers: Dict[str, DataFrame] = {}
         source_silvers = getattr(step, "source_silvers", None)
-        
+
         if source_silvers:
             # Only include explicitly specified silver steps
             for silver_name in source_silvers:

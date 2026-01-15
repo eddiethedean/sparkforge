@@ -80,7 +80,9 @@ class TestSilverDependencyIntegration:
         )
 
         # Verify pipeline completed
-        assert result.status.value == "completed", "Pipeline should complete successfully"
+        assert result.status.value == "completed", (
+            "Pipeline should complete successfully"
+        )
 
     def test_pipeline_builder_chain_dependencies(self, spark, F):
         """Test PipelineBuilder with chain of silver dependencies."""
@@ -95,6 +97,7 @@ class TestSilverDependencyIntegration:
                     assert "silver_1" in prior_silvers
                     assert "silver_2" in prior_silvers
                 return bronze_df
+
             return transform
 
         data = [("user1", "event1", 100)]
@@ -133,7 +136,7 @@ class TestSilverDependencyIntegration:
         )
 
         pipeline = builder.to_pipeline()
-        result = pipeline.run_initial_load(bronze_sources={"bronze_step": bronze_df})
+        pipeline.run_initial_load(bronze_sources={"bronze_step": bronze_df})
 
         # Verify chain execution order
         assert execution_order == ["silver_1", "silver_2", "silver_3"], (
@@ -193,7 +196,7 @@ class TestSilverDependencyIntegration:
         )
 
         pipeline = builder.to_pipeline()
-        result = pipeline.run_initial_load(bronze_sources={"bronze_step": bronze_df})
+        pipeline.run_initial_load(bronze_sources={"bronze_step": bronze_df})
 
         # Verify silver_3 has both dependencies in prior_silvers
         assert "silver_1" in prior_silvers_keys["silver_3"]
