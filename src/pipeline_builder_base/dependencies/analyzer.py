@@ -213,7 +213,27 @@ class DependencyAnalyzer:
                             f"Silver step {name} references non-existent bronze step {source_bronze}"
                         )
 
-                # Check for additional dependencies
+                # Check for silver-to-silver dependencies via source_silvers
+                # This allows silver steps to depend on other silver steps
+                source_silvers = getattr(silver_step, "source_silvers", None)
+                if source_silvers:
+                    if isinstance(source_silvers, (list, tuple)):
+                        for dep in source_silvers:
+                            if dep in graph.nodes:
+                                graph.add_dependency(name, dep)
+                            else:
+                                self.logger.warning(
+                                    f"Silver step {name} references non-existent silver step {dep}"
+                                )
+                    elif isinstance(source_silvers, str):
+                        if source_silvers in graph.nodes:
+                            graph.add_dependency(name, source_silvers)
+                        else:
+                            self.logger.warning(
+                                f"Silver step {name} references non-existent silver step {source_silvers}"
+                            )
+
+                # Check for additional dependencies (backward compatibility)
                 if hasattr(silver_step, "depends_on"):
                     depends_on = getattr(silver_step, "depends_on", None)
                     if depends_on and isinstance(depends_on, (list, tuple, set)):

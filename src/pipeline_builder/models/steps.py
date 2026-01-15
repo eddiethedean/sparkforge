@@ -211,6 +211,7 @@ class SilverStep(BaseModel):
     schema: Optional[str] = None
     source_incremental_col: Optional[str] = None
     schema_override: Optional[StructType] = None
+    source_silvers: Optional[list[str]] = None
 
     def __post_init__(self) -> None:
         """Validate required fields after initialization."""

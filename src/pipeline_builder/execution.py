@@ -899,8 +899,13 @@ class ExecutionEngine:
                 output_df = self.bronze_executor.execute(step, context, mode)  # type: ignore[arg-type]
             elif step_type == StepType.SILVER:
                 output_df = self.silver_executor.execute(step, context, mode)  # type: ignore[arg-type]
+                # Store output DataFrame in context immediately after execution for downstream steps
+                # This ensures prior_silvers is populated for subsequent silver steps
+                context[step.name] = output_df  # type: ignore[assignment]
             elif step_type == StepType.GOLD:
                 output_df = self.gold_executor.execute(step, context, mode)  # type: ignore[arg-type]
+                # Store output DataFrame in context immediately after execution for downstream steps
+                context[step.name] = output_df  # type: ignore[assignment]
             else:
                 raise ExecutionError(f"Unknown step type: {step_type}")
 
@@ -1633,6 +1638,9 @@ class ExecutionEngine:
                 validation_rate if validation_rate is not None else 100.0
             )
 
+            # Note: output_df is already stored in context immediately after execution
+            # (for Silver and Gold steps) to ensure prior_silvers is populated for downstream steps
+
             # Use logger's step_complete method for consistent formatting with emoji and uppercase
             # rows_written can be None for Bronze steps, but logger expects int, so use 0 as fallback
             self.logger.step_complete(
@@ -1816,6 +1824,8 @@ class ExecutionEngine:
                             result.steps.append(step_result)
 
                         # Update context with step output for downstream steps
+                        # Note: output_df is already stored in context by execute_step after completion
+                        # This table read is a fallback/refresh to ensure we have the latest data from the table
                         if (
                             step_result.status == StepStatus.COMPLETED
                             and step_result.step_type != StepType.BRONZE
@@ -1830,15 +1840,25 @@ class ExecutionEngine:
                                         self.spark.sql(f"REFRESH TABLE {table_fqn}")  # type: ignore[attr-defined]
                                     except Exception:
                                         pass  # Refresh might fail for some table types - continue anyway
-                                    # Read table and add to context
+                                    # Read table and add to context (overwrites output_df with table data)
+                                    # Only update if read succeeds - if it fails, keep the output_df from execute_step
                                     table_df = self.spark.table(table_fqn)  # type: ignore[attr-defined,valid-type]
                                     context[step.name] = table_df  # type: ignore[valid-type]
                                 except Exception as e:
-                                    # If reading fails, log warning but don't fail the step
-                                    self.logger.warning(
-                                        f"Could not read table '{table_fqn}' to add to context. "
-                                        f"Error: {e}"
-                                    )
+                                    # If reading fails, the output_df stored by execute_step is still in context
+                                    # This is fine - we'll use the output_df that was stored during execution
+                                    # Only log if the step name is not already in context (meaning execute_step didn't store it)
+                                    if step.name not in context:
+                                        self.logger.warning(
+                                            f"Could not read table '{table_fqn}' to add to context, "
+                                            f"and execute_step did not store output_df. "
+                                            f"Downstream steps may not have access to this step's output. Error: {e}"
+                                        )
+                                    else:
+                                        self.logger.debug(
+                                            f"Could not read table '{table_fqn}' to refresh context. "
+                                            f"Using output_df stored during execution. Error: {e}"
+                                        )
 
                         if step_result.status == StepStatus.FAILED:
                             self.logger.error(
@@ -1993,8 +2013,37 @@ class ExecutionEngine:
         if mode == ExecutionMode.INCREMENTAL:
             bronze_df = self._filter_incremental_bronze_input(step, bronze_df)
 
-        # Apply transform with source bronze data and empty silvers dict
-        return step.transform(self.spark, bronze_df, {})
+        # Build prior_silvers dict from context
+        # If source_silvers is specified, only include those steps
+        # Otherwise, include all previously executed steps (excluding bronze and current step)
+        prior_silvers: Dict[str, DataFrame] = {}  # type: ignore[valid-type]
+        source_silvers = getattr(step, "source_silvers", None)
+        
+        if source_silvers:
+            # Only include explicitly specified silver steps
+            for silver_name in source_silvers:
+                if silver_name in context and silver_name != step.name:
+                    prior_silvers[silver_name] = context[silver_name]  # type: ignore[assignment]
+                elif silver_name not in context:
+                    # Log warning if expected silver step is not in context
+                    # This helps debug dependency issues
+                    available_keys = [k for k in context.keys() if k != step.name and k != step.source_bronze]
+                    self.logger.warning(
+                        f"Silver step {step.name} expects {silver_name} in prior_silvers "
+                        f"(via source_silvers), but it's not in context. "
+                        f"Available keys: {list(context.keys())}, "
+                        f"Other silver steps in context: {available_keys}"
+                    )
+        else:
+            # Include all previously executed steps (excluding bronze and current step)
+            # This allows backward compatibility for silver steps that access prior_silvers
+            # without explicitly declaring dependencies
+            for key, value in context.items():
+                if key != step.name and key != step.source_bronze:
+                    prior_silvers[key] = value  # type: ignore[assignment]
+
+        # Apply transform with source bronze data and prior silvers dict
+        return step.transform(self.spark, bronze_df, prior_silvers)
 
     def _filter_incremental_bronze_input(
         self,

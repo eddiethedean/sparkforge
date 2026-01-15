@@ -91,8 +91,27 @@ class SilverStepExecutor(BaseStepExecutor):
         if mode == ExecutionMode.INCREMENTAL:
             bronze_df = self._filter_incremental_bronze_input(step, bronze_df)
 
-        # Apply transform with source bronze data and empty silvers dict
-        return step.transform(self.spark, bronze_df, {})
+        # Build prior_silvers dict from context
+        # If source_silvers is specified, only include those steps
+        # Otherwise, include all previously executed steps (excluding bronze and current step)
+        prior_silvers: Dict[str, DataFrame] = {}
+        source_silvers = getattr(step, "source_silvers", None)
+        
+        if source_silvers:
+            # Only include explicitly specified silver steps
+            for silver_name in source_silvers:
+                if silver_name in context and silver_name != step.name:
+                    prior_silvers[silver_name] = context[silver_name]
+        else:
+            # Include all previously executed steps (excluding bronze and current step)
+            # This allows backward compatibility for silver steps that access prior_silvers
+            # without explicitly declaring dependencies
+            for key, value in context.items():
+                if key != step.name and key != step.source_bronze:
+                    prior_silvers[key] = value
+
+        # Apply transform with source bronze data and prior silvers dict
+        return step.transform(self.spark, bronze_df, prior_silvers)
 
     def _filter_incremental_bronze_input(
         self,

@@ -597,6 +597,7 @@ class PipelineBuilder(BasePipelineBuilder):
         watermark_col: Optional[str] = None,
         description: Optional[str] = None,
         depends_on: Optional[list[StepName]] = None,
+        source_silvers: Optional[list[StepName]] = None,
         schema: Optional[str] = None,
         schema_override: Optional[Any] = None,
     ) -> PipelineBuilder:
@@ -628,8 +629,11 @@ class PipelineBuilder(BasePipelineBuilder):
                 processing with append mode.
             description: Optional description of this Silver step.
             depends_on: Optional list of other Silver step names that must
-                complete before this step. Not currently used but reserved for
-                future cross-silver dependencies.
+                complete before this step. Deprecated - use source_silvers instead.
+            source_silvers: Optional list of Silver step names this Silver step
+                depends on. These steps will be available in the prior_silvers
+                dictionary passed to the transform function. If provided, ensures
+                correct execution order.
             schema: Optional schema name for writing silver data. If not
                 provided, uses the builder's default schema.
             schema_override: Optional PySpark StructType schema to override
@@ -745,6 +749,9 @@ class PipelineBuilder(BasePipelineBuilder):
         # Capture the incremental column from the source bronze step (if any)
         source_incremental_col = self.bronze_steps[source_bronze].incremental_col
 
+        # Use source_silvers if provided, otherwise fall back to depends_on for backward compatibility
+        final_source_silvers = source_silvers if source_silvers is not None else depends_on
+
         # Create silver step
         silver_step = SilverStep(
             name=name,
@@ -756,6 +763,7 @@ class PipelineBuilder(BasePipelineBuilder):
             schema=schema,
             source_incremental_col=source_incremental_col,
             schema_override=schema_override,
+            source_silvers=final_source_silvers,
         )
 
         self.silver_steps[name] = silver_step
