@@ -16,10 +16,12 @@ import inspect
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
+from pipeline_builder_base.errors import ExecutionError
 from pipeline_builder_base.logging import PipelineLogger
 
 from ..compat import DataFrame, SparkSession
 from ..functions import FunctionsProtocol
+from ..table_operations import fqn, table_exists
 
 
 class BaseStepExecutor(ABC):
@@ -85,6 +87,69 @@ class BaseStepExecutor(ABC):
         except (ValueError, TypeError):
             # If we can't inspect the signature, assume it doesn't accept params
             return False
+
+    def _handle_validation_only_step(
+        self, step: Any, step_type: str
+    ) -> Optional[DataFrame]:
+        """Handle validation-only steps by reading from existing table.
+
+        This method checks if a step is validation-only (transform=None, existing=True)
+        and if so, reads the data from the existing table. Returns None if the step
+        is not validation-only.
+
+        Args:
+            step: Step instance (SilverStep or GoldStep).
+            step_type: Step type string for error messages ("silver" or "gold").
+
+        Returns:
+            DataFrame if step is validation-only and table exists, None otherwise.
+
+        Raises:
+            ExecutionError: If schema doesn't exist, table doesn't exist, or
+                reading fails.
+        """
+        # Check if this is a validation-only step
+        if not (hasattr(step, "transform") and step.transform is None and
+                hasattr(step, "existing") and step.existing):
+            return None  # Not a validation-only step
+
+        table_name = getattr(step, "table_name", step.name)
+        schema = getattr(step, "schema", None)
+
+        if schema is None:
+            raise ExecutionError(
+                f"Validation-only {step_type} step '{step.name}' requires schema to read from table"
+            )
+
+        # Validate schema exists before checking table
+        try:
+            databases = [db.name for db in self.spark.catalog.listDatabases()]  # type: ignore[attr-defined]
+            if schema not in databases:
+                raise ExecutionError(
+                    f"Validation-only {step_type} step '{step.name}' requires schema '{schema}', but schema does not exist. "
+                    f"Available schemas: {databases}"
+                )
+        except ExecutionError:
+            raise  # Re-raise ExecutionError
+        except Exception as e:
+            raise ExecutionError(
+                f"Failed to check if schema '{schema}' exists for validation-only {step_type} step '{step.name}': {e}"
+            ) from e
+
+        table_fqn = fqn(schema, table_name)
+        try:
+            if table_exists(self.spark, table_fqn):
+                return self.spark.table(table_fqn)  # type: ignore[attr-defined]
+            else:
+                raise ExecutionError(
+                    f"Validation-only {step_type} step '{step.name}' requires existing table '{table_fqn}', but table does not exist"
+                )
+        except ExecutionError:
+            raise  # Re-raise ExecutionError
+        except Exception as e:
+            raise ExecutionError(
+                f"Failed to read table '{table_fqn}' for validation-only {step_type} step '{step.name}': {e}"
+            ) from e
 
     @abstractmethod
     def execute(

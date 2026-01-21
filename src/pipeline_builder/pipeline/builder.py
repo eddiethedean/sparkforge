@@ -548,6 +548,9 @@ class PipelineBuilder(BasePipelineBuilder):
         # Convert string rules to PySpark Column objects
         converted_rules = _convert_rules_to_expressions(rules, self.functions)
 
+        # Get effective schema (use builder's default if not provided)
+        effective_schema = self._get_effective_schema(schema)
+
         # Create SilverStep for validation-only (no transform function)
         silver_step = SilverStep(
             name=name,
@@ -557,7 +560,7 @@ class PipelineBuilder(BasePipelineBuilder):
             table_name=table_name,
             watermark_col=None,  # No watermark needed for validation-only steps
             existing=True,
-            schema=schema,
+            schema=effective_schema,
             source_incremental_col=None,
         )
 
@@ -670,6 +673,9 @@ class PipelineBuilder(BasePipelineBuilder):
         # Convert string rules to PySpark Column objects
         converted_rules = _convert_rules_to_expressions(rules, self.functions)
 
+        # Get effective schema (use builder's default if not provided)
+        effective_schema = self._get_effective_schema(schema)
+
         # Create GoldStep for validation-only (no transform function)
         gold_step = GoldStep(
             name=name,
@@ -677,7 +683,7 @@ class PipelineBuilder(BasePipelineBuilder):
             rules=converted_rules,
             table_name=table_name,
             existing=True,
-            schema=schema,
+            schema=effective_schema,
             source_silvers=None,  # No source silvers for existing tables
         )
 

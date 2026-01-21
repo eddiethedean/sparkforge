@@ -14,7 +14,6 @@ from pipeline_builder_base.errors import ExecutionError
 
 from ..compat import DataFrame
 from ..models import GoldStep
-from ..table_operations import fqn, table_exists
 from .base import BaseStepExecutor
 
 
@@ -90,27 +89,11 @@ class GoldStepExecutor(BaseStepExecutor):
         """
         # Handle validation-only steps (no transform function)
         if step.transform is None:
-            # For validation-only steps, read from table if it exists
             if step.existing:
-                table_name = getattr(step, "table_name", step.name)
-                schema = getattr(step, "schema", None)
-                if schema is not None:
-                    table_fqn = fqn(schema, table_name)
-                    try:
-                        if table_exists(self.spark, table_fqn):
-                            return self.spark.table(table_fqn)  # type: ignore[attr-defined]
-                        else:
-                            raise ExecutionError(
-                                f"Validation-only gold step '{step.name}' requires existing table '{table_fqn}', but table does not exist"
-                            )
-                    except Exception as e:
-                        raise ExecutionError(
-                            f"Failed to read table '{table_fqn}' for validation-only gold step '{step.name}': {e}"
-                        ) from e
-                else:
-                    raise ExecutionError(
-                        f"Validation-only gold step '{step.name}' requires schema to read from table"
-                    )
+                # Use base class method for validation-only step handling
+                result = self._handle_validation_only_step(step, "gold")
+                if result is not None:
+                    return result
             else:
                 raise ExecutionError(
                     f"Gold step '{step.name}' has no transform function and is not marked as existing"

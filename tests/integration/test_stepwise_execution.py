@@ -1233,6 +1233,121 @@ class TestValidationOnlySteps:
         with pytest.raises(ExecutionError, match="requires schema"):
             executor.execute(gold_step, context, None)
 
+    def test_validation_only_silver_step_nonexistent_schema_error(
+        self, spark_session, config
+    ):
+        """Test that validation-only silver step raises error when schema doesn't exist."""
+        from pipeline_builder.step_executors.silver import SilverStepExecutor
+        from pipeline_builder.table_operations import fqn
+
+        # Don't create the schema - it should not exist
+        schema = "nonexistent_schema"
+        table_name = "some_table"
+        
+        silver_step = SilverStep(
+            name="existing_silver",
+            source_bronze="",
+            transform=None,
+            rules={"id": [F.col("id").isNotNull()]},
+            table_name=table_name,
+            existing=True,
+            schema=schema,
+        )
+
+        executor = SilverStepExecutor(spark_session)
+        context = {}
+
+        # Should raise error about schema not existing (before checking table)
+        with pytest.raises(ExecutionError, match="schema does not exist"):
+            executor.execute(silver_step, context, ExecutionMode.INITIAL)
+
+    def test_validation_only_gold_step_nonexistent_schema_error(
+        self, spark_session, config
+    ):
+        """Test that validation-only gold step raises error when schema doesn't exist."""
+        from pipeline_builder.step_executors.gold import GoldStepExecutor
+
+        # Don't create the schema - it should not exist
+        schema = "nonexistent_schema"
+        table_name = "some_table"
+        
+        gold_step = GoldStep(
+            name="existing_gold",
+            transform=None,
+            rules={"id": [F.col("id").isNotNull()]},
+            table_name=table_name,
+            existing=True,
+            schema=schema,
+        )
+
+        executor = GoldStepExecutor(spark_session)
+        context = {}
+
+        # Should raise error about schema not existing (before checking table)
+        with pytest.raises(ExecutionError, match="schema does not exist"):
+            executor.execute(gold_step, context, None)
+
+    def test_validation_only_silver_step_schema_before_table_check(
+        self, spark_session, config
+    ):
+        """Test that schema validation happens before table existence check."""
+        from pipeline_builder.step_executors.silver import SilverStepExecutor
+
+        # Use a schema that doesn't exist - should fail on schema check, not table check
+        schema = "nonexistent_schema"
+        table_name = "some_table"
+        
+        silver_step = SilverStep(
+            name="existing_silver",
+            source_bronze="",
+            transform=None,
+            rules={"id": [F.col("id").isNotNull()]},
+            table_name=table_name,
+            existing=True,
+            schema=schema,
+        )
+
+        executor = SilverStepExecutor(spark_session)
+        context = {}
+
+        # Should raise error about schema, not table
+        with pytest.raises(ExecutionError) as exc_info:
+            executor.execute(silver_step, context, ExecutionMode.INITIAL)
+        
+        # Error should mention schema, not table
+        assert "schema" in str(exc_info.value).lower()
+        assert "does not exist" in str(exc_info.value).lower()
+
+    def test_validation_only_gold_step_schema_before_table_check(
+        self, spark_session, config
+    ):
+        """Test that schema validation happens before table existence check."""
+        from pipeline_builder.step_executors.gold import GoldStepExecutor
+
+        # Use a schema that doesn't exist - should fail on schema check, not table check
+        schema = "nonexistent_schema"
+        table_name = "some_table"
+        
+        gold_step = GoldStep(
+            name="existing_gold",
+            transform=None,
+            rules={"id": [F.col("id").isNotNull()]},
+            table_name=table_name,
+            existing=True,
+            schema=schema,
+        )
+
+        executor = GoldStepExecutor(spark_session)
+        context = {}
+
+        # Should raise error about schema, not table
+        with pytest.raises(ExecutionError) as exc_info:
+            executor.execute(gold_step, context, None)
+        
+        # Error should mention schema, not table
+        assert "schema" in str(exc_info.value).lower()
+        assert "does not exist" in str(exc_info.value).lower()
+
 
 class TestPriorGoldsAdvanced:
     """Advanced tests for prior_golds functionality."""

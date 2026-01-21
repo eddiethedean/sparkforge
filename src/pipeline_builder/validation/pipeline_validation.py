@@ -194,8 +194,13 @@ class UnifiedValidator:
         warnings: list[str] = []
 
         for step_name, step in silver_steps.items():
-            # Skip validation for validation-only steps (existing=True, transform=None)
+            # Handle validation-only steps (existing=True, transform=None)
             if step.existing and step.transform is None:
+                # Validation-only step - check rules and table_name, but skip source_bronze
+                if not step.rules:
+                    errors.append(f"Silver step '{step_name}' missing validation rules")
+                if not step.table_name:
+                    errors.append(f"Silver step '{step_name}' missing table_name")
                 continue
             
             if not step.source_bronze:
@@ -219,6 +224,15 @@ class UnifiedValidator:
         warnings: list[str] = []
 
         for step_name, step in gold_steps.items():
+            # Handle validation-only steps (existing=True, transform=None)
+            if step.existing and step.transform is None:
+                # Validation-only step - check rules and table_name, but skip source_silvers
+                if not step.rules:
+                    errors.append(f"Gold step '{step_name}' missing validation rules")
+                if not step.table_name:
+                    errors.append(f"Gold step '{step_name}' missing table_name")
+                continue
+            
             # Check source_silvers exist (if specified)
             if step.source_silvers:
                 for silver_name in step.source_silvers:

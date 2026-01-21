@@ -49,6 +49,12 @@ Use `with_silver_rules` and `with_gold_rules` when:
 3. **Gold-to-Gold Dependencies**: Gold transforms need access to previously validated gold tables
 4. **Data Quality Monitoring**: You want to validate existing tables as part of your pipeline
 
+### Schema Handling
+
+- **Default Schema**: If you don't provide a `schema` parameter, the builder automatically uses the default schema specified when creating the `PipelineBuilder` instance
+- **Schema Validation**: The executor validates that the schema exists before attempting to read from the table, providing clear error messages if the schema is missing
+- **Custom Schema**: You can specify a different schema for each validation-only step if your tables are in different schemas
+
 ### Architecture
 
 ```
@@ -192,7 +198,7 @@ def with_gold_rules(
   - Supports PySpark Column expressions: `{"user_id": [F.col("user_id").isNotNull()]}`
   - Supports string rules: `{"user_id": ["not_null"], "count": ["gt", 0]}`
 - **description** (str, optional): Description of this gold step
-- **schema** (str, optional): Schema name for reading gold data. If not provided, uses builder's default schema
+- **schema** (str, optional): Schema name for reading gold data. If not provided, uses the builder's default schema (set during PipelineBuilder initialization)
 
 ### Returns
 
