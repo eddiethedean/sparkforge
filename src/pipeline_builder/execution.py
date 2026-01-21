@@ -815,6 +815,8 @@ class ExecutionEngine:
         step: Union[BronzeStep, SilverStep, GoldStep],
         context: Dict[str, DataFrame],  # type: ignore[valid-type]
         mode: ExecutionMode = ExecutionMode.INITIAL,
+        step_params: Optional[Dict[str, Any]] = None,
+        write_outputs: bool = True,
     ) -> StepExecutionResult:
         """Execute a single pipeline step.
 
@@ -829,6 +831,13 @@ class ExecutionEngine:
                 steps, silver data for Gold steps).
             mode: Execution mode (INITIAL, INCREMENTAL, FULL_REFRESH,
                 VALIDATION_ONLY). Defaults to INITIAL.
+            step_params: Optional dictionary of parameters to pass to the step's
+                transform function. Only used for Silver and Gold steps. If the
+                transform function accepts a 'params' argument or **kwargs,
+                these will be passed. Otherwise, ignored for backward compatibility.
+            write_outputs: If True, write step outputs to Delta Lake tables.
+                If False, skip writing (useful for debugging/iteration).
+                Defaults to True.
 
         Returns:
             StepExecutionResult containing execution details including:
@@ -893,12 +902,12 @@ class ExecutionEngine:
             if step_type == StepType.BRONZE:
                 output_df = self.bronze_executor.execute(step, context, mode)  # type: ignore[arg-type]
             elif step_type == StepType.SILVER:
-                output_df = self.silver_executor.execute(step, context, mode)  # type: ignore[arg-type]
+                output_df = self.silver_executor.execute(step, context, mode, step_params=step_params)  # type: ignore[arg-type]
                 # Store output DataFrame in context immediately after execution for downstream steps
                 # This ensures prior_silvers is populated for subsequent silver steps
                 context[step.name] = output_df  # type: ignore[assignment]
             elif step_type == StepType.GOLD:
-                output_df = self.gold_executor.execute(step, context, mode)  # type: ignore[arg-type]
+                output_df = self.gold_executor.execute(step, context, mode, step_params=step_params)  # type: ignore[arg-type]
                 # Store output DataFrame in context immediately after execution for downstream steps
                 context[step.name] = output_df  # type: ignore[assignment]
             else:
@@ -924,9 +933,13 @@ class ExecutionEngine:
                         self.validator.get_validation_metrics(validation_stats)
                     )
 
-            # Write output if not in validation-only mode
+            # Write output if not in validation-only mode and write_outputs is True
             # Note: Bronze steps only validate data, they don't write to tables
-            if mode != ExecutionMode.VALIDATION_ONLY and step_type != StepType.BRONZE:
+            if (
+                mode != ExecutionMode.VALIDATION_ONLY
+                and step_type != StepType.BRONZE
+                and write_outputs
+            ):
                 # Use table_name attribute for SilverStep and GoldStep
                 table_name = getattr(step, "table_name", step.name)
                 schema = getattr(step, "schema", None)
@@ -1781,6 +1794,10 @@ class ExecutionEngine:
         steps: list[Union[BronzeStep, SilverStep, GoldStep]],
         mode: ExecutionMode = ExecutionMode.INITIAL,
         context: Optional[Dict[str, DataFrame]] = None,  # type: ignore[valid-type]
+        step_params: Optional[Dict[str, Dict[str, Any]]] = None,
+        stop_after_step: Optional[str] = None,
+        start_at_step: Optional[str] = None,
+        write_outputs: bool = True,
     ) -> ExecutionResult:
         """Execute a complete pipeline with dependency-aware sequential execution.
 
@@ -1796,6 +1813,18 @@ class ExecutionEngine:
             context: Optional initial execution context dictionary mapping step
                 names to DataFrames. Must contain bronze source data. If None,
                 empty dictionary is used.
+            step_params: Optional dictionary mapping step names to parameter
+                dictionaries. These parameters will be passed to the step's
+                transform function if it accepts a 'params' argument or **kwargs.
+            stop_after_step: Optional step name. If provided, execution stops
+                after this step completes (inclusive). Useful for debugging
+                or partial pipeline execution.
+            start_at_step: Optional step name. If provided, execution begins
+                at this step, skipping earlier steps. Earlier step outputs
+                must exist in context or be readable from tables.
+            write_outputs: If True, write step outputs to Delta Lake tables.
+                If False, skip writing (useful for debugging/iteration).
+                Defaults to True.
 
         Returns:
             ExecutionResult containing:
@@ -1882,13 +1911,61 @@ class ExecutionEngine:
             # Get execution order (topologically sorted steps)
             execution_order = analysis.execution_order
 
+            # Create a mapping of step names to step objects (needed for start_at_step handling)
+            step_map = {s.name: s for s in steps}
+
+            # Handle start_at_step: filter execution order and load earlier outputs
+            if start_at_step is not None:
+                if start_at_step not in execution_order:
+                    raise ExecutionError(
+                        f"start_at_step '{start_at_step}' not found in execution order. "
+                        f"Available steps: {execution_order}"
+                    )
+                start_index = execution_order.index(start_at_step)
+                skipped_steps = execution_order[:start_index]
+                execution_order = execution_order[start_index:]
+
+                # Try to load outputs from skipped steps if not in context
+                for skipped_name in skipped_steps:
+                    if skipped_name not in context:
+                        skipped_step = step_map.get(skipped_name)
+                        if skipped_step is not None:
+                            # Try to read from table if it's a Silver/Gold step
+                            if skipped_step.step_type.value in ("silver", "gold"):
+                                table_name = getattr(skipped_step, "table_name", skipped_name)
+                                schema = getattr(skipped_step, "schema", None)
+                                if schema is not None:
+                                    table_fqn = fqn(schema, table_name)
+                                    try:
+                                        if table_exists(self.spark, table_fqn):
+                                            context[skipped_name] = self.spark.table(table_fqn)  # type: ignore[attr-defined,valid-type]
+                                            self.logger.info(
+                                                f"Loaded output for skipped step '{skipped_name}' from table '{table_fqn}'"
+                                            )
+                                        else:
+                                            self.logger.warning(
+                                                f"Step '{skipped_name}' output not in context and table '{table_fqn}' does not exist. "
+                                                f"Downstream steps may fail."
+                                            )
+                                    except Exception as e:
+                                        self.logger.warning(
+                                            f"Could not load output for skipped step '{skipped_name}' from table '{table_fqn}': {e}"
+                                        )
+                            else:
+                                # Bronze step - must be in context
+                                self.logger.warning(
+                                    f"Bronze step '{skipped_name}' output not in context. "
+                                    f"Bronze steps must be provided in context when using start_at_step."
+                                )
+
+                self.logger.info(
+                    f"Starting execution at step '{start_at_step}' (skipped {len(skipped_steps)} earlier steps)"
+                )
+
             # Log dependency analysis results
             self.logger.info(
                 f"Dependency analysis complete: {len(execution_order)} steps to execute"
             )
-
-            # Create a mapping of step names to step objects
-            step_map = {s.name: s for s in steps}
 
             # Execute steps in dependency order
             for step_name in execution_order:
@@ -1900,20 +1977,29 @@ class ExecutionEngine:
 
                 step = step_map[step_name]
                 try:
+                    # Get step-specific params if provided
+                    current_step_params = None
+                    if step_params is not None and step_name in step_params:
+                        current_step_params = step_params[step_name]
+
                     step_result = self.execute_step(
                         step,
                         context,
                         mode,
+                        step_params=current_step_params,
+                        write_outputs=write_outputs,
                     )
                     if result.steps is not None:
                         result.steps.append(step_result)
 
                     # Update context with step output for downstream steps
                     # Note: output_df is already stored in context by execute_step after completion
-                    # This table read is a fallback/refresh to ensure we have the latest data from the table
+                    # If write_outputs is True, refresh from table to ensure we have the latest persisted data
+                    # If write_outputs is False, keep the in-memory DataFrame (no table was written)
                     if (
                         step_result.status == StepStatus.COMPLETED
                         and step_result.step_type != StepType.BRONZE
+                        and write_outputs
                     ):
                         table_name = getattr(step, "table_name", step.name)
                         schema = getattr(step, "schema", None)
@@ -1944,11 +2030,34 @@ class ExecutionEngine:
                                         f"Could not read table '{table_fqn}' to refresh context. "
                                         f"Using output_df stored during execution. Error: {e}"
                                     )
+                    elif (
+                        step_result.status == StepStatus.COMPLETED
+                        and step_result.step_type != StepType.BRONZE
+                        and not write_outputs
+                    ):
+                        # When write_outputs is False, ensure context has the in-memory DataFrame
+                        # (execute_step already stored it, but we want to make sure it's there)
+                        if step.name not in context:
+                            self.logger.warning(
+                                f"Step '{step.name}' completed but output not in context. "
+                                f"This may indicate an issue with execute_step."
+                            )
 
                     if step_result.status == StepStatus.FAILED:
                         self.logger.error(
                             f"Step {step_name} failed: {step_result.error}"
                         )
+
+                    # Check if we should stop after this step
+                    if stop_after_step is not None and step_name == stop_after_step:
+                        self.logger.info(
+                            f"Stopping execution after step '{stop_after_step}' as requested"
+                        )
+                        # Mark result as completed (even if some steps were skipped)
+                        result.status = "completed"
+                        result.end_time = datetime.now()
+                        return result
+
                 except Exception as e:
                     self.logger.error(f"Exception executing step {step_name}: {e}")
                     # Determine correct step type

@@ -304,6 +304,288 @@ class SimplePipelineRunner(BaseRunner, Runner):
         )
         return self.run_pipeline(steps, PipelineMode.VALIDATION_ONLY, bronze_sources)
 
+    def _get_all_steps(
+        self, steps: Optional[list[Union[BronzeStep, SilverStep, GoldStep]]] = None
+    ) -> list[Union[BronzeStep, SilverStep, GoldStep]]:
+        """Get all steps from stored dictionaries or provided list.
+
+        Args:
+            steps: Optional list of steps. If None, returns all stored steps.
+
+        Returns:
+            List of all steps (bronze, silver, gold).
+        """
+        if steps is not None:
+            return steps
+        return (
+            list(self.bronze_steps.values())
+            + list(self.silver_steps.values())
+            + list(self.gold_steps.values())
+        )
+
+    def run_until(
+        self,
+        step_name: str,
+        steps: Optional[list[Union[BronzeStep, SilverStep, GoldStep]]] = None,
+        mode: PipelineMode = PipelineMode.INITIAL,
+        bronze_sources: Optional[Dict[str, DataFrame]] = None,  # type: ignore[valid-type]
+        step_params: Optional[Dict[str, Dict[str, Any]]] = None,
+        write_outputs: bool = True,
+    ) -> tuple[PipelineReport, Dict[str, DataFrame]]:  # type: ignore[valid-type]
+        """Run pipeline until a specific step completes (inclusive).
+
+        Executes steps in dependency order until the specified step completes,
+        then stops. Useful for debugging or partial pipeline execution.
+
+        Args:
+            step_name: Name of the step to stop after (inclusive).
+            steps: Optional list of steps. If None, uses all stored steps.
+            mode: Pipeline execution mode.
+            bronze_sources: Optional bronze source data.
+            step_params: Optional dictionary mapping step names to parameter
+                dictionaries for transform functions.
+            write_outputs: If True, write outputs to tables. If False, skip writes.
+
+        Returns:
+            Tuple of (PipelineReport, context dictionary) where context contains
+            all step outputs for further execution.
+
+        Example:
+            >>> report, context = runner.run_until("clean_events")
+            >>> # Now you can inspect context or continue execution
+        """
+        all_steps = self._get_all_steps(steps)
+        start_time = datetime.now()
+        pipeline_id = f"pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        execution_mode = self._convert_mode(mode)
+
+        try:
+            self.logger.info(
+                f"Starting pipeline execution until step '{step_name}': {pipeline_id}"
+            )
+
+            # Prepare context
+            context: Dict[str, DataFrame] = {}  # type: ignore[valid-type]
+            if bronze_sources:
+                for step in all_steps:
+                    if step.step_type.value == "bronze" and step.name in bronze_sources:
+                        context[step.name] = bronze_sources[step.name]
+
+            # Execute pipeline with stop_after_step
+            result = self.execution_engine.execute_pipeline(
+                all_steps,
+                execution_mode,
+                context=context,
+                step_params=step_params,
+                stop_after_step=step_name,
+                write_outputs=write_outputs,
+            )
+
+            # Create report
+            report = self._create_spark_pipeline_report(
+                pipeline_id=pipeline_id,
+                mode=mode,
+                start_time=start_time,
+                execution_result=result,
+            )
+
+            self.logger.info(
+                f"Completed pipeline execution until step '{step_name}': {pipeline_id}"
+            )
+            return report, context
+
+        except Exception as e:
+            self.logger.error(f"Pipeline execution failed: {e}")
+            error_report = self._create_error_report(
+                pipeline_id=pipeline_id, mode=mode, start_time=start_time, error=str(e)
+            )
+            return error_report, context
+
+    def run_step(
+        self,
+        step_name: str,
+        steps: Optional[list[Union[BronzeStep, SilverStep, GoldStep]]] = None,
+        mode: PipelineMode = PipelineMode.INITIAL,
+        context: Optional[Dict[str, DataFrame]] = None,  # type: ignore[valid-type]
+        step_params: Optional[Dict[str, Dict[str, Any]]] = None,
+        write_outputs: bool = True,
+    ) -> tuple[PipelineReport, Dict[str, DataFrame]]:  # type: ignore[valid-type]
+        """Run a single step, loading dependencies from context or tables.
+
+        Executes only the specified step, using existing outputs from context
+        or reading from tables for dependencies. Useful for debugging individual steps.
+
+        Args:
+            step_name: Name of the step to execute.
+            steps: Optional list of steps. If None, uses all stored steps.
+            mode: Pipeline execution mode.
+            context: Optional execution context. If None, empty dict is used.
+                Dependencies will be loaded from tables if not in context.
+            step_params: Optional dictionary mapping step names to parameter
+                dictionaries for transform functions.
+            write_outputs: If True, write outputs to tables. If False, skip writes.
+
+        Returns:
+            Tuple of (PipelineReport, context dictionary) with updated context.
+
+        Example:
+            >>> report, context = runner.run_step("clean_events", context=context)
+            >>> # Step executed, context updated with output
+        """
+        all_steps = self._get_all_steps(steps)
+        start_time = datetime.now()
+        pipeline_id = f"pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        execution_mode = self._convert_mode(mode)
+
+        if context is None:
+            context = {}
+
+        try:
+            self.logger.info(
+                f"Starting single step execution '{step_name}': {pipeline_id}"
+            )
+
+            # Execute pipeline starting at this step
+            result = self.execution_engine.execute_pipeline(
+                all_steps,
+                execution_mode,
+                context=context,
+                step_params=step_params,
+                start_at_step=step_name,
+                stop_after_step=step_name,
+                write_outputs=write_outputs,
+            )
+
+            # Create report
+            report = self._create_spark_pipeline_report(
+                pipeline_id=pipeline_id,
+                mode=mode,
+                start_time=start_time,
+                execution_result=result,
+            )
+
+            self.logger.info(f"Completed step execution '{step_name}': {pipeline_id}")
+            return report, context
+
+        except Exception as e:
+            self.logger.error(f"Step execution failed: {e}")
+            error_report = self._create_error_report(
+                pipeline_id=pipeline_id, mode=mode, start_time=start_time, error=str(e)
+            )
+            return error_report, context
+
+    def rerun_step(
+        self,
+        step_name: str,
+        steps: Optional[list[Union[BronzeStep, SilverStep, GoldStep]]] = None,
+        mode: PipelineMode = PipelineMode.INITIAL,
+        context: Optional[Dict[str, DataFrame]] = None,  # type: ignore[valid-type]
+        step_params: Optional[Dict[str, Dict[str, Any]]] = None,
+        invalidate_downstream: bool = True,
+        write_outputs: bool = True,
+    ) -> tuple[PipelineReport, Dict[str, DataFrame]]:  # type: ignore[valid-type]
+        """Rerun a step with optional parameter overrides.
+
+        Reruns the specified step, optionally removing downstream outputs from
+        context to ensure clean execution. Useful for debugging and iterative refinement.
+
+        Args:
+            step_name: Name of the step to rerun.
+            steps: Optional list of steps. If None, uses all stored steps.
+            mode: Pipeline execution mode.
+            context: Optional execution context. If None, empty dict is used.
+            step_params: Optional dictionary mapping step names to parameter
+                dictionaries for transform functions. Overrides are applied to
+                the specified step.
+            invalidate_downstream: If True, remove downstream step outputs from
+                context to ensure clean rerun. Defaults to True.
+            write_outputs: If True, write outputs to tables. If False, skip writes.
+
+        Returns:
+            Tuple of (PipelineReport, context dictionary) with updated context.
+
+        Example:
+            >>> # First run
+            >>> report, context = runner.run_step("clean_events")
+            >>> # Rerun with different parameters
+            >>> report2, context = runner.rerun_step(
+            ...     "clean_events",
+            ...     context=context,
+            ...     step_params={"clean_events": {"filter_threshold": 0.9}}
+            ... )
+        """
+        all_steps = self._get_all_steps(steps)
+        start_time = datetime.now()
+        pipeline_id = f"pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        execution_mode = self._convert_mode(mode)
+
+        if context is None:
+            context = {}
+
+        # Invalidate downstream steps if requested
+        if invalidate_downstream:
+            from pipeline_builder_base.dependencies import DependencyAnalyzer
+
+            # Build dependency graph to find downstream steps
+            bronze_steps = [s for s in all_steps if s.step_type.value == "bronze"]
+            silver_steps = [s for s in all_steps if s.step_type.value == "silver"]
+            gold_steps = [s for s in all_steps if s.step_type.value == "gold"]
+
+            analyzer = DependencyAnalyzer()
+            analysis = analyzer.analyze_dependencies(
+                bronze_steps={s.name: s for s in bronze_steps},
+                silver_steps={s.name: s for s in silver_steps},
+                gold_steps={s.name: s for s in gold_steps},
+            )
+
+            # Find downstream steps (steps that depend on step_name)
+            execution_order = analysis.execution_order
+            if step_name in execution_order:
+                step_index = execution_order.index(step_name)
+                downstream_steps = execution_order[step_index + 1 :]
+
+                # Remove downstream outputs from context
+                for downstream_name in downstream_steps:
+                    if downstream_name in context:
+                        del context[downstream_name]
+                        self.logger.debug(
+                            f"Removed downstream step '{downstream_name}' from context"
+                        )
+
+        try:
+            self.logger.info(
+                f"Rerunning step '{step_name}': {pipeline_id}"
+            )
+
+            # Execute pipeline starting at this step
+            result = self.execution_engine.execute_pipeline(
+                all_steps,
+                execution_mode,
+                context=context,
+                step_params=step_params,
+                start_at_step=step_name,
+                stop_after_step=step_name,
+                write_outputs=write_outputs,
+            )
+
+            # Create report
+            report = self._create_spark_pipeline_report(
+                pipeline_id=pipeline_id,
+                mode=mode,
+                start_time=start_time,
+                execution_result=result,
+            )
+
+            self.logger.info(f"Completed step rerun '{step_name}': {pipeline_id}")
+            return report, context
+
+        except Exception as e:
+            self.logger.error(f"Step rerun failed: {e}")
+            error_report = self._create_error_report(
+                pipeline_id=pipeline_id, mode=mode, start_time=start_time, error=str(e)
+            )
+            return error_report, context
+
     def _convert_mode(self, mode: PipelineMode) -> ExecutionMode:
         """Convert PipelineMode to ExecutionMode."""
         mode_map = {

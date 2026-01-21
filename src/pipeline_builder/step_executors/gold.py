@@ -7,7 +7,8 @@ in the Medallion architecture.
 
 from __future__ import annotations
 
-from typing import Any, Dict
+import inspect
+from typing import Any, Dict, Optional
 
 from pipeline_builder_base.errors import ExecutionError
 
@@ -55,6 +56,7 @@ class GoldStepExecutor(BaseStepExecutor):
         step: GoldStep,
         context: Dict[str, DataFrame],
         mode: Any = None,  # Mode not used for gold steps
+        step_params: Optional[Dict[str, Any]] = None,
     ) -> DataFrame:
         """Execute a gold step.
 
@@ -66,6 +68,10 @@ class GoldStepExecutor(BaseStepExecutor):
             context: Dictionary mapping step names to DataFrames. Must contain
                 all source silver step names listed in step.source_silvers.
             mode: Execution mode (not used for gold steps, can be None).
+            step_params: Optional dictionary of parameters to pass to the transform
+                function. If the transform function accepts a 'params' argument or
+                **kwargs, these will be passed. Otherwise, ignored for backward
+                compatibility.
 
         Returns:
             Transformed DataFrame ready for validation and writing.
@@ -76,6 +82,7 @@ class GoldStepExecutor(BaseStepExecutor):
         Note:
             - Builds silvers dictionary from step.source_silvers
             - Calls step.transform() with SparkSession and silvers dictionary
+            - If step_params is provided and transform accepts params/kwargs, passes them
             - Transformation logic is defined in the step's transform function
             - Gold steps typically perform aggregations and business metrics
         """
@@ -89,4 +96,19 @@ class GoldStepExecutor(BaseStepExecutor):
                     )
                 silvers[silver_name] = context[silver_name]
 
-        return step.transform(self.spark, silvers)
+        # Apply transform with silvers dict
+        # Support backward-compatible params passing
+        if step_params is not None and self._accepts_params(step.transform):
+            # Try calling with params argument
+            try:
+                sig = inspect.signature(step.transform)
+                if "params" in sig.parameters:
+                    return step.transform(self.spark, silvers, params=step_params)
+                else:
+                    # Has **kwargs, call with params as keyword
+                    return step.transform(self.spark, silvers, **step_params)
+            except Exception:
+                # Fallback to standard call if params passing fails
+                return step.transform(self.spark, silvers)
+        else:
+            return step.transform(self.spark, silvers)

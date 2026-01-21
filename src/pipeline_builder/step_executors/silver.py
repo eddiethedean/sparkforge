@@ -7,7 +7,8 @@ processing to only process new data since the last run.
 
 from __future__ import annotations
 
-from typing import Dict
+import inspect
+from typing import Any, Dict
 
 from pipeline_builder_base.errors import ExecutionError
 from pipeline_builder_base.models import ExecutionMode
@@ -55,6 +56,7 @@ class SilverStepExecutor(BaseStepExecutor):
         step: SilverStep,
         context: Dict[str, DataFrame],
         mode: ExecutionMode,
+        step_params: Optional[Dict[str, Any]] = None,
     ) -> DataFrame:
         """Execute a silver step.
 
@@ -67,6 +69,10 @@ class SilverStepExecutor(BaseStepExecutor):
                 the source bronze step name (step.source_bronze).
             mode: Execution mode. INCREMENTAL mode triggers incremental filtering
                 of bronze input.
+            step_params: Optional dictionary of parameters to pass to the transform
+                function. If the transform function accepts a 'params' argument or
+                **kwargs, these will be passed. Otherwise, ignored for backward
+                compatibility.
 
         Returns:
             Transformed DataFrame ready for validation and writing.
@@ -77,7 +83,8 @@ class SilverStepExecutor(BaseStepExecutor):
 
         Note:
             - Applies incremental filtering if mode is INCREMENTAL
-            - Calls step.transform() with bronze DataFrame and empty silvers dict
+            - Calls step.transform() with bronze DataFrame and prior_silvers dict
+            - If step_params is provided and transform accepts params/kwargs, passes them
             - Transformation logic is defined in the step's transform function
         """
         # Get source bronze data
@@ -111,7 +118,21 @@ class SilverStepExecutor(BaseStepExecutor):
                     prior_silvers[key] = value
 
         # Apply transform with source bronze data and prior silvers dict
-        return step.transform(self.spark, bronze_df, prior_silvers)
+        # Support backward-compatible params passing
+        if step_params is not None and self._accepts_params(step.transform):
+            # Try calling with params argument
+            try:
+                sig = inspect.signature(step.transform)
+                if "params" in sig.parameters:
+                    return step.transform(self.spark, bronze_df, prior_silvers, params=step_params)
+                else:
+                    # Has **kwargs, call with params as keyword
+                    return step.transform(self.spark, bronze_df, prior_silvers, **step_params)
+            except Exception:
+                # Fallback to standard call if params passing fails
+                return step.transform(self.spark, bronze_df, prior_silvers)
+        else:
+            return step.transform(self.spark, bronze_df, prior_silvers)
 
     def _filter_incremental_bronze_input(
         self,

@@ -18,6 +18,7 @@ Key Components:
 from pipeline_builder_base.models import PipelineMetrics
 
 from .builder import PipelineBuilder
+from .debug_session import PipelineDebugSession
 from .models import PipelineMode, PipelineStatus
 from .monitor import PipelineMonitor, PipelineReport
 from .runner import PipelineRunner
@@ -25,6 +26,7 @@ from .runner import PipelineRunner
 __all__ = [
     "PipelineBuilder",
     "PipelineRunner",
+    "PipelineDebugSession",
     "PipelineMonitor",
     "PipelineMetrics",
     "PipelineReport",

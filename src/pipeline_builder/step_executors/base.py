@@ -12,6 +12,7 @@ The base class provides:
 
 from __future__ import annotations
 
+import inspect
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
@@ -61,6 +62,29 @@ class BaseStepExecutor(ABC):
         self.spark = spark
         self.logger = logger or PipelineLogger()
         self.functions = functions
+
+    @staticmethod
+    def _accepts_params(func: Any) -> bool:
+        """Check if a function accepts a 'params' argument or **kwargs.
+
+        Args:
+            func: The function to inspect.
+
+        Returns:
+            True if the function accepts 'params' as a named argument or **kwargs,
+            False otherwise.
+        """
+        try:
+            sig = inspect.signature(func)
+            for param_name, param in sig.parameters.items():
+                if param_name == "params":
+                    return True
+                if param.kind == inspect.Parameter.VAR_KEYWORD:  # **kwargs
+                    return True
+            return False
+        except (ValueError, TypeError):
+            # If we can't inspect the signature, assume it doesn't accept params
+            return False
 
     @abstractmethod
     def execute(

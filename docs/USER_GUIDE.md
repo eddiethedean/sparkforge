@@ -1,6 +1,6 @@
 # SparkForge Pipeline Builder - Comprehensive User Guide
 
-**Version**: 2.5.2  
+**Version**: 2.8.0  
 **Last Updated**: January 2025
 
 ## Table of Contents
@@ -11,11 +11,12 @@
 4. [Service-Oriented Architecture](#service-oriented-architecture)
 5. [Building Pipelines](#building-pipelines)
 6. [Execution Modes](#execution-modes)
-7. [Validation Rules](#validation-rules)
-8. [Logging and Monitoring](#logging-and-monitoring)
-9. [Common Workflows](#common-workflows)
-10. [Best Practices](#best-practices)
-11. [Troubleshooting](#troubleshooting)
+7. [Stepwise Execution and Debugging](#stepwise-execution-and-debugging) - See [Stepwise Execution Guide](STEPWISE_EXECUTION_GUIDE.md) for details
+8. [Validation Rules](#validation-rules)
+9. [Logging and Monitoring](#logging-and-monitoring)
+10. [Common Workflows](#common-workflows)
+11. [Best Practices](#best-practices)
+12. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -484,6 +485,64 @@ incremental_result = pipeline.run_incremental(
     bronze_sources={"raw_events": new_data}
 )
 ```
+
+---
+
+## Stepwise Execution and Debugging
+
+> **📖 For a comprehensive guide to stepwise execution, see [Stepwise Execution Guide](STEPWISE_EXECUTION_GUIDE.md)**
+
+### Overview
+
+Stepwise execution allows you to run individual pipeline steps, override parameters at runtime, and control execution flow—significantly speeding up the debugging and development cycle.
+
+**Key Features:**
+- **Run until a step**: Execute up to a specific step and stop
+- **Run a single step**: Execute only one step, loading dependencies automatically
+- **Rerun with overrides**: Rerun a step with different parameters without changing code
+- **Write control**: Skip table writes for faster iteration during development
+
+### Quick Example
+
+```python
+from pipeline_builder.pipeline.runner import SimplePipelineRunner
+from pipeline_builder_base.models import PipelineConfig
+
+config = PipelineConfig.create_default(schema="analytics")
+runner = SimplePipelineRunner(spark, config)
+
+# Run until a specific step
+report, context = runner.run_until(
+    "clean_events",
+    steps=[bronze_step, silver_step, gold_step],
+    bronze_sources={"events": source_df}
+)
+
+# Run a single step
+report, context = runner.run_step(
+    "clean_events",
+    steps=all_steps,
+    context=context
+)
+
+# Rerun with parameter overrides
+step_params = {"clean_events": {"threshold": 0.9}}
+report, context = runner.rerun_step(
+    "clean_events",
+    steps=all_steps,
+    context=context,
+    step_params=step_params
+)
+```
+
+### When to Use
+
+- **Development**: Testing new transform functions
+- **Debugging**: Isolating issues in specific steps
+- **Parameter Tuning**: Finding optimal parameter values
+- **Quick Iteration**: Fast feedback cycles during development
+
+For detailed documentation, examples, and best practices, see the [Stepwise Execution Guide](STEPWISE_EXECUTION_GUIDE.md).
 
 ---
 

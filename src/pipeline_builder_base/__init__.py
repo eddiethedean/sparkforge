@@ -5,7 +5,7 @@ This package contains code shared between pipeline_builder (Spark) and
 sql_pipeline_builder (SQLAlchemy) implementations.
 """
 
-__version__ = "2.7.2"
+__version__ = "2.8.0"
 
 # Export main components
 from .builder import (
