@@ -345,7 +345,7 @@ class TestSilverStep:
         rules = {"id": [F.col("id").isNotNull()]}
 
         with pytest.raises(
-            ValidationError, match="Transform function is required and must be callable"
+            ValidationError, match="Transform function is required for non-existing silver steps"
         ):
             SilverStep(
                 name="test_silver",
@@ -425,7 +425,7 @@ class TestGoldStep:
         rules = {"id": [F.col("id").isNotNull()]}
 
         with pytest.raises(
-            ValidationError, match="Transform function is required and must be callable"
+            ValidationError, match="Transform function is required for non-existing gold steps"
         ):
             GoldStep(
                 name="test_gold",

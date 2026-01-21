@@ -616,6 +616,138 @@ class TestUnifiedValidator:
         assert len(errors) == 0
         assert len(warnings) == 0
 
+    def test_validate_silver_steps_validation_only(self, spark_session):
+        """Test silver steps validation with validation-only steps."""
+        validator = UnifiedValidator()
+
+        rules = {"id": [F.col("id").isNotNull()]}
+        
+        # Create validation-only silver step (existing=True, transform=None)
+        silver_steps = {
+            "existing_silver": SilverStep(
+                name="existing_silver",
+                source_bronze="",  # Empty source_bronze for validation-only
+                transform=None,  # No transform for validation-only
+                rules=rules,
+                table_name="existing_silver_table",
+                existing=True,
+            )
+        }
+
+        errors, warnings = validator._validate_silver_steps(
+            silver_steps, {}  # Empty bronze_steps - should be OK for validation-only
+        )
+
+        # Should not have any errors for validation-only silver step
+        assert len(errors) == 0
+        assert len(warnings) == 0
+
+    def test_validate_gold_steps_validation_only(self, spark_session):
+        """Test gold steps validation with validation-only steps."""
+        validator = UnifiedValidator()
+
+        rules = {"id": [F.col("id").isNotNull()]}
+        
+        # Create validation-only gold step (existing=True, transform=None)
+        gold_steps = {
+            "existing_gold": GoldStep(
+                name="existing_gold",
+                transform=None,  # No transform for validation-only
+                rules=rules,
+                table_name="existing_gold_table",
+                existing=True,
+                source_silvers=None,  # No source_silvers for validation-only
+            )
+        }
+
+        errors, warnings = validator._validate_gold_steps(
+            gold_steps, {}  # Empty silver_steps - should be OK for validation-only
+        )
+
+        # Should not have any errors for validation-only gold step
+        assert len(errors) == 0
+        assert len(warnings) == 0
+
+    def test_validate_silver_steps_mixed(self, spark_session):
+        """Test silver steps validation with both validation-only and regular steps."""
+        validator = UnifiedValidator()
+
+        rules = {"id": [F.col("id").isNotNull()]}
+        bronze_steps = {
+            "test_bronze": BronzeStep(name="test_bronze", rules=rules)
+        }
+        
+        silver_steps = {
+            # Validation-only silver step
+            "existing_silver": SilverStep(
+                name="existing_silver",
+                source_bronze="",
+                transform=None,
+                rules=rules,
+                table_name="existing_silver_table",
+                existing=True,
+            ),
+            # Regular silver step
+            "test_silver": SilverStep(
+                name="test_silver",
+                source_bronze="test_bronze",
+                transform=lambda spark, df, silvers: df,
+                rules=rules,
+                table_name="test_table",
+            ),
+        }
+
+        errors, warnings = validator._validate_silver_steps(
+            silver_steps, bronze_steps
+        )
+
+        # Should not have any errors
+        assert len(errors) == 0
+        assert len(warnings) == 0
+
+    def test_validate_gold_steps_mixed(self, spark_session):
+        """Test gold steps validation with both validation-only and regular steps."""
+        validator = UnifiedValidator()
+
+        rules = {"id": [F.col("id").isNotNull()]}
+        silver_steps = {
+            "test_silver": SilverStep(
+                name="test_silver",
+                source_bronze="test_bronze",
+                transform=lambda spark, df, silvers: df,
+                rules=rules,
+                table_name="test_table",
+            )
+        }
+        
+        gold_steps = {
+            # Validation-only gold step
+            "existing_gold": GoldStep(
+                name="existing_gold",
+                transform=None,
+                rules=rules,
+                table_name="existing_gold_table",
+                existing=True,
+                source_silvers=None,
+            ),
+            # Regular gold step
+            "test_gold": GoldStep(
+                name="test_gold",
+                transform=lambda spark, silvers: silvers["test_silver"],
+                rules=rules,
+                table_name="test_gold",
+                source_silvers=["test_silver"],
+            ),
+        }
+
+        errors, warnings = validator._validate_gold_steps(
+            gold_steps, silver_steps
+        )
+
+        # Should not have any errors
+        assert len(errors) == 0
+        assert len(warnings) == 0
+
     def test_validate_dependencies(self, spark_session):
         """Test dependency validation."""
         validator = UnifiedValidator()

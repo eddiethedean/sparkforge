@@ -194,11 +194,15 @@ class UnifiedValidator:
         warnings: list[str] = []
 
         for step_name, step in silver_steps.items():
+            # Skip validation for validation-only steps (existing=True, transform=None)
+            if step.existing and step.transform is None:
+                continue
+            
             if not step.source_bronze:
                 errors.append(f"Silver step {step_name} missing source_bronze")
 
             # Check source_bronze exists
-            if step.source_bronze not in bronze_steps:
+            if step.source_bronze and step.source_bronze not in bronze_steps:
                 errors.append(
                     f"Silver step {step_name} depends on non-existent bronze step {step.source_bronze}"
                 )

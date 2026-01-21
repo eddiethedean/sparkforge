@@ -817,6 +817,7 @@ class ExecutionEngine:
         mode: ExecutionMode = ExecutionMode.INITIAL,
         step_params: Optional[Dict[str, Any]] = None,
         write_outputs: bool = True,
+        step_types: Optional[Dict[str, str]] = None,
     ) -> StepExecutionResult:
         """Execute a single pipeline step.
 
@@ -838,6 +839,9 @@ class ExecutionEngine:
             write_outputs: If True, write step outputs to Delta Lake tables.
                 If False, skip writing (useful for debugging/iteration).
                 Defaults to True.
+            step_types: Optional dictionary mapping step names to step types
+                ("bronze", "silver", "gold"). Used to build prior_golds for
+                transform functions. If None, prior_golds will not be built.
 
         Returns:
             StepExecutionResult containing execution details including:
@@ -902,12 +906,12 @@ class ExecutionEngine:
             if step_type == StepType.BRONZE:
                 output_df = self.bronze_executor.execute(step, context, mode)  # type: ignore[arg-type]
             elif step_type == StepType.SILVER:
-                output_df = self.silver_executor.execute(step, context, mode, step_params=step_params)  # type: ignore[arg-type]
+                output_df = self.silver_executor.execute(step, context, mode, step_params=step_params, step_types=step_types)  # type: ignore[arg-type]
                 # Store output DataFrame in context immediately after execution for downstream steps
                 # This ensures prior_silvers is populated for subsequent silver steps
                 context[step.name] = output_df  # type: ignore[assignment]
             elif step_type == StepType.GOLD:
-                output_df = self.gold_executor.execute(step, context, mode, step_params=step_params)  # type: ignore[arg-type]
+                output_df = self.gold_executor.execute(step, context, mode, step_params=step_params, step_types=step_types)  # type: ignore[arg-type]
                 # Store output DataFrame in context immediately after execution for downstream steps
                 context[step.name] = output_df  # type: ignore[assignment]
             else:
@@ -1913,6 +1917,9 @@ class ExecutionEngine:
 
             # Create a mapping of step names to step objects (needed for start_at_step handling)
             step_map = {s.name: s for s in steps}
+            
+            # Create a mapping of step names to step types (needed for prior_golds building)
+            step_types = {s.name: s.step_type.value for s in steps}
 
             # Handle start_at_step: filter execution order and load earlier outputs
             if start_at_step is not None:
@@ -1988,6 +1995,7 @@ class ExecutionEngine:
                         mode,
                         step_params=current_step_params,
                         write_outputs=write_outputs,
+                        step_types=step_types,
                     )
                     if result.steps is not None:
                         result.steps.append(step_result)

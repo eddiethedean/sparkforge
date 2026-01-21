@@ -453,24 +453,23 @@ class PipelineBuilder(BasePipelineBuilder):
         name: StepName,
         table_name: TableName,
         rules: ColumnRules,
-        watermark_col: Optional[str] = None,
         description: Optional[str] = None,
         schema: Optional[str] = None,
     ) -> PipelineBuilder:
-        """Add existing Silver layer table for validation and monitoring.
+        """Add Silver layer validation rules for existing silver tables.
 
-        This method is used when you have an existing Silver table that you want
-        to include in the pipeline for validation and monitoring purposes, but
-        don't need to transform the data. The table is read directly without
-        transformation.
+        Silver steps created with this method represent validation-only steps
+        for existing silver tables. They allow subsequent transform functions
+        to access validated existing silver and gold tables via `prior_silvers`
+        and `prior_golds` arguments.
 
         Args:
             name: Unique identifier for this Silver step.
             table_name: Existing Delta table name (without schema).
             rules: Dictionary mapping column names to validation rule lists.
-                Supports both PySpark Column expressions and string rules.
-            watermark_col: Optional column name for watermarking (e.g.,
-                "timestamp", "updated_at").
+                Supports both PySpark Column expressions and string rules:
+                - PySpark: {"user_id": [F.col("user_id").isNotNull()]}
+                - String: {"user_id": ["not_null"], "age": ["gt", 0]}
             description: Optional description of this Silver step.
             schema: Optional schema name for reading silver data. If not
                 provided, uses the builder's default schema.
@@ -481,20 +480,31 @@ class PipelineBuilder(BasePipelineBuilder):
         Raises:
             StepError: If step name is empty, conflicts with existing step,
                 or schema validation fails.
+            ValidationError: If rules are empty or invalid.
 
         Example:
+            Using PySpark Column expressions:
+
             >>> builder.with_silver_rules(
             ...     name="existing_clean_events",
             ...     table_name="clean_events",
-            ...     rules={"user_id": [F.col("user_id").isNotNull()]},
-            ...     watermark_col="updated_at",
-            ...     schema="staging"  # Read from different schema
+            ...     rules={"user_id": [F.col("user_id").isNotNull()]}
+            ... )
+
+            Using string rules (automatically converted):
+
+            >>> builder.with_silver_rules(
+            ...     name="validated_events",
+            ...     table_name="events",
+            ...     rules={"user_id": ["not_null"], "value": ["gt", 0]},
+            ...     schema="staging"
             ... )
 
         Note:
-            This creates a SilverStep with a dummy transform function that
-            returns the input DataFrame unchanged. The step is marked as
-            existing=True to indicate it doesn't perform transformation.
+            String rules are automatically converted to PySpark expressions.
+            See with_bronze_rules() for supported string rule formats.
+            This creates a validation-only step that can be accessed by
+            subsequent transform functions via prior_silvers.
         """
         if not name:
             raise StepError(
@@ -535,35 +545,147 @@ class PipelineBuilder(BasePipelineBuilder):
                     },
                 ) from e
 
-        # Create SilverStep for existing table
-        # Create a dummy transform function for existing tables
-        def dummy_transform_func(
-            spark: SparkSession,
-            bronze_df: DataFrame,
-            prior_silvers: Dict[str, DataFrame],
-        ) -> DataFrame:
-            return bronze_df
-
-        # Type the function properly
-        dummy_transform: SilverTransformFunction = dummy_transform_func
-
         # Convert string rules to PySpark Column objects
         converted_rules = _convert_rules_to_expressions(rules, self.functions)
 
+        # Create SilverStep for validation-only (no transform function)
         silver_step = SilverStep(
             name=name,
-            source_bronze="",  # No source for existing tables
-            transform=dummy_transform,
+            source_bronze="",  # No source bronze for existing tables
+            transform=None,  # No transform function for validation-only steps
             rules=converted_rules,
             table_name=table_name,
-            watermark_col=watermark_col,
+            watermark_col=None,  # No watermark needed for validation-only steps
             existing=True,
             schema=schema,
             source_incremental_col=None,
         )
 
         self.silver_steps[name] = silver_step
-        self.logger.info(f"✅ Added existing Silver step: {name}")
+        # Track creation order for deterministic ordering
+        self._step_creation_order[name] = self._creation_counter
+        self._creation_counter += 1
+        self.logger.info(f"✅ Added Silver step (validation-only): {name}")
+
+        return self
+
+    def with_gold_rules(
+        self,
+        *,
+        name: StepName,
+        table_name: TableName,
+        rules: ColumnRules,
+        description: Optional[str] = None,
+        schema: Optional[str] = None,
+    ) -> PipelineBuilder:
+        """Add Gold layer validation rules for existing gold tables.
+
+        Gold steps created with this method represent validation-only steps
+        for existing gold tables. They allow subsequent transform functions
+        to access validated existing silver and gold tables via `prior_silvers`
+        and `prior_golds` arguments.
+
+        Args:
+            name: Unique identifier for this Gold step.
+            table_name: Existing Delta table name (without schema).
+            rules: Dictionary mapping column names to validation rule lists.
+                Supports both PySpark Column expressions and string rules:
+                - PySpark: {"user_id": [F.col("user_id").isNotNull()]}
+                - String: {"user_id": ["not_null"], "count": ["gt", 0]}
+            description: Optional description of this Gold step.
+            schema: Optional schema name for reading gold data. If not
+                provided, uses the builder's default schema.
+
+        Returns:
+            Self for method chaining.
+
+        Raises:
+            StepError: If step name is empty, conflicts with existing step,
+                or schema validation fails.
+            ValidationError: If rules are empty or invalid.
+
+        Example:
+            Using PySpark Column expressions:
+
+            >>> builder.with_gold_rules(
+            ...     name="existing_user_metrics",
+            ...     table_name="user_metrics",
+            ...     rules={"user_id": [F.col("user_id").isNotNull()]},
+            ... )
+
+            Using string rules (automatically converted):
+
+            >>> builder.with_gold_rules(
+            ...     name="validated_metrics",
+            ...     table_name="metrics",
+            ...     rules={"user_id": ["not_null"], "count": ["gt", 0]},
+            ...     schema="analytics"
+            ... )
+
+        Note:
+            String rules are automatically converted to PySpark expressions.
+            See with_bronze_rules() for supported string rule formats.
+            This creates a validation-only step that can be accessed by
+            subsequent transform functions via prior_golds.
+        """
+        if not name:
+            raise StepError(
+                "Gold step name cannot be empty",
+                context={"step_name": name or "unknown", "step_type": "gold"},
+                suggestions=[
+                    "Provide a valid step name",
+                    "Check step naming conventions",
+                ],
+            )
+
+        # Use base class method for duplicate checking
+        try:
+            self._check_duplicate_step_name(name, "gold")
+        except Exception as e:
+            # Convert to StepError for consistency
+            raise StepError(
+                str(e),
+                context={"step_name": name, "step_type": "gold"},
+                suggestions=[
+                    "Use a different step name",
+                    "Remove the existing step first",
+                ],
+            ) from e
+
+        # Validate schema if provided (use base class method)
+        if schema is not None:
+            try:
+                self._validate_schema(schema)
+            except Exception as e:
+                # Convert to StepError for consistency
+                raise StepError(
+                    str(e),
+                    context={
+                        "step_name": name,
+                        "step_type": "gold",
+                        "schema": schema,
+                    },
+                ) from e
+
+        # Convert string rules to PySpark Column objects
+        converted_rules = _convert_rules_to_expressions(rules, self.functions)
+
+        # Create GoldStep for validation-only (no transform function)
+        gold_step = GoldStep(
+            name=name,
+            transform=None,  # No transform function for validation-only steps
+            rules=converted_rules,
+            table_name=table_name,
+            existing=True,
+            schema=schema,
+            source_silvers=None,  # No source silvers for existing tables
+        )
+
+        self.gold_steps[name] = gold_step
+        # Track creation order for deterministic ordering
+        self._step_creation_order[name] = self._creation_counter
+        self._creation_counter += 1
+        self.logger.info(f"✅ Added Gold step (validation-only): {name}")
 
         return self
 

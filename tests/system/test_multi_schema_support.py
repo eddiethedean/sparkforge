@@ -100,7 +100,6 @@ class TestMultiSchemaSupport:
             name="existing_clean_events",
             table_name="clean_events",
             rules={"user_id": [F.col("user_id").isNotNull()]},
-            watermark_col="timestamp",
             schema="staging",
         )
 

@@ -12,11 +12,12 @@
 5. [Building Pipelines](#building-pipelines)
 6. [Execution Modes](#execution-modes)
 7. [Stepwise Execution and Debugging](#stepwise-execution-and-debugging) - See [Stepwise Execution Guide](STEPWISE_EXECUTION_GUIDE.md) for details
-8. [Validation Rules](#validation-rules)
-9. [Logging and Monitoring](#logging-and-monitoring)
-10. [Common Workflows](#common-workflows)
-11. [Best Practices](#best-practices)
-12. [Troubleshooting](#troubleshooting)
+8. [Validation-Only Steps](#validation-only-steps) - See [Validation-Only Steps Guide](VALIDATION_ONLY_STEPS_GUIDE.md) for details
+9. [Validation Rules](#validation-rules)
+10. [Logging and Monitoring](#logging-and-monitoring)
+11. [Common Workflows](#common-workflows)
+12. [Best Practices](#best-practices)
+13. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -34,6 +35,7 @@ SparkForge Pipeline Builder is a production-ready framework for building and exe
 - **Comprehensive Logging**: Built-in LogWriter for tracking pipeline executions
 - **Service-Oriented Architecture**: Clean separation of concerns with dedicated services
 - **Type Safety**: Full mypy compliance and runtime type checks
+- **Validation-Only Steps**: Validate existing tables and access them via `prior_silvers` and `prior_golds`
 
 ### Why PipelineBuilder?
 
@@ -333,6 +335,30 @@ builder.add_silver_transform(
 
 **Important**: Include validation rules for all columns you want to preserve. Columns without validation rules will be filtered out.
 
+### Step 2b: Validation-Only Silver Steps (Optional)
+
+For existing silver tables that need validation and access by subsequent transforms:
+
+```python
+# Validate existing silver table
+builder.with_silver_rules(
+    name="existing_clean_events",
+    table_name="clean_events",
+    rules={
+        "user_id": [F.col("user_id").isNotNull()],
+        "event_date": [F.col("event_date").isNotNull()]
+    }
+)
+```
+
+**Output:**
+```
+✅ Added Silver step (validation-only): existing_clean_events
+✅ Pipeline validation passed
+```
+
+**Note**: See [Validation-Only Steps Guide](VALIDATION_ONLY_STEPS_GUIDE.md) for comprehensive documentation on `with_silver_rules` and `with_gold_rules`.
+
 ### Step 3: Define Gold Steps
 
 Gold steps aggregate silver data:
@@ -365,6 +391,30 @@ builder.add_gold_transform(
     table_name="gold_user_metrics",
 )
 ```
+
+### Step 3b: Validation-Only Gold Steps (Optional)
+
+For existing gold tables that need validation and access by subsequent transforms:
+
+```python
+# Validate existing gold table
+builder.with_gold_rules(
+    name="existing_user_metrics",
+    table_name="user_metrics",
+    rules={
+        "user_id": [F.col("user_id").isNotNull()],
+        "total_events": [F.col("total_events") > 0]
+    }
+)
+```
+
+**Output:**
+```
+✅ Added Gold step (validation-only): existing_user_metrics
+✅ Pipeline validation passed
+```
+
+**Note**: See [Validation-Only Steps Guide](VALIDATION_ONLY_STEPS_GUIDE.md) for comprehensive documentation on `with_silver_rules` and `with_gold_rules`, including how to access validated tables via `prior_silvers` and `prior_golds`.
 
 ### Step 4: Validate and Build
 
@@ -543,6 +593,56 @@ report, context = runner.rerun_step(
 - **Quick Iteration**: Fast feedback cycles during development
 
 For detailed documentation, examples, and best practices, see the [Stepwise Execution Guide](STEPWISE_EXECUTION_GUIDE.md).
+
+---
+
+## Validation-Only Steps
+
+For detailed information on validation-only steps (`with_silver_rules` and `with_gold_rules`), see the [Validation-Only Steps Guide](VALIDATION_ONLY_STEPS_GUIDE.md).
+
+### Quick Overview
+
+Validation-only steps allow you to:
+- Validate existing silver and gold tables without transformation
+- Access validated tables in subsequent transforms via `prior_silvers` and `prior_golds`
+- Create dependencies between transforms and existing tables
+
+**Example:**
+```python
+# Validate existing silver table
+builder.with_silver_rules(
+    name="existing_clean_events",
+    table_name="clean_events",
+    rules={"user_id": [F.col("user_id").isNotNull()]}
+)
+
+# Validate existing gold table
+builder.with_gold_rules(
+    name="existing_user_metrics",
+    table_name="user_metrics",
+    rules={"user_id": [F.col("user_id").isNotNull()]}
+)
+
+# Access validated tables in transforms
+def enriched_transform(spark, bronze_df, prior_silvers, prior_golds=None):
+    # Access validated existing silver
+    if "existing_clean_events" in prior_silvers:
+        existing = prior_silvers["existing_clean_events"]
+    
+    # Access validated existing gold
+    if prior_golds and "existing_user_metrics" in prior_golds:
+        metrics = prior_golds["existing_user_metrics"]
+    
+    return bronze_df
+```
+
+**Output:**
+```
+📊 Accessed existing_clean_events: 2 rows
+📊 Accessed existing_user_metrics: 2 rows
+```
+
+See the [Validation-Only Steps Guide](VALIDATION_ONLY_STEPS_GUIDE.md) for comprehensive documentation, examples, and best practices.
 
 ---
 

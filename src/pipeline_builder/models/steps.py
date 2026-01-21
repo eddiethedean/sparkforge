@@ -203,9 +203,9 @@ class SilverStep(BaseModel):
 
     name: str
     source_bronze: str
-    transform: SilverTransformFunction
     rules: ColumnRules
     table_name: str
+    transform: Optional[SilverTransformFunction] = None
     watermark_col: Optional[str] = None
     existing: bool = False
     schema: Optional[str] = None
@@ -221,8 +221,10 @@ class SilverStep(BaseModel):
             not self.source_bronze or not isinstance(self.source_bronze, str)
         ):
             raise ValidationError("Source bronze step name must be a non-empty string")
-        if self.transform is None or not callable(self.transform):
-            raise ValidationError("Transform function is required and must be callable")
+        if self.transform is not None and not callable(self.transform):
+            raise ValidationError("Transform function must be callable if provided")
+        if not self.existing and self.transform is None:
+            raise ValidationError("Transform function is required for non-existing silver steps")
         if not self.table_name or not isinstance(self.table_name, str):
             raise ValidationError("Table name must be a non-empty string")
         if self.source_incremental_col is not None and not isinstance(
@@ -335,9 +337,10 @@ class GoldStep(BaseModel):
     """
 
     name: str
-    transform: GoldTransformFunction
     rules: ColumnRules
     table_name: str
+    transform: Optional[GoldTransformFunction] = None
+    existing: bool = False
     source_silvers: Optional[list[str]] = None
     schema: Optional[str] = None
     schema_override: Optional[StructType] = None
@@ -346,8 +349,10 @@ class GoldStep(BaseModel):
         """Validate required fields after initialization."""
         if not self.name or not isinstance(self.name, str):
             raise ValidationError("Step name must be a non-empty string")
-        if self.transform is None or not callable(self.transform):
-            raise ValidationError("Transform function is required and must be callable")
+        if self.transform is not None and not callable(self.transform):
+            raise ValidationError("Transform function must be callable if provided")
+        if not self.existing and self.transform is None:
+            raise ValidationError("Transform function is required for non-existing gold steps")
         if not self.table_name or not isinstance(self.table_name, str):
             raise ValidationError("Table name must be a non-empty string")
         if not isinstance(self.rules, dict) or not self.rules:
@@ -364,8 +369,10 @@ class GoldStep(BaseModel):
         """Validate gold step configuration."""
         if not self.name or not isinstance(self.name, str):
             raise PipelineValidationError("Step name must be a non-empty string")
-        if not callable(self.transform):
-            raise PipelineValidationError("Transform must be a callable function")
+        if self.transform is not None and not callable(self.transform):
+            raise PipelineValidationError("Transform must be a callable function if provided")
+        if not self.existing and self.transform is None:
+            raise PipelineValidationError("Transform function is required for non-existing gold steps")
         if not isinstance(self.rules, dict):
             raise PipelineValidationError("Rules must be a dictionary")
         if not self.table_name or not isinstance(self.table_name, str):

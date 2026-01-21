@@ -14,6 +14,7 @@ from pipeline_builder_base.errors import ExecutionError
 
 from ..compat import DataFrame
 from ..models import GoldStep
+from ..table_operations import fqn, table_exists
 from .base import BaseStepExecutor
 
 
@@ -57,6 +58,7 @@ class GoldStepExecutor(BaseStepExecutor):
         context: Dict[str, DataFrame],
         mode: Any = None,  # Mode not used for gold steps
         step_params: Optional[Dict[str, Any]] = None,
+        step_types: Optional[Dict[str, str]] = None,
     ) -> DataFrame:
         """Execute a gold step.
 
@@ -86,6 +88,34 @@ class GoldStepExecutor(BaseStepExecutor):
             - Transformation logic is defined in the step's transform function
             - Gold steps typically perform aggregations and business metrics
         """
+        # Handle validation-only steps (no transform function)
+        if step.transform is None:
+            # For validation-only steps, read from table if it exists
+            if step.existing:
+                table_name = getattr(step, "table_name", step.name)
+                schema = getattr(step, "schema", None)
+                if schema is not None:
+                    table_fqn = fqn(schema, table_name)
+                    try:
+                        if table_exists(self.spark, table_fqn):
+                            return self.spark.table(table_fqn)  # type: ignore[attr-defined]
+                        else:
+                            raise ExecutionError(
+                                f"Validation-only gold step '{step.name}' requires existing table '{table_fqn}', but table does not exist"
+                            )
+                    except Exception as e:
+                        raise ExecutionError(
+                            f"Failed to read table '{table_fqn}' for validation-only gold step '{step.name}': {e}"
+                        ) from e
+                else:
+                    raise ExecutionError(
+                        f"Validation-only gold step '{step.name}' requires schema to read from table"
+                    )
+            else:
+                raise ExecutionError(
+                    f"Gold step '{step.name}' has no transform function and is not marked as existing"
+                )
+
         # Build silvers dict from source_silvers
         silvers = {}
         if step.source_silvers is not None:
@@ -96,19 +126,48 @@ class GoldStepExecutor(BaseStepExecutor):
                     )
                 silvers[silver_name] = context[silver_name]
 
-        # Apply transform with silvers dict
+        # Build prior_golds dict from context (all previously executed gold steps)
+        prior_golds: Dict[str, DataFrame] = {}
+        if step_types is not None:
+            for key, value in context.items():
+                if key != step.name and step_types.get(key) == "gold":
+                    prior_golds[key] = value
+
+        # Detect if transform function accepts prior_golds parameter
+        has_prior_golds = False
+        if step.transform is not None:
+            try:
+                sig = inspect.signature(step.transform)
+                has_prior_golds = "prior_golds" in sig.parameters
+            except (ValueError, TypeError):
+                # If we can't inspect the signature, assume it doesn't accept prior_golds
+                has_prior_golds = False
+
+        # Apply transform with silvers dict and optionally prior_golds
         # Support backward-compatible params passing
         if step_params is not None and self._accepts_params(step.transform):
             # Try calling with params argument
             try:
                 sig = inspect.signature(step.transform)
                 if "params" in sig.parameters:
-                    return step.transform(self.spark, silvers, params=step_params)
+                    if has_prior_golds:
+                        return step.transform(self.spark, silvers, prior_golds, params=step_params)
+                    else:
+                        return step.transform(self.spark, silvers, params=step_params)
                 else:
                     # Has **kwargs, call with params as keyword
-                    return step.transform(self.spark, silvers, **step_params)
+                    if has_prior_golds:
+                        return step.transform(self.spark, silvers, prior_golds, **step_params)
+                    else:
+                        return step.transform(self.spark, silvers, **step_params)
             except Exception:
                 # Fallback to standard call if params passing fails
-                return step.transform(self.spark, silvers)
+                if has_prior_golds:
+                    return step.transform(self.spark, silvers, prior_golds)
+                else:
+                    return step.transform(self.spark, silvers)
         else:
-            return step.transform(self.spark, silvers)
+            if has_prior_golds:
+                return step.transform(self.spark, silvers, prior_golds)
+            else:
+                return step.transform(self.spark, silvers)

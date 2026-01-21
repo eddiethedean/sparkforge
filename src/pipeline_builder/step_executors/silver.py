@@ -8,14 +8,14 @@ processing to only process new data since the last run.
 from __future__ import annotations
 
 import inspect
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from pipeline_builder_base.errors import ExecutionError
 from pipeline_builder_base.models import ExecutionMode
 
 from ..compat import DataFrame, F
 from ..models import SilverStep
-from ..table_operations import fqn
+from ..table_operations import fqn, table_exists
 from .base import BaseStepExecutor
 
 
@@ -57,6 +57,7 @@ class SilverStepExecutor(BaseStepExecutor):
         context: Dict[str, DataFrame],
         mode: ExecutionMode,
         step_params: Optional[Dict[str, Any]] = None,
+        step_types: Optional[Dict[str, str]] = None,
     ) -> DataFrame:
         """Execute a silver step.
 
@@ -87,7 +88,35 @@ class SilverStepExecutor(BaseStepExecutor):
             - If step_params is provided and transform accepts params/kwargs, passes them
             - Transformation logic is defined in the step's transform function
         """
-        # Get source bronze data
+        # Handle validation-only steps (no transform function) - check this first
+        if step.transform is None:
+            # For validation-only steps, read from table if it exists
+            if step.existing:
+                table_name = getattr(step, "table_name", step.name)
+                schema = getattr(step, "schema", None)
+                if schema is not None:
+                    table_fqn = fqn(schema, table_name)
+                    try:
+                        if table_exists(self.spark, table_fqn):
+                            return self.spark.table(table_fqn)  # type: ignore[attr-defined]
+                        else:
+                            raise ExecutionError(
+                                f"Validation-only silver step '{step.name}' requires existing table '{table_fqn}', but table does not exist"
+                            )
+                    except Exception as e:
+                        raise ExecutionError(
+                            f"Failed to read table '{table_fqn}' for validation-only silver step '{step.name}': {e}"
+                        ) from e
+                else:
+                    raise ExecutionError(
+                        f"Validation-only silver step '{step.name}' requires schema to read from table"
+                    )
+            else:
+                raise ExecutionError(
+                    f"Silver step '{step.name}' has no transform function and is not marked as existing"
+                )
+
+        # Get source bronze data (only needed for non-validation-only steps)
         if step.source_bronze not in context:
             raise ExecutionError(
                 f"Source bronze step {step.source_bronze} not found in context"
@@ -115,24 +144,55 @@ class SilverStepExecutor(BaseStepExecutor):
             # without explicitly declaring dependencies
             for key, value in context.items():
                 if key != step.name and key != step.source_bronze:
-                    prior_silvers[key] = value
+                    # Only include silver steps (exclude gold steps from prior_silvers)
+                    if step_types is None or step_types.get(key) != "gold":
+                        prior_silvers[key] = value
 
-        # Apply transform with source bronze data and prior silvers dict
+        # Build prior_golds dict from context (all gold steps that have been executed)
+        prior_golds: Dict[str, DataFrame] = {}
+        if step_types is not None:
+            for key, value in context.items():
+                if key != step.name and step_types.get(key) == "gold":
+                    prior_golds[key] = value
+
+        # Detect if transform function accepts prior_golds parameter
+        has_prior_golds = False
+        if step.transform is not None:
+            try:
+                sig = inspect.signature(step.transform)
+                has_prior_golds = "prior_golds" in sig.parameters
+            except (ValueError, TypeError):
+                # If we can't inspect the signature, assume it doesn't accept prior_golds
+                has_prior_golds = False
+
+        # Apply transform with source bronze data, prior silvers dict, and optionally prior_golds
         # Support backward-compatible params passing
         if step_params is not None and self._accepts_params(step.transform):
             # Try calling with params argument
             try:
                 sig = inspect.signature(step.transform)
                 if "params" in sig.parameters:
-                    return step.transform(self.spark, bronze_df, prior_silvers, params=step_params)
+                    if has_prior_golds:
+                        return step.transform(self.spark, bronze_df, prior_silvers, prior_golds, params=step_params)
+                    else:
+                        return step.transform(self.spark, bronze_df, prior_silvers, params=step_params)
                 else:
                     # Has **kwargs, call with params as keyword
-                    return step.transform(self.spark, bronze_df, prior_silvers, **step_params)
+                    if has_prior_golds:
+                        return step.transform(self.spark, bronze_df, prior_silvers, prior_golds, **step_params)
+                    else:
+                        return step.transform(self.spark, bronze_df, prior_silvers, **step_params)
             except Exception:
                 # Fallback to standard call if params passing fails
-                return step.transform(self.spark, bronze_df, prior_silvers)
+                if has_prior_golds:
+                    return step.transform(self.spark, bronze_df, prior_silvers, prior_golds)
+                else:
+                    return step.transform(self.spark, bronze_df, prior_silvers)
         else:
-            return step.transform(self.spark, bronze_df, prior_silvers)
+            if has_prior_golds:
+                return step.transform(self.spark, bronze_df, prior_silvers, prior_golds)
+            else:
+                return step.transform(self.spark, bronze_df, prior_silvers)
 
     def _filter_incremental_bronze_input(
         self,

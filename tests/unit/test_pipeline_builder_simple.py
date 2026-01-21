@@ -11,6 +11,7 @@ from pipeline_builder.errors import ConfigurationError, ExecutionError
 from pipeline_builder.logging import PipelineLogger
 from pipeline_builder.models import (
     BronzeStep,
+    GoldStep,
     PipelineConfig,
     SilverStep,
 )
@@ -107,6 +108,200 @@ class TestPipelineBuilderInitialization:
         assert hasattr(builder, "validators")
         assert hasattr(builder, "validator")
         assert builder.validators == builder.validator.custom_validators
+
+
+class TestSilverRules:
+    """Tests for with_silver_rules method."""
+
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
+    def test_with_silver_rules_basic(self, mock_convert_rules, mock_spark_session):
+        """Test adding basic silver rules (validation-only step)."""
+        mock_convert_rules.return_value = {"id": [MockF.col("id").isNotNull()]}
+
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
+
+        rules = {"id": ["not_null"]}
+        result = builder.with_silver_rules(
+            name="existing_silver",
+            table_name="silver_table",
+            rules=rules,
+        )
+
+        assert result is builder  # Should return self for chaining
+        assert "existing_silver" in builder.silver_steps
+        silver_step = builder.silver_steps["existing_silver"]
+        assert isinstance(silver_step, SilverStep)
+        assert silver_step.name == "existing_silver"
+        assert silver_step.transform is None  # No transform for validation-only
+        assert silver_step.existing is True
+        assert silver_step.table_name == "silver_table"
+
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
+    def test_with_silver_rules_with_schema(
+        self, mock_convert_rules, mock_spark_session
+    ):
+        """Test adding silver rules with custom schema."""
+        mock_convert_rules.return_value = {"id": [MockF.col("id").isNotNull()]}
+
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
+
+        rules = {"id": ["not_null"]}
+        builder.with_silver_rules(
+            name="existing_silver",
+            table_name="silver_table",
+            rules=rules,
+            schema="custom_schema",
+        )
+
+        assert builder.silver_steps["existing_silver"].schema == "custom_schema"
+
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
+    def test_with_silver_rules_duplicate_name(
+        self, mock_convert_rules, mock_spark_session
+    ):
+        """Test that duplicate silver step names raise error."""
+        mock_convert_rules.return_value = {"id": [MockF.col("id").isNotNull()]}
+
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
+
+        rules = {"id": ["not_null"]}
+        builder.with_silver_rules(
+            name="existing_silver", table_name="table1", rules=rules
+        )
+
+        with pytest.raises(ExecutionError):
+            builder.with_silver_rules(
+                name="existing_silver", table_name="table2", rules=rules
+            )
+
+
+class TestGoldRules:
+    """Tests for with_gold_rules method."""
+
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
+    def test_with_gold_rules_basic(self, mock_convert_rules, mock_spark_session):
+        """Test adding basic gold rules (validation-only step)."""
+        mock_convert_rules.return_value = {"id": [MockF.col("id").isNotNull()]}
+
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
+
+        rules = {"id": ["not_null"]}
+        result = builder.with_gold_rules(
+            name="existing_gold",
+            table_name="gold_table",
+            rules=rules,
+        )
+
+        assert result is builder  # Should return self for chaining
+        assert "existing_gold" in builder.gold_steps
+        gold_step = builder.gold_steps["existing_gold"]
+        assert isinstance(gold_step, GoldStep)
+        assert gold_step.name == "existing_gold"
+        assert gold_step.transform is None  # No transform for validation-only
+        assert gold_step.existing is True
+        assert gold_step.table_name == "gold_table"
+
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
+    def test_with_gold_rules_with_schema(
+        self, mock_convert_rules, mock_spark_session
+    ):
+        """Test adding gold rules with custom schema."""
+        mock_convert_rules.return_value = {"id": [MockF.col("id").isNotNull()]}
+
+        # Create the custom schema first
+        mock_spark_session.sql("CREATE SCHEMA IF NOT EXISTS custom_schema")
+
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
+
+        rules = {"id": ["not_null"]}
+        builder.with_gold_rules(
+            name="existing_gold",
+            table_name="gold_table",
+            rules=rules,
+            schema="custom_schema",
+        )
+
+        assert builder.gold_steps["existing_gold"].schema == "custom_schema"
+
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
+    def test_with_gold_rules_duplicate_name(
+        self, mock_convert_rules, mock_spark_session
+    ):
+        """Test that duplicate gold step names raise error."""
+        mock_convert_rules.return_value = {"id": [MockF.col("id").isNotNull()]}
+
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
+
+        rules = {"id": ["not_null"]}
+        builder.with_gold_rules(name="existing_gold", table_name="table1", rules=rules)
+
+        with pytest.raises(ExecutionError):
+            builder.with_gold_rules(name="existing_gold", table_name="table2", rules=rules)
+
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
+    def test_with_gold_rules_empty_name(self, mock_convert_rules, mock_spark_session):
+        """Test that empty gold step name raises error."""
+        mock_convert_rules.return_value = {"id": [MockF.col("id").isNotNull()]}
+
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
+
+        rules = {"id": ["not_null"]}
+        with pytest.raises(ExecutionError):
+            builder.with_gold_rules(name="", table_name="gold_table", rules=rules)
+
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
+    def test_with_gold_rules_validation_only_properties(
+        self, mock_convert_rules, mock_spark_session
+    ):
+        """Test that with_gold_rules creates validation-only step with correct properties."""
+        mock_convert_rules.return_value = {"id": [MockF.col("id").isNotNull()]}
+
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
+
+        rules = {"id": ["not_null"]}
+        builder.with_gold_rules(
+            name="existing_gold",
+            table_name="gold_table",
+            rules=rules,
+        )
+
+        gold_step = builder.gold_steps["existing_gold"]
+        assert gold_step.transform is None
+        assert gold_step.existing is True
+        assert gold_step.table_name == "gold_table"
+        assert gold_step.name == "existing_gold"
 
 
 class TestBronzeRules:
@@ -213,8 +408,8 @@ class TestSilverRules:
 
     @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
     def test_with_silver_rules_basic(self, mock_convert_rules, mock_spark_session):
-        """Test adding basic silver rules."""
-        mock_convert_rules.return_value = {"id": ["not_null"]}
+        """Test adding basic silver rules (validation-only step)."""
+        mock_convert_rules.return_value = {"id": [MockF.col("id").isNotNull()]}
 
         builder = PipelineBuilder(
             spark=mock_spark_session,
@@ -229,14 +424,60 @@ class TestSilverRules:
 
         assert result is builder
         assert "test_silver" in builder.silver_steps
-        assert isinstance(builder.silver_steps["test_silver"], SilverStep)
-        assert builder.silver_steps["test_silver"].table_name == "test_table"
+        silver_step = builder.silver_steps["test_silver"]
+        assert isinstance(silver_step, SilverStep)
+        assert silver_step.table_name == "test_table"
+        assert silver_step.transform is None  # No transform for validation-only
+        assert silver_step.existing is True
 
     @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
-    def test_with_silver_rules_with_watermark(
+    def test_with_silver_rules_empty_name(self, mock_convert_rules, mock_spark_session):
+        """Test that empty silver step name raises error."""
+        mock_convert_rules.return_value = {"id": [MockF.col("id").isNotNull()]}
+
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
+
+        rules = {"id": ["not_null"]}
+        with pytest.raises(ExecutionError):
+            builder.with_silver_rules(name="", table_name="silver_table", rules=rules)
+
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
+    def test_with_silver_rules_validation_only_properties(
         self, mock_convert_rules, mock_spark_session
     ):
-        """Test adding silver rules with watermark column."""
+        """Test that with_silver_rules creates validation-only step with correct properties."""
+        mock_convert_rules.return_value = {"id": [MockF.col("id").isNotNull()]}
+
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
+
+        rules = {"id": ["not_null"]}
+        builder.with_silver_rules(
+            name="existing_silver",
+            table_name="silver_table",
+            rules=rules,
+        )
+
+        silver_step = builder.silver_steps["existing_silver"]
+        assert silver_step.transform is None
+        assert silver_step.existing is True
+        assert silver_step.table_name == "silver_table"
+        assert silver_step.name == "existing_silver"
+        assert silver_step.watermark_col is None
+        assert silver_step.source_bronze == ""  # No source bronze for existing tables
+
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
+    def test_with_silver_rules_no_watermark(
+        self, mock_convert_rules, mock_spark_session
+    ):
+        """Test that with_silver_rules does not accept watermark column."""
         mock_convert_rules.return_value = {"id": ["not_null"]}
 
         builder = PipelineBuilder(
@@ -250,11 +491,10 @@ class TestSilverRules:
             name="test_silver",
             table_name="test_table",
             rules=rules,
-            watermark_col="timestamp",
         )
 
         silver_step = builder.silver_steps["test_silver"]
-        assert silver_step.watermark_col == "timestamp"
+        assert silver_step.watermark_col is None
 
     @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
     def test_with_silver_rules_duplicate_name(
@@ -609,6 +849,87 @@ class TestPipelineValidation:
 
         errors = builder.validate_pipeline()
         assert errors == []  # Valid pipeline should have no errors
+
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
+    def test_validate_pipeline_with_validation_only_steps(
+        self, mock_convert_rules, mock_spark_session
+    ):
+        """Test validating pipeline with validation-only silver and gold steps."""
+        mock_convert_rules.return_value = {"id": ["not_null"]}
+
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
+
+        # Add validation-only silver step (should not require source_bronze)
+        builder.with_silver_rules(
+            name="existing_silver",
+            table_name="existing_silver_table",
+            rules={"id": ["not_null"]},
+        )
+
+        # Add validation-only gold step
+        builder.with_gold_rules(
+            name="existing_gold",
+            table_name="existing_gold_table",
+            rules={"id": ["not_null"]},
+        )
+
+        errors = builder.validate_pipeline()
+        assert errors == []  # Validation-only steps should be valid
+
+    @patch("pipeline_builder.validation.data_validation._convert_rules_to_expressions")
+    def test_validate_pipeline_with_mixed_steps(
+        self, mock_convert_rules, mock_spark_session
+    ):
+        """Test validating pipeline with both validation-only and transform steps."""
+        mock_convert_rules.return_value = {"id": ["not_null"]}
+
+        builder = PipelineBuilder(
+            spark=mock_spark_session,
+            schema="test_schema",
+            functions=MockF if MockF else None,
+        )
+
+        # Add bronze step
+        builder.with_bronze_rules(name="test_bronze", rules={"id": ["not_null"]})
+
+        # Add validation-only silver step
+        builder.with_silver_rules(
+            name="existing_silver",
+            table_name="existing_silver_table",
+            rules={"id": ["not_null"]},
+        )
+
+        # Add regular silver transform
+        builder.add_silver_transform(
+            name="test_silver",
+            source_bronze="test_bronze",
+            transform=lambda spark, df, silvers: df,
+            rules={"id": ["not_null"]},
+            table_name="test_table",
+        )
+
+        # Add validation-only gold step
+        builder.with_gold_rules(
+            name="existing_gold",
+            table_name="existing_gold_table",
+            rules={"id": ["not_null"]},
+        )
+
+        # Add regular gold transform
+        builder.add_gold_transform(
+            name="test_gold",
+            source_silvers=["test_silver"],
+            transform=lambda spark, silvers: silvers["test_silver"],
+            rules={"id": ["not_null"]},
+            table_name="test_gold_table",
+        )
+
+        errors = builder.validate_pipeline()
+        assert errors == []  # Mixed steps should be valid
 
     def test_validate_pipeline_invalid_config(self, mock_spark_session):
         """Test validating pipeline with invalid configuration."""
