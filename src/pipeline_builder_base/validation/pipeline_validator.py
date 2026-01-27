@@ -133,7 +133,7 @@ class PipelineValidator:
                 if not hasattr(step, "table_name") or not step.table_name:
                     errors.append(f"Silver step '{step_name}' missing table_name")
                 continue
-            
+
             # Check if step has source_bronze (for non-validation-only steps)
             source_bronze = getattr(step, "source_bronze", None)
             if not source_bronze:

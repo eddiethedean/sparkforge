@@ -224,7 +224,9 @@ class SilverStep(BaseModel):
         if self.transform is not None and not callable(self.transform):
             raise ValidationError("Transform function must be callable if provided")
         if not self.existing and self.transform is None:
-            raise ValidationError("Transform function is required for non-existing silver steps")
+            raise ValidationError(
+                "Transform function is required for non-existing silver steps"
+            )
         if not self.table_name or not isinstance(self.table_name, str):
             raise ValidationError("Table name must be a non-empty string")
         if self.source_incremental_col is not None and not isinstance(
@@ -352,7 +354,9 @@ class GoldStep(BaseModel):
         if self.transform is not None and not callable(self.transform):
             raise ValidationError("Transform function must be callable if provided")
         if not self.existing and self.transform is None:
-            raise ValidationError("Transform function is required for non-existing gold steps")
+            raise ValidationError(
+                "Transform function is required for non-existing gold steps"
+            )
         if not self.table_name or not isinstance(self.table_name, str):
             raise ValidationError("Table name must be a non-empty string")
         if not isinstance(self.rules, dict) or not self.rules:
@@ -370,9 +374,13 @@ class GoldStep(BaseModel):
         if not self.name or not isinstance(self.name, str):
             raise PipelineValidationError("Step name must be a non-empty string")
         if self.transform is not None and not callable(self.transform):
-            raise PipelineValidationError("Transform must be a callable function if provided")
+            raise PipelineValidationError(
+                "Transform must be a callable function if provided"
+            )
         if not self.existing and self.transform is None:
-            raise PipelineValidationError("Transform function is required for non-existing gold steps")
+            raise PipelineValidationError(
+                "Transform function is required for non-existing gold steps"
+            )
         if not isinstance(self.rules, dict):
             raise PipelineValidationError("Rules must be a dictionary")
         if not self.table_name or not isinstance(self.table_name, str):

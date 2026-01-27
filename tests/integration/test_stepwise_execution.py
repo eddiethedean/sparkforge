@@ -27,11 +27,9 @@ Test Coverage:
 """
 
 import os
-from unittest.mock import Mock, patch
 
 import pytest
 
-from pipeline_builder.compat import DataFrame, SparkSession
 from pipeline_builder.execution import ExecutionEngine, ExecutionMode, StepStatus
 from pipeline_builder.errors import ExecutionError
 from pipeline_builder.models import BronzeStep, GoldStep, PipelineConfig, SilverStep
@@ -60,7 +58,12 @@ def config():
 @pytest.fixture
 def sample_bronze_df(spark_session):
     """Create a sample bronze DataFrame."""
-    data = [("1", "event1", 10), ("2", "event2", 20), ("3", "event3", 30), ("4", "event4", 40)]
+    data = [
+        ("1", "event1", 10),
+        ("2", "event2", 20),
+        ("3", "event3", 30),
+        ("4", "event4", 40),
+    ]
     return spark_session.createDataFrame(data, ["id", "event", "value"])
 
 
@@ -77,6 +80,7 @@ def bronze_step():
 @pytest.fixture
 def silver_step_with_params():
     """Create a silver step that accepts params as named argument."""
+
     def transform_with_params(spark, bronze_df, prior_silvers, params=None):
         threshold = params.get("threshold", 1) if params else 1
         min_value = params.get("min_value", 0) if params else 0
@@ -96,6 +100,7 @@ def silver_step_with_params():
 @pytest.fixture
 def silver_step_with_kwargs():
     """Create a silver step that accepts params via **kwargs."""
+
     def transform_with_kwargs(spark, bronze_df, prior_silvers, **kwargs):
         threshold = kwargs.get("threshold", 1)
         min_value = kwargs.get("min_value", 0)
@@ -115,6 +120,7 @@ def silver_step_with_kwargs():
 @pytest.fixture
 def silver_step_without_params():
     """Create a silver step that doesn't accept params (backward compatible)."""
+
     def transform_no_params(spark, bronze_df, prior_silvers):
         return bronze_df.filter(F.col("id").cast("int") > 1).filter(F.col("value") > 15)
 
@@ -131,6 +137,7 @@ def silver_step_without_params():
 @pytest.fixture
 def silver_step_using_prior_silvers():
     """Create a silver step that uses prior_silvers (for testing dependency handling)."""
+
     def transform_with_prior(spark, bronze_df, prior_silvers):
         result = bronze_df
         # If we have prior silvers, add a column indicating that
@@ -153,6 +160,7 @@ def silver_step_using_prior_silvers():
 @pytest.fixture
 def gold_step_with_params():
     """Create a gold step that accepts params."""
+
     def transform_with_params(spark, silvers, params=None):
         multiplier = params.get("multiplier", 1.0) if params else 1.0
         df = silvers["clean_events"]
@@ -172,6 +180,7 @@ def gold_step_with_params():
 @pytest.fixture
 def gold_step_with_kwargs():
     """Create a gold step that accepts params via **kwargs."""
+
     def transform_with_kwargs(spark, silvers, **kwargs):
         multiplier = kwargs.get("multiplier", 1.0)
         df = silvers["clean_events"]
@@ -191,7 +200,14 @@ def gold_step_with_kwargs():
 class TestStepParamsSupport:
     """Test parameter passing to transform functions."""
 
-    def test_silver_step_with_params(self, spark_session, config, bronze_step, silver_step_with_params, sample_bronze_df):
+    def test_silver_step_with_params(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_with_params,
+        sample_bronze_df,
+    ):
         """Test that silver step can receive params."""
         engine = ExecutionEngine(spark_session, config)
         context = {"events": sample_bronze_df}
@@ -211,7 +227,12 @@ class TestStepParamsSupport:
         assert output_df.count() == 2
 
     def test_silver_step_without_params_backward_compatible(
-        self, spark_session, config, bronze_step, silver_step_without_params, sample_bronze_df
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
     ):
         """Test that silver step without params still works (backward compatibility)."""
         engine = ExecutionEngine(spark_session, config)
@@ -229,7 +250,14 @@ class TestStepParamsSupport:
         output_df = context["clean_events"]
         assert output_df.count() > 0
 
-    def test_gold_step_with_params(self, spark_session, config, silver_step_with_params, gold_step_with_params, sample_bronze_df):
+    def test_gold_step_with_params(
+        self,
+        spark_session,
+        config,
+        silver_step_with_params,
+        gold_step_with_params,
+        sample_bronze_df,
+    ):
         """Test that gold step can receive params."""
         engine = ExecutionEngine(spark_session, config)
         context = {"events": sample_bronze_df}
@@ -256,7 +284,14 @@ class TestStepParamsSupport:
 class TestStepwiseExecution:
     """Test stepwise execution controls."""
 
-    def test_stop_after_step(self, spark_session, config, bronze_step, silver_step_without_params, sample_bronze_df):
+    def test_stop_after_step(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
         """Test that execution stops after a specific step."""
         engine = ExecutionEngine(spark_session, config)
         context = {"events": sample_bronze_df}
@@ -276,7 +311,14 @@ class TestStepwiseExecution:
         assert result.steps[1].step_name == "clean_events"
         assert "clean_events" in context
 
-    def test_start_at_step(self, spark_session, config, bronze_step, silver_step_without_params, sample_bronze_df):
+    def test_start_at_step(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
         """Test that execution can start at a specific step."""
         engine = ExecutionEngine(spark_session, config)
         # Pre-populate context with bronze output (simulating already-executed step)
@@ -295,7 +337,14 @@ class TestStepwiseExecution:
         assert len(result.steps) == 1
         assert result.steps[0].step_name == "clean_events"
 
-    def test_write_outputs_false(self, spark_session, config, bronze_step, silver_step_without_params, sample_bronze_df):
+    def test_write_outputs_false(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
         """Test that write_outputs=False skips table writes."""
         engine = ExecutionEngine(spark_session, config)
         context = {"events": sample_bronze_df}
@@ -319,7 +368,14 @@ class TestStepwiseExecution:
 class TestRunnerStepwiseAPI:
     """Test SimplePipelineRunner stepwise execution methods."""
 
-    def test_run_until(self, spark_session, config, bronze_step, silver_step_without_params, sample_bronze_df):
+    def test_run_until(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
         """Test run_until method."""
         runner = SimplePipelineRunner(spark_session, config)
         steps = [bronze_step, silver_step_without_params]
@@ -335,7 +391,14 @@ class TestRunnerStepwiseAPI:
         assert len(report.bronze_results) == 1
         assert len(report.silver_results) == 1
 
-    def test_run_step(self, spark_session, config, bronze_step, silver_step_without_params, sample_bronze_df):
+    def test_run_step(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
         """Test run_step method."""
         runner = SimplePipelineRunner(spark_session, config)
         steps = [bronze_step, silver_step_without_params]
@@ -355,7 +418,12 @@ class TestRunnerStepwiseAPI:
         assert len(report.bronze_results) == 0
 
     def test_rerun_step_with_params(
-        self, spark_session, config, bronze_step, silver_step_with_params, sample_bronze_df
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_with_params,
+        sample_bronze_df,
     ):
         """Test rerun_step with parameter overrides."""
         runner = SimplePipelineRunner(spark_session, config)
@@ -388,7 +456,9 @@ class TestRunnerStepwiseAPI:
 class TestPipelineDebugSession:
     """Test PipelineDebugSession helper class."""
 
-    def test_debug_session_initialization(self, spark_session, config, bronze_step, silver_step_without_params):
+    def test_debug_session_initialization(
+        self, spark_session, config, bronze_step, silver_step_without_params
+    ):
         """Test that debug session initializes correctly."""
         steps = [bronze_step, silver_step_without_params]
         session = PipelineDebugSession(spark_session, config, steps)
@@ -398,7 +468,14 @@ class TestPipelineDebugSession:
         assert isinstance(session.context, dict)
         assert isinstance(session.step_params, dict)
 
-    def test_debug_session_run_until(self, spark_session, config, bronze_step, silver_step_without_params, sample_bronze_df):
+    def test_debug_session_run_until(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
         """Test debug session run_until."""
         steps = [bronze_step, silver_step_without_params]
         session = PipelineDebugSession(
@@ -411,7 +488,14 @@ class TestPipelineDebugSession:
         assert "clean_events" in session.context
         assert "clean_events" in context
 
-    def test_debug_session_run_step(self, spark_session, config, bronze_step, silver_step_without_params, sample_bronze_df):
+    def test_debug_session_run_step(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
         """Test debug session run_step."""
         steps = [bronze_step, silver_step_without_params]
         session = PipelineDebugSession(
@@ -424,7 +508,12 @@ class TestPipelineDebugSession:
         assert "clean_events" in session.context
 
     def test_debug_session_rerun_with_params(
-        self, spark_session, config, bronze_step, silver_step_with_params, sample_bronze_df
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_with_params,
+        sample_bronze_df,
     ):
         """Test debug session rerun with parameter overrides."""
         steps = [bronze_step, silver_step_with_params]
@@ -444,7 +533,9 @@ class TestPipelineDebugSession:
         assert count2 >= count1
         assert report2.status == PipelineStatus.COMPLETED
 
-    def test_debug_session_clear_params(self, spark_session, config, bronze_step, silver_step_with_params):
+    def test_debug_session_clear_params(
+        self, spark_session, config, bronze_step, silver_step_with_params
+    ):
         """Test clearing step params."""
         steps = [bronze_step, silver_step_with_params]
         session = PipelineDebugSession(spark_session, config, steps)
@@ -463,7 +554,14 @@ class TestPipelineDebugSession:
 class TestParameterPassingVariations:
     """Test different ways of passing parameters to transforms."""
 
-    def test_silver_step_with_kwargs(self, spark_session, config, bronze_step, silver_step_with_kwargs, sample_bronze_df):
+    def test_silver_step_with_kwargs(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_with_kwargs,
+        sample_bronze_df,
+    ):
         """Test that silver step can receive params via **kwargs."""
         engine = ExecutionEngine(spark_session, config)
         context = {"events": sample_bronze_df}
@@ -482,7 +580,14 @@ class TestParameterPassingVariations:
         rows = output_df.collect()
         assert len(rows) >= 0  # May be 0 or more depending on data
 
-    def test_gold_step_with_kwargs(self, spark_session, config, silver_step_without_params, gold_step_with_kwargs, sample_bronze_df):
+    def test_gold_step_with_kwargs(
+        self,
+        spark_session,
+        config,
+        silver_step_without_params,
+        gold_step_with_kwargs,
+        sample_bronze_df,
+    ):
         """Test that gold step can receive params via **kwargs."""
         engine = ExecutionEngine(spark_session, config)
         context = {"events": sample_bronze_df}
@@ -514,7 +619,14 @@ class TestParameterPassingVariations:
 class TestContextManagement:
     """Test context management and dependency loading."""
 
-    def test_start_at_step_loads_from_table(self, spark_session, config, bronze_step, silver_step_without_params, sample_bronze_df):
+    def test_start_at_step_loads_from_table(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
         """Test that start_at_step loads earlier outputs from tables."""
         engine = ExecutionEngine(spark_session, config)
         context = {"events": sample_bronze_df}
@@ -546,7 +658,14 @@ class TestContextManagement:
         assert result.steps[0].step_name == "clean_events"
         assert "clean_events" in context
 
-    def test_context_preserved_between_runs(self, spark_session, config, bronze_step, silver_step_without_params, sample_bronze_df):
+    def test_context_preserved_between_runs(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
         """Test that context is preserved and can be reused between runs."""
         runner = SimplePipelineRunner(spark_session, config)
         steps = [bronze_step, silver_step_without_params]
@@ -565,14 +684,22 @@ class TestContextManagement:
         # Should have same results
         assert count1 == count2
 
-    def test_invalidate_downstream_removes_outputs(self, spark_session, config, bronze_step, silver_step_without_params, gold_step_with_params, sample_bronze_df):
+    def test_invalidate_downstream_removes_outputs(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        gold_step_with_params,
+        sample_bronze_df,
+    ):
         """Test that invalidate_downstream removes downstream outputs from context."""
         runner = SimplePipelineRunner(spark_session, config)
         steps = [bronze_step, silver_step_without_params, gold_step_with_params]
         context = {"events": sample_bronze_df}
 
         # Run full pipeline (returns only report, not tuple)
-        report1 = runner.run_pipeline(steps, bronze_sources={"events": sample_bronze_df})
+        runner.run_pipeline(steps, bronze_sources={"events": sample_bronze_df})
         # Get context from execution engine or run step to populate it
         report2, context = runner.run_step("clean_events", steps=steps, context=context)
         assert "clean_events" in context
@@ -594,7 +721,14 @@ class TestContextManagement:
 class TestErrorHandling:
     """Test error handling in stepwise execution."""
 
-    def test_stop_after_invalid_step(self, spark_session, config, bronze_step, silver_step_without_params, sample_bronze_df):
+    def test_stop_after_invalid_step(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
         """Test that stop_after_step with invalid step name completes but doesn't stop."""
         engine = ExecutionEngine(spark_session, config)
         context = {"events": sample_bronze_df}
@@ -611,7 +745,14 @@ class TestErrorHandling:
         assert result.status == "completed"
         assert len(result.steps) == 2
 
-    def test_start_at_invalid_step(self, spark_session, config, bronze_step, silver_step_without_params, sample_bronze_df):
+    def test_start_at_invalid_step(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
         """Test that start_at_step with invalid step name raises error."""
         engine = ExecutionEngine(spark_session, config)
         context = {"events": sample_bronze_df}
@@ -625,7 +766,9 @@ class TestErrorHandling:
                 start_at_step="nonexistent_step",
             )
 
-    def test_run_step_without_dependencies(self, spark_session, config, silver_step_without_params):
+    def test_run_step_without_dependencies(
+        self, spark_session, config, silver_step_without_params
+    ):
         """Test that run_step fails gracefully when dependencies are missing."""
         runner = SimplePipelineRunner(spark_session, config)
         steps = [silver_step_without_params]
@@ -646,11 +789,23 @@ class TestErrorHandling:
 class TestComplexScenarios:
     """Test complex multi-step scenarios."""
 
-    def test_multiple_silver_steps_with_dependencies(self, spark_session, config, bronze_step, silver_step_without_params, silver_step_using_prior_silvers, sample_bronze_df):
+    def test_multiple_silver_steps_with_dependencies(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        silver_step_using_prior_silvers,
+        sample_bronze_df,
+    ):
         """Test multiple silver steps where one depends on another."""
         engine = ExecutionEngine(spark_session, config)
         context = {"events": sample_bronze_df}
-        steps = [bronze_step, silver_step_without_params, silver_step_using_prior_silvers]
+        steps = [
+            bronze_step,
+            silver_step_without_params,
+            silver_step_using_prior_silvers,
+        ]
 
         # Run until second silver step
         # Note: enriched_events depends on bronze, not clean_events, so clean_events may not be required
@@ -665,7 +820,7 @@ class TestComplexScenarios:
         # Should have at least bronze and enriched_events
         assert len(result.steps) >= 2
         assert "enriched_events" in context
-        
+
         # clean_events may or may not be executed depending on dependency order
         # The key is that enriched_events completed successfully
         enriched_df = context["enriched_events"]
@@ -674,11 +829,20 @@ class TestComplexScenarios:
             # Should have rows
             assert len(rows) > 0
 
-    def test_iterative_parameter_tuning(self, spark_session, config, bronze_step, silver_step_with_params, sample_bronze_df):
+    def test_iterative_parameter_tuning(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_with_params,
+        sample_bronze_df,
+    ):
         """Test iterative parameter tuning workflow."""
         session = PipelineDebugSession(
-            spark_session, config, [bronze_step, silver_step_with_params],
-            bronze_sources={"events": sample_bronze_df}
+            spark_session,
+            config,
+            [bronze_step, silver_step_with_params],
+            bronze_sources={"events": sample_bronze_df},
         )
 
         # Test different threshold values
@@ -686,7 +850,9 @@ class TestComplexScenarios:
         results = []
 
         for threshold in thresholds:
-            session.set_step_params("clean_events", {"threshold": threshold, "min_value": 0})
+            session.set_step_params(
+                "clean_events", {"threshold": threshold, "min_value": 0}
+            )
             report, _ = session.rerun_step("clean_events", write_outputs=False)
             count = session.context["clean_events"].count()
             results.append((threshold, count))
@@ -696,7 +862,15 @@ class TestComplexScenarios:
         assert len(results) == len(thresholds)
         # At least verify the workflow completed successfully
 
-    def test_full_pipeline_with_stepwise_debugging(self, spark_session, config, bronze_step, silver_step_with_params, gold_step_with_params, sample_bronze_df):
+    def test_full_pipeline_with_stepwise_debugging(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_with_params,
+        gold_step_with_params,
+        sample_bronze_df,
+    ):
         """Test a realistic debugging workflow."""
         runner = SimplePipelineRunner(spark_session, config)
         steps = [bronze_step, silver_step_with_params, gold_step_with_params]
@@ -742,7 +916,14 @@ class TestComplexScenarios:
 class TestWriteOutputsControl:
     """Test write_outputs flag behavior."""
 
-    def test_write_outputs_true_creates_table(self, spark_session, config, bronze_step, silver_step_without_params, sample_bronze_df):
+    def test_write_outputs_true_creates_table(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
         """Test that write_outputs=True creates tables."""
         engine = ExecutionEngine(spark_session, config)
         context = {"events": sample_bronze_df}
@@ -766,7 +947,14 @@ class TestWriteOutputsControl:
             # In some modes, table reading might not work, but execution should have succeeded
             pass
 
-    def test_write_outputs_false_skips_table_but_keeps_context(self, spark_session, config, bronze_step, silver_step_without_params, sample_bronze_df):
+    def test_write_outputs_false_skips_table_but_keeps_context(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
         """Test that write_outputs=False skips table writes but keeps DataFrame in context."""
         engine = ExecutionEngine(spark_session, config)
         context = {"events": sample_bronze_df}
@@ -785,7 +973,14 @@ class TestWriteOutputsControl:
         output_df = context["clean_events"]
         assert output_df.count() > 0
 
-    def test_write_outputs_false_faster_iteration(self, spark_session, config, bronze_step, silver_step_with_params, sample_bronze_df):
+    def test_write_outputs_false_faster_iteration(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_with_params,
+        sample_bronze_df,
+    ):
         """Test that write_outputs=False enables faster iteration."""
         runner = SimplePipelineRunner(spark_session, config)
         steps = [bronze_step, silver_step_with_params]
@@ -808,7 +1003,14 @@ class TestWriteOutputsControl:
 class TestEdgeCases:
     """Test edge cases and boundary conditions."""
 
-    def test_empty_step_params_dict(self, spark_session, config, bronze_step, silver_step_with_params, sample_bronze_df):
+    def test_empty_step_params_dict(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_with_params,
+        sample_bronze_df,
+    ):
         """Test that empty step_params dict doesn't cause errors."""
         engine = ExecutionEngine(spark_session, config)
         context = {"events": sample_bronze_df}
@@ -824,7 +1026,14 @@ class TestEdgeCases:
 
         assert result.status == StepStatus.COMPLETED
 
-    def test_step_params_for_nonexistent_step(self, spark_session, config, bronze_step, silver_step_without_params, sample_bronze_df):
+    def test_step_params_for_nonexistent_step(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
         """Test that step_params for nonexistent step is ignored."""
         runner = SimplePipelineRunner(spark_session, config)
         steps = [bronze_step, silver_step_without_params]
@@ -842,7 +1051,14 @@ class TestEdgeCases:
         # Should still complete successfully
         assert report.status == PipelineStatus.COMPLETED
 
-    def test_stop_after_first_step(self, spark_session, config, bronze_step, silver_step_without_params, sample_bronze_df):
+    def test_stop_after_first_step(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
         """Test stopping after the first step."""
         engine = ExecutionEngine(spark_session, config)
         context = {"events": sample_bronze_df}
@@ -859,7 +1075,14 @@ class TestEdgeCases:
         assert len(result.steps) == 1
         assert result.steps[0].step_name == "events"
 
-    def test_start_at_first_step(self, spark_session, config, bronze_step, silver_step_without_params, sample_bronze_df):
+    def test_start_at_first_step(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
         """Test starting at the first step (should execute all)."""
         engine = ExecutionEngine(spark_session, config)
         context = {"events": sample_bronze_df}
@@ -876,7 +1099,14 @@ class TestEdgeCases:
         # Should execute all steps
         assert len(result.steps) == 2
 
-    def test_rerun_without_prior_execution(self, spark_session, config, bronze_step, silver_step_without_params, sample_bronze_df):
+    def test_rerun_without_prior_execution(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
         """Test rerun_step when step hasn't been executed before."""
         runner = SimplePipelineRunner(spark_session, config)
         steps = [bronze_step, silver_step_without_params]
@@ -892,11 +1122,20 @@ class TestEdgeCases:
         assert report.status == PipelineStatus.COMPLETED
         assert "clean_events" in context
 
-    def test_multiple_parameter_changes(self, spark_session, config, bronze_step, silver_step_with_params, sample_bronze_df):
+    def test_multiple_parameter_changes(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_with_params,
+        sample_bronze_df,
+    ):
         """Test multiple parameter changes in sequence."""
         session = PipelineDebugSession(
-            spark_session, config, [bronze_step, silver_step_with_params],
-            bronze_sources={"events": sample_bronze_df}
+            spark_session,
+            config,
+            [bronze_step, silver_step_with_params],
+            bronze_sources={"events": sample_bronze_df},
         )
 
         # Change params multiple times
@@ -930,6 +1169,7 @@ class TestPriorGoldsAccess:
         self, spark_session, config, bronze_step, sample_bronze_df
     ):
         """Test that silver transform can access prior_golds when function accepts it."""
+
         # Create a silver step that accepts prior_golds
         def silver_transform_with_prior_golds(
             spark, bronze_df, prior_silvers, prior_golds=None
@@ -971,6 +1211,7 @@ class TestPriorGoldsAccess:
         self, spark_session, config, silver_step_without_params, sample_bronze_df
     ):
         """Test that gold transform can access prior_golds when function accepts it."""
+
         # Create a gold step that accepts prior_golds
         def gold_transform_with_prior_golds(spark, silvers, prior_golds=None):
             result = silvers["clean_events"]
@@ -1008,6 +1249,7 @@ class TestPriorGoldsAccess:
         self, spark_session, config, bronze_step, sample_bronze_df
     ):
         """Test that silver transforms without prior_golds parameter still work."""
+
         def silver_transform_old_style(spark, bronze_df, prior_silvers):
             # Old-style transform without prior_golds
             return bronze_df.filter(F.col("value") > 10)
@@ -1037,6 +1279,7 @@ class TestPriorGoldsAccess:
         self, spark_session, config, silver_step_without_params, sample_bronze_df
     ):
         """Test that gold transforms without prior_golds parameter still work."""
+
         def gold_transform_old_style(spark, silvers):
             # Old-style transform without prior_golds
             return silvers["clean_events"]
@@ -1075,7 +1318,7 @@ class TestValidationOnlySteps:
         table_name = "existing_silver_table"
         schema = "test_schema"
         table_fqn = fqn(schema, table_name)
-        
+
         # Write sample data to table
         sample_bronze_df.write.mode("overwrite").saveAsTable(table_fqn)
 
@@ -1120,9 +1363,7 @@ class TestValidationOnlySteps:
         with pytest.raises(ExecutionError, match="table does not exist"):
             executor.execute(silver_step, context, ExecutionMode.INITIAL)
 
-    def test_validation_only_silver_step_no_schema_error(
-        self, spark_session, config
-    ):
+    def test_validation_only_silver_step_no_schema_error(self, spark_session, config):
         """Test that validation-only silver step raises error when schema is missing."""
         from pipeline_builder.step_executors.silver import SilverStepExecutor
 
@@ -1147,7 +1388,10 @@ class TestValidationOnlySteps:
     ):
         """Test that silver step without transform and not marked existing raises error at model creation."""
         # This should fail at model creation, not execution
-        with pytest.raises(ValidationError, match="Transform function is required for non-existing silver steps"):
+        with pytest.raises(
+            ValidationError,
+            match="Transform function is required for non-existing silver steps",
+        ):
             SilverStep(
                 name="invalid_silver",
                 source_bronze="events",
@@ -1169,7 +1413,7 @@ class TestValidationOnlySteps:
         table_name = "existing_gold_table"
         schema = "test_schema"
         table_fqn = fqn(schema, table_name)
-        
+
         # Write sample data to table
         sample_bronze_df.write.mode("overwrite").saveAsTable(table_fqn)
 
@@ -1212,9 +1456,7 @@ class TestValidationOnlySteps:
         with pytest.raises(ExecutionError, match="table does not exist"):
             executor.execute(gold_step, context, None)
 
-    def test_validation_only_gold_step_no_schema_error(
-        self, spark_session, config
-    ):
+    def test_validation_only_gold_step_no_schema_error(self, spark_session, config):
         """Test that validation-only gold step raises error when schema is missing."""
         from pipeline_builder.step_executors.gold import GoldStepExecutor
 
@@ -1238,12 +1480,11 @@ class TestValidationOnlySteps:
     ):
         """Test that validation-only silver step raises error when schema doesn't exist."""
         from pipeline_builder.step_executors.silver import SilverStepExecutor
-        from pipeline_builder.table_operations import fqn
 
         # Don't create the schema - it should not exist
         schema = "nonexistent_schema"
         table_name = "some_table"
-        
+
         silver_step = SilverStep(
             name="existing_silver",
             source_bronze="",
@@ -1270,7 +1511,7 @@ class TestValidationOnlySteps:
         # Don't create the schema - it should not exist
         schema = "nonexistent_schema"
         table_name = "some_table"
-        
+
         gold_step = GoldStep(
             name="existing_gold",
             transform=None,
@@ -1296,7 +1537,7 @@ class TestValidationOnlySteps:
         # Use a schema that doesn't exist - should fail on schema check, not table check
         schema = "nonexistent_schema"
         table_name = "some_table"
-        
+
         silver_step = SilverStep(
             name="existing_silver",
             source_bronze="",
@@ -1313,7 +1554,7 @@ class TestValidationOnlySteps:
         # Should raise error about schema, not table
         with pytest.raises(ExecutionError) as exc_info:
             executor.execute(silver_step, context, ExecutionMode.INITIAL)
-        
+
         # Error should mention schema, not table
         assert "schema" in str(exc_info.value).lower()
         assert "does not exist" in str(exc_info.value).lower()
@@ -1327,7 +1568,7 @@ class TestValidationOnlySteps:
         # Use a schema that doesn't exist - should fail on schema check, not table check
         schema = "nonexistent_schema"
         table_name = "some_table"
-        
+
         gold_step = GoldStep(
             name="existing_gold",
             transform=None,
@@ -1343,7 +1584,7 @@ class TestValidationOnlySteps:
         # Should raise error about schema, not table
         with pytest.raises(ExecutionError) as exc_info:
             executor.execute(gold_step, context, None)
-        
+
         # Error should mention schema, not table
         assert "schema" in str(exc_info.value).lower()
         assert "does not exist" in str(exc_info.value).lower()
@@ -1356,6 +1597,7 @@ class TestPriorGoldsAdvanced:
         self, spark_session, config, bronze_step, sample_bronze_df
     ):
         """Test silver transform accessing multiple prior_golds."""
+
         def silver_transform_with_prior_golds(
             spark, bronze_df, prior_silvers, prior_golds=None
         ):
@@ -1394,12 +1636,12 @@ class TestPriorGoldsAdvanced:
         output_df = executor.execute(
             silver_step, context, ExecutionMode.INITIAL, step_types=step_types
         )
-        
+
         assert "prior_gold_count" in output_df.columns
         assert "has_gold1" in output_df.columns
         assert "has_gold2" in output_df.columns
         assert "has_gold3" in output_df.columns
-        
+
         # Check that count is correct
         # In mock mode, collect() may behave differently, so we verify the transform was called
         # by checking that the columns exist and the DataFrame has data
@@ -1410,7 +1652,11 @@ class TestPriorGoldsAdvanced:
         rows = output_df.select("prior_gold_count").distinct().collect()
         if rows and len(rows) > 0:
             row = rows[0]
-            gold_count = row[0] if hasattr(row, '__getitem__') else getattr(row, 'prior_gold_count', None)
+            gold_count = (
+                row[0]
+                if hasattr(row, "__getitem__")
+                else getattr(row, "prior_gold_count", None)
+            )
             if gold_count is not None:
                 assert gold_count == 3, f"Expected gold_count=3, got {gold_count}"
 
@@ -1418,6 +1664,7 @@ class TestPriorGoldsAdvanced:
         self, spark_session, config, sample_bronze_df
     ):
         """Test gold transform accessing multiple prior_golds."""
+
         def gold_transform_with_prior_golds(spark, silvers, prior_golds=None):
             result = silvers["clean_events"]
             if prior_golds:
@@ -1455,24 +1702,32 @@ class TestPriorGoldsAdvanced:
         }
 
         output_df = executor.execute(gold_step, context, None, step_types=step_types)
-        
+
         assert "prior_gold_count" in output_df.columns
         assert "prior_gold_names" in output_df.columns
-        
+
         # Check that count is correct
         assert output_df.count() > 0
         rows = output_df.select("prior_gold_count").distinct().collect()
         if rows and len(rows) > 0:
             row = rows[0]
-            gold_count = row[0] if hasattr(row, '__getitem__') else getattr(row, 'prior_gold_count', None)
+            gold_count = (
+                row[0]
+                if hasattr(row, "__getitem__")
+                else getattr(row, "prior_gold_count", None)
+            )
             if gold_count is not None:
                 assert gold_count == 2
-        
+
         # Check that names are correct
         name_rows = output_df.select("prior_gold_names").distinct().collect()
         if name_rows and len(name_rows) > 0:
             name_row = name_rows[0]
-            gold_names = name_row[0] if hasattr(name_row, '__getitem__') else getattr(name_row, 'prior_gold_names', None)
+            gold_names = (
+                name_row[0]
+                if hasattr(name_row, "__getitem__")
+                else getattr(name_row, "prior_gold_names", None)
+            )
             if gold_names is not None:
                 assert "intermediate_gold1" in gold_names
                 assert "intermediate_gold2" in gold_names
@@ -1481,6 +1736,7 @@ class TestPriorGoldsAdvanced:
         self, spark_session, config, bronze_step, sample_bronze_df
     ):
         """Test silver transform accessing both prior_silvers and prior_golds."""
+
         def silver_transform_with_both(
             spark, bronze_df, prior_silvers, prior_golds=None
         ):
@@ -1517,22 +1773,32 @@ class TestPriorGoldsAdvanced:
         output_df = executor.execute(
             silver_step, context, ExecutionMode.INITIAL, step_types=step_types
         )
-        
+
         assert "prior_silver_count" in output_df.columns
         assert "prior_gold_count" in output_df.columns
-        
+
         # Check counts
         assert output_df.count() > 0
         silver_rows = output_df.select("prior_silver_count").distinct().collect()
         gold_rows = output_df.select("prior_gold_count").distinct().collect()
         if silver_rows and len(silver_rows) > 0:
             silver_row = silver_rows[0]
-            silver_count = silver_row[0] if hasattr(silver_row, '__getitem__') else getattr(silver_row, 'prior_silver_count', None)
+            silver_count = (
+                silver_row[0]
+                if hasattr(silver_row, "__getitem__")
+                else getattr(silver_row, "prior_silver_count", None)
+            )
             if silver_count is not None:
-                assert silver_count == 1  # clean_events (excluding current step and bronze)
+                assert (
+                    silver_count == 1
+                )  # clean_events (excluding current step and bronze)
         if gold_rows and len(gold_rows) > 0:
             gold_row = gold_rows[0]
-            gold_count = gold_row[0] if hasattr(gold_row, '__getitem__') else getattr(gold_row, 'prior_gold_count', None)
+            gold_count = (
+                gold_row[0]
+                if hasattr(gold_row, "__getitem__")
+                else getattr(gold_row, "prior_gold_count", None)
+            )
             if gold_count is not None:
                 assert gold_count == 1  # existing_gold
 
@@ -1540,12 +1806,15 @@ class TestPriorGoldsAdvanced:
         self, spark_session, config, sample_bronze_df
     ):
         """Test that prior_golds excludes the current step being executed."""
+
         def gold_transform_with_prior_golds(spark, silvers, prior_golds=None):
             result = silvers["clean_events"]
             if prior_golds:
                 # Current step should NOT be in prior_golds
                 gold_names = sorted(prior_golds.keys())
-                result = result.withColumn("prior_gold_names", F.lit(",".join(gold_names)))
+                result = result.withColumn(
+                    "prior_gold_names", F.lit(",".join(gold_names))
+                )
             return result
 
         gold_step = GoldStep(
@@ -1572,13 +1841,17 @@ class TestPriorGoldsAdvanced:
         }
 
         output_df = executor.execute(gold_step, context, None, step_types=step_types)
-        
+
         assert "prior_gold_names" in output_df.columns
         assert output_df.count() > 0
         name_rows = output_df.select("prior_gold_names").distinct().collect()
         if name_rows and len(name_rows) > 0:
             name_row = name_rows[0]
-            gold_names = name_row[0] if hasattr(name_row, '__getitem__') else getattr(name_row, 'prior_gold_names', None)
+            gold_names = (
+                name_row[0]
+                if hasattr(name_row, "__getitem__")
+                else getattr(name_row, "prior_gold_names", None)
+            )
             # Should only have other_gold, not final_metrics
             if gold_names:  # May be empty string if no prior_golds
                 assert "other_gold" in gold_names
@@ -1588,6 +1861,7 @@ class TestPriorGoldsAdvanced:
         self, spark_session, config, bronze_step, sample_bronze_df
     ):
         """Test that prior_golds works correctly with step_params."""
+
         def silver_transform_with_params_and_prior_golds(
             spark, bronze_df, prior_silvers, prior_golds=None, params=None
         ):
@@ -1615,28 +1889,43 @@ class TestPriorGoldsAdvanced:
         step_params = {"multiplier": 2}
 
         output_df = executor.execute(
-            silver_step, context, ExecutionMode.INITIAL, 
-            step_params=step_params, step_types=step_types
+            silver_step,
+            context,
+            ExecutionMode.INITIAL,
+            step_params=step_params,
+            step_types=step_types,
         )
-        
+
         assert "prior_gold_count" in output_df.columns
         assert "multiplied_value" in output_df.columns
-        
+
         # Check that both prior_golds and params work together
         assert output_df.count() > 0
         gold_rows = output_df.select("prior_gold_count").distinct().collect()
         if gold_rows and len(gold_rows) > 0:
             gold_row = gold_rows[0]
-            gold_count = gold_row[0] if hasattr(gold_row, '__getitem__') else getattr(gold_row, 'prior_gold_count', None)
+            gold_count = (
+                gold_row[0]
+                if hasattr(gold_row, "__getitem__")
+                else getattr(gold_row, "prior_gold_count", None)
+            )
             if gold_count is not None:
                 assert gold_count == 1
-        
+
         # Check that params were applied
         param_rows = output_df.select("multiplied_value", "value").collect()
         if param_rows and len(param_rows) > 0:
             param_row = param_rows[0]
-            multiplied = param_row[0] if hasattr(param_row, '__getitem__') else getattr(param_row, 'multiplied_value', None)
-            original = param_row[1] if hasattr(param_row, '__getitem__') else getattr(param_row, 'value', None)
+            multiplied = (
+                param_row[0]
+                if hasattr(param_row, "__getitem__")
+                else getattr(param_row, "multiplied_value", None)
+            )
+            original = (
+                param_row[1]
+                if hasattr(param_row, "__getitem__")
+                else getattr(param_row, "value", None)
+            )
             if multiplied is not None and original is not None:
                 assert multiplied == original * 2
 
@@ -1648,8 +1937,6 @@ class TestValidationOnlyStepsIntegration:
         self, spark_session, config, sample_bronze_df
     ):
         """Test full pipeline execution with validation-only silver step."""
-        from pipeline_builder.pipeline.builder import PipelineBuilder
-        from pipeline_builder.pipeline.runner import SimplePipelineRunner
         from pipeline_builder.table_operations import fqn
 
         # Create an existing silver table
@@ -1660,9 +1947,9 @@ class TestValidationOnlyStepsIntegration:
 
         # Test validation-only silver step execution directly
         from pipeline_builder.step_executors.silver import SilverStepExecutor
-        
+
         executor = SilverStepExecutor(spark_session)
-        
+
         silver_step = SilverStep(
             name="existing_silver",
             source_bronze="",  # No source for existing tables
@@ -1672,12 +1959,12 @@ class TestValidationOnlyStepsIntegration:
             existing=True,
             schema=schema,
         )
-        
+
         # Test that it reads from table
         context = {}
         output_df = executor.execute(silver_step, context, ExecutionMode.INITIAL)
         assert output_df.count() == sample_bronze_df.count()
-        
+
         # Now test that a subsequent transform can access it via prior_silvers
         def silver_transform(spark, bronze_df, prior_silvers):
             # Should have access to existing_silver via prior_silvers
@@ -1693,11 +1980,11 @@ class TestValidationOnlyStepsIntegration:
             table_name="clean_events",
             schema=schema,
         )
-        
+
         # Add existing_silver to context to simulate it was executed
         context = {"events": sample_bronze_df, "existing_silver": output_df}
         step_types = {"existing_silver": "silver"}
-        
+
         clean_output_df = executor.execute(
             clean_silver_step, context, ExecutionMode.INITIAL, step_types=step_types
         )
@@ -1718,7 +2005,9 @@ class TestValidationOnlyStepsIntegration:
         sample_bronze_df.write.mode("overwrite").saveAsTable(table_fqn)
 
         builder = PipelineBuilder(spark=spark_session, schema=schema)
-        builder.with_bronze_rules(name="events", rules={"id": [F.col("id").isNotNull()]})
+        builder.with_bronze_rules(
+            name="events", rules={"id": [F.col("id").isNotNull()]}
+        )
         builder.add_silver_transform(
             name="clean_events",
             source_bronze="events",
@@ -1731,7 +2020,7 @@ class TestValidationOnlyStepsIntegration:
             table_name=table_name,
             rules={"id": [F.col("id").isNotNull()]},
         )
-        
+
         # Add a gold transform that uses prior_golds
         def gold_transform(spark, silvers, prior_golds=None):
             result = silvers["clean_events"]
@@ -1749,7 +2038,7 @@ class TestValidationOnlyStepsIntegration:
 
         pipeline = builder.to_pipeline()
         runner = SimplePipelineRunner(spark_session, config)
-        
+
         report = runner.run_pipeline(
             pipeline.steps, bronze_sources={"events": sample_bronze_df}
         )

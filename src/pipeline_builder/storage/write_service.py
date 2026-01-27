@@ -253,8 +253,9 @@ class WriteService:
         # This prevents "Table does not support truncate in batch mode" errors
         if write_mode_str == "overwrite":
             from ..table_operations import prepare_delta_overwrite
+
             prepare_delta_overwrite(self.spark, output_table)
-        
+
         writer = create_dataframe_writer(
             df, self.spark, write_mode_str, table_name=output_table
         )
@@ -276,6 +277,7 @@ class WriteService:
                     self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
                     # Small delay to ensure catalog is updated
                     import time
+
                     time.sleep(0.1)
                     # Retry the write - table should not exist now
                     writer = create_dataframe_writer(
@@ -283,7 +285,9 @@ class WriteService:
                     )
                     writer.saveAsTable(output_table)
                     rows_written = df.count()
-                    self.logger.info(f"Successfully wrote {rows_written} rows after retry")
+                    self.logger.info(
+                        f"Successfully wrote {rows_written} rows after retry"
+                    )
                     return rows_written
                 except Exception as retry_error:
                     raise ExecutionError(
@@ -296,7 +300,7 @@ class WriteService:
                             "original_error": str(e),
                         },
                     ) from retry_error
-            
+
             raise ExecutionError(
                 f"Failed to write table '{output_table}': {e}",
                 context={

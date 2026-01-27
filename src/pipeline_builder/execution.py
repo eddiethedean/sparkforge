@@ -906,12 +906,16 @@ class ExecutionEngine:
             if step_type == StepType.BRONZE:
                 output_df = self.bronze_executor.execute(step, context, mode)  # type: ignore[arg-type]
             elif step_type == StepType.SILVER:
-                output_df = self.silver_executor.execute(step, context, mode, step_params=step_params, step_types=step_types)  # type: ignore[arg-type]
+                output_df = self.silver_executor.execute(
+                    step, context, mode, step_params=step_params, step_types=step_types
+                )  # type: ignore[arg-type]
                 # Store output DataFrame in context immediately after execution for downstream steps
                 # This ensures prior_silvers is populated for subsequent silver steps
                 context[step.name] = output_df  # type: ignore[assignment]
             elif step_type == StepType.GOLD:
-                output_df = self.gold_executor.execute(step, context, mode, step_params=step_params, step_types=step_types)  # type: ignore[arg-type]
+                output_df = self.gold_executor.execute(
+                    step, context, mode, step_params=step_params, step_types=step_types
+                )  # type: ignore[arg-type]
                 # Store output DataFrame in context immediately after execution for downstream steps
                 context[step.name] = output_df  # type: ignore[assignment]
             else:
@@ -1145,15 +1149,23 @@ class ExecutionEngine:
                                 except Exception as write_error:
                                     # Handle truncate error for Delta tables
                                     error_msg = str(write_error).lower()
-                                    if "truncate" in error_msg and "batch mode" in error_msg:
+                                    if (
+                                        "truncate" in error_msg
+                                        and "batch mode" in error_msg
+                                    ):
                                         # Delta table doesn't support truncate - drop and retry
                                         self.logger.warning(
                                             f"Delta table truncate error, dropping table and retrying: {write_error}"
                                         )
                                         try:
-                                            self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                                            self.spark.sql(
+                                                f"DROP TABLE IF EXISTS {output_table}"
+                                            )  # type: ignore[attr-defined]
                                             import time
-                                            time.sleep(0.1)  # Brief delay for catalog sync
+
+                                            time.sleep(
+                                                0.1
+                                            )  # Brief delay for catalog sync
                                             (
                                                 output_df.write.format("delta")
                                                 .mode("overwrite")
@@ -1172,12 +1184,15 @@ class ExecutionEngine:
                                                     "original_error": str(write_error),
                                                 },
                                             ) from retry_error
-                                    
+
                                     # If we handled truncate error successfully, skip other error handling
                                     if write_error is None:
                                         pass  # Write succeeded after retry, continue execution
                                     # Handle race condition where table might be created by another thread
-                                    elif "already exists" in error_msg or "table_or_view_already_exists" in error_msg:
+                                    elif (
+                                        "already exists" in error_msg
+                                        or "table_or_view_already_exists" in error_msg
+                                    ):
                                         # Table was created by another thread - verify it exists and retry with overwrite mode
                                         if table_exists(self.spark, output_table):
                                             self.logger.debug(
@@ -1210,15 +1225,23 @@ class ExecutionEngine:
                                 except Exception as write_error:
                                     # Handle truncate error for Delta tables
                                     error_msg = str(write_error).lower()
-                                    if "truncate" in error_msg and "batch mode" in error_msg:
+                                    if (
+                                        "truncate" in error_msg
+                                        and "batch mode" in error_msg
+                                    ):
                                         # Delta table doesn't support truncate - drop and retry
                                         self.logger.warning(
                                             f"Delta table truncate error, dropping table and retrying: {write_error}"
                                         )
                                         try:
-                                            self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                                            self.spark.sql(
+                                                f"DROP TABLE IF EXISTS {output_table}"
+                                            )  # type: ignore[attr-defined]
                                             import time
-                                            time.sleep(0.1)  # Brief delay for catalog sync
+
+                                            time.sleep(
+                                                0.1
+                                            )  # Brief delay for catalog sync
                                             retry_writer = _create_dataframe_writer(
                                                 output_df,
                                                 self.spark,
@@ -1239,12 +1262,15 @@ class ExecutionEngine:
                                             ) from retry_error
                                         # Successfully wrote after retry - exit exception handler
                                         write_error = None
-                                    
+
                                     # If we handled truncate error successfully, skip other error handling
                                     if write_error is None:
                                         pass  # Write succeeded after retry, continue execution
                                     # Handle race condition where table might be created by another thread
-                                    elif "already exists" in error_msg or "table_or_view_already_exists" in error_msg:
+                                    elif (
+                                        "already exists" in error_msg
+                                        or "table_or_view_already_exists" in error_msg
+                                    ):
                                         # Table was created by another thread - verify it exists and retry with overwrite mode
                                         if table_exists(self.spark, output_table):
                                             self.logger.debug(
@@ -1728,11 +1754,19 @@ class ExecutionEngine:
         except Exception as e:
             # Handle truncate error for Delta tables - retry with table drop
             error_msg = str(e).lower()
-            if "truncate" in error_msg and "batch mode" in error_msg and step_type != StepType.BRONZE:
+            if (
+                "truncate" in error_msg
+                and "batch mode" in error_msg
+                and step_type != StepType.BRONZE
+            ):
                 # This is a Delta table truncate error - try to fix it
                 table_name = getattr(step, "table_name", step.name)
                 schema = getattr(step, "schema", None)
-                if schema is not None and hasattr(self, 'write_service') and output_df is not None:
+                if (
+                    schema is not None
+                    and hasattr(self, "write_service")
+                    and output_df is not None
+                ):
                     output_table = fqn(schema, table_name)
                     self.logger.warning(
                         f"Delta table truncate error for {output_table}, attempting to drop and retry write"
@@ -1741,6 +1775,7 @@ class ExecutionEngine:
                         # Drop the table (without CASCADE - not supported in all Spark versions)
                         self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
                         import time
+
                         time.sleep(0.2)  # Brief delay for catalog sync
                         # Retry the write using append mode (since table is dropped, append will create it)
                         # This avoids the truncate issue entirely
@@ -1757,16 +1792,20 @@ class ExecutionEngine:
                         result.rows_written = rows_written
                         result.rows_processed = rows_written
                         result.end_time = datetime.now()
-                        result.duration = (result.end_time - result.start_time).total_seconds()
+                        result.duration = (
+                            result.end_time - result.start_time
+                        ).total_seconds()
                         self.logger.info(
                             f"✅ Completed {step_type.value.upper()} step: {step.name} ({result.duration:.2f}s) - {rows_written} rows written (after truncate retry)"
                         )
                         return result
                     except Exception as retry_error:
                         # Retry also failed - fall through to normal error handling
-                        self.logger.error(f"Retry after truncate error also failed: {retry_error}")
+                        self.logger.error(
+                            f"Retry after truncate error also failed: {retry_error}"
+                        )
                         e = retry_error  # Use retry error for final error message
-            
+
             # Collect final resource metrics even on failure
             end_memory, end_cpu = self._collect_resource_metrics()
 
@@ -1917,7 +1956,7 @@ class ExecutionEngine:
 
             # Create a mapping of step names to step objects (needed for start_at_step handling)
             step_map = {s.name: s for s in steps}
-            
+
             # Create a mapping of step names to step types (needed for prior_golds building)
             step_types = {s.name: s.step_type.value for s in steps}
 
@@ -1939,13 +1978,17 @@ class ExecutionEngine:
                         if skipped_step is not None:
                             # Try to read from table if it's a Silver/Gold step
                             if skipped_step.step_type.value in ("silver", "gold"):
-                                table_name = getattr(skipped_step, "table_name", skipped_name)
+                                table_name = getattr(
+                                    skipped_step, "table_name", skipped_name
+                                )
                                 schema = getattr(skipped_step, "schema", None)
                                 if schema is not None:
                                     table_fqn = fqn(schema, table_name)
                                     try:
                                         if table_exists(self.spark, table_fqn):
-                                            context[skipped_name] = self.spark.table(table_fqn)  # type: ignore[attr-defined,valid-type]
+                                            context[skipped_name] = self.spark.table(
+                                                table_fqn
+                                            )  # type: ignore[attr-defined,valid-type]
                                             self.logger.info(
                                                 f"Loaded output for skipped step '{skipped_name}' from table '{table_fqn}'"
                                             )

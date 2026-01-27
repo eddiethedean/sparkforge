@@ -202,7 +202,7 @@ class UnifiedValidator:
                 if not step.table_name:
                     errors.append(f"Silver step '{step_name}' missing table_name")
                 continue
-            
+
             if not step.source_bronze:
                 errors.append(f"Silver step {step_name} missing source_bronze")
 
@@ -232,7 +232,7 @@ class UnifiedValidator:
                 if not step.table_name:
                     errors.append(f"Gold step '{step_name}' missing table_name")
                 continue
-            
+
             # Check source_silvers exist (if specified)
             if step.source_silvers:
                 for silver_name in step.source_silvers:

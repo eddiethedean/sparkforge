@@ -259,7 +259,7 @@ class TestSilverDependencyIntegration:
 
     def test_full_pipeline_bronze_to_two_silvers_with_dependency(self, spark, F):
         """Test full pipeline: single bronze -> two silvers, second uses first via prior_silvers.
-        
+
         This test verifies:
         1. A single bronze step feeds into two separate silver steps
         2. The second silver step declares dependency on the first via source_silvers
@@ -321,12 +321,14 @@ class TestSilverDependencyIntegration:
             else:
                 # Fallback: just join on user_id and add enriched flag
                 # This handles cases where mock-spark might not preserve all columns
-                enriched = bronze_df.join(
-                    silver_1_df.select("user_id"),
-                    on="user_id",
-                    how="inner",
-                ).withColumn("enriched", F.lit(True)).withColumn(
-                    "processed", F.lit(True)
+                enriched = (
+                    bronze_df.join(
+                        silver_1_df.select("user_id"),
+                        on="user_id",
+                        how="inner",
+                    )
+                    .withColumn("enriched", F.lit(True))
+                    .withColumn("processed", F.lit(True))
                 )
 
             return enriched
@@ -371,9 +373,7 @@ class TestSilverDependencyIntegration:
         assert pipeline is not None, "Pipeline should be created successfully"
 
         # Run initial load
-        result = pipeline.run_initial_load(
-            bronze_sources={"bronze_events": bronze_df}
-        )
+        result = pipeline.run_initial_load(bronze_sources={"bronze_events": bronze_df})
 
         # Verify execution order: bronze -> silver_1 -> silver_2
         assert execution_order == ["silver_1", "silver_2"], (
@@ -410,18 +410,14 @@ class TestSilverDependencyIntegration:
         )
 
         # Verify data was processed
-        assert silver_1_result["rows_processed"] > 0, (
-            "silver_1 should process rows"
-        )
-        assert silver_2_result["rows_processed"] > 0, (
-            "silver_2 should process rows"
-        )
+        assert silver_1_result["rows_processed"] > 0, "silver_1 should process rows"
+        assert silver_2_result["rows_processed"] > 0, "silver_2 should process rows"
 
     def test_execution_order_available_after_validation(self, spark, F):
         """Test that execution_order is populated after pipeline validation."""
         # Create sample bronze data
         data = [("user1", "event1", 100), ("user2", "event2", 200)]
-        bronze_df = spark.createDataFrame(data, ["user_id", "event_type", "value"])
+        spark.createDataFrame(data, ["user_id", "event_type", "value"])
 
         # Build pipeline
         builder = PipelineBuilder(spark=spark, schema="test_schema")
@@ -491,12 +487,8 @@ class TestSilverDependencyIntegration:
         silver_1_idx = builder.execution_order.index("silver_1")
         silver_2_idx = builder.execution_order.index("silver_2")
 
-        assert bronze_idx < silver_1_idx, (
-            "bronze_events should execute before silver_1"
-        )
-        assert bronze_idx < silver_2_idx, (
-            "bronze_events should execute before silver_2"
-        )
+        assert bronze_idx < silver_1_idx, "bronze_events should execute before silver_1"
+        assert bronze_idx < silver_2_idx, "bronze_events should execute before silver_2"
         assert silver_1_idx < silver_2_idx, (
             "silver_1 should execute before silver_2 (due to source_silvers dependency)"
         )
@@ -511,7 +503,7 @@ class TestSilverDependencyIntegration:
         """Test that steps without explicit dependencies execute in creation order."""
         # Create sample bronze data
         data = [("user1", "event1", 100), ("user2", "event2", 200)]
-        bronze_df = spark.createDataFrame(data, ["user_id", "event_type", "value"])
+        spark.createDataFrame(data, ["user_id", "event_type", "value"])
 
         # Build pipeline
         builder = PipelineBuilder(spark=spark, schema="test_schema")
@@ -588,7 +580,7 @@ class TestSilverDependencyIntegration:
         """Test that source_silvers explicitly declared dependencies override creation order."""
         # Create sample bronze data
         data = [("user1", "event1", 100), ("user2", "event2", 200)]
-        bronze_df = spark.createDataFrame(data, ["user_id", "event_type", "value"])
+        spark.createDataFrame(data, ["user_id", "event_type", "value"])
 
         # Build pipeline
         builder = PipelineBuilder(spark=spark, schema="test_schema")
@@ -609,7 +601,9 @@ class TestSilverDependencyIntegration:
             ),
             rules={"user_id": [F.col("user_id").isNotNull()]},
             table_name="silver_second",
-            source_silvers=["silver_main"],  # Explicit dependency - should override creation order
+            source_silvers=[
+                "silver_main"
+            ],  # Explicit dependency - should override creation order
         )
 
         # Add silver_main SECOND (created after silver_second)

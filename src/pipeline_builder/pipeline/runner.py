@@ -553,9 +553,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
                         )
 
         try:
-            self.logger.info(
-                f"Rerunning step '{step_name}': {pipeline_id}"
-            )
+            self.logger.info(f"Rerunning step '{step_name}': {pipeline_id}")
 
             # Execute pipeline starting at this step
             result = self.execution_engine.execute_pipeline(

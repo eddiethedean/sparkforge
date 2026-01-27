@@ -134,13 +134,17 @@ class GoldStepExecutor(BaseStepExecutor):
                 sig = inspect.signature(step.transform)
                 if "params" in sig.parameters:
                     if has_prior_golds:
-                        return step.transform(self.spark, silvers, prior_golds, params=step_params)
+                        return step.transform(
+                            self.spark, silvers, prior_golds, params=step_params
+                        )
                     else:
                         return step.transform(self.spark, silvers, params=step_params)
                 else:
                     # Has **kwargs, call with params as keyword
                     if has_prior_golds:
-                        return step.transform(self.spark, silvers, prior_golds, **step_params)
+                        return step.transform(
+                            self.spark, silvers, prior_golds, **step_params
+                        )
                     else:
                         return step.transform(self.spark, silvers, **step_params)
             except Exception:

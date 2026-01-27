@@ -73,7 +73,7 @@ from pipeline_builder_base.models import (
     ValidationThresholds,
 )
 
-from ..compat import DataFrame, SparkSession
+from ..compat import SparkSession
 from ..engine import SparkEngine
 from ..functions import FunctionsProtocol, get_default_functions
 from ..models import (
@@ -274,10 +274,10 @@ class PipelineBuilder(BasePipelineBuilder):
         # NOTE: We use runtime type checks in validate_pipeline() to catch any mismatches
         validator: PipelineValidator = cast(PipelineValidator, self.validator)  # type: ignore[redundant-cast]
         self._base_validator: PipelineValidator = validator
-        
+
         # Execution order will be populated after validation
         self.execution_order: Optional[List[str]] = None
-        
+
         # Track step creation order for deterministic ordering when no explicit dependencies
         self._step_creation_order: Dict[str, int] = {}
         self._creation_counter: int = 0
@@ -423,7 +423,7 @@ class PipelineBuilder(BasePipelineBuilder):
                     str(e),
                     context={
                         "step_name": name,
-                        "step_type": "silver",
+                        "step_type": "bronze",
                         "schema": schema,
                     },
                 ) from e
@@ -1214,10 +1214,10 @@ class PipelineBuilder(BasePipelineBuilder):
 
     def _calculate_execution_order(self) -> None:
         """Calculate and store execution order based on step dependencies.
-        
+
         Uses DependencyAnalyzer to determine the topological sort order of steps.
         This is called automatically after successful pipeline validation.
-        
+
         Note:
             Execution order is stored in self.execution_order attribute.
             If dependency analysis fails, execution_order is set to None.
@@ -1226,12 +1226,12 @@ class PipelineBuilder(BasePipelineBuilder):
         """
         try:
             from pipeline_builder_base.dependencies import DependencyAnalyzer
-            
+
             # Convert step dictionaries to format expected by DependencyAnalyzer
-            bronze_dict = {name: step for name, step in self.bronze_steps.items()}
-            silver_dict = {name: step for name, step in self.silver_steps.items()}
-            gold_dict = {name: step for name, step in self.gold_steps.items()}
-            
+            bronze_dict = dict(self.bronze_steps)
+            silver_dict = dict(self.silver_steps)
+            gold_dict = dict(self.gold_steps)
+
             # Analyze dependencies with creation order for deterministic tie-breaking
             analyzer = DependencyAnalyzer()
             analysis = analyzer.analyze_dependencies(
@@ -1240,10 +1240,10 @@ class PipelineBuilder(BasePipelineBuilder):
                 gold_steps=gold_dict,
                 creation_order=self._step_creation_order,  # Pass creation order
             )
-            
+
             # Store execution order
             self.execution_order = analysis.execution_order
-            
+
             # Log execution order
             if self.execution_order:
                 self.logger.info(

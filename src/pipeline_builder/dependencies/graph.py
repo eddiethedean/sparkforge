@@ -299,7 +299,9 @@ class DependencyGraph:
 
         return cycles
 
-    def topological_sort(self, creation_order: Optional[Dict[str, int]] = None) -> list[str]:
+    def topological_sort(
+        self, creation_order: Optional[Dict[str, int]] = None
+    ) -> list[str]:
         """Perform topological sort of the dependency graph.
 
         Returns nodes in an order such that all dependencies come before their
@@ -309,7 +311,7 @@ class DependencyGraph:
             Uses Kahn's algorithm with in-degree counting. Steps with no
             dependencies (in-degree 0) are processed first, then their dependents
             are processed when all their dependencies are satisfied.
-            
+
             **Explicit dependencies (e.g., source_silvers) always override creation order.**
             When multiple nodes have the same in-degree (no dependencies or same
             dependency level), creation_order is used as a tie-breaker to ensure
@@ -350,11 +352,15 @@ class DependencyGraph:
         # Helper function to get creation order for sorting
         def get_sort_key(node_name: str) -> tuple[int, int]:
             """Return sort key: (in_degree, creation_order).
-            
+
             Lower creation_order (earlier created) comes first.
             If creation_order not available, use a large number to sort to end.
             """
-            creation_ord = creation_order.get(node_name, float('inf')) if creation_order else float('inf')
+            creation_ord = (
+                creation_order.get(node_name, float("inf"))
+                if creation_order
+                else float("inf")
+            )
             return (in_degree[node_name], creation_ord)
 
         # Find nodes with no incoming edges (no dependencies)

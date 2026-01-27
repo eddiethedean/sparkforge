@@ -595,7 +595,8 @@ class TestExecutionEngine:
         # and should be rejected during construction
         # PySpark requires active SparkContext for F.col() calls
         with pytest.raises(
-            ValidationError, match="Transform function is required for non-existing silver steps"
+            ValidationError,
+            match="Transform function is required for non-existing silver steps",
         ):
             SilverStep(
                 name="test_silver",
@@ -645,7 +646,8 @@ class TestExecutionEngine:
         # and should be rejected during construction
         # PySpark requires active SparkContext for F.col() calls
         with pytest.raises(
-            ValidationError, match="Transform function is required for non-existing gold steps"
+            ValidationError,
+            match="Transform function is required for non-existing gold steps",
         ):
             GoldStep(
                 name="test_gold",

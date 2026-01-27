@@ -157,19 +157,37 @@ class SilverStepExecutor(BaseStepExecutor):
                 sig = inspect.signature(step.transform)
                 if "params" in sig.parameters:
                     if has_prior_golds:
-                        return step.transform(self.spark, bronze_df, prior_silvers, prior_golds, params=step_params)
+                        return step.transform(
+                            self.spark,
+                            bronze_df,
+                            prior_silvers,
+                            prior_golds,
+                            params=step_params,
+                        )
                     else:
-                        return step.transform(self.spark, bronze_df, prior_silvers, params=step_params)
+                        return step.transform(
+                            self.spark, bronze_df, prior_silvers, params=step_params
+                        )
                 else:
                     # Has **kwargs, call with params as keyword
                     if has_prior_golds:
-                        return step.transform(self.spark, bronze_df, prior_silvers, prior_golds, **step_params)
+                        return step.transform(
+                            self.spark,
+                            bronze_df,
+                            prior_silvers,
+                            prior_golds,
+                            **step_params,
+                        )
                     else:
-                        return step.transform(self.spark, bronze_df, prior_silvers, **step_params)
+                        return step.transform(
+                            self.spark, bronze_df, prior_silvers, **step_params
+                        )
             except Exception:
                 # Fallback to standard call if params passing fails
                 if has_prior_golds:
-                    return step.transform(self.spark, bronze_df, prior_silvers, prior_golds)
+                    return step.transform(
+                        self.spark, bronze_df, prior_silvers, prior_golds
+                    )
                 else:
                     return step.transform(self.spark, bronze_df, prior_silvers)
         else:

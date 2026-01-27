@@ -242,18 +242,20 @@ def prepare_delta_overwrite(
             # First try using SQL DROP TABLE
             spark.sql(f"DROP TABLE IF EXISTS {table_name}")  # type: ignore[attr-defined]
             logger.debug(f"Dropped table {table_name} before overwrite (if it existed)")
-            
+
             # For Delta tables, also try using DeltaTable API if available
             # This ensures the table is fully removed, including metadata
             if HAS_DELTA:
                 try:
                     # Try to get the table path and delete using DeltaTable
                     # This is a more thorough cleanup for Delta tables
-                    table_info = spark.sql(f"DESCRIBE TABLE EXTENDED {table_name}").collect()  # type: ignore[attr-defined]
+                    spark.sql(f"DESCRIBE TABLE EXTENDED {table_name}").collect()  # type: ignore[attr-defined]
                     # If we get here, table still exists - try DeltaTable.delete()
                     delta_table = DeltaTable.forName(spark, table_name)  # type: ignore[attr-defined,assignment]
                     delta_table.delete()  # type: ignore[attr-defined]
-                    logger.debug(f"Deleted Delta table {table_name} using DeltaTable API")
+                    logger.debug(
+                        f"Deleted Delta table {table_name} using DeltaTable API"
+                    )
                 except Exception:
                     # DeltaTable API might not work or table might not be Delta
                     # This is fine - SQL DROP should have worked

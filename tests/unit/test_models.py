@@ -337,7 +337,8 @@ class TestSilverStep:
         rules = {"id": ["not_null"]}
 
         with pytest.raises(
-            ValidationError, match="Transform function is required for non-existing silver steps"
+            ValidationError,
+            match="Transform function is required for non-existing silver steps",
         ):
             SilverStep(
                 name="test",
@@ -443,7 +444,8 @@ class TestGoldStep:
         rules = {"id": ["not_null"]}
 
         with pytest.raises(
-            ValidationError, match="Transform function is required for non-existing gold steps"
+            ValidationError,
+            match="Transform function is required for non-existing gold steps",
         ):
             GoldStep(name="test", transform=None, rules=rules, table_name="gold_table")
 

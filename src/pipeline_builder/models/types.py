@@ -44,12 +44,11 @@ ResourceValue = Union[str, int, float, bool, List[str], Dict[str, str]]
 ColumnRules = Dict[str, List[Union[str, Column]]]
 TransformFunction = Callable[[DataFrame], DataFrame]
 SilverTransformFunction = Callable[
-    [SparkSession, DataFrame, Dict[str, DataFrame], Optional[Dict[str, DataFrame]]], 
-    DataFrame
+    [SparkSession, DataFrame, Dict[str, DataFrame], Optional[Dict[str, DataFrame]]],
+    DataFrame,
 ]
 GoldTransformFunction = Callable[
-    [SparkSession, Dict[str, DataFrame], Optional[Dict[str, DataFrame]]], 
-    DataFrame
+    [SparkSession, Dict[str, DataFrame], Optional[Dict[str, DataFrame]]], DataFrame
 ]
 
 # Generic type for pipeline results

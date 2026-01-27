@@ -2,12 +2,23 @@
 """Demo of execution order feature in PipelineBuilder."""
 
 # Configure engine BEFORE importing pipeline_builder
-from pipeline_builder.engine_config import configure_engine
-from sparkless import SparkSession, functions as mock_functions, spark_types as mock_types
-from sparkless import AnalysisException as MockAnalysisException, Window as MockWindow
-from sparkless.functions import desc as mock_desc
-from sparkless import DataFrame as MockDataFrame, SparkSession as MockSparkSession
+from sparkless import AnalysisException as MockAnalysisException
 from sparkless import Column as MockColumn
+from sparkless import DataFrame as MockDataFrame
+from sparkless import (
+    SparkSession,
+)
+from sparkless import SparkSession as MockSparkSession
+from sparkless import Window as MockWindow
+from sparkless import (
+    functions as mock_functions,
+)
+from sparkless import (
+    spark_types as mock_types,
+)
+from sparkless.functions import desc as mock_desc
+
+from pipeline_builder.engine_config import configure_engine
 
 configure_engine(
     functions=mock_functions,
@@ -22,8 +33,8 @@ configure_engine(
 )
 
 # Now import pipeline_builder
-from pipeline_builder import PipelineBuilder
-from pipeline_builder.functions import get_default_functions
+from pipeline_builder import PipelineBuilder  # noqa: E402
+from pipeline_builder.functions import get_default_functions  # noqa: E402
 
 # Get functions
 F = get_default_functions()
@@ -78,7 +89,9 @@ print("✅ Added Silver step: silver_enriched (depends on silver_clean)")
 # Add gold step
 builder.add_gold_transform(
     name="gold_metrics",
-    transform=lambda spark, silvers: list(silvers.values())[0].groupBy("user_id").count(),
+    transform=lambda spark, silvers: list(silvers.values())[0]
+    .groupBy("user_id")
+    .count(),
     rules={"count": [F.col("count") > 0]},
     table_name="gold_daily_metrics",
     source_silvers=["silver_enriched"],
@@ -105,12 +118,12 @@ if validation_errors:
 else:
     print("✅ Pipeline validation passed!")
     print()
-    
+
     # Check execution order after validation
     print("🔍 Checking execution order AFTER validation:")
     print(f"   execution_order = {builder.execution_order}")
     print()
-    
+
     if builder.execution_order:
         print("📋 Execution Order Details:")
         print(f"   Total steps: {len(builder.execution_order)}")
@@ -126,26 +139,30 @@ else:
                 step_type = "GOLD"
             else:
                 step_type = "UNKNOWN"
-            
+
             print(f"   {idx}. {step_name} ({step_type})")
-        
+
         print()
         print("   Visual representation:")
         print(f"   {' → '.join(builder.execution_order)}")
         print()
-        
+
         # Verify dependencies are respected
         print("   Dependency verification:")
         bronze_idx = builder.execution_order.index("bronze_events")
         silver_clean_idx = builder.execution_order.index("silver_clean")
         silver_enriched_idx = builder.execution_order.index("silver_enriched")
         gold_idx = builder.execution_order.index("gold_metrics")
-        
+
         assert bronze_idx < silver_clean_idx, "Bronze should come before silver_clean"
-        assert bronze_idx < silver_enriched_idx, "Bronze should come before silver_enriched"
-        assert silver_clean_idx < silver_enriched_idx, "silver_clean should come before silver_enriched"
+        assert bronze_idx < silver_enriched_idx, (
+            "Bronze should come before silver_enriched"
+        )
+        assert silver_clean_idx < silver_enriched_idx, (
+            "silver_clean should come before silver_enriched"
+        )
         assert silver_enriched_idx < gold_idx, "silver_enriched should come before gold"
-        
+
         print("   ✅ All dependencies are correctly ordered!")
     else:
         print("   ⚠️  Execution order is empty")

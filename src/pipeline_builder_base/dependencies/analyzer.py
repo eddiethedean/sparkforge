@@ -196,9 +196,7 @@ class DependencyAnalyzer:
                 metadata = {"step": step}
                 if creation_order and name in creation_order:
                     metadata["creation_order"] = creation_order[name]
-                node = StepNode(
-                    name=name, step_type=StepType.BRONZE, metadata=metadata
-                )
+                node = StepNode(name=name, step_type=StepType.BRONZE, metadata=metadata)
                 graph.add_node(node)
 
         # Add silver steps - first pass: add all nodes
@@ -208,9 +206,7 @@ class DependencyAnalyzer:
                 metadata = {"step": silver_step}
                 if creation_order and name in creation_order:
                     metadata["creation_order"] = creation_order[name]
-                node = StepNode(
-                    name=name, step_type=StepType.SILVER, metadata=metadata
-                )
+                node = StepNode(name=name, step_type=StepType.SILVER, metadata=metadata)
                 graph.add_node(node)
                 # Store step info for second pass
                 silver_step_info[name] = silver_step
@@ -270,9 +266,7 @@ class DependencyAnalyzer:
                 metadata = {"step": gold_step}
                 if creation_order and name in creation_order:
                     metadata["creation_order"] = creation_order[name]
-                node = StepNode(
-                    name=name, step_type=StepType.GOLD, metadata=metadata
-                )
+                node = StepNode(name=name, step_type=StepType.GOLD, metadata=metadata)
                 graph.add_node(node)
                 # Store step info for second pass
                 gold_step_info[name] = gold_step

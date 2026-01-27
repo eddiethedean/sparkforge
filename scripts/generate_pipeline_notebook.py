@@ -1297,6 +1297,36 @@ def main() -> int:
         print("\n🔄 Performing topological sort...")
     sorted_modules = topological_sort(modules)
 
+    # Ensure critical executor base class ordering inside circular dependency group.
+    # When cycles exist between step executors and related modules, the generic
+    # topological sort may place `pipeline_builder.step_executors.base` *after*
+    # the concrete executors. In the generated notebook this leads to a runtime
+    # error because `BaseStepExecutor` is not yet defined when the bronze/silver/
+    # gold executor classes are declared.
+    #
+    # To make the notebook reliably runnable top‑to‑bottom, we explicitly
+    # reorder these four modules relative to each other while preserving the
+    # relative order of all other modules.
+    reordering_group = [
+        "pipeline_builder.step_executors.base",
+        "pipeline_builder.step_executors.bronze",
+        "pipeline_builder.step_executors.silver",
+        "pipeline_builder.step_executors.gold",
+    ]
+    # Keep only the modules that actually exist in this run
+    present_group = [m for m in reordering_group if m in sorted_modules]
+    if len(present_group) > 1:
+        # Remove them from the list while preserving the order of everything else
+        remaining = [m for m in sorted_modules if m not in present_group]
+        # Insert the group back starting at the earliest original index, in the
+        # desired order (base first, then bronze, silver, gold).
+        first_index = min(sorted_modules.index(m) for m in present_group)
+        # Preserve the specified ordering, but only for modules that are present
+        ordered_present_group = [m for m in reordering_group if m in present_group]
+        sorted_modules = (
+            remaining[:first_index] + ordered_present_group + remaining[first_index:]
+        )
+
     if args.verbose:
         print(f"\nModule order ({len(sorted_modules)} modules):")
         for i, module in enumerate(sorted_modules, 1):

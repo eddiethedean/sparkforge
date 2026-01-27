@@ -70,7 +70,7 @@ Validation Requirements:
     BronzeStep(name="events", rules={})  # ValidationError: Rules must be non-empty
 """
 
-__version__ = "2.8.0"
+__version__ = "2.8.1"
 __author__ = "Odos Matthews"
 __email__ = "odosmatthews@gmail.com"
 __description__ = "A simplified, production-ready data pipeline builder for Apache Spark and Delta Lake"

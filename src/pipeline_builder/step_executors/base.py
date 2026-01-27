@@ -109,8 +109,12 @@ class BaseStepExecutor(ABC):
                 reading fails.
         """
         # Check if this is a validation-only step
-        if not (hasattr(step, "transform") and step.transform is None and
-                hasattr(step, "existing") and step.existing):
+        if not (
+            hasattr(step, "transform")
+            and step.transform is None
+            and hasattr(step, "existing")
+            and step.existing
+        ):
             return None  # Not a validation-only step
 
         table_name = getattr(step, "table_name", step.name)

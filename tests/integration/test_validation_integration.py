@@ -621,7 +621,7 @@ class TestUnifiedValidator:
         validator = UnifiedValidator()
 
         rules = {"id": [F.col("id").isNotNull()]}
-        
+
         # Create validation-only silver step (existing=True, transform=None)
         silver_steps = {
             "existing_silver": SilverStep(
@@ -635,7 +635,8 @@ class TestUnifiedValidator:
         }
 
         errors, warnings = validator._validate_silver_steps(
-            silver_steps, {}  # Empty bronze_steps - should be OK for validation-only
+            silver_steps,
+            {},  # Empty bronze_steps - should be OK for validation-only
         )
 
         # Should not have any errors for validation-only silver step
@@ -647,7 +648,7 @@ class TestUnifiedValidator:
         validator = UnifiedValidator()
 
         rules = {"id": [F.col("id").isNotNull()]}
-        
+
         # Create validation-only gold step (existing=True, transform=None)
         gold_steps = {
             "existing_gold": GoldStep(
@@ -661,7 +662,8 @@ class TestUnifiedValidator:
         }
 
         errors, warnings = validator._validate_gold_steps(
-            gold_steps, {}  # Empty silver_steps - should be OK for validation-only
+            gold_steps,
+            {},  # Empty silver_steps - should be OK for validation-only
         )
 
         # Should not have any errors for validation-only gold step
@@ -673,10 +675,8 @@ class TestUnifiedValidator:
         validator = UnifiedValidator()
 
         rules = {"id": [F.col("id").isNotNull()]}
-        bronze_steps = {
-            "test_bronze": BronzeStep(name="test_bronze", rules=rules)
-        }
-        
+        bronze_steps = {"test_bronze": BronzeStep(name="test_bronze", rules=rules)}
+
         silver_steps = {
             # Validation-only silver step
             "existing_silver": SilverStep(
@@ -697,9 +697,7 @@ class TestUnifiedValidator:
             ),
         }
 
-        errors, warnings = validator._validate_silver_steps(
-            silver_steps, bronze_steps
-        )
+        errors, warnings = validator._validate_silver_steps(silver_steps, bronze_steps)
 
         # Should not have any errors
         assert len(errors) == 0
@@ -719,7 +717,7 @@ class TestUnifiedValidator:
                 table_name="test_table",
             )
         }
-        
+
         gold_steps = {
             # Validation-only gold step
             "existing_gold": GoldStep(
@@ -740,9 +738,7 @@ class TestUnifiedValidator:
             ),
         }
 
-        errors, warnings = validator._validate_gold_steps(
-            gold_steps, silver_steps
-        )
+        errors, warnings = validator._validate_gold_steps(gold_steps, silver_steps)
 
         # Should not have any errors
         assert len(errors) == 0

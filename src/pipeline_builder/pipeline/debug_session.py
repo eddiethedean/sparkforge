@@ -125,7 +125,7 @@ class PipelineDebugSession:
         for step in self.steps:
             if step.step_type.value == "bronze" and step.name in self.context:
                 bronze_sources[step.name] = self.context[step.name]
-        
+
         report, context = self.runner.run_until(
             step_name=step_name,
             steps=self.steps,
@@ -205,9 +205,7 @@ class PipelineDebugSession:
         self.context = context
         return report, context
 
-    def set_step_params(
-        self, step_name: str, params: Dict[str, Any]
-    ) -> None:
+    def set_step_params(self, step_name: str, params: Dict[str, Any]) -> None:
         """Set parameters for a step.
 
         Convenience method to update step_params.
