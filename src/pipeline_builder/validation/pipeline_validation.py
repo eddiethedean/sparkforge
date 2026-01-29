@@ -68,6 +68,30 @@ class UnifiedValidator:
         self.custom_validators.append(validator)
         self.logger.info(f"Added custom validator: {validator.__class__.__name__}")
 
+    def validate_schema(self, schema: Any) -> list[str]:
+        """
+        Validate schema name format.
+
+        Same contract as PipelineValidator.validate_schema so that schema
+        validation works when the builder uses UnifiedValidator.
+
+        Args:
+            schema: Schema name to validate.
+
+        Returns:
+            List of validation errors (empty if valid).
+        """
+        errors: list[str] = []
+        if not schema:
+            errors.append("Schema name cannot be empty")
+        elif not isinstance(schema, str):
+            errors.append("Schema name must be a string")
+        elif not schema.strip():
+            errors.append("Schema name cannot be whitespace only")
+        elif len(schema) > 128:
+            errors.append("Schema name is too long (max 128 characters)")
+        return errors
+
     def validate_pipeline(
         self,
         config: PipelineConfig,
