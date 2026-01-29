@@ -455,6 +455,7 @@ class PipelineBuilder(BasePipelineBuilder):
         rules: ColumnRules,
         description: Optional[str] = None,
         schema: Optional[str] = None,
+        optional: bool = False,
     ) -> PipelineBuilder:
         """Add Silver layer validation rules for existing silver tables.
 
@@ -473,6 +474,8 @@ class PipelineBuilder(BasePipelineBuilder):
             description: Optional description of this Silver step.
             schema: Optional schema name for reading silver data. If not
                 provided, uses the builder's default schema.
+            optional: If True, step does not fail when the table does not exist;
+                an empty DataFrame is returned so downstream steps can run.
 
         Returns:
             Self for method chaining.
@@ -560,6 +563,7 @@ class PipelineBuilder(BasePipelineBuilder):
             table_name=table_name,
             watermark_col=None,  # No watermark needed for validation-only steps
             existing=True,
+            optional=optional,
             schema=effective_schema,
             source_incremental_col=None,
         )
@@ -580,6 +584,7 @@ class PipelineBuilder(BasePipelineBuilder):
         rules: ColumnRules,
         description: Optional[str] = None,
         schema: Optional[str] = None,
+        optional: bool = False,
     ) -> PipelineBuilder:
         """Add Gold layer validation rules for existing gold tables.
 
@@ -598,6 +603,8 @@ class PipelineBuilder(BasePipelineBuilder):
             description: Optional description of this Gold step.
             schema: Optional schema name for reading gold data. If not
                 provided, uses the builder's default schema.
+            optional: If True, step does not fail when the table does not exist;
+                an empty DataFrame is returned so downstream steps can run.
 
         Returns:
             Self for method chaining.
@@ -683,6 +690,7 @@ class PipelineBuilder(BasePipelineBuilder):
             rules=converted_rules,
             table_name=table_name,
             existing=True,
+            optional=optional,
             schema=effective_schema,
             source_silvers=None,  # No source silvers for existing tables
         )

@@ -23,6 +23,21 @@ from ..compat import DataFrame, SparkSession
 from ..functions import FunctionsProtocol
 from ..table_operations import fqn, table_exists
 
+# Empty DataFrame for optional validation-only steps (mock Spark needs explicit schema)
+try:
+    from pyspark.sql.types import StructType as _EmptyStructType
+except ImportError:
+    _EmptyStructType = None  # type: ignore[misc, assignment]
+
+# Optional DeltaTable for fresh reads (avoids catalog schema staleness)
+try:
+    from delta.tables import DeltaTable as _DeltaTable
+
+    _HAS_DELTA = True
+except (ImportError, AttributeError, RuntimeError):
+    _DeltaTable = None  # type: ignore[misc, assignment]
+    _HAS_DELTA = False
+
 
 class BaseStepExecutor(ABC):
     """Base class for all step executors.
@@ -152,8 +167,25 @@ class BaseStepExecutor(ABC):
                     self.logger.debug(
                         f"Could not refresh table {table_fqn} before read: {refresh_err}"
                     )
+                # Prefer DeltaTable.forName().toDF() for a fresh read from the Delta log,
+                # avoiding stale catalog schema (e.g. after overwrite with new schema).
+                if _HAS_DELTA and _DeltaTable is not None:
+                    try:
+                        return _DeltaTable.forName(  # type: ignore[attr-defined]
+                            self.spark, table_fqn
+                        ).toDF()
+                    except Exception as delta_err:  # pragma: no cover - env-dependent
+                        self.logger.debug(
+                            f"DeltaTable read failed for {table_fqn}, using spark.table: {delta_err}"
+                        )
                 return self.spark.table(table_fqn)  # type: ignore[attr-defined]
             else:
+                # Optional validation-only step: table missing is allowed; return empty DataFrame.
+                if getattr(step, "optional", False):
+                    self.logger.info(
+                        f"Validation-only {step_type} step '{step.name}': table '{table_fqn}' does not exist (optional=True), using empty DataFrame"
+                    )
+                    return self._empty_dataframe()
                 raise ExecutionError(
                     f"Validation-only {step_type} step '{step.name}' requires existing table '{table_fqn}', but table does not exist"
                 )
@@ -163,6 +195,21 @@ class BaseStepExecutor(ABC):
             raise ExecutionError(
                 f"Failed to read table '{table_fqn}' for validation-only {step_type} step '{step.name}': {e}"
             ) from e
+
+    def _empty_dataframe(self) -> DataFrame:
+        """Return an empty DataFrame (zero rows) for optional validation-only steps when table is missing."""
+        # Prefer createDataFrame([], StructType([])) for mock Spark (sparkless) compatibility
+        if _EmptyStructType is not None:
+            try:
+                return self.spark.createDataFrame(  # type: ignore[attr-defined]
+                    [], _EmptyStructType()
+                )
+            except (TypeError, ValueError):
+                pass
+        try:
+            return self.spark.range(0, 0).toDF()  # type: ignore[attr-defined]
+        except (TypeError, ValueError):
+            return self.spark.range(0).limit(0).toDF()  # type: ignore[attr-defined]
 
     @abstractmethod
     def execute(

@@ -208,6 +208,7 @@ class SilverStep(BaseModel):
     transform: Optional[SilverTransformFunction] = None
     watermark_col: Optional[str] = None
     existing: bool = False
+    optional: bool = False
     schema: Optional[str] = None
     source_incremental_col: Optional[str] = None
     schema_override: Optional[StructType] = None
@@ -343,6 +344,7 @@ class GoldStep(BaseModel):
     table_name: str
     transform: Optional[GoldTransformFunction] = None
     existing: bool = False
+    optional: bool = False
     source_silvers: Optional[list[str]] = None
     schema: Optional[str] = None
     schema_override: Optional[StructType] = None

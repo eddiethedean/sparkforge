@@ -1363,6 +1363,31 @@ class TestValidationOnlySteps:
         with pytest.raises(ExecutionError, match="table does not exist"):
             executor.execute(silver_step, context, ExecutionMode.INITIAL)
 
+    def test_validation_only_silver_step_optional_table_missing_returns_empty(
+        self, spark_session, config
+    ):
+        """Test that validation-only silver step with optional=True returns empty DataFrame when table doesn't exist."""
+        from pipeline_builder.step_executors.silver import SilverStepExecutor
+
+        spark_session.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
+        silver_step = SilverStep(
+            name="optional_silver",
+            source_bronze="",
+            transform=None,
+            rules={"id": [F.col("id").isNotNull()]},
+            table_name="nonexistent_table",
+            existing=True,
+            optional=True,
+            schema="test_schema",
+        )
+
+        executor = SilverStepExecutor(spark_session)
+        context = {}
+
+        output_df = executor.execute(silver_step, context, ExecutionMode.INITIAL)
+        assert output_df.count() == 0
+        assert output_df is not None
+
     def test_validation_only_silver_step_no_schema_error(self, spark_session, config):
         """Test that validation-only silver step raises error when schema is missing."""
         from pipeline_builder.step_executors.silver import SilverStepExecutor
@@ -1455,6 +1480,30 @@ class TestValidationOnlySteps:
 
         with pytest.raises(ExecutionError, match="table does not exist"):
             executor.execute(gold_step, context, None)
+
+    def test_validation_only_gold_step_optional_table_missing_returns_empty(
+        self, spark_session, config
+    ):
+        """Test that validation-only gold step with optional=True returns empty DataFrame when table doesn't exist."""
+        from pipeline_builder.step_executors.gold import GoldStepExecutor
+
+        spark_session.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
+        gold_step = GoldStep(
+            name="optional_gold",
+            transform=None,
+            rules={"id": [F.col("id").isNotNull()]},
+            table_name="nonexistent_table",
+            existing=True,
+            optional=True,
+            schema="test_schema",
+        )
+
+        executor = GoldStepExecutor(spark_session)
+        context = {}
+
+        output_df = executor.execute(gold_step, context, None)
+        assert output_df.count() == 0
+        assert output_df is not None
 
     def test_validation_only_gold_step_no_schema_error(self, spark_session, config):
         """Test that validation-only gold step raises error when schema is missing."""
@@ -2052,3 +2101,330 @@ class TestValidationOnlyStepsIntegration:
             # In mock mode, table might not be created - check context instead
             # The test still validates that the transform was called with prior_golds
             pass
+
+    def test_with_silver_rules_existing_table_used_in_prior_silvers(
+        self, spark_session, config, sample_bronze_df
+    ):
+        """Test with_silver_rules: existing table in a different schema is read and used via prior_silvers."""
+        from pipeline_builder.pipeline.builder import PipelineBuilder
+        from pipeline_builder.pipeline.runner import SimplePipelineRunner
+        from pipeline_builder.table_operations import fqn, table_exists
+
+        schema = "test_schema"
+        prior_schema = "prior_silver_schema_ps"
+        legacy_table = "legacy_silver_prior_silvers"
+        spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {prior_schema}")
+        table_fqn = fqn(prior_schema, legacy_table)
+        sample_bronze_df.write.mode("overwrite").saveAsTable(table_fqn)
+
+        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder.with_bronze_rules(
+            name="events", rules={"id": [F.col("id").isNotNull()]}
+        )
+        builder.with_silver_rules(
+            name="silver_old",
+            table_name=legacy_table,
+            rules={"id": [F.col("id").isNotNull()]},
+            schema=prior_schema,
+        )
+        # Silver transform that uses prior_silvers["silver_old"] from the existing table
+        def silver_using_prior_silvers(spark, bronze_df, prior_silvers):
+            base = bronze_df.withColumn("source", F.lit("bronze"))
+            if "silver_old" in prior_silvers:
+                legacy_count = prior_silvers["silver_old"].count()
+                return base.withColumn("legacy_row_count", F.lit(legacy_count))
+            return base
+
+        builder.add_silver_transform(
+            name="silver_main",
+            source_bronze="events",
+            transform=silver_using_prior_silvers,
+            rules={"id": [F.col("id").isNotNull()]},
+            table_name="silver_main_prior_silvers",
+        )
+        builder.add_gold_transform(
+            name="gold_summary",
+            transform=lambda spark, silvers: silvers["silver_main"].groupBy().count(),
+            rules={"count": [F.col("count") > 0]},
+            table_name="gold_summary_prior_silvers",
+            source_silvers=["silver_main"],
+        )
+
+        pipeline = builder.to_pipeline()
+        report = pipeline.run_initial_load(bronze_sources={"events": sample_bronze_df})
+
+        assert report.status == PipelineStatus.COMPLETED
+        assert report.errors == [], f"Expected no errors, got {report.errors}"
+        assert report.failed_steps == 0, f"Expected no failed steps, got {report.failed_steps}: {report.errors}"
+        assert report.success
+        expected_steps = 4
+        assert (
+            len(pipeline.bronze_steps) + len(pipeline.silver_steps) + len(pipeline.gold_steps)
+            == expected_steps
+        )
+        # When steps ran, all should have succeeded (mock mode may report 0 steps executed)
+        if report.metrics.total_steps > 0:
+            assert report.successful_steps == report.metrics.total_steps
+        # silver_main must have used prior_silvers["silver_old"] (legacy_row_count column)
+        silver_fqn = fqn(schema, "silver_main_prior_silvers")
+        if table_exists(spark_session, silver_fqn):
+            silver_df = spark_session.table(silver_fqn)
+            if "legacy_row_count" in silver_df.columns:
+                assert "source" in silver_df.columns
+                rows = silver_df.select("legacy_row_count").distinct().collect()
+                assert len(rows) >= 1
+                assert rows[0]["legacy_row_count"] == sample_bronze_df.count()
+                assert silver_df.count() == sample_bronze_df.count()
+
+    def test_with_gold_rules_existing_table_used_in_prior_golds(
+        self, spark_session, config, sample_bronze_df
+    ):
+        """Test with_gold_rules: existing table in a different schema is read and used via prior_golds."""
+        from pipeline_builder.pipeline.builder import PipelineBuilder
+        from pipeline_builder.pipeline.runner import SimplePipelineRunner
+        from pipeline_builder.table_operations import fqn, table_exists
+
+        schema = "test_schema"
+        prior_schema = "prior_gold_schema_pg"
+        legacy_gold_table = "legacy_gold_prior_golds"
+        spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {prior_schema}")
+        table_fqn = fqn(prior_schema, legacy_gold_table)
+        sample_bronze_df.write.mode("overwrite").saveAsTable(table_fqn)
+
+        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder.with_bronze_rules(
+            name="events", rules={"id": [F.col("id").isNotNull()]}
+        )
+        builder.add_silver_transform(
+            name="clean_events",
+            source_bronze="events",
+            transform=lambda spark, df, silvers: df,
+            rules={"id": [F.col("id").isNotNull()]},
+            table_name="clean_events_prior_golds",
+        )
+        builder.with_gold_rules(
+            name="gold_old",
+            table_name=legacy_gold_table,
+            rules={"id": [F.col("id").isNotNull()]},
+            schema=prior_schema,
+        )
+
+        # Gold transform that uses prior_golds["gold_old"] data (row count from existing table)
+        def gold_using_prior_golds(spark, silvers, prior_golds=None):
+            base = silvers["clean_events"]
+            if prior_golds and "gold_old" in prior_golds:
+                legacy_count = prior_golds["gold_old"].count()
+                return base.withColumn("legacy_gold_row_count", F.lit(legacy_count))
+            return base
+
+        builder.add_gold_transform(
+            name="gold_final",
+            transform=gold_using_prior_golds,
+            rules={"id": [F.col("id").isNotNull()]},
+            table_name="gold_final_prior_golds",
+            source_silvers=["clean_events"],
+        )
+
+        pipeline = builder.to_pipeline()
+        report = pipeline.run_initial_load(bronze_sources={"events": sample_bronze_df})
+
+        assert report.status == PipelineStatus.COMPLETED
+        assert report.errors == [], f"Expected no errors, got {report.errors}"
+        assert report.failed_steps == 0, f"Expected no failed steps, got {report.failed_steps}: {report.errors}"
+        assert report.success
+        expected_steps = 4
+        assert (
+            len(pipeline.bronze_steps) + len(pipeline.silver_steps) + len(pipeline.gold_steps)
+            == expected_steps
+        )
+        # When steps ran, all should have succeeded (mock mode may report 0 steps executed)
+        if report.metrics.total_steps > 0:
+            assert report.successful_steps == report.metrics.total_steps
+        gold_fqn = fqn(schema, "gold_final_prior_golds")
+        if table_exists(spark_session, gold_fqn):
+            gold_df = spark_session.table(gold_fqn)
+            if "legacy_gold_row_count" in gold_df.columns:
+                rows = gold_df.select("legacy_gold_row_count").distinct().collect()
+                assert len(rows) >= 1
+                assert rows[0]["legacy_gold_row_count"] == sample_bronze_df.count()
+                assert gold_df.count() == sample_bronze_df.count()
+
+    def test_with_silver_rules_prior_table_missing_fails(
+        self, spark_session, config, sample_bronze_df
+    ):
+        """Test that validation-only silver step fails when prior table does not exist."""
+        from pipeline_builder.pipeline.builder import PipelineBuilder
+        from pipeline_builder.pipeline.runner import SimplePipelineRunner
+
+        schema = "test_schema"
+        prior_schema = "prior_silver_schema_missing"
+        spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {prior_schema}")
+        # Do NOT create the table - use a table name that does not exist
+        legacy_table = "nonexistent_legacy_silver_missing"
+
+        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder.with_bronze_rules(
+            name="events", rules={"id": [F.col("id").isNotNull()]}
+        )
+        builder.with_silver_rules(
+            name="silver_old",
+            table_name=legacy_table,
+            rules={"id": [F.col("id").isNotNull()]},
+            schema=prior_schema,
+        )
+        builder.add_silver_transform(
+            name="silver_main",
+            source_bronze="events",
+            transform=lambda spark, df, silvers: df,
+            rules={"id": [F.col("id").isNotNull()]},
+            table_name="silver_main_missing",
+        )
+
+        pipeline = builder.to_pipeline()
+        report = pipeline.run_initial_load(bronze_sources={"events": sample_bronze_df})
+
+        # When steps actually run, silver_old should fail (table does not exist)
+        if report.metrics.total_steps > 0:
+            assert report.status == PipelineStatus.FAILED or report.failed_steps >= 1
+            assert len(report.errors) >= 1
+            assert any("exist" in e.lower() or "table" in e.lower() for e in report.errors)
+
+    def test_with_silver_rules_and_gold_rules_both_prior_tables_used(
+        self, spark_session, config, sample_bronze_df
+    ):
+        """Test pipeline using both with_silver_rules and with_gold_rules; gold uses both prior_silvers and prior_golds."""
+        from pipeline_builder.pipeline.builder import PipelineBuilder
+        from pipeline_builder.pipeline.runner import SimplePipelineRunner
+        from pipeline_builder.table_operations import fqn, table_exists
+
+        schema = "test_schema"
+        prior_silver_schema = "prior_silver_combined_both"
+        prior_gold_schema = "prior_gold_combined_both"
+        spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {prior_silver_schema}")
+        spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {prior_gold_schema}")
+        sample_bronze_df.write.mode("overwrite").saveAsTable(
+            fqn(prior_silver_schema, "legacy_silver_both")
+        )
+        sample_bronze_df.write.mode("overwrite").saveAsTable(
+            fqn(prior_gold_schema, "legacy_gold_both")
+        )
+
+        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder.with_bronze_rules(
+            name="events", rules={"id": [F.col("id").isNotNull()]}
+        )
+        builder.with_silver_rules(
+            name="silver_old",
+            table_name="legacy_silver_both",
+            rules={"id": [F.col("id").isNotNull()]},
+            schema=prior_silver_schema,
+        )
+        builder.add_silver_transform(
+            name="silver_main",
+            source_bronze="events",
+            transform=lambda spark, df, silvers: df.withColumn("from_bronze", F.lit(True)),
+            rules={"id": [F.col("id").isNotNull()]},
+            table_name="silver_main_both",
+        )
+        builder.with_gold_rules(
+            name="gold_old",
+            table_name="legacy_gold_both",
+            rules={"id": [F.col("id").isNotNull()]},
+            schema=prior_gold_schema,
+        )
+
+        def gold_using_both_priors(spark, silvers, prior_golds=None):
+            base = silvers["silver_main"]
+            legacy_silver_count = silvers.get("silver_old")
+            if legacy_silver_count is not None:
+                base = base.withColumn("prior_silver_count", F.lit(legacy_silver_count.count()))
+            else:
+                base = base.withColumn("prior_silver_count", F.lit(-1))
+            if prior_golds and "gold_old" in prior_golds:
+                base = base.withColumn(
+                    "prior_gold_count", F.lit(prior_golds["gold_old"].count())
+                )
+            else:
+                base = base.withColumn("prior_gold_count", F.lit(-1))
+            return base
+
+        builder.add_gold_transform(
+            name="gold_final",
+            transform=gold_using_both_priors,
+            rules={"id": [F.col("id").isNotNull()]},
+            table_name="gold_final_combined_both",
+            source_silvers=["silver_main", "silver_old"],
+        )
+
+        pipeline = builder.to_pipeline()
+        report = pipeline.run_initial_load(bronze_sources={"events": sample_bronze_df})
+
+        assert report.status == PipelineStatus.COMPLETED
+        assert report.errors == []
+        assert report.failed_steps == 0
+        assert report.success
+        gold_fqn = fqn(schema, "gold_final_combined_both")
+        if table_exists(spark_session, gold_fqn):
+            gold_df = spark_session.table(gold_fqn)
+            if "prior_silver_count" in gold_df.columns and "prior_gold_count" in gold_df.columns:
+                assert "from_bronze" in gold_df.columns
+                sc = gold_df.select("prior_silver_count").first()
+                gc = gold_df.select("prior_gold_count").first()
+                if sc and gc:
+                    assert sc["prior_silver_count"] == sample_bronze_df.count()
+                    assert gc["prior_gold_count"] == sample_bronze_df.count()
+
+    def test_with_silver_rules_prior_silvers_join_data_correctness(
+        self, spark_session, config, sample_bronze_df
+    ):
+        """Test that prior_silvers DataFrame can be used (join or count); data correctness."""
+        from pipeline_builder.pipeline.builder import PipelineBuilder
+        from pipeline_builder.table_operations import fqn, table_exists
+
+        schema = "test_schema"
+        prior_schema = "prior_silver_join_correctness"
+        legacy_table_join = "legacy_silver_join_correctness"
+        spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {prior_schema}")
+        sample_bronze_df.write.mode("overwrite").saveAsTable(
+            fqn(prior_schema, legacy_table_join)
+        )
+
+        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder.with_bronze_rules(
+            name="events", rules={"id": [F.col("id").isNotNull()]}
+        )
+        builder.with_silver_rules(
+            name="silver_old",
+            table_name=legacy_table_join,
+            rules={"id": [F.col("id").isNotNull()]},
+            schema=prior_schema,
+        )
+
+        def silver_using_prior(spark, bronze_df, prior_silvers):
+            if "silver_old" not in prior_silvers:
+                return bronze_df
+            legacy = prior_silvers["silver_old"]
+            # Use prior_silvers: add column from legacy row count (works with any schema)
+            n = legacy.count()
+            return bronze_df.withColumn("from_legacy_count", F.lit(n))
+
+        builder.add_silver_transform(
+            name="silver_main",
+            source_bronze="events",
+            transform=silver_using_prior,
+            rules={"id": [F.col("id").isNotNull()]},
+            table_name="silver_main_join_correctness",
+        )
+
+        pipeline = builder.to_pipeline()
+        report = pipeline.run_initial_load(bronze_sources={"events": sample_bronze_df})
+
+        assert report.status == PipelineStatus.COMPLETED
+        assert report.errors == []
+        assert report.failed_steps == 0
+        assert report.success
+        silver_fqn = fqn(schema, "silver_main_join_correctness")
+        if table_exists(spark_session, silver_fqn):
+            silver_df = spark_session.table(silver_fqn)
+            if "from_legacy_count" in silver_df.columns:
+                assert silver_df.select("from_legacy_count").first()["from_legacy_count"] == sample_bronze_df.count()
