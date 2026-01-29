@@ -143,6 +143,15 @@ class BaseStepExecutor(ABC):
         table_fqn = fqn(schema, table_name)
         try:
             if table_exists(self.spark, table_fqn):
+                # Refresh table metadata so we read the latest Delta schema.
+                # Avoids "schema has changed... Latest schema is missing field(s)"
+                # when the table was overwritten elsewhere with a different schema.
+                try:
+                    self.spark.sql(f"REFRESH TABLE {table_fqn}")  # type: ignore[attr-defined]
+                except Exception as refresh_err:  # pragma: no cover - env-dependent
+                    self.logger.debug(
+                        f"Could not refresh table {table_fqn} before read: {refresh_err}"
+                    )
                 return self.spark.table(table_fqn)  # type: ignore[attr-defined]
             else:
                 raise ExecutionError(
