@@ -156,54 +156,61 @@ class BaseStepExecutor(ABC):
             ) from e
 
         table_fqn = fqn(schema, table_name)
-        # Delta session config: allow reading existing table even if schema evolved
-        # (e.g. table was overwritten with fewer columns). Validation-only steps
-        # "just bring in the existing table" without failing on schema mismatch.
+        # Delta session config: allow reading existing table even if schema evolved.
+        # Set BEFORE any table access (table_exists, REFRESH, read) so Delta never runs the check.
         _delta_check_key = "spark.databricks.delta.checkLatestSchemaOnRead"
         _prev_check = None
         try:
             _prev_check = self.spark.conf.get(_delta_check_key)  # type: ignore[attr-defined]
         except Exception:
             pass
+
+        def _set_delta_check_off() -> None:
+            # Try conf.set first, then SQL SET; Delta reads this at table access time.
+            try:
+                self.spark.conf.set(_delta_check_key, "false")  # type: ignore[attr-defined]
+            except Exception as conf_err:  # pragma: no cover - env-dependent
+                self.logger.debug(f"Could not set {_delta_check_key}: {conf_err}")
+            try:
+                self.spark.sql(f"SET {_delta_check_key}=false")  # type: ignore[attr-defined]
+            except Exception:
+                pass
+
+        def _restore_delta_check() -> None:
+            if _prev_check is not None:
+                try:
+                    self.spark.conf.set(_delta_check_key, _prev_check)  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+            else:
+                try:
+                    self.spark.conf.unset(_delta_check_key)  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+
+        # Set config before any operation that might touch the table (including table_exists)
+        _set_delta_check_off()
         try:
             if table_exists(self.spark, table_fqn):
-                try:
-                    self.spark.conf.set(_delta_check_key, "false")  # type: ignore[attr-defined]
-                except Exception as conf_err:  # pragma: no cover - env-dependent
-                    self.logger.debug(
-                        f"Could not set {_delta_check_key}: {conf_err}"
-                    )
                 try:
                     self.spark.sql(f"REFRESH TABLE {table_fqn}")  # type: ignore[attr-defined]
                 except Exception as refresh_err:  # pragma: no cover - env-dependent
                     self.logger.debug(
                         f"Could not refresh table {table_fqn} before read: {refresh_err}"
                     )
-                try:
-                    if _HAS_DELTA and _DeltaTable is not None:
-                        try:
-                            out = _DeltaTable.forName(  # type: ignore[attr-defined]
-                                self.spark, table_fqn
-                            ).toDF()
-                        except Exception as delta_err:  # pragma: no cover - env-dependent
-                            self.logger.debug(
-                                f"DeltaTable read failed for {table_fqn}, using spark.table: {delta_err}"
-                            )
-                            out = self.spark.table(table_fqn)  # type: ignore[attr-defined]
-                    else:
+                if _HAS_DELTA and _DeltaTable is not None:
+                    try:
+                        out = _DeltaTable.forName(  # type: ignore[attr-defined]
+                            self.spark, table_fqn
+                        ).toDF()
+                    except Exception as delta_err:  # pragma: no cover - env-dependent
+                        self.logger.debug(
+                            f"DeltaTable read failed for {table_fqn}, using spark.table: {delta_err}"
+                        )
                         out = self.spark.table(table_fqn)  # type: ignore[attr-defined]
-                    return out
-                finally:
-                    if _prev_check is not None:
-                        try:
-                            self.spark.conf.set(_delta_check_key, _prev_check)  # type: ignore[attr-defined]
-                        except Exception:
-                            pass
-                    elif _prev_check is None:
-                        try:
-                            self.spark.conf.unset(_delta_check_key)  # type: ignore[attr-defined]
-                        except Exception:
-                            pass
+                else:
+                    out = self.spark.table(table_fqn)  # type: ignore[attr-defined]
+                return out
             else:
                 # Optional validation-only step: table missing is allowed; return empty DataFrame.
                 if getattr(step, "optional", False):
@@ -220,6 +227,8 @@ class BaseStepExecutor(ABC):
             raise ExecutionError(
                 f"Failed to read table '{table_fqn}' for validation-only {step_type} step '{step.name}': {e}"
             ) from e
+        finally:
+            _restore_delta_check()
 
     def _empty_dataframe(self) -> DataFrame:
         """Return an empty DataFrame (zero rows) for optional validation-only steps when table is missing."""
