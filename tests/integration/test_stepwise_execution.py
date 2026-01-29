@@ -2252,9 +2252,8 @@ class TestValidationOnlyStepsIntegration:
     def test_with_silver_rules_prior_table_missing_fails(
         self, spark_session, config, sample_bronze_df
     ):
-        """Test that validation-only silver step fails when prior table does not exist."""
+        """Test that to_pipeline() fails when validation-only silver step target table does not exist (optional=False)."""
         from pipeline_builder.pipeline.builder import PipelineBuilder
-        from pipeline_builder.pipeline.runner import SimplePipelineRunner
 
         schema = "test_schema"
         prior_schema = "prior_silver_schema_missing"
@@ -2280,14 +2279,11 @@ class TestValidationOnlyStepsIntegration:
             table_name="silver_main_missing",
         )
 
-        pipeline = builder.to_pipeline()
-        report = pipeline.run_initial_load(bronze_sources={"events": sample_bronze_df})
-
-        # When steps actually run, silver_old should fail (table does not exist)
-        if report.metrics.total_steps > 0:
-            assert report.status == PipelineStatus.FAILED or report.failed_steps >= 1
-            assert len(report.errors) >= 1
-            assert any("exist" in e.lower() or "table" in e.lower() for e in report.errors)
+        # to_pipeline() checks that validation-only target tables exist; should raise
+        with pytest.raises(ValueError) as exc_info:
+            builder.to_pipeline()
+        assert "do not exist" in str(exc_info.value) or "optional" in str(exc_info.value)
+        assert "silver_old" in str(exc_info.value) or legacy_table in str(exc_info.value)
 
     def test_with_silver_rules_and_gold_rules_both_prior_tables_used(
         self, spark_session, config, sample_bronze_df

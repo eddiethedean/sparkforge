@@ -88,6 +88,7 @@ from ..types import (
     StepName,
     TableName,
 )
+from ..table_operations import fqn, table_exists
 from ..validation import ValidationResult, _convert_rules_to_expressions
 from .runner import PipelineRunner
 
@@ -1748,6 +1749,42 @@ class PipelineBuilder(BasePipelineBuilder):
         if validation_errors:
             raise ValueError(
                 f"Pipeline validation failed with {len(validation_errors)} errors: {', '.join(validation_errors)}"
+            )
+
+        # Check that validation-only (with_silver_rules / with_gold_rules) target tables exist
+        # when optional=False; fail early at build time instead of at run time.
+        missing_tables: list[str] = []
+        for step in self.silver_steps.values():
+            if (
+                getattr(step, "existing", False)
+                and step.transform is None
+                and not getattr(step, "optional", False)
+            ):
+                schema = getattr(step, "schema", None) or self.config.schema
+                table_name = getattr(step, "table_name", step.name)
+                table_fqn = fqn(schema, table_name)
+                if not table_exists(self.spark, table_fqn):
+                    missing_tables.append(
+                        f"Silver step '{step.name}' requires existing table '{table_fqn}' (optional=False)"
+                    )
+        for step in self.gold_steps.values():
+            if (
+                getattr(step, "existing", False)
+                and step.transform is None
+                and not getattr(step, "optional", False)
+            ):
+                schema = getattr(step, "schema", None) or self.config.schema
+                table_name = getattr(step, "table_name", step.name)
+                table_fqn = fqn(schema, table_name)
+                if not table_exists(self.spark, table_fqn):
+                    missing_tables.append(
+                        f"Gold step '{step.name}' requires existing table '{table_fqn}' (optional=False)"
+                    )
+        if missing_tables:
+            raise ValueError(
+                "Validation-only step target table(s) do not exist. "
+                "Create the table(s) or use optional=True for those steps: "
+                + "; ".join(missing_tables)
             )
 
         # Build steps list for abstracts.PipelineBuilder validation
