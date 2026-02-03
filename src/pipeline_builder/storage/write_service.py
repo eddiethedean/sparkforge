@@ -114,9 +114,9 @@ class WriteService:
         if mode in (ExecutionMode.INCREMENTAL, ExecutionMode.FULL_REFRESH):
             self._validate_schema_for_mode(df, output_table, mode, step.name)
 
-        # Handle INITIAL mode table cleanup
-        if mode == ExecutionMode.INITIAL:
-            self.table_service.drop_table_if_exists(output_table)
+        # NOTE: We intentionally do NOT drop existing tables in INITIAL mode.
+        # Dropping is destructive and can leave users with missing tables if a run fails
+        # after the drop but before the overwrite commit. Delta overwrite is transactional.
 
         # Handle schema override if provided
         schema_override = getattr(step, "schema_override", None)

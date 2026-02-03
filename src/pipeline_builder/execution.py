@@ -1075,16 +1075,10 @@ class ExecutionEngine:
                                 ],
                             )
 
-                # For INITIAL runs, ensure target tables start clean to avoid lingering catalog state
-                if mode == ExecutionMode.INITIAL and step_type in (
-                    StepType.SILVER,
-                    StepType.GOLD,
-                ):
-                    try:
-                        if table_exists(self.spark, output_table):
-                            self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
-                    except Exception:
-                        pass
+                # NOTE: We intentionally do NOT drop existing tables in INITIAL mode.
+                # Dropping is destructive and can leave downstream users with missing tables
+                # if a pipeline run fails after the drop but before the overwrite commit.
+                # Delta overwrite is transactional; prefer `.mode("overwrite")` + schema options.
 
                 # Handle schema override if provided
                 schema_override = getattr(step, "schema_override", None)
