@@ -943,10 +943,15 @@ class ExecutionEngine:
 
             # Write output if not in validation-only mode and write_outputs is True
             # Note: Bronze steps only validate data, they don't write to tables
+            # Validation-only steps (with_silver_rules / with_gold_rules) only read existing tables
+            _is_validation_only_step = (
+                getattr(step, "existing", False) and step.transform is None
+            )
             if (
                 mode != ExecutionMode.VALIDATION_ONLY
                 and step_type != StepType.BRONZE
                 and write_outputs
+                and not _is_validation_only_step
             ):
                 # Use table_name attribute for SilverStep and GoldStep
                 table_name = getattr(step, "table_name", step.name)
@@ -1696,10 +1701,15 @@ class ExecutionEngine:
                 # Bronze steps only validate data, don't write to tables
                 result.rows_processed = output_df.count()  # type: ignore[attr-defined]
                 result.write_mode = None  # type: ignore[attr-defined]
-            else:  # VALIDATION_ONLY mode
-                # Validation-only mode doesn't write to tables
+            else:
+                # No write: VALIDATION_ONLY execution mode or validation-only step (with_silver_rules / with_gold_rules)
                 result.rows_processed = output_df.count()  # type: ignore[attr-defined]
                 result.write_mode = None  # type: ignore[attr-defined]
+
+            # Validation-only steps (with_silver_rules / with_gold_rules) never write; ensure report reflects that
+            if _is_validation_only_step:
+                result.write_mode = None  # type: ignore[attr-defined]
+                result.output_table = None  # type: ignore[attr-defined]
 
             # Collect final resource metrics
             end_memory, end_cpu = self._collect_resource_metrics()
@@ -1720,9 +1730,12 @@ class ExecutionEngine:
 
             # Populate result fields
             rows_processed = result.rows_processed or 0
-            # For Silver/Gold steps, rows_written equals rows_processed (since we write the output)
-            # For Bronze steps, rows_written is None (they don't write to tables)
-            rows_written = rows_processed if step_type != StepType.BRONZE else None
+            # For Silver/Gold steps that write, rows_written equals rows_processed
+            # Bronze and validation-only steps (with_silver_rules / with_gold_rules) don't write
+            if step_type == StepType.BRONZE or _is_validation_only_step:
+                rows_written = None
+            else:
+                rows_written = rows_processed
 
             result.rows_written = rows_written
             result.input_rows = rows_processed
