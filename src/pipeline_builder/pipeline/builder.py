@@ -81,6 +81,7 @@ from ..models import (
     GoldStep,
     SilverStep,
 )
+from ..table_operations import fqn, table_exists
 from ..types import (
     ColumnRules,
     GoldTransformFunction,
@@ -88,7 +89,6 @@ from ..types import (
     StepName,
     TableName,
 )
-from ..table_operations import fqn, table_exists
 from ..validation import ValidationResult, _convert_rules_to_expressions
 from .runner import PipelineRunner
 

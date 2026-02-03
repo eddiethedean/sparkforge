@@ -1910,6 +1910,24 @@ class ExecutionEngine:
             status="running",
         )
 
+        # Disable Delta's strict schema-on-read check for the whole run so validation-only
+        # steps (with_silver_rules / with_gold_rules) can read existing tables even if
+        # schema evolved. Restored in finally.
+        _delta_check_key = "spark.databricks.delta.checkLatestSchemaOnRead"
+        _delta_check_prev = None
+        try:
+            _delta_check_prev = self.spark.conf.get(_delta_check_key)  # type: ignore[attr-defined]
+        except Exception:
+            pass
+        try:
+            self.spark.conf.set(_delta_check_key, "false")  # type: ignore[attr-defined]
+        except Exception:
+            pass
+        try:
+            self.spark.sql(f"SET {_delta_check_key}=false")  # type: ignore[attr-defined]
+        except Exception:
+            pass
+
         try:
             # Logging is handled by the runner to avoid duplicate messages
             # Ensure all required schemas exist before execution
@@ -2161,6 +2179,17 @@ class ExecutionEngine:
             result.end_time = datetime.now()
             self.logger.error(f"Pipeline execution failed: {e}")
             raise ExecutionError(f"Pipeline execution failed: {e}") from e
+        finally:
+            if _delta_check_prev is not None:
+                try:
+                    self.spark.conf.set(_delta_check_key, _delta_check_prev)  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+            else:
+                try:
+                    self.spark.conf.unset(_delta_check_key)  # type: ignore[attr-defined]
+                except Exception:
+                    pass
 
         return result
 

@@ -2107,7 +2107,6 @@ class TestValidationOnlyStepsIntegration:
     ):
         """Test with_silver_rules: existing table in a different schema is read and used via prior_silvers."""
         from pipeline_builder.pipeline.builder import PipelineBuilder
-        from pipeline_builder.pipeline.runner import SimplePipelineRunner
         from pipeline_builder.table_operations import fqn, table_exists
 
         schema = "test_schema"
@@ -2127,6 +2126,7 @@ class TestValidationOnlyStepsIntegration:
             rules={"id": [F.col("id").isNotNull()]},
             schema=prior_schema,
         )
+
         # Silver transform that uses prior_silvers["silver_old"] from the existing table
         def silver_using_prior_silvers(spark, bronze_df, prior_silvers):
             base = bronze_df.withColumn("source", F.lit("bronze"))
@@ -2155,11 +2155,15 @@ class TestValidationOnlyStepsIntegration:
 
         assert report.status == PipelineStatus.COMPLETED
         assert report.errors == [], f"Expected no errors, got {report.errors}"
-        assert report.failed_steps == 0, f"Expected no failed steps, got {report.failed_steps}: {report.errors}"
+        assert report.failed_steps == 0, (
+            f"Expected no failed steps, got {report.failed_steps}: {report.errors}"
+        )
         assert report.success
         expected_steps = 4
         assert (
-            len(pipeline.bronze_steps) + len(pipeline.silver_steps) + len(pipeline.gold_steps)
+            len(pipeline.bronze_steps)
+            + len(pipeline.silver_steps)
+            + len(pipeline.gold_steps)
             == expected_steps
         )
         # When steps ran, all should have succeeded (mock mode may report 0 steps executed)
@@ -2181,7 +2185,6 @@ class TestValidationOnlyStepsIntegration:
     ):
         """Test with_gold_rules: existing table in a different schema is read and used via prior_golds."""
         from pipeline_builder.pipeline.builder import PipelineBuilder
-        from pipeline_builder.pipeline.runner import SimplePipelineRunner
         from pipeline_builder.table_operations import fqn, table_exists
 
         schema = "test_schema"
@@ -2230,11 +2233,15 @@ class TestValidationOnlyStepsIntegration:
 
         assert report.status == PipelineStatus.COMPLETED
         assert report.errors == [], f"Expected no errors, got {report.errors}"
-        assert report.failed_steps == 0, f"Expected no failed steps, got {report.failed_steps}: {report.errors}"
+        assert report.failed_steps == 0, (
+            f"Expected no failed steps, got {report.failed_steps}: {report.errors}"
+        )
         assert report.success
         expected_steps = 4
         assert (
-            len(pipeline.bronze_steps) + len(pipeline.silver_steps) + len(pipeline.gold_steps)
+            len(pipeline.bronze_steps)
+            + len(pipeline.silver_steps)
+            + len(pipeline.gold_steps)
             == expected_steps
         )
         # When steps ran, all should have succeeded (mock mode may report 0 steps executed)
@@ -2282,15 +2289,18 @@ class TestValidationOnlyStepsIntegration:
         # to_pipeline() checks that validation-only target tables exist; should raise
         with pytest.raises(ValueError) as exc_info:
             builder.to_pipeline()
-        assert "do not exist" in str(exc_info.value) or "optional" in str(exc_info.value)
-        assert "silver_old" in str(exc_info.value) or legacy_table in str(exc_info.value)
+        assert "do not exist" in str(exc_info.value) or "optional" in str(
+            exc_info.value
+        )
+        assert "silver_old" in str(exc_info.value) or legacy_table in str(
+            exc_info.value
+        )
 
     def test_with_silver_rules_and_gold_rules_both_prior_tables_used(
         self, spark_session, config, sample_bronze_df
     ):
         """Test pipeline using both with_silver_rules and with_gold_rules; gold uses both prior_silvers and prior_golds."""
         from pipeline_builder.pipeline.builder import PipelineBuilder
-        from pipeline_builder.pipeline.runner import SimplePipelineRunner
         from pipeline_builder.table_operations import fqn, table_exists
 
         schema = "test_schema"
@@ -2318,7 +2328,9 @@ class TestValidationOnlyStepsIntegration:
         builder.add_silver_transform(
             name="silver_main",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.withColumn("from_bronze", F.lit(True)),
+            transform=lambda spark, df, silvers: df.withColumn(
+                "from_bronze", F.lit(True)
+            ),
             rules={"id": [F.col("id").isNotNull()]},
             table_name="silver_main_both",
         )
@@ -2333,7 +2345,9 @@ class TestValidationOnlyStepsIntegration:
             base = silvers["silver_main"]
             legacy_silver_count = silvers.get("silver_old")
             if legacy_silver_count is not None:
-                base = base.withColumn("prior_silver_count", F.lit(legacy_silver_count.count()))
+                base = base.withColumn(
+                    "prior_silver_count", F.lit(legacy_silver_count.count())
+                )
             else:
                 base = base.withColumn("prior_silver_count", F.lit(-1))
             if prior_golds and "gold_old" in prior_golds:
@@ -2362,7 +2376,10 @@ class TestValidationOnlyStepsIntegration:
         gold_fqn = fqn(schema, "gold_final_combined_both")
         if table_exists(spark_session, gold_fqn):
             gold_df = spark_session.table(gold_fqn)
-            if "prior_silver_count" in gold_df.columns and "prior_gold_count" in gold_df.columns:
+            if (
+                "prior_silver_count" in gold_df.columns
+                and "prior_gold_count" in gold_df.columns
+            ):
                 assert "from_bronze" in gold_df.columns
                 sc = gold_df.select("prior_silver_count").first()
                 gc = gold_df.select("prior_gold_count").first()
@@ -2423,4 +2440,7 @@ class TestValidationOnlyStepsIntegration:
         if table_exists(spark_session, silver_fqn):
             silver_df = spark_session.table(silver_fqn)
             if "from_legacy_count" in silver_df.columns:
-                assert silver_df.select("from_legacy_count").first()["from_legacy_count"] == sample_bronze_df.count()
+                assert (
+                    silver_df.select("from_legacy_count").first()["from_legacy_count"]
+                    == sample_bronze_df.count()
+                )
