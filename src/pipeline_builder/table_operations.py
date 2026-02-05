@@ -251,7 +251,7 @@ def prepare_delta_overwrite(
                     # This is a more thorough cleanup for Delta tables
                     spark.sql(f"DESCRIBE TABLE EXTENDED {table_name}").collect()  # type: ignore[attr-defined]
                     # If we get here, table still exists - try DeltaTable.delete()
-                    delta_table = DeltaTable.forName(spark, table_name)  # type: ignore[attr-defined,assignment]
+                    delta_table = DeltaTable.forName(spark, table_name)  # type: ignore[attr-defined,assignment,arg-type]
                     delta_table.delete()  # type: ignore[attr-defined]
                     logger.debug(
                         f"Deleted Delta table {table_name} using DeltaTable API"

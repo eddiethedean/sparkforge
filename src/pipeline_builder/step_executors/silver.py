@@ -139,25 +139,26 @@ class SilverStepExecutor(BaseStepExecutor):
                 if key != step.name and step_types.get(key) == "gold":
                     prior_golds[key] = value
 
+        # From here on transform is set (validation-only path returned or raised above)
+        transform = step.transform
+        assert transform is not None
+
         # Detect if transform function accepts prior_golds parameter
         has_prior_golds = False
-        if step.transform is not None:
-            try:
-                sig = inspect.signature(step.transform)
-                has_prior_golds = "prior_golds" in sig.parameters
-            except (ValueError, TypeError):
-                # If we can't inspect the signature, assume it doesn't accept prior_golds
-                has_prior_golds = False
+        try:
+            sig = inspect.signature(transform)
+            has_prior_golds = "prior_golds" in sig.parameters
+        except (ValueError, TypeError):
+            has_prior_golds = False
 
         # Apply transform with source bronze data, prior silvers dict, and optionally prior_golds
-        # Support backward-compatible params passing
-        if step_params is not None and self._accepts_params(step.transform):
-            # Try calling with params argument
+        # Support backward-compatible params passing (signatures vary: call-arg ignored)
+        if step_params is not None and self._accepts_params(transform):
             try:
-                sig = inspect.signature(step.transform)
+                sig = inspect.signature(transform)
                 if "params" in sig.parameters:
                     if has_prior_golds:
-                        return step.transform(
+                        return transform(  # type: ignore[call-arg]
                             self.spark,
                             bronze_df,
                             prior_silvers,
@@ -165,13 +166,12 @@ class SilverStepExecutor(BaseStepExecutor):
                             params=step_params,
                         )
                     else:
-                        return step.transform(
+                        return transform(  # type: ignore[call-arg]
                             self.spark, bronze_df, prior_silvers, params=step_params
                         )
                 else:
-                    # Has **kwargs, call with params as keyword
                     if has_prior_golds:
-                        return step.transform(
+                        return transform(
                             self.spark,
                             bronze_df,
                             prior_silvers,
@@ -179,22 +179,19 @@ class SilverStepExecutor(BaseStepExecutor):
                             **step_params,
                         )
                     else:
-                        return step.transform(
+                        return transform(  # type: ignore[call-arg]
                             self.spark, bronze_df, prior_silvers, **step_params
                         )
             except Exception:
-                # Fallback to standard call if params passing fails
                 if has_prior_golds:
-                    return step.transform(
-                        self.spark, bronze_df, prior_silvers, prior_golds
-                    )
+                    return transform(self.spark, bronze_df, prior_silvers, prior_golds)
                 else:
-                    return step.transform(self.spark, bronze_df, prior_silvers)
+                    return transform(self.spark, bronze_df, prior_silvers)  # type: ignore[call-arg]
         else:
             if has_prior_golds:
-                return step.transform(self.spark, bronze_df, prior_silvers, prior_golds)
+                return transform(self.spark, bronze_df, prior_silvers, prior_golds)
             else:
-                return step.transform(self.spark, bronze_df, prior_silvers)
+                return transform(self.spark, bronze_df, prior_silvers)  # type: ignore[call-arg]
 
     def _filter_incremental_bronze_input(
         self,

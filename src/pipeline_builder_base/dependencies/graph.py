@@ -159,10 +159,10 @@ class DependencyGraph:
             Lower creation_order (earlier created) comes first.
             If creation_order not available, use a large number to sort to end.
             """
-            creation_ord = (
-                creation_order.get(node_name, float("inf"))
+            creation_ord: int = (
+                creation_order.get(node_name, 2**31 - 1)
                 if creation_order
-                else float("inf")
+                else 2**31 - 1
             )
             return (in_degree[node_name], creation_ord)
 

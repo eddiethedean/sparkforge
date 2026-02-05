@@ -86,7 +86,7 @@ class TransformService:
         if step.transform is None:
             raise ValueError(f"Silver step '{step.name}' requires a transform function")
 
-        return step.transform(self.spark, bronze_df, silvers)
+        return step.transform(self.spark, bronze_df, silvers)  # type: ignore[call-arg,misc]
 
     def apply_gold_transform(
         self,
@@ -117,4 +117,4 @@ class TransformService:
         if step.transform is None:
             raise ValueError(f"Gold step '{step.name}' requires a transform function")
 
-        return step.transform(self.spark, silvers)
+        return step.transform(self.spark, silvers)  # type: ignore[call-arg,misc]

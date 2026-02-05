@@ -133,7 +133,7 @@ class BaseStepExecutor(ABC):
 
         # Validate schema exists before checking table
         try:
-            databases = [db.name for db in self.spark.catalog.listDatabases()]  # type: ignore[attr-defined]
+            databases = [db.name for db in self.spark.catalog.listDatabases()]
             if schema not in databases:
                 raise ExecutionError(
                     f"Validation-only {step_type} step '{step.name}' requires schema '{schema}', but schema does not exist. "
@@ -150,7 +150,7 @@ class BaseStepExecutor(ABC):
         # Validation-only steps just read the existing table via spark.table().
         # Delta's schema check is disabled for the whole run in ExecutionEngine.execute_pipeline().
         if table_exists(self.spark, table_fqn):
-            return self.spark.table(table_fqn)  # type: ignore[attr-defined]
+            return self.spark.table(table_fqn)
         if getattr(step, "optional", False):
             self.logger.info(
                 f"Validation-only {step_type} step '{step.name}': table '{table_fqn}' does not exist (optional=True), using empty DataFrame"
@@ -165,15 +165,13 @@ class BaseStepExecutor(ABC):
         # Prefer createDataFrame([], StructType([])) for mock Spark (sparkless) compatibility
         if _EmptyStructType is not None:
             try:
-                return self.spark.createDataFrame(  # type: ignore[attr-defined]
-                    [], _EmptyStructType()
-                )
+                return self.spark.createDataFrame([], _EmptyStructType())
             except (TypeError, ValueError):
                 pass
         try:
-            return self.spark.range(0, 0).toDF()  # type: ignore[attr-defined]
+            return self.spark.range(0, 0).toDF()  # type: ignore[no-any-return,attr-defined]
         except (TypeError, ValueError):
-            return self.spark.range(0).limit(0).toDF()  # type: ignore[attr-defined]
+            return self.spark.range(0).limit(0).toDF()  # type: ignore[no-any-return,attr-defined]
 
     @abstractmethod
     def execute(

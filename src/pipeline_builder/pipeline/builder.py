@@ -1244,9 +1244,9 @@ class PipelineBuilder(BasePipelineBuilder):
             # Analyze dependencies with creation order for deterministic tie-breaking
             analyzer = DependencyAnalyzer()
             analysis = analyzer.analyze_dependencies(
-                bronze_steps=bronze_dict,
-                silver_steps=silver_dict,
-                gold_steps=gold_dict,
+                bronze_steps=bronze_dict,  # type: ignore[arg-type]
+                silver_steps=silver_dict,  # type: ignore[arg-type]
+                gold_steps=gold_dict,  # type: ignore[arg-type]
                 creation_order=self._step_creation_order,  # Pass creation order
             )
 
@@ -1767,18 +1767,18 @@ class PipelineBuilder(BasePipelineBuilder):
                     missing_tables.append(
                         f"Silver step '{step.name}' requires existing table '{table_fqn}' (optional=False)"
                     )
-        for step in self.gold_steps.values():
+        for gold_step in self.gold_steps.values():
             if (
-                getattr(step, "existing", False)
-                and step.transform is None
-                and not getattr(step, "optional", False)
+                getattr(gold_step, "existing", False)
+                and gold_step.transform is None
+                and not getattr(gold_step, "optional", False)
             ):
-                schema = getattr(step, "schema", None) or self.config.schema
-                table_name = getattr(step, "table_name", step.name)
+                schema = getattr(gold_step, "schema", None) or self.config.schema
+                table_name = getattr(gold_step, "table_name", gold_step.name)
                 table_fqn = fqn(schema, table_name)
                 if not table_exists(self.spark, table_fqn):
                     missing_tables.append(
-                        f"Gold step '{step.name}' requires existing table '{table_fqn}' (optional=False)"
+                        f"Gold step '{gold_step.name}' requires existing table '{table_fqn}' (optional=False)"
                     )
         if missing_tables:
             raise ValueError(
@@ -1822,6 +1822,7 @@ class PipelineBuilder(BasePipelineBuilder):
             if all_steps
             else None,  # Pass steps for abstracts.Runner compatibility
             engine=self.spark_engine,  # Pass engine for abstracts.Runner compatibility
+            execution_order=self.execution_order,  # Match to_pipeline() reported order at run time
         )
 
         self.logger.info(

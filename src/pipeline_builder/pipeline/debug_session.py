@@ -55,7 +55,7 @@ class PipelineDebugSession:
         config: PipelineConfig,
         steps: list[BronzeStep | SilverStep | GoldStep],
         mode: PipelineMode = PipelineMode.INITIAL,
-        bronze_sources: Optional[Dict[str, DataFrame]] = None,  # type: ignore[valid-type]
+        bronze_sources: Optional[Dict[str, DataFrame]] = None,
         logger: Optional[Any] = None,  # PipelineLogger
         functions: Optional[Any] = None,  # FunctionsProtocol
     ):
@@ -94,7 +94,7 @@ class PipelineDebugSession:
         )
         self.steps = steps
         self.mode = mode
-        self.context: Dict[str, DataFrame] = {}  # type: ignore[valid-type]
+        self.context: Dict[str, DataFrame] = {}
         self.step_params: Dict[str, Dict[str, Any]] = {}
 
         # Initialize context with bronze sources if provided
@@ -105,7 +105,7 @@ class PipelineDebugSession:
         self,
         step_name: str,
         write_outputs: bool = True,
-    ) -> tuple[PipelineReport, Dict[str, DataFrame]]:  # type: ignore[valid-type]
+    ) -> tuple[PipelineReport, Dict[str, DataFrame]]:
         """Run pipeline until a specific step completes (inclusive).
 
         Args:
@@ -141,7 +141,7 @@ class PipelineDebugSession:
         self,
         step_name: str,
         write_outputs: bool = True,
-    ) -> tuple[PipelineReport, Dict[str, DataFrame]]:  # type: ignore[valid-type]
+    ) -> tuple[PipelineReport, Dict[str, DataFrame]]:
         """Run a single step, loading dependencies from context or tables.
 
         Args:
@@ -172,7 +172,7 @@ class PipelineDebugSession:
         step_name: str,
         invalidate_downstream: bool = True,
         write_outputs: bool = True,
-    ) -> tuple[PipelineReport, Dict[str, DataFrame]]:  # type: ignore[valid-type]
+    ) -> tuple[PipelineReport, Dict[str, DataFrame]]:
         """Rerun a step with current parameter overrides.
 
         Uses self.step_params for parameter overrides. To change parameters,

@@ -63,6 +63,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
         engine: Optional[
             Any
         ] = None,  # Engine from abstracts, but we use ExecutionEngine
+        execution_order: Optional[list[str]] = None,
     ):
         """
         Initialize the simplified pipeline runner.
@@ -77,6 +78,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
             functions: Optional functions object for PySpark operations
             steps: Optional list of steps (for abstracts.Runner compatibility)
             engine: Optional engine (for abstracts.Runner compatibility, ignored)
+            execution_order: Optional pre-computed step order from builder (matches to_pipeline() report).
         """
         # Initialize BaseRunner first
         super().__init__(config, logger=logger)
@@ -94,6 +96,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
         self.gold_steps = gold_steps or {}
         self.functions = functions
         self.execution_engine = ExecutionEngine(spark, config, self.logger, functions)
+        self.execution_order = execution_order
 
         # If steps provided (from abstracts interface), convert to step dictionaries
         if steps:
@@ -143,7 +146,10 @@ class SimplePipelineRunner(BaseRunner, Runner):
 
             # Execute pipeline using the execution engine
             result = self.execution_engine.execute_pipeline(
-                steps, execution_mode, context=context
+                steps,
+                execution_mode,
+                context=context,
+                execution_order=self.execution_order,
             )
 
             # Convert execution result to pipeline report
@@ -379,6 +385,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
                 step_params=step_params,
                 stop_after_step=step_name,
                 write_outputs=write_outputs,
+                execution_order=self.execution_order,
             )
 
             # Create report
@@ -454,6 +461,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
                 start_at_step=step_name,
                 stop_after_step=step_name,
                 write_outputs=write_outputs,
+                execution_order=self.execution_order,
             )
 
             # Create report
@@ -533,9 +541,9 @@ class SimplePipelineRunner(BaseRunner, Runner):
 
             analyzer = DependencyAnalyzer()
             analysis = analyzer.analyze_dependencies(
-                bronze_steps={s.name: s for s in bronze_steps},
-                silver_steps={s.name: s for s in silver_steps},
-                gold_steps={s.name: s for s in gold_steps},
+                bronze_steps={s.name: s for s in bronze_steps},  # type: ignore[misc]
+                silver_steps={s.name: s for s in silver_steps},  # type: ignore[misc]
+                gold_steps={s.name: s for s in gold_steps},  # type: ignore[misc]
             )
 
             # Find downstream steps (steps that depend on step_name)
@@ -564,6 +572,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
                 start_at_step=step_name,
                 stop_after_step=step_name,
                 write_outputs=write_outputs,
+                execution_order=self.execution_order,
             )
 
             # Create report

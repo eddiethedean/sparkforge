@@ -193,20 +193,24 @@ class DependencyAnalyzer:
         # Add bronze steps
         if bronze_steps:
             for name, step in bronze_steps.items():
-                metadata = {"step": step}
+                metadata: Dict[str, Any] = {"step": step}
                 if creation_order and name in creation_order:
                     metadata["creation_order"] = creation_order[name]
                 node = StepNode(name=name, step_type=StepType.BRONZE, metadata=metadata)
                 graph.add_node(node)
 
         # Add silver steps - first pass: add all nodes
-        silver_step_info = {}  # Store step info for dependency processing
+        silver_step_info: Dict[
+            str, SilverStepProtocol
+        ] = {}  # Store step info for dependency processing
         if silver_steps:
             for name, silver_step in silver_steps.items():
-                metadata = {"step": silver_step}
+                metadata_s: Dict[str, Any] = {"step": silver_step}
                 if creation_order and name in creation_order:
-                    metadata["creation_order"] = creation_order[name]
-                node = StepNode(name=name, step_type=StepType.SILVER, metadata=metadata)
+                    metadata_s["creation_order"] = creation_order[name]
+                node = StepNode(
+                    name=name, step_type=StepType.SILVER, metadata=metadata_s
+                )
                 graph.add_node(node)
                 # Store step info for second pass
                 silver_step_info[name] = silver_step
@@ -260,13 +264,15 @@ class DependencyAnalyzer:
                             )
 
         # Add gold steps - first pass: add all nodes
-        gold_step_info = {}  # Store step info for dependency processing
+        gold_step_info: Dict[
+            str, GoldStepProtocol
+        ] = {}  # Store step info for dependency processing
         if gold_steps:
             for name, gold_step in gold_steps.items():
-                metadata = {"step": gold_step}
+                metadata_g: Dict[str, Any] = {"step": gold_step}
                 if creation_order and name in creation_order:
-                    metadata["creation_order"] = creation_order[name]
-                node = StepNode(name=name, step_type=StepType.GOLD, metadata=metadata)
+                    metadata_g["creation_order"] = creation_order[name]
+                node = StepNode(name=name, step_type=StepType.GOLD, metadata=metadata_g)
                 graph.add_node(node)
                 # Store step info for second pass
                 gold_step_info[name] = gold_step

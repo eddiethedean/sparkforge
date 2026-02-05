@@ -274,7 +274,7 @@ class WriteService:
                 )
                 try:
                     # Force drop the table (without CASCADE - not supported in all Spark versions)
-                    self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                    self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")
                     # Small delay to ensure catalog is updated
                     import time
 

@@ -1848,6 +1848,7 @@ class ExecutionEngine:
         stop_after_step: Optional[str] = None,
         start_at_step: Optional[str] = None,
         write_outputs: bool = True,
+        execution_order: Optional[list[str]] = None,
     ) -> ExecutionResult:
         """Execute a complete pipeline with dependency-aware sequential execution.
 
@@ -1875,6 +1876,8 @@ class ExecutionEngine:
             write_outputs: If True, write step outputs to Delta Lake tables.
                 If False, skip writing (useful for debugging/iteration).
                 Defaults to True.
+            execution_order: Optional pre-computed step order (e.g. from PipelineBuilder).
+                When provided, this order is used so execution matches to_pipeline() report.
 
         Returns:
             ExecutionResult containing:
@@ -1963,24 +1966,29 @@ class ExecutionEngine:
             elif not isinstance(context, dict):
                 raise TypeError(f"context must be a dictionary, got {type(context)}")
 
-            # Group steps by type for dependency analysis
-            bronze_steps = [s for s in steps if s.step_type.value == "bronze"]
-            silver_steps = [s for s in steps if s.step_type.value == "silver"]
-            gold_steps = [s for s in steps if s.step_type.value == "gold"]
-
-            # Build dependency graph and get execution order
-            analyzer = DependencyAnalyzer()
-            analysis = analyzer.analyze_dependencies(
-                bronze_steps={s.name: s for s in bronze_steps},
-                silver_steps={s.name: s for s in silver_steps},
-                gold_steps={s.name: s for s in gold_steps},
-            )
-
-            # Get execution order (topologically sorted steps)
-            execution_order = analysis.execution_order
-
             # Create a mapping of step names to step objects (needed for start_at_step handling)
             step_map = {s.name: s for s in steps}
+
+            # Use provided execution order (from builder) or compute via dependency analysis
+            if execution_order:
+                # Restrict to steps actually in this run; use only if it covers all steps
+                ordered = [n for n in execution_order if n in step_map]
+                if set(ordered) != set(step_map):
+                    execution_order = None  # subset or mismatch: fall back to analyzer
+                else:
+                    execution_order = ordered
+            if not execution_order:
+                # Group steps by type for dependency analysis
+                bronze_steps = [s for s in steps if s.step_type.value == "bronze"]
+                silver_steps = [s for s in steps if s.step_type.value == "silver"]
+                gold_steps = [s for s in steps if s.step_type.value == "gold"]
+                analyzer = DependencyAnalyzer()
+                analysis = analyzer.analyze_dependencies(
+                    bronze_steps={s.name: s for s in bronze_steps},
+                    silver_steps={s.name: s for s in silver_steps},
+                    gold_steps={s.name: s for s in gold_steps},
+                )
+                execution_order = analysis.execution_order
 
             # Create a mapping of step names to step types (needed for prior_golds building)
             step_types = {s.name: s.step_type.value for s in steps}
