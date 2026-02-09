@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test script to verify all code examples in STEPWISE_EXECUTION_GUIDE.md.
+Test script to verify all code examples in docs/guides/STEPWISE_EXECUTION_GUIDE.md.
 
 This script runs all code examples and captures their outputs to ensure
 they work correctly and can be included in the documentation.
@@ -79,7 +79,7 @@ from pipeline_builder.pipeline.debug_session import PipelineDebugSession
 from pipeline_builder.pipeline.runner import SimplePipelineRunner
 
 print("=" * 80)
-print("Testing All Code Examples from STEPWISE_EXECUTION_GUIDE.md")
+print("Testing All Code Examples from docs/guides/STEPWISE_EXECUTION_GUIDE.md")
 print("=" * 80)
 print()
 

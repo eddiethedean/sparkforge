@@ -81,6 +81,7 @@ from ..models import (
     GoldStep,
     SilverStep,
 )
+from ..sql_source import JdbcSource, SqlAlchemySource
 from ..table_operations import fqn, table_exists
 from ..types import (
     ColumnRules,
@@ -448,6 +449,81 @@ class PipelineBuilder(BasePipelineBuilder):
 
         return self
 
+    def with_bronze_sql_source(
+        self,
+        *,
+        name: StepName,
+        sql_source: Union[JdbcSource, SqlAlchemySource],
+        rules: ColumnRules,
+        incremental_col: Optional[str] = None,
+        schema: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> PipelineBuilder:
+        """Add Bronze layer step that reads from a SQL database (JDBC or SQLAlchemy).
+
+        SQL alternative to with_bronze_rules: data is read from the given sql_source
+        at run time (no DataFrame in bronze_sources). Requires non-empty validation
+        rules like with_bronze_rules.
+
+        Args:
+            name: Unique identifier for this Bronze step.
+            sql_source: JdbcSource or SqlAlchemySource (table or query + connection).
+            rules: Validation rules (PySpark or string rules); must be non-empty.
+            incremental_col: Optional column for incremental processing.
+            schema: Optional schema name for reading bronze data.
+            description: Optional description.
+
+        Returns:
+            Self for method chaining.
+        """
+        if not name:
+            raise StepError(
+                "Bronze step name cannot be empty",
+                context={"step_name": name or "unknown", "step_type": "bronze"},
+                suggestions=["Provide a valid step name"],
+            )
+        if not isinstance(sql_source, (JdbcSource, SqlAlchemySource)):
+            raise StepError(
+                "sql_source must be JdbcSource or SqlAlchemySource",
+                context={"step_name": name, "step_type": "bronze"},
+            )
+        if not rules or not isinstance(rules, dict):
+            raise StepError(
+                "Rules must be a non-empty dictionary (same as with_bronze_rules)",
+                context={"step_name": name, "step_type": "bronze"},
+            )
+        try:
+            self._check_duplicate_step_name(name, "bronze")
+        except Exception as e:
+            raise StepError(
+                str(e), context={"step_name": name, "step_type": "bronze"}
+            ) from e
+        if schema is not None:
+            try:
+                self._validate_schema(schema)
+            except Exception as e:
+                raise StepError(
+                    str(e),
+                    context={
+                        "step_name": name,
+                        "step_type": "bronze",
+                        "schema": schema,
+                    },
+                ) from e
+        converted_rules = _convert_rules_to_expressions(rules, self.functions)
+        bronze_step = BronzeStep(
+            name=name,
+            rules=converted_rules,
+            incremental_col=incremental_col,
+            schema=schema,
+            sql_source=sql_source,
+        )
+        self.bronze_steps[name] = bronze_step
+        self._step_creation_order[name] = self._creation_counter
+        self._creation_counter += 1
+        self.logger.info(f"✅ Added Bronze step (SQL source): {name}")
+        return self
+
     def with_silver_rules(
         self,
         *,
@@ -577,6 +653,77 @@ class PipelineBuilder(BasePipelineBuilder):
 
         return self
 
+    def with_silver_sql_source(
+        self,
+        *,
+        name: StepName,
+        sql_source: Union[JdbcSource, SqlAlchemySource],
+        table_name: TableName,
+        rules: ColumnRules,
+        schema: Optional[str] = None,
+        description: Optional[str] = None,
+        optional: bool = False,
+    ) -> PipelineBuilder:
+        """Add Silver layer step that reads from a SQL database (JDBC or SQLAlchemy).
+
+        SQL alternative to with_silver_rules: data is read from sql_source at run time,
+        validated, and written to the Delta table.
+
+        Args:
+            name: Unique identifier for this Silver step.
+            sql_source: JdbcSource or SqlAlchemySource.
+            table_name: Target Delta table name (without schema).
+            rules: Validation rules; must be non-empty.
+            schema: Optional schema for writing silver data.
+            description: Optional description.
+            optional: If True, step does not fail when SQL read fails; empty DataFrame.
+
+        Returns:
+            Self for method chaining.
+        """
+        if not name:
+            raise StepError(
+                "Silver step name cannot be empty",
+                context={"step_name": name or "unknown", "step_type": "silver"},
+            )
+        if not isinstance(sql_source, (JdbcSource, SqlAlchemySource)):
+            raise StepError("sql_source must be JdbcSource or SqlAlchemySource")
+        if not rules or not isinstance(rules, dict):
+            raise StepError("Rules must be a non-empty dictionary")
+        if not table_name:
+            raise StepError("table_name cannot be empty")
+        try:
+            self._check_duplicate_step_name(name, "silver")
+        except Exception as e:
+            raise StepError(
+                str(e), context={"step_name": name, "step_type": "silver"}
+            ) from e
+        if schema is not None:
+            try:
+                self._validate_schema(schema)
+            except Exception as e:
+                raise StepError(
+                    str(e), context={"step_name": name, "schema": schema}
+                ) from e
+        converted_rules = _convert_rules_to_expressions(rules, self.functions)
+        effective_schema = self._get_effective_schema(schema)
+        silver_step = SilverStep(
+            name=name,
+            source_bronze="",
+            transform=None,
+            rules=converted_rules,
+            table_name=table_name,
+            existing=False,
+            optional=optional,
+            schema=effective_schema,
+            sql_source=sql_source,
+        )
+        self.silver_steps[name] = silver_step
+        self._step_creation_order[name] = self._creation_counter
+        self._creation_counter += 1
+        self.logger.info(f"✅ Added Silver step (SQL source): {name}")
+        return self
+
     def with_gold_rules(
         self,
         *,
@@ -702,6 +849,77 @@ class PipelineBuilder(BasePipelineBuilder):
         self._creation_counter += 1
         self.logger.info(f"✅ Added Gold step (validation-only): {name}")
 
+        return self
+
+    def with_gold_sql_source(
+        self,
+        *,
+        name: StepName,
+        sql_source: Union[JdbcSource, SqlAlchemySource],
+        table_name: TableName,
+        rules: ColumnRules,
+        schema: Optional[str] = None,
+        description: Optional[str] = None,
+        optional: bool = False,
+    ) -> PipelineBuilder:
+        """Add Gold layer step that reads from a SQL database (JDBC or SQLAlchemy).
+
+        SQL alternative to with_gold_rules: data is read from sql_source at run time,
+        validated, and written to the Delta table.
+
+        Args:
+            name: Unique identifier for this Gold step.
+            sql_source: JdbcSource or SqlAlchemySource.
+            table_name: Target Delta table name (without schema).
+            rules: Validation rules; must be non-empty.
+            schema: Optional schema for writing gold data.
+            description: Optional description.
+            optional: If True, step does not fail when SQL read fails; empty DataFrame.
+
+        Returns:
+            Self for method chaining.
+        """
+        if not name:
+            raise StepError(
+                "Gold step name cannot be empty",
+                context={"step_name": name or "unknown", "step_type": "gold"},
+            )
+        if not isinstance(sql_source, (JdbcSource, SqlAlchemySource)):
+            raise StepError("sql_source must be JdbcSource or SqlAlchemySource")
+        if not rules or not isinstance(rules, dict):
+            raise StepError("Rules must be a non-empty dictionary")
+        if not table_name:
+            raise StepError("table_name cannot be empty")
+        try:
+            self._check_duplicate_step_name(name, "gold")
+        except Exception as e:
+            raise StepError(
+                str(e), context={"step_name": name, "step_type": "gold"}
+            ) from e
+        if schema is not None:
+            try:
+                self._validate_schema(schema)
+            except Exception as e:
+                raise StepError(
+                    str(e), context={"step_name": name, "schema": schema}
+                ) from e
+        converted_rules = _convert_rules_to_expressions(rules, self.functions)
+        effective_schema = self._get_effective_schema(schema)
+        gold_step = GoldStep(
+            name=name,
+            transform=None,
+            rules=converted_rules,
+            table_name=table_name,
+            existing=False,
+            optional=optional,
+            schema=effective_schema,
+            source_silvers=None,
+            sql_source=sql_source,
+        )
+        self.gold_steps[name] = gold_step
+        self._step_creation_order[name] = self._creation_counter
+        self._creation_counter += 1
+        self.logger.info(f"✅ Added Gold step (SQL source): {name}")
         return self
 
     def add_validator(self, validator: Any) -> PipelineBuilder:

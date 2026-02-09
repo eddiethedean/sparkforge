@@ -200,9 +200,9 @@ class TestTrap10SilentTestSkip:
                     test_instance._find_dict_type_annotations()
 
                     # Verify that logging.getLogger was called with the correct module name
-                    # Note: When imported with relative import, the module name is without 'tests.' prefix
+                    # When tests is a package (tests/__init__.py), __name__ is tests.unit.test_python38_compatibility
                     mock_logger.assert_called_once_with(
-                        "unit.test_python38_compatibility"
+                        "tests.unit.test_python38_compatibility"
                     )
 
         finally:

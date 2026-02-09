@@ -144,6 +144,18 @@ class SimplePipelineRunner(BaseRunner, Runner):
             else:
                 context = {}
 
+            # Resolve SQL-source bronze steps (read from JDBC/SQLAlchemy into context)
+            from ..sql_source import read_sql_source
+
+            for step in steps:
+                if step.step_type.value != "bronze":
+                    continue
+                if step.name in context:
+                    continue
+                sql_src = getattr(step, "sql_source", None)
+                if sql_src is not None:
+                    context[step.name] = read_sql_source(sql_src, self.spark)
+
             # Execute pipeline using the execution engine
             result = self.execution_engine.execute_pipeline(
                 steps,

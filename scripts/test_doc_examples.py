@@ -3,7 +3,7 @@
 Test script to run examples from the documentation and capture real outputs.
 
 This script tests the examples from:
-- VALIDATION_ONLY_STEPS_GUIDE.md
+- docs/guides/VALIDATION_ONLY_STEPS_GUIDE.md
 - USER_GUIDE.md (new sections)
 
 Run with: python scripts/test_doc_examples.py

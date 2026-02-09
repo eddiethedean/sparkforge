@@ -41,11 +41,66 @@ _engine: Optional[EngineConfig] = None
 _thread_local = threading.local()
 
 
+def _configure_engine_from_session(spark: Any) -> None:
+    """Configure engine from a SparkSession (PySpark or sparkless). Used by configure_engine(spark=...)."""
+    session_module = type(spark).__module__
+    if "pyspark" in session_module:
+        from pyspark.sql import functions as pyspark_functions
+        from pyspark.sql import types as pyspark_types
+        from pyspark.sql.functions import desc as pyspark_desc
+        from pyspark.sql.utils import AnalysisException as PySparkAnalysisException
+        from pyspark.sql.window import Window as PySparkWindow
+        from pyspark.sql import (
+            DataFrame as PySparkDataFrame,
+            SparkSession as PySparkSparkSession,
+            Column as PySparkColumn,
+        )
+        configure_engine(
+            functions=pyspark_functions,
+            types=pyspark_types,
+            analysis_exception=PySparkAnalysisException,
+            window=PySparkWindow,
+            desc=pyspark_desc,
+            engine_name="pyspark",
+            dataframe_cls=PySparkDataFrame,
+            spark_session_cls=PySparkSparkSession,
+            column_cls=PySparkColumn,
+        )
+    elif "sparkless" in session_module or "mock_spark" in session_module:
+        from sparkless import functions as mock_functions  # type: ignore[import]
+        from sparkless import spark_types as mock_types  # type: ignore[import]
+        from sparkless import AnalysisException as MockAnalysisException  # type: ignore[import]
+        from sparkless import Window as MockWindow  # type: ignore[import]
+        from sparkless.functions import desc as mock_desc  # type: ignore[import]
+        from sparkless import (  # type: ignore[import]
+            DataFrame as MockDataFrame,
+            SparkSession as MockSparkSession,
+            Column as MockColumn,
+        )
+        configure_engine(
+            functions=mock_functions,
+            types=mock_types,
+            analysis_exception=MockAnalysisException,
+            window=MockWindow,
+            desc=mock_desc,
+            engine_name="mock",
+            dataframe_cls=MockDataFrame,
+            spark_session_cls=MockSparkSession,
+            column_cls=MockColumn,
+        )
+    else:
+        raise ValueError(
+            f"Unknown Spark session type: {type(spark).__module__}. "
+            "Use configure_engine(functions=..., types=..., analysis_exception=...) for custom engines."
+        )
+
+
 def configure_engine(
     *,
-    functions: FunctionsProtocol,
-    types: TypesProtocol,
-    analysis_exception: type[BaseException] | AnalysisExceptionProtocol,
+    spark: Optional[Any] = None,
+    functions: Optional[FunctionsProtocol] = None,
+    types: Optional[TypesProtocol] = None,
+    analysis_exception: Optional[type[BaseException] | AnalysisExceptionProtocol] = None,
     window: Optional[WindowProtocol] = None,
     desc: Optional[Any] = None,
     engine_name: str = "unknown",
@@ -56,10 +111,20 @@ def configure_engine(
     """
     Inject engine components.
 
+    Convenience: pass spark=your_spark_session to auto-configure from PySpark or sparkless.
+    Otherwise pass functions=..., types=..., analysis_exception=... (and optional window, desc, etc.).
+
     Sets both thread-local and global engine state for backward compatibility.
     Thread-local state takes precedence in get_engine() for parallel test isolation.
     """
-
+    if spark is not None:
+        _configure_engine_from_session(spark)
+        return
+    if functions is None or types is None or analysis_exception is None:
+        raise TypeError(
+            "configure_engine() requires either spark=<SparkSession> or "
+            "functions=..., types=..., and analysis_exception=..."
+        )
     global _engine
     engine_config = EngineConfig(
         functions=functions,

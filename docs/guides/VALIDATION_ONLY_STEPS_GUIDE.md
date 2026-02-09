@@ -428,15 +428,15 @@ builder.add_silver_transform(
 
 ### Complete Example: Validation-Only Steps in Pipeline
 
+Use your existing `spark` (SparkSession) and `source_df` (DataFrame for the bronze "events" step). Ensure the engine is configured (e.g. at application startup or in tests via conftest).
+
 ```python
 from pipeline_builder import PipelineBuilder
 from pipeline_builder.functions import get_default_functions
-from pipeline_builder.pipeline.runner import SimplePipelineRunner
-from pipeline_builder_base.models import PipelineConfig
 
 F = get_default_functions()
 
-# Create builder
+# Create builder (spark = your SparkSession)
 builder = PipelineBuilder(spark=spark, schema="analytics")
 
 # 1. Add bronze step
@@ -510,14 +510,9 @@ builder.add_gold_transform(
 )
 
 # 6. Build and run pipeline
+# to_pipeline() returns a runner; use it to run the pipeline (source_df = your bronze DataFrame)
 pipeline = builder.to_pipeline()
-config = PipelineConfig.create_default(schema="analytics")
-runner = SimplePipelineRunner(spark, config)
-
-report = runner.run_pipeline(
-    pipeline.steps,
-    bronze_sources={"events": source_df}
-)
+report = pipeline.run_initial_load(bronze_sources={"events": source_df})
 
 print(f"Status: {report.status}")
 print(f"Steps executed: {len(report.steps) if report.steps else 0}")
@@ -585,8 +580,7 @@ try:
     
     # When executed, this will raise ExecutionError if table doesn't exist
     pipeline = builder.to_pipeline()
-    runner = SimplePipelineRunner(spark, config)
-    report = runner.run_pipeline(pipeline.steps, bronze_sources={})
+    report = pipeline.run_initial_load(bronze_sources={})
 except ExecutionError as e:
     print(f"Table not found: {e}")
     # Handle error: create table, use different table, etc.
@@ -624,14 +618,14 @@ Use clear, descriptive names for validation-only steps:
 builder.with_silver_rules(
     name="legacy_clean_events",
     table_name="clean_events",
-    rules={...}
+    rules={"id": [F.col("id").isNotNull()]},
 )
 
 # Bad: Unclear if this is existing or new
 builder.with_silver_rules(
     name="clean_events",
     table_name="clean_events",
-    rules={...}
+    rules={"id": [F.col("id").isNotNull()]},
 )
 ```
 
@@ -669,8 +663,8 @@ def enriched_silver_transform(spark, bronze_df, prior_silvers):
         raise ValueError("existing_clean_events must be validated first")
     
     existing = prior_silvers["existing_clean_events"]
-    # ... use existing DataFrame
-    return bronze_df
+    # Use existing DataFrame (e.g. join, filter)
+    return bronze_df.join(existing, "id", "left")
 ```
 
 ### 5. Handle Optional Dependencies
@@ -760,7 +754,7 @@ ExecutionError: Silver step 'clean_events' already exists
    builder.with_silver_rules(
        name="existing_clean_events",  # Different name
        table_name="clean_events",
-       rules={...}
+       rules={"id": [F.col("id").isNotNull()]},
    )
    ```
 2. Or remove the existing step first if it's no longer needed
@@ -786,4 +780,4 @@ ExecutionError: Silver step 'clean_events' already exists
 - **Backward Compatible**: Existing transforms without `prior_golds` continue to work
 - **Table Must Exist**: The table must exist before execution, or an error is raised
 
-For more information, see the [User Guide](USER_GUIDE.md) and [Stepwise Execution Guide](STEPWISE_EXECUTION_GUIDE.md).
+For more information, see [Building Pipelines](BUILDING_PIPELINES_GUIDE.md) and [Stepwise Execution](STEPWISE_EXECUTION_GUIDE.md).

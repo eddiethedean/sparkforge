@@ -8,7 +8,7 @@ processing to only process new data since the last run.
 from __future__ import annotations
 
 import inspect
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 from pipeline_builder_base.errors import ExecutionError
 from pipeline_builder_base.models import ExecutionMode
@@ -88,6 +88,14 @@ class SilverStepExecutor(BaseStepExecutor):
             - If step_params is provided and transform accepts params/kwargs, passes them
             - Transformation logic is defined in the step's transform function
         """
+        # SQL-source step: load from JDBC/SQLAlchemy and return (engine validates/writes)
+        sql_src = getattr(step, "sql_source", None)
+        if sql_src is not None:
+            from ..sql_source import read_sql_source
+
+            # read_sql_source returns a Spark DataFrame; cast for type checkers.
+            return cast(DataFrame, read_sql_source(sql_src, self.spark))
+
         # Handle validation-only steps (no transform function) - check this first
         if step.transform is None:
             if step.existing:

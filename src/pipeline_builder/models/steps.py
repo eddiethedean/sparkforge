@@ -10,17 +10,20 @@ Step models for the Pipeline Builder.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 # TypeAlias is available in Python 3.10+, use typing_extensions for 3.8/3.9
 # Mypy prefers typing_extensions even for Python 3.11
 from typing_extensions import TypeAlias
 
+from pipeline_builder.sql_source.models import JdbcSource, SqlAlchemySource
 from pipeline_builder_base.errors import PipelineValidationError, ValidationError
 
 from .base import BaseModel
 from .enums import PipelinePhase
 from .types import ColumnRules, GoldTransformFunction, SilverTransformFunction
+
+SqlSourceType: TypeAlias = Union[JdbcSource, SqlAlchemySource]
 
 if TYPE_CHECKING:
     # Engine-specific StructType should satisfy the TypesProtocol.StructType
@@ -101,6 +104,7 @@ class BronzeStep(BaseModel):
     rules: ColumnRules
     incremental_col: Optional[str] = None
     schema: Optional[str] = None
+    sql_source: Optional[SqlSourceType] = None
 
     def __post_init__(self) -> None:
         """Validate required fields after initialization."""
@@ -213,18 +217,21 @@ class SilverStep(BaseModel):
     source_incremental_col: Optional[str] = None
     schema_override: Optional[StructType] = None
     source_silvers: Optional[list[str]] = None
+    sql_source: Optional[SqlSourceType] = None
 
     def __post_init__(self) -> None:
         """Validate required fields after initialization."""
         if not self.name or not isinstance(self.name, str):
             raise ValidationError("Step name must be a non-empty string")
-        if not self.existing and (
-            not self.source_bronze or not isinstance(self.source_bronze, str)
+        if (
+            not self.existing
+            and not self.sql_source
+            and (not self.source_bronze or not isinstance(self.source_bronze, str))
         ):
             raise ValidationError("Source bronze step name must be a non-empty string")
         if self.transform is not None and not callable(self.transform):
             raise ValidationError("Transform function must be callable if provided")
-        if not self.existing and self.transform is None:
+        if not self.existing and not self.sql_source and self.transform is None:
             raise ValidationError(
                 "Transform function is required for non-existing silver steps"
             )
@@ -242,11 +249,13 @@ class SilverStep(BaseModel):
         """Validate silver step configuration."""
         if not self.name or not isinstance(self.name, str):
             raise PipelineValidationError("Step name must be a non-empty string")
-        if not self.source_bronze or not isinstance(self.source_bronze, str):
+        if not self.sql_source and (
+            not self.source_bronze or not isinstance(self.source_bronze, str)
+        ):
             raise PipelineValidationError(
                 "Source bronze step name must be a non-empty string"
             )
-        if not callable(self.transform):
+        if not self.sql_source and not callable(self.transform):
             raise PipelineValidationError("Transform must be a callable function")
         if not isinstance(self.rules, dict):
             raise PipelineValidationError("Rules must be a dictionary")
@@ -348,6 +357,7 @@ class GoldStep(BaseModel):
     source_silvers: Optional[list[str]] = None
     schema: Optional[str] = None
     schema_override: Optional[StructType] = None
+    sql_source: Optional[SqlSourceType] = None
 
     def __post_init__(self) -> None:
         """Validate required fields after initialization."""
@@ -355,7 +365,7 @@ class GoldStep(BaseModel):
             raise ValidationError("Step name must be a non-empty string")
         if self.transform is not None and not callable(self.transform):
             raise ValidationError("Transform function must be callable if provided")
-        if not self.existing and self.transform is None:
+        if not self.existing and not self.sql_source and self.transform is None:
             raise ValidationError(
                 "Transform function is required for non-existing gold steps"
             )
@@ -364,7 +374,8 @@ class GoldStep(BaseModel):
         if not isinstance(self.rules, dict) or not self.rules:
             raise ValidationError("Rules must be a non-empty dictionary")
         if self.source_silvers is not None and (
-            not isinstance(self.source_silvers, list) or not self.source_silvers
+            not isinstance(self.source_silvers, list)
+            or (not self.source_silvers and not self.sql_source)
         ):
             raise ValidationError("Source silvers must be a non-empty list")
         if self.schema_override is not None:
@@ -379,7 +390,7 @@ class GoldStep(BaseModel):
             raise PipelineValidationError(
                 "Transform must be a callable function if provided"
             )
-        if not self.existing and self.transform is None:
+        if not self.existing and not self.sql_source and self.transform is None:
             raise PipelineValidationError(
                 "Transform function is required for non-existing gold steps"
             )

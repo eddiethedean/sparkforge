@@ -227,6 +227,14 @@ class UnifiedValidator:
                     errors.append(f"Silver step '{step_name}' missing table_name")
                 continue
 
+            # SQL-source steps (sql_source set) have no source_bronze
+            if getattr(step, "sql_source", None) is not None:
+                if not step.rules:
+                    errors.append(f"Silver step '{step_name}' missing validation rules")
+                if not step.table_name:
+                    errors.append(f"Silver step '{step_name}' missing table_name")
+                continue
+
             if not step.source_bronze:
                 errors.append(f"Silver step {step_name} missing source_bronze")
 
@@ -251,6 +259,14 @@ class UnifiedValidator:
             # Handle validation-only steps (existing=True, transform=None)
             if step.existing and step.transform is None:
                 # Validation-only step - check rules and table_name, but skip source_silvers
+                if not step.rules:
+                    errors.append(f"Gold step '{step_name}' missing validation rules")
+                if not step.table_name:
+                    errors.append(f"Gold step '{step_name}' missing table_name")
+                continue
+
+            # SQL-source steps (sql_source set) have no source_silvers
+            if getattr(step, "sql_source", None) is not None:
                 if not step.rules:
                     errors.append(f"Gold step '{step_name}' missing validation rules")
                 if not step.table_name:

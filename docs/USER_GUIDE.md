@@ -11,8 +11,8 @@
 4. [Service-Oriented Architecture](#service-oriented-architecture)
 5. [Building Pipelines](#building-pipelines)
 6. [Execution Modes](#execution-modes)
-7. [Stepwise Execution and Debugging](#stepwise-execution-and-debugging) - See [Stepwise Execution Guide](STEPWISE_EXECUTION_GUIDE.md) for details
-8. [Validation-Only Steps](#validation-only-steps) - See [Validation-Only Steps Guide](VALIDATION_ONLY_STEPS_GUIDE.md) for details
+7. [Stepwise Execution and Debugging](#stepwise-execution-and-debugging) - See [Stepwise Execution Guide](guides/STEPWISE_EXECUTION_GUIDE.md) for details
+8. [Validation-Only Steps](#validation-only-steps) - See [Validation-Only Steps Guide](guides/VALIDATION_ONLY_STEPS_GUIDE.md) for details
 9. [Validation Rules](#validation-rules)
 10. [Logging and Monitoring](#logging-and-monitoring)
 11. [Common Workflows](#common-workflows)
@@ -357,7 +357,7 @@ builder.with_silver_rules(
 ✅ Pipeline validation passed
 ```
 
-**Note**: See [Validation-Only Steps Guide](VALIDATION_ONLY_STEPS_GUIDE.md) for comprehensive documentation on `with_silver_rules` and `with_gold_rules`.
+**Note**: See [Validation-Only Steps Guide](guides/VALIDATION_ONLY_STEPS_GUIDE.md) for comprehensive documentation on `with_silver_rules` and `with_gold_rules`.
 
 ### Step 3: Define Gold Steps
 
@@ -414,7 +414,7 @@ builder.with_gold_rules(
 ✅ Pipeline validation passed
 ```
 
-**Note**: See [Validation-Only Steps Guide](VALIDATION_ONLY_STEPS_GUIDE.md) for comprehensive documentation on `with_silver_rules` and `with_gold_rules`, including how to access validated tables via `prior_silvers` and `prior_golds`.
+**Note**: See [Validation-Only Steps Guide](guides/VALIDATION_ONLY_STEPS_GUIDE.md) for comprehensive documentation on `with_silver_rules` and `with_gold_rules`, including how to access validated tables via `prior_silvers` and `prior_golds`.
 
 ### Step 4: Validate and Build
 
@@ -540,7 +540,7 @@ incremental_result = pipeline.run_incremental(
 
 ## Stepwise Execution and Debugging
 
-> **📖 For a comprehensive guide to stepwise execution, see [Stepwise Execution Guide](STEPWISE_EXECUTION_GUIDE.md)**
+> **📖 For a comprehensive guide to stepwise execution, see [Stepwise Execution Guide](guides/STEPWISE_EXECUTION_GUIDE.md)**
 
 ### Overview
 
@@ -592,13 +592,13 @@ report, context = runner.rerun_step(
 - **Parameter Tuning**: Finding optimal parameter values
 - **Quick Iteration**: Fast feedback cycles during development
 
-For detailed documentation, examples, and best practices, see the [Stepwise Execution Guide](STEPWISE_EXECUTION_GUIDE.md).
+For detailed documentation, examples, and best practices, see the [Stepwise Execution Guide](guides/STEPWISE_EXECUTION_GUIDE.md).
 
 ---
 
 ## Validation-Only Steps
 
-For detailed information on validation-only steps (`with_silver_rules` and `with_gold_rules`), see the [Validation-Only Steps Guide](VALIDATION_ONLY_STEPS_GUIDE.md).
+For detailed information on validation-only steps (`with_silver_rules` and `with_gold_rules`), see the [Validation-Only Steps Guide](guides/VALIDATION_ONLY_STEPS_GUIDE.md).
 
 ### Quick Overview
 
@@ -642,7 +642,7 @@ def enriched_transform(spark, bronze_df, prior_silvers, prior_golds=None):
 📊 Accessed existing_user_metrics: 2 rows
 ```
 
-See the [Validation-Only Steps Guide](VALIDATION_ONLY_STEPS_GUIDE.md) for comprehensive documentation, examples, and best practices.
+See the [Validation-Only Steps Guide](guides/VALIDATION_ONLY_STEPS_GUIDE.md) for comprehensive documentation, examples, and best practices.
 
 ---
 

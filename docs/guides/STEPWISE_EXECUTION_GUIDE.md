@@ -153,9 +153,8 @@ from pipeline_builder.models import BronzeStep, SilverStep, GoldStep
 from pipeline_builder_base.models import PipelineConfig
 from pipeline_builder.compat import F
 
-# Configure engine (required)
-from pipeline_builder.engine_config import configure_engine
-# ... configure based on your environment (mock or real Spark)
+# Engine must be configured (e.g. at app startup or in tests via conftest).
+# See pipeline_builder.engine_config for configure_engine() with your Spark engine components.
 
 # Create configuration
 config = PipelineConfig.create_default(schema="analytics")
@@ -394,7 +393,7 @@ report2, context = runner.rerun_step(
     step_params=step_params
 )
 
-print(f"Status: {report.status.value}")
+print(f"Status: {report2.status.value}")
 ```
 
 **Output:**
@@ -1269,10 +1268,10 @@ Clear parameter overrides for a step or all steps.
 
 ## Additional Resources
 
-- [Main User Guide](USER_GUIDE.md) - Comprehensive guide to all features
-- [API Reference](ENHANCED_API_REFERENCE.md) - Detailed API documentation
-- [Examples](../examples/) - Code examples and use cases
-- [Troubleshooting Guide](COMPREHENSIVE_TROUBLESHOOTING_GUIDE.md) - Common issues and solutions
+- [Building Pipelines](BUILDING_PIPELINES_GUIDE.md) - Define bronze, silver, and gold steps
+- [Execution Modes](EXECUTION_MODES_GUIDE.md) - Run initial, incremental, and validation-only
+- [Troubleshooting](TROUBLESHOOTING_GUIDE.md) - Common issues and solutions
+- [Guides index](README.md) - All guides in this directory
 
 ---
 

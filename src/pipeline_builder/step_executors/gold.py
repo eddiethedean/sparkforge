@@ -8,7 +8,7 @@ in the Medallion architecture.
 from __future__ import annotations
 
 import inspect
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 from pipeline_builder_base.errors import ExecutionError
 
@@ -87,6 +87,14 @@ class GoldStepExecutor(BaseStepExecutor):
             - Transformation logic is defined in the step's transform function
             - Gold steps typically perform aggregations and business metrics
         """
+        # SQL-source step: load from JDBC/SQLAlchemy and return (engine validates/writes)
+        sql_src = getattr(step, "sql_source", None)
+        if sql_src is not None:
+            from ..sql_source import read_sql_source
+
+            # read_sql_source returns a Spark DataFrame; cast for type checkers.
+            return cast(DataFrame, read_sql_source(sql_src, self.spark))
+
         # Handle validation-only steps (no transform function)
         if step.transform is None:
             if step.existing:
