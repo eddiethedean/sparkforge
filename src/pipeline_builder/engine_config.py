@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from .protocols import (
     AnalysisExceptionProtocol,
@@ -45,19 +45,24 @@ def _configure_engine_from_session(spark: Any) -> None:
     """Configure engine from a SparkSession (PySpark or sparkless). Used by configure_engine(spark=...)."""
     session_module = type(spark).__module__
     if "pyspark" in session_module:
+        from pyspark.sql import (
+            Column as PySparkColumn,
+        )
+        from pyspark.sql import (
+            DataFrame as PySparkDataFrame,
+        )
+        from pyspark.sql import (
+            SparkSession as PySparkSparkSession,
+        )
         from pyspark.sql import functions as pyspark_functions
         from pyspark.sql import types as pyspark_types
         from pyspark.sql.functions import desc as pyspark_desc
         from pyspark.sql.utils import AnalysisException as PySparkAnalysisException
         from pyspark.sql.window import Window as PySparkWindow
-        from pyspark.sql import (
-            DataFrame as PySparkDataFrame,
-            SparkSession as PySparkSparkSession,
-            Column as PySparkColumn,
-        )
+
         configure_engine(
-            functions=pyspark_functions,
-            types=pyspark_types,
+            functions=cast(FunctionsProtocol, pyspark_functions),
+            types=cast(TypesProtocol, pyspark_types),
             analysis_exception=PySparkAnalysisException,
             window=PySparkWindow,
             desc=pyspark_desc,
@@ -67,19 +72,18 @@ def _configure_engine_from_session(spark: Any) -> None:
             column_cls=PySparkColumn,
         )
     elif "sparkless" in session_module or "mock_spark" in session_module:
-        from sparkless import functions as mock_functions  # type: ignore[import]
-        from sparkless import spark_types as mock_types  # type: ignore[import]
-        from sparkless import AnalysisException as MockAnalysisException  # type: ignore[import]
-        from sparkless import Window as MockWindow  # type: ignore[import]
-        from sparkless.functions import desc as mock_desc  # type: ignore[import]
-        from sparkless import (  # type: ignore[import]
-            DataFrame as MockDataFrame,
-            SparkSession as MockSparkSession,
-            Column as MockColumn,
-        )
+        from sparkless import AnalysisException as MockAnalysisException
+        from sparkless import Column as MockColumn
+        from sparkless import DataFrame as MockDataFrame
+        from sparkless import SparkSession as MockSparkSession
+        from sparkless import Window as MockWindow
+        from sparkless import functions as mock_functions
+        from sparkless import spark_types as mock_types
+        from sparkless.functions import desc as mock_desc
+
         configure_engine(
-            functions=mock_functions,
-            types=mock_types,
+            functions=cast(FunctionsProtocol, mock_functions),
+            types=cast(TypesProtocol, mock_types),
             analysis_exception=MockAnalysisException,
             window=MockWindow,
             desc=mock_desc,
@@ -100,7 +104,9 @@ def configure_engine(
     spark: Optional[Any] = None,
     functions: Optional[FunctionsProtocol] = None,
     types: Optional[TypesProtocol] = None,
-    analysis_exception: Optional[type[BaseException] | AnalysisExceptionProtocol] = None,
+    analysis_exception: Optional[
+        type[BaseException] | AnalysisExceptionProtocol
+    ] = None,
     window: Optional[WindowProtocol] = None,
     desc: Optional[Any] = None,
     engine_name: str = "unknown",

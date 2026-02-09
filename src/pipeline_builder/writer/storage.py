@@ -87,6 +87,7 @@ def _is_delta_lake_available(spark: SparkSession) -> bool:  # type: ignore[valid
             else str(id(spark))
         )
     except Exception:
+        # Fallback: use Python id if JVM/session id unavailable
         spark_id = str(id(spark))
 
     # Log session identity and configs before checking
@@ -99,7 +100,7 @@ def _is_delta_lake_available(spark: SparkSession) -> bool:  # type: ignore[valid
                 f"🔍 _is_delta_lake_available: Session ID (JVM)={id(spark._jsparkSession)}"
             )
     except Exception:
-        pass
+        pass  # Session has no JVM; skip JVM id log
 
     # Check cache first
     if spark_id in _delta_availability_cache:
@@ -136,7 +137,7 @@ def _is_delta_lake_available(spark: SparkSession) -> bool:  # type: ignore[valid
             return True
     except Exception as e:
         print(f"⚠️ _is_delta_lake_available: Error checking config: {e}")
-        pass
+        pass  # Config check failed; proceed to lightweight test
 
     # If only extensions are configured, do a lightweight test
     try:
@@ -163,7 +164,7 @@ def _is_delta_lake_available(spark: SparkSession) -> bool:  # type: ignore[valid
                     pass
     except Exception as e:
         print(f"⚠️ _is_delta_lake_available: Error during test write: {e}")
-        pass
+        pass  # Lightweight Delta test failed; assume Delta not available
 
     # Delta is not available in this Spark session
     print("❌ _is_delta_lake_available: Delta NOT available in this session")
@@ -376,7 +377,7 @@ class StorageManager:
                     try:
                         self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")  # type: ignore[attr-defined]
                     except Exception:
-                        pass  # Schema might already exist
+                        pass  # Schema might already exist; continue
 
                 # Always use Delta format - failures will propagate if Delta is not available
                 # This ensures we know when Delta fails rather than silently falling back
@@ -412,7 +413,7 @@ class StorageManager:
                 try:
                     self.spark.sql(f"REFRESH TABLE {self.table_fqn}")  # type: ignore[attr-defined]
                 except Exception:
-                    pass
+                    pass  # Refresh optional; table created
                 self.logger.info(f"Table created successfully: {self.table_fqn}")
             elif not table_is_delta:
                 # Table exists but wasn't verified as Delta - this shouldn't happen after the check above
@@ -504,7 +505,7 @@ class StorageManager:
                         f"🔍 write_dataframe: Session ID (JVM)={id(self.spark._jsparkSession)}"
                     )
             except Exception:
-                pass
+                pass  # Session/config log optional for diagnostics
 
             # Check configs before Delta operation
             try:

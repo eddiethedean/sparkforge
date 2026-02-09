@@ -52,35 +52,16 @@ class TestLogWriterEmptyStringError:
         error_msg = str(exc_info.value).lower()
         assert "empty" in error_msg or "invalid" in error_msg
 
-    def test_init_with_whitespace_only_schema_does_not_raise_error(self, mock_spark):
-        """Test that initialization with whitespace-only schema does NOT raise error (BUG).
+    def test_init_with_whitespace_only_schema_raises_error(self, mock_spark):
+        """Test that initialization with whitespace-only schema raises error."""
+        with pytest.raises(WriterConfigurationError) as exc_info:
+            LogWriter(mock_spark, schema="   ", table_name="logs")
+        error_msg = str(exc_info.value).lower()
+        assert "schema" in error_msg or "empty" in error_msg or "invalid" in error_msg
 
-        This test documents a bug: whitespace-only strings pass validation
-        because WriterConfig.validate() only checks `if not self.table_schema:`
-        which is False for whitespace strings. This should be fixed to use
-        `.strip()` to catch whitespace-only strings.
-        """
-        # Whitespace-only string passes validation (this is a bug!)
-        # The validation should reject whitespace-only strings
-        writer = LogWriter(mock_spark, schema="   ", table_name="logs")
-
-        # Currently this succeeds, but it shouldn't - whitespace-only schema is invalid
-        assert (
-            writer.config.table_schema == "   "
-        )  # This is the bug - should be rejected
-
-    def test_init_with_whitespace_only_table_name_does_not_raise_error(
-        self, mock_spark
-    ):
-        """Test that initialization with whitespace-only table_name does NOT raise error (BUG).
-
-        This test documents a bug: whitespace-only strings pass validation
-        because WriterConfig.validate() only checks `if not self.table_name:`
-        which is False for whitespace strings. This should be fixed to use
-        `.strip()` to catch whitespace-only strings.
-        """
-        # Whitespace-only string passes validation (this is a bug!)
-        writer = LogWriter(mock_spark, schema="analytics", table_name="   ")
-
-        # Currently this succeeds, but it shouldn't - whitespace-only table name is invalid
-        assert writer.config.table_name == "   "  # This is the bug - should be rejected
+    def test_init_with_whitespace_only_table_name_raises_error(self, mock_spark):
+        """Test that initialization with whitespace-only table_name raises error."""
+        with pytest.raises(WriterConfigurationError) as exc_info:
+            LogWriter(mock_spark, schema="analytics", table_name="   ")
+        error_msg = str(exc_info.value).lower()
+        assert "table" in error_msg or "empty" in error_msg or "invalid" in error_msg

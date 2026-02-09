@@ -164,6 +164,7 @@ def _is_delta_lake_available_execution(spark: SparkSession) -> bool:  # type: ig
             else str(id(spark))
         )
     except Exception:
+        # Fallback: use Python id if JVM/session id unavailable
         spark_id = str(id(spark))
 
     # Check cache first
@@ -190,7 +191,7 @@ def _is_delta_lake_available_execution(spark: SparkSession) -> bool:  # type: ig
             _delta_availability_cache_execution[spark_id] = True
             return True
     except Exception:
-        pass
+        pass  # Config check failed; proceed to lightweight test
 
     # If only extensions are configured, do a lightweight test
     try:
@@ -209,7 +210,7 @@ def _is_delta_lake_available_execution(spark: SparkSession) -> bool:  # type: ig
                     # Delta format failed - not available
                     pass
     except Exception:
-        pass
+        pass  # Lightweight Delta test failed or config unavailable
 
     # Delta is not available in this Spark session
     _delta_availability_cache_execution[spark_id] = False
@@ -308,14 +309,14 @@ def _get_existing_schema_safe(spark: Any, table_name: str) -> Optional[Any]:
                         if inferred_schema.fields and len(inferred_schema.fields) > 0:
                             return inferred_schema
                     except Exception:
-                        pass
+                        pass  # Schema inference from sample failed
             except Exception:
-                pass
+                pass  # DESCRIBE or sample read failed
 
         # Return schema even if empty (struct<>) - caller will handle empty schemas specially
         return schema
     except Exception:
-        pass
+        pass  # Schema recovery failed; caller gets None
     return None
 
 
@@ -1377,7 +1378,7 @@ class ExecutionEngine:
                                         f"DROP VIEW IF EXISTS {temp_view_name}"
                                     )  # type: ignore[attr-defined]
                                 except Exception:
-                                    pass
+                                    pass  # DROP VIEW cleanup best-effort; ignore failure
 
                                 # Skip normal write path - table already written
                                 writer = None
@@ -1412,7 +1413,7 @@ class ExecutionEngine:
                                             f"DROP VIEW IF EXISTS {temp_view_name}"
                                         )  # type: ignore[attr-defined]
                                     except Exception:
-                                        pass
+                                        pass  # DROP VIEW cleanup best-effort; ignore failure
 
                                     # Skip normal write path - table already written
                                     writer = None
@@ -1453,7 +1454,7 @@ class ExecutionEngine:
                                                     f"DROP VIEW IF EXISTS {temp_view_name}"
                                                 )  # type: ignore[attr-defined]
                                             except Exception:
-                                                pass
+                                                pass  # DROP VIEW cleanup best-effort
                                             writer = None
                                     else:
                                         # Not Delta table, use normal overwrite
@@ -1481,7 +1482,7 @@ class ExecutionEngine:
                         try:
                             self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
                         except Exception:
-                            pass
+                            pass  # DROP TABLE best-effort before overwrite; write may still succeed
 
                     # Create writer with appropriate mode
                     writer = _create_dataframe_writer(
@@ -1537,7 +1538,7 @@ class ExecutionEngine:
                                                     f"DROP VIEW IF EXISTS {temp_view_name}"
                                                 )  # type: ignore[attr-defined]
                                             except Exception:
-                                                pass
+                                                pass  # DROP VIEW cleanup best-effort
                                             writer = None  # Mark writer as None to skip normal write
                                             # Exit the retry block - write succeeded via SQL INSERT
                                         except Exception:
@@ -1547,7 +1548,7 @@ class ExecutionEngine:
                                                     f"DROP VIEW IF EXISTS {temp_view_name}"
                                                 )  # type: ignore[attr-defined]
                                             except Exception:
-                                                pass
+                                                pass  # DROP VIEW cleanup best-effort before fallback write
                                             writer.saveAsTable(output_table)  # type: ignore[attr-defined]
                                     else:
                                         # Retry the write after refresh
@@ -1620,7 +1621,7 @@ class ExecutionEngine:
                                                         f"DROP VIEW IF EXISTS {temp_view_name}"
                                                     )  # type: ignore[attr-defined]
                                                 except Exception:
-                                                    pass
+                                                    pass  # DROP VIEW cleanup best-effort
                                         except Exception:
                                             healed = False
 
@@ -1928,15 +1929,15 @@ class ExecutionEngine:
         try:
             _delta_check_prev = self.spark.conf.get(_delta_check_key)  # type: ignore[attr-defined]
         except Exception:
-            pass
+            pass  # Spark config get may not exist; use set/unset only
         try:
             self.spark.conf.set(_delta_check_key, "false")  # type: ignore[attr-defined]
         except Exception:
-            pass
+            pass  # Disable Delta constraint check best-effort
         try:
             self.spark.sql(f"SET {_delta_check_key}=false")  # type: ignore[attr-defined]
         except Exception:
-            pass
+            pass  # SQL SET may not be supported; continue
 
         try:
             # Logging is handled by the runner to avoid duplicate messages
@@ -2199,12 +2200,12 @@ class ExecutionEngine:
                 try:
                     self.spark.conf.set(_delta_check_key, _delta_check_prev)  # type: ignore[attr-defined]
                 except Exception:
-                    pass
+                    pass  # Restore config best-effort; test isolation may not need it
             else:
                 try:
                     self.spark.conf.unset(_delta_check_key)  # type: ignore[attr-defined]
                 except Exception:
-                    pass
+                    pass  # Unset config best-effort
 
         return result
 
@@ -2539,7 +2540,7 @@ class ExecutionEngine:
                     result = row[0]  # type: ignore[assignment]
                     return cast(Optional[object], result)
                 except Exception:
-                    pass
+                    pass  # Row may not support asDict; try other access
         if hasattr(row, "asDict"):
             try:
                 result = row.asDict().get(column)  # type: ignore[assignment]

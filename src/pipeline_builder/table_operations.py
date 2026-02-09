@@ -108,7 +108,7 @@ def is_delta_lake_available(spark: SparkSession) -> bool:  # type: ignore[valid-
             _delta_availability_cache[spark_id] = True
             return True
     except Exception:
-        pass
+        pass  # Config check failed; proceed to lightweight test
 
     # If only extensions are configured, do a lightweight test
     try:
@@ -127,7 +127,7 @@ def is_delta_lake_available(spark: SparkSession) -> bool:  # type: ignore[valid-
                     # Delta format failed - not available
                     pass
     except Exception:
-        pass
+        pass  # Lightweight Delta test failed or config unavailable
 
     # Delta is not available in this Spark session
     _delta_availability_cache[spark_id] = False
@@ -274,8 +274,7 @@ def prepare_delta_overwrite(
                     f"Delta table exists at path {table_name}, overwrite will replace it"
                 )
         except Exception:
-            # If we can't check, assume it might be Delta and proceed
-            pass
+            pass  # If we can't check Delta at path, assume and proceed with overwrite
 
 
 # Keep the old function name for backward compatibility, but it now calls the public function

@@ -127,13 +127,30 @@ def _convert_rules_to_expressions(
     converted_rules: Dict[str, list[Union[str, Column]]] = {}
     for column_name, rule_list in rules.items():
         converted_rule_list: list[Union[str, Column]] = []
-        for rule in rule_list:
-            if isinstance(rule, (str, list)):
+        i = 0
+        while i < len(rule_list):
+            rule = rule_list[i]
+            # Doc-style "in" rule: ["in", ["a", "b"]] is often written as
+            # rule_list = ["in", ["a", "b"]] (two elements). Coalesce into one rule.
+            if (
+                i + 1 < len(rule_list)
+                and rule == "in"
+                and isinstance(rule_list[i + 1], (list, tuple, set))
+            ):
+                converted_rule_list.append(
+                    _convert_rule_to_expression(
+                        ["in", rule_list[i + 1]], column_name, functions
+                    )
+                )
+                i += 2
+            elif isinstance(rule, (str, list)):
                 converted_rule_list.append(
                     _convert_rule_to_expression(rule, column_name, functions)
                 )
+                i += 1
             else:
                 converted_rule_list.append(rule)
+                i += 1
         converted_rules[column_name] = converted_rule_list
     return converted_rules
 
@@ -206,7 +223,7 @@ def apply_column_rules(
     # Handle empty rules - return all rows as valid
     if not rules:
         total_rows = df.count()
-        duration = time.time() - time.time()  # 0 duration
+        duration = 0.0
         stats = StageStats(
             stage=stage,
             step=step,

@@ -203,10 +203,10 @@ class WriterConfig:
 
     def validate(self) -> None:
         """Validate the configuration."""
-        if not self.table_schema:
-            raise ValueError("Table schema cannot be empty")
-        if not self.table_name:
-            raise ValueError("Table name cannot be empty")
+        if not self.table_schema or not self.table_schema.strip():
+            raise ValueError("Table schema cannot be empty or whitespace-only")
+        if not self.table_name or not self.table_name.strip():
+            raise ValueError("Table name cannot be empty or whitespace-only")
         if self.batch_size <= 0:
             raise ValueError("Batch size must be positive")
         if self.max_file_size_mb <= 0:

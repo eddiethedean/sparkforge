@@ -53,7 +53,7 @@ class TestValidationOnlyGuideBuilderExamples:
             rules={
                 "user_id": ["not_null"],
                 "value": ["gt", 0],
-                "status": [["in", ["active", "inactive"]]],  # one rule: in(list)
+                "status": ["in", ["active", "inactive"]],
             },
         )
         assert "validated_events" in builder.silver_steps

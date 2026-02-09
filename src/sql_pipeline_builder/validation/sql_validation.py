@@ -41,24 +41,32 @@ def apply_sql_validation_rules(
     """
     from datetime import datetime
 
+    from sqlalchemy import select
+
     start_time = datetime.now()
 
     try:
+        # Normalize query so it supports filtering. ORM Query has .filter(); Core
+        # CompoundSelect (e.g. union_all) has neither .filter nor .where() until
+        # wrapped in a Select.
+        if not hasattr(query, "filter") and hasattr(query, "subquery"):
+            query = select(query.subquery())
+
+        # Use .filter() for ORM Query, .where() for Core Select
+        def add_condition(q: Any, condition: Any) -> Any:
+            if hasattr(q, "filter"):
+                return q.filter(condition)
+            return q.where(condition)
+
         # Apply all validation rules as filters
         # SQLAlchemy rules are already ColumnElement expressions
         valid_query = query
         for _column_name, rule_list in rules.items():
             for rule in rule_list:
-                # Rule is already a SQLAlchemy ColumnElement expression
-                # Apply it as a filter
-                valid_query = valid_query.filter(rule)
+                valid_query = add_condition(valid_query, rule)
 
         # Get counts
-        # For valid rows, count the filtered query
         valid_count = valid_query.count() if hasattr(valid_query, "count") else 0
-
-        # For invalid rows, we need to count the original query minus valid
-        # This is approximate - in practice, we'd need to execute both queries
         total_count = query.count() if hasattr(query, "count") else 0
         invalid_count = max(0, total_count - valid_count)
 
@@ -66,12 +74,13 @@ def apply_sql_validation_rules(
         validation_rate = safe_divide(valid_count, total_count, 0.0) * 100
 
         # Create invalid query (rows that don't match any rule)
-        # This is a simplified approach - in practice, you'd need to negate the rules
         if hasattr(valid_query, "whereclause") and valid_query.whereclause is not None:
-            invalid_query = query.filter(~valid_query.whereclause)
+            invalid_query = add_condition(query, ~valid_query.whereclause)
         else:
             # No filters were applied; treat invalid set as empty
-            invalid_query = query.filter(False)
+            from sqlalchemy import false
+
+            invalid_query = add_condition(query, false())
 
         end_time = datetime.now()
         duration_secs = (end_time - start_time).total_seconds()
@@ -97,23 +106,7 @@ def apply_sql_validation_rules(
 
     except Exception as e:
         logger.error(f"Validation failed for {step_name}: {e}")
-        # Return original query as invalid on error
-        end_time = datetime.now()
-        duration_secs = (end_time - start_time).total_seconds()
-
-        stats = StageStats(
-            stage="validation",
-            step=step_name,
-            total_rows=0,
-            valid_rows=0,
-            invalid_rows=0,
-            validation_rate=0.0,
-            duration_secs=duration_secs,
-            start_time=start_time,
-            end_time=end_time,
-        )
-
-        return query, query, stats
+        raise
 
 
 def validate_query(
