@@ -54,6 +54,32 @@ class TestJdbcSource:
             )
         assert "url" in str(exc_info.value).lower()
 
+    def test_properties_not_dict_raises(self):
+        with pytest.raises(ValidationError) as exc_info:
+            JdbcSource(
+                url="jdbc:postgresql://host/db",
+                table="t",
+                properties="user=u",  # type: ignore[arg-type]
+            )
+        assert "properties" in str(exc_info.value).lower()
+
+    def test_driver_stored_when_provided(self):
+        s = JdbcSource(
+            url="jdbc:postgresql://host/db",
+            table="t",
+            properties={"user": "u"},
+            driver="org.postgresql.Driver",
+        )
+        assert s.driver == "org.postgresql.Driver"
+
+    def test_empty_properties_allowed(self):
+        s = JdbcSource(
+            url="jdbc:postgresql://host/db",
+            table="t",
+            properties={},
+        )
+        assert s.properties == {}
+
 
 class TestSqlAlchemySource:
     def test_valid_url_table(self):
@@ -97,3 +123,27 @@ class TestSqlAlchemySource:
             schema="public",
         )
         assert s.schema == "public"
+
+    def test_empty_table_string_raises(self):
+        with pytest.raises(ValidationError) as exc_info:
+            SqlAlchemySource(
+                url="sqlite:///x.db",
+                table="",
+                query=None,
+            )
+        assert "exactly one" in str(exc_info.value).lower()
+
+    def test_empty_query_string_raises(self):
+        with pytest.raises(ValidationError) as exc_info:
+            SqlAlchemySource(
+                url="sqlite:///x.db",
+                table=None,
+                query="   ",
+            )
+        assert "exactly one" in str(exc_info.value).lower()
+
+    def test_engine_only_no_url_stored(self):
+        engine = object()
+        s = SqlAlchemySource(engine=engine, table="t")
+        assert s.engine is engine
+        assert s.url is None

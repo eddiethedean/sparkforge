@@ -270,7 +270,8 @@ markers = [
     "unit: marks tests as unit tests",
     "spark: marks tests that require Spark session",
     "delta: marks tests that require Delta Lake",
-    "pyspark_compat: marks tests that require PySpark (skipped if not installed)"
+    "pyspark_compat: marks tests that require PySpark (skipped if not installed)",
+    "postgres: tests that require PostgreSQL (e.g. testing.postgresql) and optional JDBC driver",
 ]
 
 [tool.tox]

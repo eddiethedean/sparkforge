@@ -640,7 +640,6 @@ def _create_real_spark_session():
         if skip_delta or basic_spark:
             print("🔧 Using basic Spark configuration as requested")
             try:
-                # Get worker ID for concurrent testing isolation (pytest-xdist)
                 worker_id = os.environ.get("PYTEST_XDIST_WORKER", "gw0")
                 builder = (
                     SparkSession.builder.appName(f"pytest-spark-{worker_id}")
@@ -658,22 +657,17 @@ def _create_real_spark_session():
                     .config("spark.driver.memory", "1g")
                     .config("spark.executor.memory", "1g")
                 )
-
                 spark = builder.getOrCreate()
-                # Clear catalog cache at start to ensure clean state
                 try:
                     spark.catalog.clearCache()
                 except Exception:
-                    pass  # Ignore cache clearing errors
+                    pass
             except Exception as e2:
                 print(f"❌ Failed to create basic Spark session: {e2}")
                 raise
         else:
-            # Default to basic Spark if Delta Lake is not available
-            # This allows tests to run without Delta Lake (logging will use parquet format)
             print("🔧 Delta Lake not available, using basic Spark configuration")
             try:
-                # Get worker ID for concurrent testing isolation (pytest-xdist)
                 worker_id = os.environ.get("PYTEST_XDIST_WORKER", "gw0")
                 builder = (
                     SparkSession.builder.appName(f"pytest-spark-{worker_id}")
@@ -691,39 +685,27 @@ def _create_real_spark_session():
                     .config("spark.driver.memory", "1g")
                     .config("spark.executor.memory", "1g")
                 )
-
                 spark = builder.getOrCreate()
-                # Clear catalog cache at start to ensure clean state
                 try:
                     spark.catalog.clearCache()
                 except Exception:
-                    pass  # Ignore cache clearing errors
+                    pass
             except Exception as e2:
                 print(f"❌ Failed to create basic Spark session: {e2}")
                 raise
 
-    # Ensure Spark session was created successfully
     if spark is None:
         raise RuntimeError("Failed to create Spark session")
-
-    # Verify Spark context is properly initialized
     if not hasattr(spark, "sparkContext") or spark.sparkContext is None:
         raise RuntimeError("Spark context is not properly initialized")
-
     if not hasattr(spark.sparkContext, "_jsc") or spark.sparkContext._jsc is None:
         raise RuntimeError("Spark JVM context is not properly initialized")
-
-    # Set log level to WARN to reduce noise
     spark.sparkContext.setLogLevel("WARN")
-
-    # Create test database
     try:
         spark.sql("CREATE DATABASE IF NOT EXISTS test_schema")
         print("✅ Test database created successfully")
     except Exception as e:
         print(f"❌ Could not create test_schema database: {e}")
-
-    # Configure pipeline_builder engine for PySpark
     configure_engine(
         functions=pyspark_functions,
         types=pyspark_types,
@@ -731,7 +713,78 @@ def _create_real_spark_session():
         window=PySparkWindow,
         desc=pyspark_desc,
     )
+    return spark
 
+
+def _create_real_spark_session_with_postgres_jdbc():
+    """Create a real Spark session with Delta Lake and PostgreSQL JDBC driver.
+
+    Uses spark.jars.packages with both Delta and org.postgresql so that
+    configure_spark_with_delta_pip does not overwrite the Postgres driver.
+    """
+    from pyspark.sql import SparkSession, functions as pyspark_functions
+    from pyspark.sql import types as pyspark_types
+    from pyspark.sql.functions import desc as pyspark_desc
+    from pyspark.sql.utils import AnalysisException as PySparkAnalysisException
+    from pyspark.sql.window import Window as PySparkWindow
+    from pipeline_builder.engine import configure_engine
+
+    os.environ["PYSPARK_PYTHON"] = python_executable
+    os.environ["PYSPARK_DRIVER_PYTHON"] = python_executable
+
+    worker_id = os.environ.get("PYTEST_XDIST_WORKER", "gw0")
+    unique_app_name = f"pytest-spark-pg-jdbc-{worker_id}"
+    warehouse_dir = f"/tmp/spark-warehouse-pg-{os.getpid()}"
+    if os.path.exists(warehouse_dir):
+        shutil.rmtree(warehouse_dir, ignore_errors=True)
+
+    try:
+        existing_spark = SparkSession.getActiveSession()
+        if existing_spark:
+            existing_spark.stop()
+            if hasattr(SparkSession, "_instantiatedContext"):
+                SparkSession._instantiatedContext = None  # type: ignore[attr-defined]
+    except Exception:
+        pass
+
+    # Delta + PostgreSQL JDBC in one config (configure_spark_with_delta_pip overwrites packages)
+    packages = (
+        "io.delta:delta-spark_2.12:3.0.0,"
+        "org.postgresql:postgresql:42.7.3"
+    )
+    builder = (
+        SparkSession.builder.appName(unique_app_name)
+        .master("local[1]")
+        .config("spark.sql.warehouse.dir", warehouse_dir)
+        .config("spark.ui.enabled", "false")
+        .config("spark.sql.shuffle.partitions", "1")
+        .config("spark.jars.packages", packages)
+        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+        .config(
+            "spark.sql.catalog.spark_catalog",
+            "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+        )
+    )
+    # Use create() so we get a new session with our jars.packages (getOrCreate can reuse one without driver)
+    spark = builder.getOrCreate()
+
+    spark.sparkContext.setLogLevel("WARN")
+    try:
+        spark.catalog.clearCache()
+    except Exception:
+        pass
+    try:
+        spark.sql("CREATE DATABASE IF NOT EXISTS test_schema")
+    except Exception:
+        pass
+
+    configure_engine(
+        functions=pyspark_functions,
+        types=pyspark_types,
+        analysis_exception=PySparkAnalysisException,
+        window=PySparkWindow,
+        desc=pyspark_desc,
+    )
     return spark
 
 
@@ -1011,6 +1064,37 @@ def mock_spark_session(spark_session):
     # Simply return the spark_session fixture which already handles mode switching
     # The spark_session fixture handles all cleanup automatically
     return spark_session
+
+
+@pytest.fixture(scope="function")
+def spark_session_with_pg_jdbc(request):
+    """
+    Spark session with PostgreSQL JDBC driver on the classpath.
+
+    Use this fixture for tests that use JdbcSource against PostgreSQL (e.g.
+    tests/integration/test_sql_source_postgres.py). When SPARK_MODE=real,
+    creates a session with spark.jars.packages including org.postgresql so
+    spark.read.jdbc() can connect to Postgres. When SPARK_MODE=mock, returns
+    the regular spark_session (JdbcSource postgres tests are skipped in mock).
+    """
+    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+    if spark_mode != "real":
+        return request.getfixturevalue("spark_session")
+    spark = _create_real_spark_session_with_postgres_jdbc()
+    yield spark
+    try:
+        if spark:
+            try:
+                spark.catalog.clearCache()
+            except Exception:
+                pass
+            spark.stop()
+            from pyspark.sql import SparkSession as PySparkSession
+
+            if hasattr(PySparkSession, "_instantiatedContext"):
+                PySparkSession._instantiatedContext = None  # type: ignore[attr-defined]
+    except Exception as e:
+        print(f"⚠️ Error stopping Spark session (pg jdbc): {e}")
 
 
 @pytest.fixture(scope="function")

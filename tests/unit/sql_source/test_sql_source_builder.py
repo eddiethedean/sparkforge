@@ -1,6 +1,7 @@
 """Unit tests for with_bronze_sql_source, with_silver_sql_source, with_gold_sql_source."""
 
 import os
+from unittest.mock import patch
 
 import pytest
 
@@ -90,3 +91,115 @@ class TestWithGoldSqlSource:
         assert step.table_name == "metrics"
         assert step.transform is None
         assert step.source_silvers is None
+
+
+class TestSqlSourceBuilderValidation:
+    """Validation and error paths for SQL source builder methods."""
+
+    def test_with_bronze_sql_source_rejects_invalid_source_type(self, mock_spark_session):
+        builder = PipelineBuilder(spark=mock_spark_session, schema="analytics", functions=F)
+        with pytest.raises(Exception) as exc_info:
+            builder.with_bronze_sql_source(
+                name="x",
+                sql_source="not a source",  # type: ignore[arg-type]
+                rules={"id": [F.col("id").isNotNull()]},
+            )
+        assert "JdbcSource" in str(exc_info.value) or "SqlAlchemySource" in str(
+            exc_info.value
+        )
+
+    def test_with_bronze_sql_source_duplicate_name_raises(self, mock_spark_session):
+        builder = PipelineBuilder(spark=mock_spark_session, schema="analytics", functions=F)
+        source = JdbcSource(
+            url="jdbc:postgresql://h/db",
+            table="t",
+            properties={},
+        )
+        builder.with_bronze_sql_source(
+            name="orders",
+            sql_source=source,
+            rules={"id": [F.col("id").isNotNull()]},
+        )
+        with pytest.raises(Exception) as exc_info:
+            builder.with_bronze_sql_source(
+                name="orders",
+                sql_source=source,
+                rules={"id": [F.col("id").isNotNull()]},
+            )
+        assert "orders" in str(exc_info.value) or "already" in str(exc_info.value).lower()
+
+    def test_with_bronze_sql_source_accepts_schema_parameter(self, mock_spark_session):
+        builder = PipelineBuilder(spark=mock_spark_session, schema="analytics", functions=F)
+        source = JdbcSource(
+            url="jdbc:postgresql://h/db",
+            table="t",
+            properties={},
+        )
+        with patch.object(builder, "_validate_schema"):
+            builder.with_bronze_sql_source(
+                name="orders",
+                sql_source=source,
+                rules={"id": [F.col("id").isNotNull()]},
+                schema="custom_bronze_schema",
+            )
+        assert builder.bronze_steps["orders"].schema == "custom_bronze_schema"
+
+    def test_with_silver_sql_source_rejects_invalid_source_type(self, mock_spark_session):
+        builder = PipelineBuilder(spark=mock_spark_session, schema="analytics", functions=F)
+        with pytest.raises(Exception) as exc_info:
+            builder.with_silver_sql_source(
+                name="inv",
+                sql_source=None,  # type: ignore[arg-type]
+                table_name="inv",
+                rules={"sku": [F.col("sku").isNotNull()]},
+            )
+        assert "JdbcSource" in str(exc_info.value) or "SqlAlchemySource" in str(
+            exc_info.value
+        )
+
+    def test_with_gold_sql_source_rejects_invalid_source_type(self, mock_spark_session):
+        builder = PipelineBuilder(spark=mock_spark_session, schema="analytics", functions=F)
+        with pytest.raises(Exception) as exc_info:
+            builder.with_gold_sql_source(
+                name="m",
+                sql_source=123,  # type: ignore[arg-type]
+                table_name="m",
+                rules={"x": [F.col("x").isNotNull()]},
+            )
+        assert "JdbcSource" in str(exc_info.value) or "SqlAlchemySource" in str(
+            exc_info.value
+        )
+
+    def test_with_silver_sql_source_accepts_schema_parameter(self, mock_spark_session):
+        builder = PipelineBuilder(spark=mock_spark_session, schema="analytics", functions=F)
+        source = JdbcSource(
+            url="jdbc:postgresql://h/db",
+            table="inv",
+            properties={},
+        )
+        with patch.object(builder, "_validate_schema"):
+            builder.with_silver_sql_source(
+                name="inventory",
+                sql_source=source,
+                table_name="inventory_snapshot",
+                rules={"sku": [F.col("sku").isNotNull()]},
+                schema="custom_schema",
+            )
+        assert builder.silver_steps["inventory"].schema == "custom_schema"
+
+    def test_with_gold_sql_source_accepts_schema_parameter(self, mock_spark_session):
+        builder = PipelineBuilder(spark=mock_spark_session, schema="analytics", functions=F)
+        source = JdbcSource(
+            url="jdbc:postgresql://h/db",
+            query="(SELECT 1 AS x) AS q",
+            properties={},
+        )
+        with patch.object(builder, "_validate_schema"):
+            builder.with_gold_sql_source(
+                name="metrics",
+                sql_source=source,
+                table_name="metrics",
+                rules={"x": [F.col("x").isNotNull()]},
+                schema="gold_schema",
+            )
+        assert builder.gold_steps["metrics"].schema == "gold_schema"
