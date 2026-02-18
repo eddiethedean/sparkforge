@@ -219,13 +219,8 @@ class SimplePipelineRunner(BaseRunner, Runner):
                     )
                 bronze_sources_df[name] = cast(DataFrame, source)
 
-        # Use provided steps or stored steps
-        if steps is None:
-            steps = (
-                list(self.bronze_steps.values())
-                + list(self.silver_steps.values())
-                + list(self.gold_steps.values())
-            )
+        # Use provided steps or stored steps (in execution order when available)
+        steps = self._get_all_steps(steps)
 
         # PipelineReport satisfies Report Protocol structurally
         return self.run_pipeline(steps, PipelineMode.INITIAL, bronze_sources_df)  # type: ignore[return-value]
@@ -271,13 +266,8 @@ class SimplePipelineRunner(BaseRunner, Runner):
                     )
                 bronze_sources_df[name] = cast(DataFrame, source)
 
-        # Use provided steps or stored steps
-        if steps is None:
-            steps = (
-                list(self.bronze_steps.values())
-                + list(self.silver_steps.values())
-                + list(self.gold_steps.values())
-            )
+        # Use provided steps or stored steps (in execution order when available)
+        steps = self._get_all_steps(steps)
 
         # PipelineReport satisfies Report Protocol structurally
         return self.run_pipeline(steps, PipelineMode.INCREMENTAL, bronze_sources_df)  # type: ignore[return-value]
@@ -295,11 +285,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
         Returns:
             PipelineReport with execution results
         """
-        steps = (
-            list(self.bronze_steps.values())
-            + list(self.silver_steps.values())
-            + list(self.gold_steps.values())
-        )
+        steps = self._get_all_steps(None)
         return self.run_pipeline(steps, PipelineMode.FULL_REFRESH, bronze_sources)
 
     def run_validation_only(
@@ -315,11 +301,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
         Returns:
             PipelineReport with execution results
         """
-        steps = (
-            list(self.bronze_steps.values())
-            + list(self.silver_steps.values())
-            + list(self.gold_steps.values())
-        )
+        steps = self._get_all_steps(None)
         return self.run_pipeline(steps, PipelineMode.VALIDATION_ONLY, bronze_sources)
 
     def _get_all_steps(
@@ -327,19 +309,31 @@ class SimplePipelineRunner(BaseRunner, Runner):
     ) -> list[Union[BronzeStep, SilverStep, GoldStep]]:
         """Get all steps from stored dictionaries or provided list.
 
+        When steps is None and execution_order is set, returns steps in that order
+        so execution matches the order initially reported by the builder (users can
+        plan based on it).
+
         Args:
             steps: Optional list of steps. If None, returns all stored steps.
 
         Returns:
-            List of all steps (bronze, silver, gold).
+            List of all steps (bronze, silver, gold), optionally in execution order.
         """
         if steps is not None:
             return steps
-        return (
+        all_steps = (
             list(self.bronze_steps.values())
             + list(self.silver_steps.values())
             + list(self.gold_steps.values())
         )
+        if self.execution_order:
+            step_by_name = {s.name: s for s in all_steps}
+            ordered = [
+                step_by_name[n] for n in self.execution_order if n in step_by_name
+            ]
+            if len(ordered) == len(all_steps):
+                return ordered
+        return all_steps
 
     def run_until(
         self,

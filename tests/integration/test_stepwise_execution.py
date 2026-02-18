@@ -2444,3 +2444,54 @@ class TestValidationOnlyStepsIntegration:
                     silver_df.select("from_legacy_count").first()["from_legacy_count"]
                     == sample_bronze_df.count()
                 )
+
+
+class TestExecutionOrderReportedOrder:
+    """Tests that execution order matches reported order / step list order."""
+
+    def test_engine_fallback_uses_step_list_order_for_independent_bronze_steps(
+        self, spark_session, config, sample_bronze_df
+    ):
+        """When execution_order is None, engine uses step list order (creation_order) for tie-breaking.
+
+        So steps run in the order the caller passed them, allowing users to plan from that order.
+        """
+        bronze_1 = BronzeStep(
+            name="bronze_1",
+            rules={"id": [F.col("id").isNotNull()], "value": [F.col("value") > 0]},
+            schema="test_schema",
+        )
+        bronze_2 = BronzeStep(
+            name="bronze_2",
+            rules={"id": [F.col("id").isNotNull()], "value": [F.col("value") > 0]},
+            schema="test_schema",
+        )
+        bronze_3 = BronzeStep(
+            name="bronze_3",
+            rules={"id": [F.col("id").isNotNull()], "value": [F.col("value") > 0]},
+            schema="test_schema",
+        )
+        # Pass steps in this order; engine has no execution_order so it will fall back
+        # and use creation_order from this list -> order should be bronze_1, bronze_2, bronze_3
+        steps = [bronze_1, bronze_2, bronze_3]
+        context = {
+            "bronze_1": sample_bronze_df,
+            "bronze_2": sample_bronze_df,
+            "bronze_3": sample_bronze_df,
+        }
+
+        engine = ExecutionEngine(spark_session, config)
+        result = engine.execute_pipeline(
+            steps,
+            ExecutionMode.INITIAL,
+            context=context,
+            execution_order=None,
+            write_outputs=False,
+        )
+
+        assert result.status == "completed"
+        assert result.steps is not None
+        assert len(result.steps) == 3
+        assert result.steps[0].step_name == "bronze_1"
+        assert result.steps[1].step_name == "bronze_2"
+        assert result.steps[2].step_name == "bronze_3"

@@ -1983,11 +1983,15 @@ class ExecutionEngine:
                 bronze_steps = [s for s in steps if s.step_type.value == "bronze"]
                 silver_steps = [s for s in steps if s.step_type.value == "silver"]
                 gold_steps = [s for s in steps if s.step_type.value == "gold"]
+                # Use step list order as creation_order so execution order is deterministic
+                # and matches the order the caller passed (e.g. runner's reported order).
+                creation_order_from_steps = {s.name: i for i, s in enumerate(steps)}
                 analyzer = DependencyAnalyzer()
                 analysis = analyzer.analyze_dependencies(
                     bronze_steps={s.name: s for s in bronze_steps},
                     silver_steps={s.name: s for s in silver_steps},
                     gold_steps={s.name: s for s in gold_steps},
+                    creation_order=creation_order_from_steps,
                 )
                 execution_order = analysis.execution_order
 
