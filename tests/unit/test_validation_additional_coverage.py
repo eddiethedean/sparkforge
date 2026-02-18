@@ -173,6 +173,54 @@ class TestValidationEdgeCases:
         result = _convert_rules_to_expressions(rules, F)
         assert isinstance(result, dict)
 
+
+class TestConvertRulesToExpressionsColumnBoolFix:
+    """Tests for _convert_rules_to_expressions when rules contain PySpark Columns.
+
+    Ensures we never compare a Column to the string \"in\" in an if-condition,
+    which would trigger Column.__bool__ and raise ValueError in PySpark.
+    """
+
+    def test_rules_with_column_only_does_not_raise(self, spark_session) -> None:
+        """Rule list with only Column expression must not raise ValueError."""
+        # When rule is a Column, code must not do (rule == "in") in an if
+        rules = {"x": [F.col("x") > 0]}
+        result = _convert_rules_to_expressions(rules, F)
+        assert "x" in result
+        assert len(result["x"]) == 1
+        assert hasattr(result["x"][0], "__and__")
+
+    def test_rules_with_column_and_string_mixed_does_not_raise(self, spark_session) -> None:
+        """Rule list with Column first then string rules must not raise."""
+        rules = {"id": [F.col("id") > 0, "not_null"], "name": ["not_null"]}
+        result = _convert_rules_to_expressions(rules, F)
+        assert "id" in result
+        assert len(result["id"]) == 2
+        assert "name" in result
+        assert len(result["name"]) == 1
+
+    def test_rules_string_in_two_element_still_works(self, spark_session) -> None:
+        """Doc-style \"in\" rule [\"in\", [\"a\", \"b\"]] must still be coalesced."""
+        rules = {"status": ["in", ["active", "inactive"]]}
+        result = _convert_rules_to_expressions(rules, F)
+        assert "status" in result
+        assert len(result["status"]) == 1
+        assert hasattr(result["status"][0], "__and__")
+
+    def test_rules_column_then_in_literal_not_coalesced(self, spark_session) -> None:
+        """Column followed by \"in\" and list: Column is kept, \"in\" handled as two-element."""
+        # List is [Column, "in", ["a","b"]] - first element is Column so we must not
+        # compare it to "in"; second element is "in" so we coalesce "in" + ["a","b"]
+        rules = {"x": [F.col("x") > 0, "in", ["a", "b"]]}
+        result = _convert_rules_to_expressions(rules, F)
+        assert "x" in result
+        # Expect: one Column (passed through), one expression from ["in", ["a","b"]]
+        assert len(result["x"]) == 2
+
+
+class TestValidationEdgeCasesContinued:
+    """Remaining validation edge case tests (split for clarity)."""
+
     def test_convert_rule_to_expression_edge_cases(self, spark_session) -> None:
         """Test _convert_rule_to_expression with edge cases."""
         # mock-spark 3.11.0+ requires active SparkSession for function calls (like PySpark)

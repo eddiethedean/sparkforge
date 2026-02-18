@@ -132,8 +132,11 @@ def _convert_rules_to_expressions(
             rule = rule_list[i]
             # Doc-style "in" rule: ["in", ["a", "b"]] is often written as
             # rule_list = ["in", ["a", "b"]] (two elements). Coalesce into one rule.
+            # Check isinstance(rule, str) first so we never compare a PySpark Column to "in"
+            # (Column.__eq__ returns a Column; using it in 'if' would call Column.__bool__ and raise).
             if (
                 i + 1 < len(rule_list)
+                and isinstance(rule, str)
                 and rule == "in"
                 and isinstance(rule_list[i + 1], (list, tuple, set))
             ):
