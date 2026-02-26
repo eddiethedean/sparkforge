@@ -140,12 +140,17 @@ class PipelineDebugSession:
     def run_step(
         self,
         step_name: str,
+        bronze_sources: Optional[Dict[str, DataFrame]] = None,
         write_outputs: bool = True,
     ) -> tuple[PipelineReport, Dict[str, DataFrame]]:
         """Run a single step, loading dependencies from context or tables.
 
         Args:
             step_name: Name of the step to execute.
+            bronze_sources: Optional dict mapping bronze step names to DataFrames.
+                Merged into context for this run (overrides session context for
+                those keys). Use when running a bronze step or when you want to
+                supply/override bronze data for this step only.
             write_outputs: If True, write outputs to tables. If False, skip writes.
 
         Returns:
@@ -154,13 +159,14 @@ class PipelineDebugSession:
 
         Example:
             >>> report, context = session.run_step("clean_events")
-            >>> # Step executed, context updated
+            >>> report, context = session.run_step("events", bronze_sources={"events": df})
         """
         report, context = self.runner.run_step(
             step_name=step_name,
             steps=self.steps,
             mode=self.mode,
             context=self.context,
+            bronze_sources=bronze_sources,
             step_params=self.step_params,
             write_outputs=write_outputs,
         )

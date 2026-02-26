@@ -748,10 +748,7 @@ def _create_real_spark_session_with_postgres_jdbc():
         pass
 
     # Delta + PostgreSQL JDBC in one config (configure_spark_with_delta_pip overwrites packages)
-    packages = (
-        "io.delta:delta-spark_2.12:3.0.0,"
-        "org.postgresql:postgresql:42.7.3"
-    )
+    packages = "io.delta:delta-spark_2.12:3.0.0,org.postgresql:postgresql:42.7.3"
     builder = (
         SparkSession.builder.appName(unique_app_name)
         .master("local[1]")

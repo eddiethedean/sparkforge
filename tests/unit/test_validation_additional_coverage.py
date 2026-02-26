@@ -190,7 +190,9 @@ class TestConvertRulesToExpressionsColumnBoolFix:
         assert len(result["x"]) == 1
         assert hasattr(result["x"][0], "__and__")
 
-    def test_rules_with_column_and_string_mixed_does_not_raise(self, spark_session) -> None:
+    def test_rules_with_column_and_string_mixed_does_not_raise(
+        self, spark_session
+    ) -> None:
         """Rule list with Column first then string rules must not raise."""
         rules = {"id": [F.col("id") > 0, "not_null"], "name": ["not_null"]}
         result = _convert_rules_to_expressions(rules, F)

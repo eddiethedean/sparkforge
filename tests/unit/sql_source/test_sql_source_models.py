@@ -109,12 +109,18 @@ class TestSqlAlchemySource:
                 engine=object(),
                 table="t",
             )
-        assert "url" in str(exc_info.value).lower() and "engine" in str(exc_info.value).lower()
+        assert (
+            "url" in str(exc_info.value).lower()
+            and "engine" in str(exc_info.value).lower()
+        )
 
     def test_neither_url_nor_engine_raises(self):
         with pytest.raises(ValidationError) as exc_info:
             SqlAlchemySource(table="t")
-        assert "url" in str(exc_info.value).lower() or "engine" in str(exc_info.value).lower()
+        assert (
+            "url" in str(exc_info.value).lower()
+            or "engine" in str(exc_info.value).lower()
+        )
 
     def test_schema_stored(self):
         s = SqlAlchemySource(

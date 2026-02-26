@@ -13,9 +13,11 @@ class TestReadSqlSourceDispatch:
     def test_jdbc_source_calls_spark_read_jdbc(self):
         spark = type("Spark", (), {})()
         read_calls = []
+
         def mock_jdbc(self, **kwargs):
             read_calls.append(kwargs)
             return "mock_df"
+
         spark.read = type("Reader", (), {"jdbc": mock_jdbc})()
         source = JdbcSource(
             url="jdbc:postgresql://h/db",
@@ -32,9 +34,11 @@ class TestReadSqlSourceDispatch:
     def test_jdbc_source_with_query(self):
         spark = type("Spark", (), {})()
         read_calls = []
+
         def mock_jdbc(self, **kwargs):
             read_calls.append(kwargs)
             return "mock_df"
+
         spark.read = type("Reader", (), {"jdbc": mock_jdbc})()
         source = JdbcSource(
             url="jdbc:postgresql://h/db",
@@ -47,9 +51,11 @@ class TestReadSqlSourceDispatch:
     def test_jdbc_source_with_driver_adds_driver_to_properties(self):
         spark = type("Spark", (), {})()
         read_calls = []
+
         def mock_jdbc(self, **kwargs):
             read_calls.append(kwargs)
             return "mock_df"
+
         spark.read = type("Reader", (), {"jdbc": mock_jdbc})()
         source = JdbcSource(
             url="jdbc:postgresql://h/db",
@@ -63,8 +69,10 @@ class TestReadSqlSourceDispatch:
 
     def test_jdbc_source_driver_does_not_mutate_original_properties(self):
         spark = type("Spark", (), {})()
+
         def mock_jdbc(self, **kwargs):
             return "mock_df"
+
         spark.read = type("Reader", (), {"jdbc": mock_jdbc})()
         props = {"user": "u"}
         source = JdbcSource(

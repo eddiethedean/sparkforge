@@ -1,7 +1,7 @@
 # Stepwise Execution and Debugging Guide
 
-**Version**: 2.8.0  
-**Last Updated**: January 2025
+**Version**: 2.9.0  
+**Last Updated**: February 2025
 
 > **Note**: All code examples in this guide have been tested and verified to work in both mock and real Spark modes. The outputs shown are from actual test runs.
 
@@ -74,8 +74,12 @@ pipeline.run_initial_load(bronze_sources={"events": large_df})
 With stepwise execution:
 
 ```python
-# Stepwise approach - run only what you need
-report, context = runner.run_step("my_silver_step", steps=all_steps, context=context)
+# Stepwise approach - run only what you need (supply bronze data via bronze_sources)
+report, context = runner.run_step(
+    "my_silver_step",
+    steps=all_steps,
+    bronze_sources={"events": large_df},
+)
 # ⏱️ Runs only the target step (30 seconds)
 # ✅ Immediate feedback
 # 🔄 Quick iteration cycle
@@ -102,9 +106,17 @@ report, context = runner.run_until("target_step", steps=all_steps, bronze_source
 
 ### 2. Run a Single Step
 
-Execute only one step, automatically loading dependencies:
+Execute only one step, automatically loading dependencies from context or from `bronze_sources`:
 
 ```python
+# Option A: Pass bronze data so the step has input (no prior context needed)
+report, context = runner.run_step(
+    "target_step",
+    steps=all_steps,
+    bronze_sources={"events": source_df},
+)
+
+# Option B: Pass existing context from a previous run
 report, context = runner.run_step("target_step", steps=all_steps, context=context)
 ```
 
@@ -115,11 +127,16 @@ report, context = runner.run_step("target_step", steps=all_steps, context=contex
 
 ### 3. Rerun with Parameter Overrides
 
-Rerun a step with different parameters without code changes:
+Rerun a step with different parameters without code changes (assumes `context` and `steps` from a previous `run_until` or `run_step`):
 
 ```python
 step_params = {"target_step": {"threshold": 0.9, "mode": "strict"}}
-report, context = runner.rerun_step("target_step", steps=all_steps, context=context, step_params=step_params)
+report, context = runner.rerun_step(
+    "target_step",
+    steps=all_steps,
+    context=context,
+    step_params=step_params,
+)
 ```
 
 **Use Cases:**
@@ -132,7 +149,12 @@ report, context = runner.rerun_step("target_step", steps=all_steps, context=cont
 Skip table writes during development for faster iteration:
 
 ```python
-report, context = runner.run_step("target_step", steps=all_steps, context=context, write_outputs=False)
+report, context = runner.run_step(
+    "target_step",
+    steps=all_steps,
+    bronze_sources={"events": source_df},  # or context=context from prior run
+    write_outputs=False,
+)
 ```
 
 **Use Cases:**
@@ -208,13 +230,94 @@ Status: completed
 Rows: 2
 ```
 
+### Using a Built Pipeline (No `steps` Parameter)
+
+When you build a pipeline with `PipelineBuilder` and call `to_pipeline()`, the returned runner already has all steps. You can call `run_until`, `run_step`, and `rerun_step` **without passing the `steps` parameter**; the runner uses its stored steps and execution order.
+
+```python
+from pipeline_builder import PipelineBuilder
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
+
+configure_engine(spark=spark)
+F = get_default_functions()
+
+# Build pipeline with the fluent API (steps are stored on the runner)
+builder = PipelineBuilder(spark=spark, schema="analytics")
+builder.with_bronze_rules(
+    name="events",
+    rules={"id": [F.col("id").isNotNull()], "value": [F.col("value") > 0]},
+)
+
+
+def clean_transform(spark, bronze_df, prior_silvers):
+    return bronze_df.filter(F.col("value") > 15)
+
+
+builder.add_silver_transform(
+    name="clean_events",
+    source_bronze="events",
+    transform=clean_transform,
+    rules={"value": [F.col("value").isNotNull()]},
+    table_name="clean_events",
+)
+
+builder.add_gold_transform(
+    name="summary",
+    transform=lambda spark, silvers: silvers["clean_events"].groupBy("id").count(),
+    rules={"id": [F.col("id").isNotNull()]},
+    table_name="summary",
+    source_silvers=["clean_events"],
+)
+
+# Pipeline is the runner; it already has all steps
+pipeline = builder.to_pipeline()
+
+# Create source data
+source_df = spark.createDataFrame(
+    [("1", 10), ("2", 20), ("3", 30), ("4", 40)],
+    ["id", "value"],
+)
+
+# No steps= needed: runner uses stored steps
+report, context = pipeline.run_until(
+    "clean_events",
+    bronze_sources={"events": source_df},
+)
+print(f"run_until: {report.status.value}, rows={context['clean_events'].count()}")
+
+# Run a single step without passing steps
+report, context = pipeline.run_step(
+    "clean_events",
+    bronze_sources={"events": source_df},
+)
+print(f"run_step: {'clean_events' in context}")
+
+# Rerun with overrides (context from previous run)
+report, context = pipeline.rerun_step(
+    "clean_events",
+    context=context,
+    write_outputs=False,
+)
+print(f"rerun_step: {report.status.value}")
+```
+
+**Output:**
+```
+run_until: completed, rows=3
+run_step: True
+rerun_step: completed
+```
+
+Use this pattern when you define your pipeline with `PipelineBuilder`: build once, then run stepwise without maintaining a separate `steps` list.
+
 ---
 
 ## Core APIs
 
 ### SimplePipelineRunner
 
-The `SimplePipelineRunner` provides three main methods for stepwise execution:
+The `SimplePipelineRunner` provides three main methods for stepwise execution. When the runner comes from `builder.to_pipeline()`, **you can omit the `steps` parameter**; the runner uses its stored steps and execution order.
 
 #### run_until()
 
@@ -233,7 +336,7 @@ report, context = runner.run_until(
 
 **Parameters:**
 - `step_name`: Name of the step to stop after (inclusive)
-- `steps`: List of all pipeline steps
+- `steps`: Optional list of all pipeline steps. If omitted, the runner uses its stored steps (e.g. from `builder.to_pipeline()`).
 - `mode`: Execution mode (INITIAL, INCREMENTAL, FULL_REFRESH, VALIDATION_ONLY)
 - `bronze_sources`: Optional dictionary of bronze source DataFrames
 - `step_params`: Optional dictionary mapping step names to parameter dictionaries
@@ -300,7 +403,7 @@ Rows in clean_events: 2
 
 #### run_step()
 
-Execute only one step, automatically loading dependencies from context or tables.
+Execute only one step, automatically loading dependencies from context, from `bronze_sources`, or from tables.
 
 ```python
 report, context = runner.run_step(
@@ -308,6 +411,7 @@ report, context = runner.run_step(
     steps: list[BronzeStep | SilverStep | GoldStep],
     mode: PipelineMode = PipelineMode.INITIAL,
     context: Optional[Dict[str, DataFrame]] = None,
+    bronze_sources: Optional[Dict[str, DataFrame]] = None,
     step_params: Optional[Dict[str, Dict[str, Any]]] = None,
     write_outputs: bool = True,
 ) -> tuple[PipelineReport, Dict[str, DataFrame]]
@@ -315,9 +419,10 @@ report, context = runner.run_step(
 
 **Parameters:**
 - `step_name`: Name of the step to execute
-- `steps`: List of all pipeline steps
+- `steps`: Optional list of all pipeline steps. If omitted, the runner uses its stored steps (e.g. from `builder.to_pipeline()`).
 - `mode`: Execution mode
-- `context`: Optional execution context (dependencies will be loaded if missing)
+- `context`: Optional execution context (dependencies will be loaded from tables if missing)
+- `bronze_sources`: Optional dict mapping bronze step names to DataFrames. Merged into context so you can run a bronze step or a silver/gold step without pre-populating context.
 - `step_params`: Optional parameter overrides
 - `write_outputs`: If True, write outputs to tables
 
@@ -325,28 +430,61 @@ report, context = runner.run_step(
 - `report`: PipelineReport with execution results
 - `context`: Updated context dictionary with step output
 
-**Example:**
+**Example (self-contained):**
 
 ```python
-# Pre-populate context with bronze output (or it will be loaded from table)
-context = {"events": source_df}
+from pipeline_builder.pipeline.runner import SimplePipelineRunner
+from pipeline_builder_base.models import PipelineConfig
+from pipeline_builder.models import BronzeStep, SilverStep, GoldStep
+from pipeline_builder.compat import F
 
-# Run only the silver step
-report, context = runner.run_step(
-    "clean_events",
-    steps=[bronze_step, silver_step, gold_step],
-    context=context
+config = PipelineConfig.create_default(schema="analytics")
+runner = SimplePipelineRunner(spark, config)
+
+bronze_step = BronzeStep(name="events", rules={"id": [F.col("id").isNotNull()]}, schema="analytics")
+silver_step = SilverStep(
+    name="clean_events",
+    source_bronze="events",
+    transform=lambda spark, df, silvers: df.filter(F.col("value") > 15),
+    rules={"value": [F.col("value").isNotNull()]},
+    table_name="clean_events",
+    schema="analytics",
+)
+gold_step = GoldStep(
+    name="aggregated",
+    transform=lambda spark, silvers: silvers["clean_events"],
+    rules={"id": [F.col("id").isNotNull()]},
+    table_name="aggregated",
+    source_silvers=["clean_events"],
+    schema="analytics",
+)
+steps = [bronze_step, silver_step, gold_step]
+
+source_df = spark.createDataFrame(
+    [("1", "event1", 10), ("2", "event2", 20), ("3", "event3", 30)],
+    ["id", "event", "value"],
 )
 
+# Option A: Pass bronze_sources (no prior context needed)
+report, context = runner.run_step(
+    "clean_events",
+    steps=steps,
+    bronze_sources={"events": source_df},
+)
 print(f"Status: {report.status.value}")
 print(f"'clean_events' in context: {'clean_events' in context}")
+
+# Option B: Pre-populate context, then run step
+context = {"events": source_df}
+report, context = runner.run_step("clean_events", steps=steps, context=context)
+print(f"Status: {report.status.value}")
 ```
 
 **Output:**
 ```
 Status: completed
-Steps executed: 1
 'clean_events' in context: True
+Status: completed
 ```
 
 #### rerun_step()
@@ -367,7 +505,7 @@ report, context = runner.rerun_step(
 
 **Parameters:**
 - `step_name`: Name of the step to rerun
-- `steps`: List of all pipeline steps
+- `steps`: Optional list of all pipeline steps. If omitted, the runner uses its stored steps (e.g. from `builder.to_pipeline()`).
 - `mode`: Execution mode
 - `context`: Execution context (must contain required dependencies)
 - `step_params`: Optional parameter overrides
@@ -378,11 +516,15 @@ report, context = runner.rerun_step(
 - `report`: PipelineReport with execution results
 - `context`: Updated context dictionary
 
-**Example:**
+**Example (assumes `runner`, `steps`, and `source_df` from setup above):**
 
 ```python
-# First run
-report1, context = runner.run_step("clean_events", steps=steps, context=context)
+# First run: build context with bronze_sources
+report1, context = runner.run_step(
+    "clean_events",
+    steps=steps,
+    bronze_sources={"events": source_df},
+)
 
 # Rerun with parameter override
 step_params = {"clean_events": {"threshold": 20, "filter_mode": "strict"}}
@@ -390,7 +532,7 @@ report2, context = runner.rerun_step(
     "clean_events",
     steps=steps,
     context=context,
-    step_params=step_params
+    step_params=step_params,
 )
 
 print(f"Status: {report2.status.value}")
@@ -421,34 +563,33 @@ def clean_events_transform(spark, bronze_df, prior_silvers, params=None):
     """Transform function that accepts parameters."""
     threshold = params.get("threshold", 0) if params else 0
     filter_mode = params.get("filter_mode", "standard") if params else "standard"
-    
     df = bronze_df.filter(F.col("value") > threshold)
-    
     if filter_mode == "strict":
         df = df.filter(F.col("value") > 20)  # Additional strict filtering
-    
     return df
 
-# Create step
 silver_step = SilverStep(
     name="clean_events",
     source_bronze="events",
     transform=clean_events_transform,
     rules={"value": [F.col("value").isNotNull()]},
     table_name="clean_events",
-    schema="analytics"
+    schema="analytics",
 )
 
-# Run with parameters
+# Source data and runner (from Basic Setup above: config, runner, F)
+source_df = spark.createDataFrame(
+    [("1", "a", 10), ("2", "b", 20), ("3", "c", 25), ("4", "d", 30)],
+    ["id", "event", "value"],
+)
+
 step_params = {"clean_events": {"threshold": 15, "filter_mode": "strict"}}
-context = {"events": source_df}
 report, context = runner.run_step(
     "clean_events",
     steps=[silver_step],
-    context=context,
-    step_params=step_params
+    bronze_sources={"events": source_df},
+    step_params=step_params,
 )
-
 print(f"Status: {report.status.value}")
 print(f"Rows after filtering: {context['clean_events'].count()}")
 ```
@@ -465,44 +606,37 @@ Rows after filtering: 1  # Only rows with value > 15 and value > 20 (strict mode
 def aggregate_metrics(spark, silvers, params=None):
     """Gold transform that accepts parameters."""
     multiplier = params.get("multiplier", 1.0) if params else 1.0
-    
     df = silvers["clean_events"]
-    return df.withColumn(
-        "adjusted_value",
-        F.col("value") * multiplier
-    )
+    return df.withColumn("adjusted_value", F.col("value") * multiplier)
 
-# Create step
 gold_step = GoldStep(
     name="user_metrics",
     transform=aggregate_metrics,
     rules={"adjusted_value": [F.col("adjusted_value") > 0]},
     table_name="user_metrics",
     source_silvers=["clean_events"],
-    schema="analytics"
+    schema="analytics",
 )
 
-# First ensure clean_events exists in context
-context = {"events": source_df}
+# silver_step and source_df from above; steps = [silver_step, gold_step]
+steps = [silver_step, gold_step]
+# Run silver first (bronze_sources supplies input)
 report, context = runner.run_step(
     "clean_events",
-    steps=[silver_step],
-    context=context
+    steps=steps,
+    bronze_sources={"events": source_df},
 )
-
-# Run gold step with parameters
-step_params = {"user_metrics": {"multiplier": 1.5}}
+# Run gold with parameters
 report, context = runner.run_step(
     "user_metrics",
-    steps=[gold_step],
+    steps=steps,
     context=context,
-    step_params=step_params
+    step_params={"user_metrics": {"multiplier": 1.5}},
 )
-
 print(f"Status: {report.status.value}")
 print(f"Rows in user_metrics: {context['user_metrics'].count()}")
 if "adjusted_value" in context["user_metrics"].columns:
-    print(f"'adjusted_value' column created: True")
+    print("'adjusted_value' column created: True")
 ```
 
 **Output:**
@@ -546,8 +680,12 @@ silver_step = SilverStep(
     schema="analytics"
 )
 
-# No parameters needed - works as before
-report, context = runner.run_step("active_events", steps=[silver_step], context=context)
+# No parameters needed - use bronze_sources or context from a prior run
+report, context = runner.run_step(
+    "active_events",
+    steps=[silver_step],
+    bronze_sources={"events": source_df},
+)
 ```
 
 ---
@@ -565,15 +703,17 @@ report, context = runner.run_step("active_events", steps=[silver_step], context=
 
 ### Basic Usage
 
+Uses `spark`, `config`, steps, and `source_df` from the [Minimal Example](#minimal-example) or [Basic Setup](#basic-setup) above.
+
 ```python
 from pipeline_builder.pipeline.debug_session import PipelineDebugSession
 
-# Create session
+# Create session (bronze_sources optional; can also pass later in run_step)
 session = PipelineDebugSession(
     spark,
     config,
     steps=[bronze_step, silver_step, gold_step],
-    bronze_sources={"events": source_df}
+    bronze_sources={"events": source_df},
 )
 
 # Run until a step
@@ -581,8 +721,11 @@ report, context = session.run_until("clean_events")
 print(f"Status: {report.status.value}")
 print(f"'clean_events' in session.context: {'clean_events' in session.context}")
 
-# Run a single step
+# Run a single step (session already has context from bronze_sources)
 report, context = session.run_step("clean_events")
+
+# Or run a step with fresh bronze data for this run only
+report, context = session.run_step("clean_events", bronze_sources={"events": source_df})
 
 # Set parameters and rerun
 session.set_step_params("clean_events", {"threshold": 20})
@@ -615,9 +758,12 @@ report, context = session.run_until(
 ```python
 report, context = session.run_step(
     step_name: str,
+    bronze_sources: Optional[Dict[str, DataFrame]] = None,
     write_outputs: bool = True,
 ) -> tuple[PipelineReport, Dict[str, DataFrame]]
 ```
+
+- `bronze_sources`: Optional. Supply or override bronze DataFrames for this run (e.g. when the session was created without bronze data, or to test with different input).
 
 #### rerun_step()
 
@@ -672,13 +818,15 @@ Use `write_outputs=False` to skip table writes during development for faster ite
 
 ### Example
 
+Assumes `runner`, `steps`, and `source_df` from setup above.
+
 ```python
 # Fast iteration: transform and validate, but don't write
 report, context = runner.run_step(
     "clean_events",
     steps=steps,
-    context=context,
-    write_outputs=False  # Skip table write
+    bronze_sources={"events": source_df},
+    write_outputs=False,  # Skip table write
 )
 
 # Output is still in context for inspection
@@ -705,51 +853,48 @@ Would write 2 rows
 
 ### Debugging a Failing Step
 
+Assumes `runner`, `all_steps`, and `bronze_sources` (e.g. `{"events": source_df}`) are defined.
+
 ```python
 # 1. Run until the failing step
-report, context = runner.run_until("problematic_step", steps=all_steps)
+report, context = runner.run_until(
+    "problematic_step",
+    steps=all_steps,
+    bronze_sources={"events": source_df},
+)
 
-# 2. Inspect inputs
-input_df = context["source_step"]
+# 2. Inspect inputs (use the actual upstream step name, e.g. "events" or "clean_events")
+input_df = context["source_step"]  # replace with your upstream step name
 print(f"Input rows: {input_df.count()}")
 input_df.show()
-
-# Example output:
-# Input rows: 4
-# +---+------+-----+-------+
-# | id| event|value| status|
-# +---+------+-----+-------+
-# |  1|event1|   10| active|
-# |  2|event2|   20| active|
-# ...
-# +---+------+-----+-------+
 
 # 3. Run the step individually to see detailed errors
 report, context = runner.run_step(
     "problematic_step",
     steps=all_steps,
     context=context,
-    write_outputs=False
+    write_outputs=False,
 )
 
-# 4. Fix the transform and rerun
-# (modify transform function)
+# 4. Fix the transform and rerun (modify transform function, then)
 report, context = runner.rerun_step(
     "problematic_step",
     steps=all_steps,
     context=context,
-    write_outputs=False
+    write_outputs=False,
 )
 ```
 
 ### Iteratively Refining Transform Logic
 
+Assumes `spark`, `config`, `bronze_step`, `silver_step_with_params` (a silver step whose transform accepts `params`), and `source_df` are defined.
+
 ```python
-# Create session with steps that accept parameters
 session = PipelineDebugSession(
-    spark, config, 
+    spark,
+    config,
     steps=[bronze_step, silver_step_with_params],
-    bronze_sources={"events": source_df}
+    bronze_sources={"events": source_df},
 )
 
 # Initial run
@@ -778,23 +923,23 @@ As you can see, different threshold values produce different row counts, allowin
 
 ### Testing Parameter Changes
 
+Assumes `runner`, `silver_step_with_params`, and `source_df` are defined.
+
 ```python
-# Test different parameter combinations
 test_params = [
     {"threshold": 10, "filter_mode": "standard"},
     {"threshold": 20, "filter_mode": "strict"},
     {"threshold": 30, "filter_mode": "strict"},
 ]
 
-context = {"events": source_df}  # Reset context for each test
 for params in test_params:
     step_params = {"clean_events": params}
     report, context = runner.run_step(
         "clean_events",
         steps=[silver_step_with_params],
-        context=context,
+        bronze_sources={"events": source_df},
         step_params=step_params,
-        write_outputs=False
+        write_outputs=False,
     )
     row_count = context["clean_events"].count()
     print(f"Params {params}: {row_count} rows")
@@ -809,11 +954,17 @@ Params {'threshold': 30, 'filter_mode': 'strict'}: 0 rows
 
 ### Building Context Incrementally
 
+Assumes `runner`, `all_steps`, and `sources` (e.g. `{"events": source_df}`) are defined.
+
 ```python
 # Start with bronze
-report, context = runner.run_until("bronze_step", steps=all_steps, bronze_sources=sources)
+report, context = runner.run_until(
+    "bronze_step",
+    steps=all_steps,
+    bronze_sources=sources,
+)
 
-# Add first silver
+# Add first silver (context now has bronze output)
 report, context = runner.run_step("silver_step_1", steps=all_steps, context=context)
 
 # Add second silver (depends on first)
@@ -825,22 +976,26 @@ report, context = runner.run_step("gold_step", steps=all_steps, context=context)
 
 ### Validating Before Full Run
 
+Assumes `runner`, `all_steps`, and `sources` (e.g. `{"events": source_df}`) are defined.
+
 ```python
-# Test individual steps with write_outputs=False
+context = {}
+all_steps_valid = True
 for step_name in ["step1", "step2", "step3"]:
     report, context = runner.run_step(
         step_name,
         steps=all_steps,
+        bronze_sources=sources,  # supplies bronze input; merged into context
         context=context,
-        write_outputs=False
+        write_outputs=False,
     )
     if report.status.value != "completed":
         print(f"Step {step_name} failed - fix before full run")
+        all_steps_valid = False
         break
 
-# If all pass, run full pipeline
 if all_steps_valid:
-    full_report = runner.run_pipeline(all_steps, bronze_sources=sources)
+    full_report = runner.run_initial_load(bronze_sources=sources)
 ```
 
 ---
@@ -870,7 +1025,7 @@ if all_steps_valid:
 
 ### Context Management
 
-- Ensure required dependencies are in context before running a step
+- Ensure required dependencies are in context before running a step, or pass `bronze_sources` to `run_step` / `run_until` so bronze inputs are available
 - Dependencies will be automatically loaded from tables if not in context
 - Be aware of context size in memory for large datasets
 
@@ -958,12 +1113,11 @@ print(f"Rows in clean_events: {context['clean_events'].count()}")
 # Status: completed
 # Rows in clean_events: 4
 
-# Example 2: Run single step
-context = {"events": source_df}
+# Example 2: Run single step (bronze_sources supplies input)
 report, context = runner.run_step(
     "clean_events",
     steps=[bronze_step, silver_step, gold_step],
-    context=context
+    bronze_sources={"events": source_df},
 )
 print(f"Status: {report.status.value}")
 # Output: Status: completed
@@ -972,9 +1126,9 @@ print(f"Status: {report.status.value}")
 step_params = {"clean_events": {"threshold": 15}}
 report, context = runner.run_step(
     "clean_events",
-    steps=[silver_step],
-    context={"events": source_df},
-    step_params=step_params
+    steps=[bronze_step, silver_step, gold_step],
+    bronze_sources={"events": source_df},
+    step_params=step_params,
 )
 print(f"Rows with threshold=15: {context['clean_events'].count()}")
 # Output: Rows with threshold=15: 3
@@ -995,16 +1149,71 @@ print(f"With threshold=20: {session.context['clean_events'].count()} rows")
 # Output: With threshold=20: 2 rows
 ```
 
+### Example 1b: Stepwise from Built Pipeline (No `steps` Parameter)
+
+When you use `PipelineBuilder` and `to_pipeline()`, the returned runner has all steps stored. You never pass `steps=`.
+
+```python
+from pipeline_builder import PipelineBuilder
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
+
+configure_engine(spark=spark)
+F = get_default_functions()
+
+builder = PipelineBuilder(spark=spark, schema="analytics")
+builder.with_bronze_rules(
+    name="events",
+    rules={"id": [F.col("id").isNotNull()], "value": [F.col("value") > 0]},
+)
+builder.add_silver_transform(
+    name="clean_events",
+    source_bronze="events",
+    transform=lambda spark, df, silvers: df.filter(F.col("value") > 15),
+    rules={"value": [F.col("value").isNotNull()]},
+    table_name="clean_events",
+)
+builder.add_gold_transform(
+    name="summary",
+    transform=lambda spark, silvers: silvers["clean_events"].groupBy("id").count(),
+    rules={"id": [F.col("id").isNotNull()]},
+    table_name="summary",
+    source_silvers=["clean_events"],
+)
+
+pipeline = builder.to_pipeline()
+source_df = spark.createDataFrame(
+    [("1", 10), ("2", 20), ("3", 30), ("4", 40)],
+    ["id", "value"],
+)
+
+# No steps= parameter: pipeline (runner) has steps from builder
+report, context = pipeline.run_until("clean_events", bronze_sources={"events": source_df})
+print(f"run_until: {report.status.value}, rows={context['clean_events'].count()}")
+
+report, context = pipeline.run_step("clean_events", bronze_sources={"events": source_df})
+print(f"run_step: {'clean_events' in context}")
+
+report, context = pipeline.rerun_step("clean_events", context=context, write_outputs=False)
+print(f"rerun_step: {report.status.value}")
+# Output:
+# run_until: completed, rows=3
+# run_step: True
+# rerun_step: completed
+```
+
 ### Example 2: Parameter Tuning Workflow
+
+Uses `spark`, `config`, `bronze_step`, `silver_step_with_params` (silver step with `params` in its transform), and `source_df` from earlier in this guide.
 
 ```python
 from pipeline_builder.pipeline.debug_session import PipelineDebugSession
 
-# Create session
 session = PipelineDebugSession(
-    spark, config,
+    spark,
+    config,
     steps=[bronze_step, silver_step_with_params],
-    bronze_sources={"events": source_df}
+    bronze_sources={"events": source_df},
 )
 
 # Test different thresholds
@@ -1030,6 +1239,8 @@ print(f"Optimal threshold: {optimal[0]} (produces {optimal[1]} rows)")
 
 ### Example 3: Debugging Workflow
 
+Assumes you have a `pipeline` (from `builder.to_pipeline()`), `runner`, `all_steps`, and `sources` (e.g. `{"events": source_df}`).
+
 ```python
 # Step 1: Identify failing step
 try:
@@ -1039,7 +1250,11 @@ except Exception as e:
     # Identify step from error message
 
 # Step 2: Run until failing step
-report, context = runner.run_until("failing_step", steps=all_steps, bronze_sources=sources)
+report, context = runner.run_until(
+    "failing_step",
+    steps=all_steps,
+    bronze_sources=sources,
+)
 
 # Step 3: Inspect inputs
 for dep_name in ["bronze_step", "upstream_silver"]:
@@ -1103,12 +1318,13 @@ def run_step(
     steps: list[BronzeStep | SilverStep | GoldStep],
     mode: PipelineMode = PipelineMode.INITIAL,
     context: Optional[Dict[str, DataFrame]] = None,
+    bronze_sources: Optional[Dict[str, DataFrame]] = None,
     step_params: Optional[Dict[str, Dict[str, Any]]] = None,
     write_outputs: bool = True,
 ) -> tuple[PipelineReport, Dict[str, DataFrame]]
 ```
 
-Execute only `step_name`, loading dependencies from context or tables.
+Execute only `step_name`, loading dependencies from context, from `bronze_sources`, or from tables.
 
 #### rerun_step()
 
@@ -1164,11 +1380,12 @@ Run pipeline until `step_name` completes.
 def run_step(
     self,
     step_name: str,
+    bronze_sources: Optional[Dict[str, DataFrame]] = None,
     write_outputs: bool = True,
 ) -> tuple[PipelineReport, Dict[str, DataFrame]]
 ```
 
-Run a single step.
+Run a single step. Optionally pass `bronze_sources` to supply or override bronze data for this run.
 
 #### rerun_step()
 
@@ -1275,5 +1492,5 @@ Clear parameter overrides for a step or all steps.
 
 ---
 
-**Last Updated**: January 2025  
-**Version**: 2.8.0
+**Last Updated**: February 2025  
+**Version**: 2.9.0

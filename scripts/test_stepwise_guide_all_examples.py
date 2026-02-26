@@ -492,6 +492,71 @@ report, _ = session_complete.rerun_step("clean_events", write_outputs=False)
 print(f"With threshold=20: {session_complete.context['clean_events'].count()} rows")
 print()
 
+# Example 6: Built pipeline (no steps parameter)
+print("=" * 80)
+print("Example 6: Built pipeline (no steps parameter)")
+print("=" * 80)
+
+from pipeline_builder import PipelineBuilder
+from pipeline_builder.engine_config import configure_engine
+from pipeline_builder.functions import get_default_functions
+
+configure_engine(spark=spark)
+F_local = get_default_functions()
+
+builder = PipelineBuilder(spark=spark, schema="analytics")
+builder.with_bronze_rules(
+    name="events",
+    rules={"id": [F_local.col("id").isNotNull()], "value": [F_local.col("value") > 0]},
+)
+
+
+def clean_transform_built(spark, bronze_df, prior_silvers):
+    return bronze_df.filter(F_local.col("value") > 15)
+
+
+builder.add_silver_transform(
+    name="clean_events",
+    source_bronze="events",
+    transform=clean_transform_built,
+    rules={"value": [F_local.col("value").isNotNull()]},
+    table_name="clean_events",
+)
+
+builder.add_gold_transform(
+    name="summary",
+    transform=lambda spark, silvers: silvers["clean_events"].groupBy("id").count(),
+    rules={"id": [F_local.col("id").isNotNull()]},
+    table_name="summary",
+    source_silvers=["clean_events"],
+)
+
+pipeline = builder.to_pipeline()
+source_df_built = spark.createDataFrame(
+    [("1", 10), ("2", 20), ("3", 30), ("4", 40)],
+    ["id", "value"],
+)
+
+report, context = pipeline.run_until(
+    "clean_events",
+    bronze_sources={"events": source_df_built},
+)
+print(f"run_until: {report.status.value}, rows={context['clean_events'].count()}")
+
+report, context = pipeline.run_step(
+    "clean_events",
+    bronze_sources={"events": source_df_built},
+)
+print(f"run_step: {'clean_events' in context}")
+
+report, context = pipeline.rerun_step(
+    "clean_events",
+    context=context,
+    write_outputs=False,
+)
+print(f"rerun_step: {report.status.value}")
+print()
+
 print("=" * 80)
 print("All examples completed successfully!")
 print("=" * 80)

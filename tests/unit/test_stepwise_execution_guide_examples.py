@@ -6,8 +6,6 @@ These tests ensure all guide examples are valid and executable (with mock Spark)
 
 import os
 
-import pytest
-
 spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
 if spark_mode == "real":
     from pyspark.sql import functions as F
@@ -198,9 +196,7 @@ class TestStepwiseGuideCompleteExample1:
         def aggregate_transform(spark, silvers, params=None):
             multiplier = params.get("multiplier", 1.0) if params else 1.0
             df = silvers["clean_events"]
-            return df.withColumn(
-                "adjusted_value", F.col("value") * multiplier
-            )
+            return df.withColumn("adjusted_value", F.col("value") * multiplier)
 
         gold_step = GoldStep(
             name="aggregated_events",
@@ -217,9 +213,7 @@ class TestStepwiseGuideCompleteExample1:
             ("3", "event3", 30),
             ("4", "event4", 40),
         ]
-        source_df = mock_spark_session.createDataFrame(
-            data, ["id", "event", "value"]
-        )
+        source_df = mock_spark_session.createDataFrame(data, ["id", "event", "value"])
 
         report, context = runner.run_until(
             "clean_events",

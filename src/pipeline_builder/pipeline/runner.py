@@ -420,6 +420,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
         steps: Optional[list[Union[BronzeStep, SilverStep, GoldStep]]] = None,
         mode: PipelineMode = PipelineMode.INITIAL,
         context: Optional[Dict[str, DataFrame]] = None,  # type: ignore[valid-type]
+        bronze_sources: Optional[Dict[str, DataFrame]] = None,  # type: ignore[valid-type]
         step_params: Optional[Dict[str, Dict[str, Any]]] = None,
         write_outputs: bool = True,
     ) -> tuple[PipelineReport, Dict[str, DataFrame]]:  # type: ignore[valid-type]
@@ -434,6 +435,9 @@ class SimplePipelineRunner(BaseRunner, Runner):
             mode: Pipeline execution mode.
             context: Optional execution context. If None, empty dict is used.
                 Dependencies will be loaded from tables if not in context.
+            bronze_sources: Optional dict mapping bronze step names to DataFrames.
+                Merged into context so bronze steps (or steps that depend on them)
+                have input data when running a single step.
             step_params: Optional dictionary mapping step names to parameter
                 dictionaries for transform functions.
             write_outputs: If True, write outputs to tables. If False, skip writes.
@@ -443,7 +447,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
 
         Example:
             >>> report, context = runner.run_step("clean_events", context=context)
-            >>> # Step executed, context updated with output
+            >>> report, context = runner.run_step("events", bronze_sources={"events": df})
         """
         all_steps = self._get_all_steps(steps)
         start_time = datetime.now()
@@ -452,6 +456,10 @@ class SimplePipelineRunner(BaseRunner, Runner):
 
         if context is None:
             context = {}
+        if bronze_sources:
+            for step in all_steps:
+                if step.step_type.value == "bronze" and step.name in bronze_sources:
+                    context[step.name] = bronze_sources[step.name]
 
         try:
             self.logger.info(

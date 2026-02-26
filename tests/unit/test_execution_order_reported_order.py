@@ -11,9 +11,7 @@ Ensures:
 
 from unittest.mock import Mock
 
-import pytest
-
-from pipeline_builder.models import BronzeStep, GoldStep, SilverStep
+from pipeline_builder.models import BronzeStep, SilverStep
 from pipeline_builder.pipeline.runner import SimplePipelineRunner
 from pipeline_builder_base.models import PipelineConfig
 
@@ -26,8 +24,12 @@ class TestGetAllStepsOrder:
     ):
         """When execution_order is set, _get_all_steps(None) returns steps in that order."""
         config = PipelineConfig.create_default(schema="test_schema")
-        bronze_a = BronzeStep(name="bronze_a", rules={"x": ["not_null"]}, schema="test_schema")
-        bronze_b = BronzeStep(name="bronze_b", rules={"x": ["not_null"]}, schema="test_schema")
+        bronze_a = BronzeStep(
+            name="bronze_a", rules={"x": ["not_null"]}, schema="test_schema"
+        )
+        bronze_b = BronzeStep(
+            name="bronze_b", rules={"x": ["not_null"]}, schema="test_schema"
+        )
         silver_a = SilverStep(
             name="silver_a",
             source_bronze="bronze_a",
@@ -55,7 +57,9 @@ class TestGetAllStepsOrder:
     def test_get_all_steps_fallback_when_execution_order_none(self, spark_session):
         """When execution_order is None, _get_all_steps returns bronze then silver then gold."""
         config = PipelineConfig.create_default(schema="test_schema")
-        bronze_a = BronzeStep(name="bronze_a", rules={"x": ["not_null"]}, schema="test_schema")
+        bronze_a = BronzeStep(
+            name="bronze_a", rules={"x": ["not_null"]}, schema="test_schema"
+        )
         silver_a = SilverStep(
             name="silver_a",
             source_bronze="bronze_a",
@@ -81,7 +85,9 @@ class TestGetAllStepsOrder:
     def test_get_all_steps_fallback_when_execution_order_mismatch(self, spark_session):
         """When execution_order does not cover all steps, fall back to dict order."""
         config = PipelineConfig.create_default(schema="test_schema")
-        bronze_a = BronzeStep(name="bronze_a", rules={"x": ["not_null"]}, schema="test_schema")
+        bronze_a = BronzeStep(
+            name="bronze_a", rules={"x": ["not_null"]}, schema="test_schema"
+        )
         silver_a = SilverStep(
             name="silver_a",
             source_bronze="bronze_a",
@@ -135,8 +141,12 @@ class TestRunInitialLoadPassesStepsInExecutionOrder:
     def test_run_initial_load_passes_steps_in_execution_order(self, spark_session):
         """run_initial_load(None) should call execute_pipeline with steps in execution_order."""
         config = PipelineConfig.create_default(schema="test_schema")
-        bronze_a = BronzeStep(name="bronze_a", rules={"x": ["not_null"]}, schema="test_schema")
-        bronze_b = BronzeStep(name="bronze_b", rules={"x": ["not_null"]}, schema="test_schema")
+        bronze_a = BronzeStep(
+            name="bronze_a", rules={"x": ["not_null"]}, schema="test_schema"
+        )
+        bronze_b = BronzeStep(
+            name="bronze_b", rules={"x": ["not_null"]}, schema="test_schema"
+        )
         silver_a = SilverStep(
             name="silver_a",
             source_bronze="bronze_a",

@@ -46,9 +46,7 @@ if spark_mode == "real":
                 "io.delta:delta-spark_2.12:3.0.0,org.postgresql:postgresql:42.7.3",
             )
         else:
-            _args = (
-                "--packages io.delta:delta-spark_2.12:3.0.0,org.postgresql:postgresql:42.7.3 pyspark-shell"
-            )
+            _args = "--packages io.delta:delta-spark_2.12:3.0.0,org.postgresql:postgresql:42.7.3 pyspark-shell"
         os.environ["PYSPARK_SUBMIT_ARGS"] = _args
 
 pytestmark = [
@@ -280,4 +278,3 @@ class TestJdbcSourcePostgres:
         assert result.status.value in ("completed", "COMPLETED")
         assert "orders_bronze" in result.bronze_results
         assert result.bronze_results["orders_bronze"]["rows_processed"] == 3
-

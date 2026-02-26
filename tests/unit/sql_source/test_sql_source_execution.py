@@ -141,7 +141,9 @@ class TestGoldStepExecutorSqlSource:
         from pipeline_builder.sql_source import JdbcSource
         from pipeline_builder.step_executors.gold import GoldStepExecutor
 
-        expected_df = mock_spark_session.createDataFrame([("r1", 100.0)], ["region", "rev"])
+        expected_df = mock_spark_session.createDataFrame(
+            [("r1", 100.0)], ["region", "rev"]
+        )
 
         def mock_read(source, spark):
             return expected_df

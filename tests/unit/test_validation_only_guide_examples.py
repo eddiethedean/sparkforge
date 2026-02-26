@@ -6,8 +6,6 @@ These tests ensure all guide examples are valid and executable (with mock Spark)
 
 import os
 
-import pytest
-
 from pipeline_builder import PipelineBuilder
 from pipeline_builder.functions import get_default_functions
 
@@ -112,10 +110,8 @@ class TestValidationOnlyGuideCompleteExample:
         ):
             result = bronze_df
             if "existing_clean_events" in prior_silvers:
-                existing = prior_silvers["existing_clean_events"]
                 result = result.withColumn("has_existing", F_local.lit(True))
             if prior_golds and "existing_user_metrics" in prior_golds:
-                metrics = prior_golds["existing_user_metrics"]
                 result = result.withColumn("has_metrics", F_local.lit(True))
             return result
 

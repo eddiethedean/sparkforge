@@ -452,6 +452,54 @@ class TestRunnerStepwiseAPI:
         assert count2 >= count1
         assert report2.status == PipelineStatus.COMPLETED
 
+    def test_run_step_with_bronze_sources(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
+        """Test run_step with bronze_sources (no pre-populated context)."""
+        runner = SimplePipelineRunner(spark_session, config)
+        steps = [bronze_step, silver_step_without_params]
+
+        report, updated_context = runner.run_step(
+            "clean_events",
+            steps=steps,
+            bronze_sources={"events": sample_bronze_df},
+        )
+
+        assert report.status == PipelineStatus.COMPLETED
+        assert "clean_events" in updated_context
+        assert "events" in updated_context
+        assert len(report.silver_results) == 1
+        # Bronze was supplied via bronze_sources, not executed as a step
+        assert len(report.bronze_results) == 0
+
+    def test_run_step_bronze_step_with_bronze_sources(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
+        """Test run_step for a bronze step using bronze_sources."""
+        runner = SimplePipelineRunner(spark_session, config)
+        steps = [bronze_step, silver_step_without_params]
+
+        report, updated_context = runner.run_step(
+            "events",
+            steps=steps,
+            bronze_sources={"events": sample_bronze_df},
+        )
+
+        assert report.status == PipelineStatus.COMPLETED
+        assert "events" in updated_context
+        assert updated_context["events"].count() == sample_bronze_df.count()
+        assert len(report.bronze_results) == 1
+
 
 class TestPipelineDebugSession:
     """Test PipelineDebugSession helper class."""
@@ -506,6 +554,28 @@ class TestPipelineDebugSession:
 
         assert report.status == PipelineStatus.COMPLETED
         assert "clean_events" in session.context
+
+    def test_debug_session_run_step_with_bronze_sources(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
+        """Test debug session run_step with bronze_sources (session has no initial bronze)."""
+        steps = [bronze_step, silver_step_without_params]
+        session = PipelineDebugSession(spark_session, config, steps)
+        assert len(session.context) == 0
+
+        report, context = session.run_step(
+            "clean_events",
+            bronze_sources={"events": sample_bronze_df},
+        )
+
+        assert report.status == PipelineStatus.COMPLETED
+        assert "clean_events" in session.context
+        assert "events" in session.context
 
     def test_debug_session_rerun_with_params(
         self,

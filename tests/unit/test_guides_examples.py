@@ -6,13 +6,7 @@ Ensures guide examples are valid and executable with both mock Spark and real Py
 
 import os
 
-import pytest
-
 spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-if spark_mode == "real":
-    from pyspark.sql import functions as F
-else:
-    from sparkless import functions as F  # type: ignore[import]
 
 
 class TestGettingStartedGuideFirstPipeline:
@@ -32,7 +26,9 @@ class TestGettingStartedGuideFirstPipeline:
             ("user2", "view", "2024-01-01 10:01:00", 2.0),
             ("user1", "purchase", "2024-01-01 10:02:00", 29.99),
         ]
-        source_df = spark.createDataFrame(data, ["user_id", "action", "timestamp", "value"])
+        source_df = spark.createDataFrame(
+            data, ["user_id", "action", "timestamp", "value"]
+        )
 
         builder = PipelineBuilder(spark=spark, schema="my_schema")
 
@@ -61,9 +57,13 @@ class TestGettingStartedGuideFirstPipeline:
         )
 
         def gold_transform(spark, silvers):
-            return silvers["purchases"].groupBy("user_id").agg(
-                F_local.count("*").alias("count"),
-                F_local.sum("value").alias("total"),
+            return (
+                silvers["purchases"]
+                .groupBy("user_id")
+                .agg(
+                    F_local.count("*").alias("count"),
+                    F_local.sum("value").alias("total"),
+                )
             )
 
         builder.add_gold_transform(
@@ -113,7 +113,9 @@ class TestUseCaseBIGuide:
                 random.choice(["Electronics", "Clothing", "Home"]),
                 round(random.uniform(10, 500), 2),
                 random.randint(1, 5),
-                (base_date + timedelta(days=random.randint(0, 90))).strftime("%Y-%m-%d"),
+                (base_date + timedelta(days=random.randint(0, 90))).strftime(
+                    "%Y-%m-%d"
+                ),
                 random.choice(["North", "South", "East", "West"]),
             )
             for i in range(50)
@@ -131,7 +133,9 @@ class TestUseCaseBIGuide:
                 "region",
             ],
         )
-        sales_df = sales_df.withColumn("transaction_date", F_local.to_date("transaction_date"))
+        sales_df = sales_df.withColumn(
+            "transaction_date", F_local.to_date("transaction_date")
+        )
 
         builder = PipelineBuilder(
             spark=spark,
@@ -239,7 +243,9 @@ class TestUseCaseEcommerceGuide:
                 random.choice(["Electronics", "Accessories", "Computers"]),
                 random.randint(1, 5),
                 round(random.uniform(20, 500), 2),
-                (base_date + timedelta(days=random.randint(0, 60))).strftime("%Y-%m-%d"),
+                (base_date + timedelta(days=random.randint(0, 60))).strftime(
+                    "%Y-%m-%d"
+                ),
                 random.choice(["North", "South", "East", "West"]),
             )
             for i in range(30)
@@ -257,9 +263,10 @@ class TestUseCaseEcommerceGuide:
                 "region",
             ],
         )
-        orders_df = (
-            orders_df.withColumn("order_date", F_local.to_date("order_date"))
-            .withColumn("total_amount", F_local.col("quantity") * F_local.col("unit_price"))
+        orders_df = orders_df.withColumn(
+            "order_date", F_local.to_date("order_date")
+        ).withColumn(
+            "total_amount", F_local.col("quantity") * F_local.col("unit_price")
         )
 
         builder = PipelineBuilder(
@@ -414,17 +421,15 @@ class TestUseCaseIoTGuide:
                     "is_anomaly",
                     F_local.when(
                         (F_local.col("sensor_type") == "temperature")
-                        & (
-                            (F_local.col("value") > 60) | (F_local.col("value") < -10)
-                        ),
+                        & ((F_local.col("value") > 60) | (F_local.col("value") < -10)),
                         True,
-                    ).when(
+                    )
+                    .when(
                         (F_local.col("sensor_type") == "humidity")
-                        & (
-                            (F_local.col("value") > 90) | (F_local.col("value") < 10)
-                        ),
+                        & ((F_local.col("value") > 90) | (F_local.col("value") < 10)),
                         True,
-                    ).otherwise(False),
+                    )
+                    .otherwise(False),
                 )
                 .withColumn(
                     "severity",
@@ -468,7 +473,8 @@ class TestUseCaseIoTGuide:
                     ).alias("anomalies"),
                 )
                 .withColumn(
-                    "anomaly_rate", F_local.col("anomalies") / F_local.col("readings") * 100
+                    "anomaly_rate",
+                    F_local.col("anomalies") / F_local.col("readings") * 100,
                 )
             )
 
@@ -488,7 +494,9 @@ class TestUseCaseIoTGuide:
         assert not errors, errors
 
         pipeline = builder.to_pipeline()
-        result = pipeline.run_initial_load(bronze_sources={"sensor_readings": sensor_df})
+        result = pipeline.run_initial_load(
+            bronze_sources={"sensor_readings": sensor_df}
+        )
 
         assert result.status.value == "completed"
         assert "processed_sensors" in result.silver_results

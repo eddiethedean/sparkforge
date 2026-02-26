@@ -8,8 +8,6 @@ and patched SQL reader where needed).
 import os
 from unittest.mock import patch
 
-import pytest
-
 from pipeline_builder import PipelineBuilder
 from pipeline_builder.sql_source import JdbcSource, SqlAlchemySource
 
