@@ -143,6 +143,7 @@ class PipelineDebugSession:
         bronze_sources: Optional[Dict[str, DataFrame]] = None,
         write_outputs: bool = True,
         step_transform: Optional[Any] = None,
+        step_rules: Optional[Dict[str, Any]] = None,
     ) -> tuple[PipelineReport, Dict[str, DataFrame]]:
         """Run a single step, loading dependencies from context or tables.
 
@@ -171,6 +172,7 @@ class PipelineDebugSession:
             step_params=self.step_params,
             write_outputs=write_outputs,
             step_transform=step_transform,
+            step_rules=step_rules,
         )
         self.context = context
         return report, context
@@ -181,6 +183,7 @@ class PipelineDebugSession:
         invalidate_downstream: bool = True,
         write_outputs: bool = True,
         step_transform: Optional[Any] = None,
+        step_rules: Optional[Dict[str, Any]] = None,
     ) -> tuple[PipelineReport, Dict[str, DataFrame]]:
         """Rerun a step with current parameter overrides.
 
@@ -211,6 +214,7 @@ class PipelineDebugSession:
             invalidate_downstream=invalidate_downstream,
             write_outputs=write_outputs,
             step_transform=step_transform,
+            step_rules=step_rules,
         )
         self.context = context
         return report, context

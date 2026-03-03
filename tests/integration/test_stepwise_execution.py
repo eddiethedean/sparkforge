@@ -578,6 +578,57 @@ class TestRunnerStepwiseAPI:
         # The new transform should change the output
         assert new_count != original_count
 
+    def test_run_step_with_step_rules_override(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        sample_bronze_df,
+    ):
+        """Test that run_step can override the step's validation rules via step_rules."""
+        from pipeline_builder.models import SilverStep
+        from pipeline_builder.compat import F
+
+        runner = SimplePipelineRunner(spark_session, config)
+
+        # Silver step with a permissive default rule (all rows valid)
+        silver_step = SilverStep(
+            name="clean_events",
+            source_bronze="events",
+            transform=lambda spark, df, silvers: df,
+            rules={"value": [F.col("value") > 0]},
+            table_name="clean_events",
+            schema="test_schema",
+        )
+        steps = [bronze_step, silver_step]
+
+        # Baseline run: all rows should pass validation
+        base_context = {"events": sample_bronze_df}
+        base_report, _ = runner.run_step(
+            "clean_events",
+            steps=steps,
+            context=base_context,
+            write_outputs=False,
+        )
+        base_result = base_report.silver_results["clean_events"]
+        base_rate = base_result["validation_rate"]
+
+        # Override rules to be stricter (only high values pass)
+        strict_rules = {"value": [F.col("value") > 25]}
+        strict_context = {"events": sample_bronze_df}
+        strict_report, _ = runner.run_step(
+            "clean_events",
+            steps=steps,
+            context=strict_context,
+            write_outputs=False,
+            step_rules=strict_rules,
+        )
+        strict_result = strict_report.silver_results["clean_events"]
+        strict_rate = strict_result["validation_rate"]
+
+        # Stricter rules should reduce the validation rate
+        assert strict_rate < base_rate
+
 
 class TestPipelineDebugSession:
     """Test PipelineDebugSession helper class."""
@@ -632,6 +683,44 @@ class TestPipelineDebugSession:
 
         assert report.status == PipelineStatus.COMPLETED
         assert "clean_events" in session.context
+
+    def test_debug_session_run_step_with_step_rules_override(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        sample_bronze_df,
+    ):
+        """Test that PipelineDebugSession.run_step accepts a step_rules override."""
+        from pipeline_builder.models import SilverStep
+        from pipeline_builder.compat import F
+
+        silver_step = SilverStep(
+            name="clean_events",
+            source_bronze="events",
+            transform=lambda spark, df, silvers: df,
+            rules={"value": [F.col("value") > 0]},
+            table_name="clean_events",
+            schema="test_schema",
+        )
+        steps = [bronze_step, silver_step]
+        session = PipelineDebugSession(
+            spark_session, config, steps, bronze_sources={"events": sample_bronze_df}
+        )
+
+        # Baseline run with default rules
+        report1, _ = session.run_step("clean_events", write_outputs=False)
+        base_rate = report1.silver_results["clean_events"]["validation_rate"]
+
+        # Run again with stricter rules
+        strict_rules = {"value": [F.col("value") > 25]}
+        report2, _ = session.run_step(
+            "clean_events",
+            write_outputs=False,
+            step_rules=strict_rules,
+        )
+        strict_rate = report2.silver_results["clean_events"]["validation_rate"]
+        assert strict_rate < base_rate
 
     def test_debug_session_run_step_with_step_transform_override(
         self,

@@ -424,6 +424,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
         step_params: Optional[Dict[str, Dict[str, Any]]] = None,
         write_outputs: bool = True,
         step_transform: Optional[Any] = None,
+        step_rules: Optional[Dict[str, Any]] = None,
     ) -> tuple[PipelineReport, Dict[str, DataFrame]]:  # type: ignore[valid-type]
         """Run a single step, loading dependencies from context or tables.
 
@@ -451,6 +452,16 @@ class SimplePipelineRunner(BaseRunner, Runner):
             >>> report, context = runner.run_step("events", bronze_sources={"events": df})
         """
         all_steps = self._get_all_steps(steps)
+        if step_rules is not None:
+            # Override the validation rules for the target step in this execution.
+            for step in all_steps:
+                if step.name == step_name:
+                    if not hasattr(step, "rules"):
+                        raise ValueError(
+                            f"Step '{step_name}' does not support a rules override"
+                        )
+                    step.rules = step_rules  # type: ignore[attr-defined]
+                    break
         if step_transform is not None:
             # Override the transform function for the target step in this execution.
             for step in all_steps:
@@ -517,6 +528,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
         invalidate_downstream: bool = True,
         write_outputs: bool = True,
         step_transform: Optional[Any] = None,
+        step_rules: Optional[Dict[str, Any]] = None,
     ) -> tuple[PipelineReport, Dict[str, DataFrame]]:  # type: ignore[valid-type]
         """Rerun a step with optional parameter overrides.
 
@@ -549,6 +561,16 @@ class SimplePipelineRunner(BaseRunner, Runner):
             ... )
         """
         all_steps = self._get_all_steps(steps)
+        if step_rules is not None:
+            # Override the validation rules for the target step in this rerun.
+            for step in all_steps:
+                if step.name == step_name:
+                    if not hasattr(step, "rules"):
+                        raise ValueError(
+                            f"Step '{step_name}' does not support a rules override"
+                        )
+                    step.rules = step_rules  # type: ignore[attr-defined]
+                    break
         if step_transform is not None:
             # Override the transform function for the target step in this rerun.
             for step in all_steps:

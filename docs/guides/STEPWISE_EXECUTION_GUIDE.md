@@ -415,6 +415,7 @@ report, context = runner.run_step(
     step_params: Optional[Dict[str, Dict[str, Any]]] = None,
     write_outputs: bool = True,
     step_transform: Optional[Callable[..., DataFrame]] = None,
+    step_rules: Optional[Dict[str, Any]] = None,
 ) -> tuple[PipelineReport, Dict[str, DataFrame]]
 ```
 
@@ -427,6 +428,7 @@ report, context = runner.run_step(
 - `step_params`: Optional parameter overrides
 - `write_outputs`: If True, write outputs to tables
 - `step_transform`: Optional transform function override for `step_name`. When provided, this callable is assigned to the step's `transform` attribute before execution, allowing you to change the step's logic without rebuilding the pipeline.
+- `step_rules`: Optional validation rules override for `step_name`. When provided, this dictionary replaces the step's `rules` attribute for this execution, allowing you to experiment with different data quality rules without changing your pipeline definition.
 
 **Returns:**
 - `report`: PipelineReport with execution results
@@ -503,6 +505,7 @@ report, context = runner.rerun_step(
     invalidate_downstream: bool = True,
     write_outputs: bool = True,
     step_transform: Optional[Callable[..., DataFrame]] = None,
+    step_rules: Optional[Dict[str, Any]] = None,
 ) -> tuple[PipelineReport, Dict[str, DataFrame]]
 ```
 
@@ -515,6 +518,7 @@ report, context = runner.rerun_step(
 - `invalidate_downstream`: If True, remove downstream outputs from context
 - `write_outputs`: If True, write outputs to tables
 - `step_transform`: Optional transform function override for `step_name`, applied before the rerun so you can change the step's implementation between runs.
+- `step_rules`: Optional validation rules override for `step_name`, applied before the rerun so you can adjust data quality rules between runs without modifying the original step definition.
 
 **Returns:**
 - `report`: PipelineReport with execution results
