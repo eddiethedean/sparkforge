@@ -477,6 +477,45 @@ class TestRunnerStepwiseAPI:
         # Bronze was supplied via bronze_sources, not executed as a step
         assert len(report.bronze_results) == 0
 
+    def test_run_step_with_step_transform_override(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
+        """Test that run_step can override the step's transform via step_transform."""
+        runner = SimplePipelineRunner(spark_session, config)
+        steps = [bronze_step, silver_step_without_params]
+
+        # Baseline execution with original transform
+        base_context = {"events": sample_bronze_df}
+        base_report, base_context = runner.run_step(
+            "clean_events",
+            steps=steps,
+            context=base_context,
+        )
+        assert base_report.status == PipelineStatus.COMPLETED
+        base_count = base_context["clean_events"].count()
+
+        # Override transform to use a different filter
+        def override_transform(spark, bronze_df, prior_silvers):
+            return bronze_df.filter(F.col("value") > 25)
+
+        override_context = {"events": sample_bronze_df}
+        override_report, override_context = runner.run_step(
+            "clean_events",
+            steps=steps,
+            context=override_context,
+            step_transform=override_transform,
+        )
+
+        assert override_report.status == PipelineStatus.COMPLETED
+        override_count = override_context["clean_events"].count()
+        # The override should produce a different result set than the baseline
+        assert override_count != base_count
+
     def test_run_step_bronze_step_with_bronze_sources(
         self,
         spark_session,
@@ -499,6 +538,45 @@ class TestRunnerStepwiseAPI:
         assert "events" in updated_context
         assert updated_context["events"].count() == sample_bronze_df.count()
         assert len(report.bronze_results) == 1
+
+    def test_rerun_step_with_step_transform_override(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
+        """Test that rerun_step can override the step's transform via step_transform."""
+        runner = SimplePipelineRunner(spark_session, config)
+        steps = [bronze_step, silver_step_without_params]
+        context = {"events": sample_bronze_df}
+
+        # Initial execution using the original transform
+        report1, context = runner.run_step(
+            "clean_events",
+            steps=steps,
+            context=context,
+        )
+        assert report1.status == PipelineStatus.COMPLETED
+        original_count = context["clean_events"].count()
+
+        # Rerun with a different transform function
+        def new_transform(spark, bronze_df, prior_silvers):
+            return bronze_df.filter(F.col("value") > 25)
+
+        report2, context = runner.rerun_step(
+            "clean_events",
+            steps=steps,
+            context=context,
+            step_transform=new_transform,
+            write_outputs=False,
+        )
+
+        assert report2.status == PipelineStatus.COMPLETED
+        new_count = context["clean_events"].count()
+        # The new transform should change the output
+        assert new_count != original_count
 
 
 class TestPipelineDebugSession:
@@ -555,6 +633,38 @@ class TestPipelineDebugSession:
         assert report.status == PipelineStatus.COMPLETED
         assert "clean_events" in session.context
 
+    def test_debug_session_run_step_with_step_transform_override(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_without_params,
+        sample_bronze_df,
+    ):
+        """Test that PipelineDebugSession.run_step accepts a step_transform override."""
+        steps = [bronze_step, silver_step_without_params]
+        session = PipelineDebugSession(
+            spark_session, config, steps, bronze_sources={"events": sample_bronze_df}
+        )
+
+        # Baseline run with original transform
+        report1, _ = session.run_step("clean_events", write_outputs=False)
+        assert report1.status == PipelineStatus.COMPLETED
+        base_count = session.context["clean_events"].count()
+
+        # Override transform for this run only
+        def override_transform(spark, bronze_df, prior_silvers):
+            return bronze_df.filter(F.col("value") > 25)
+
+        report2, _ = session.run_step(
+            "clean_events",
+            write_outputs=False,
+            step_transform=override_transform,
+        )
+        assert report2.status == PipelineStatus.COMPLETED
+        override_count = session.context["clean_events"].count()
+        assert override_count != base_count
+
     def test_debug_session_run_step_with_bronze_sources(
         self,
         spark_session,
@@ -602,6 +712,39 @@ class TestPipelineDebugSession:
 
         assert count2 >= count1
         assert report2.status == PipelineStatus.COMPLETED
+
+    def test_debug_session_rerun_step_with_step_transform_override(
+        self,
+        spark_session,
+        config,
+        bronze_step,
+        silver_step_with_params,
+        sample_bronze_df,
+    ):
+        """Test that PipelineDebugSession.rerun_step accepts a step_transform override."""
+        steps = [bronze_step, silver_step_with_params]
+        session = PipelineDebugSession(
+            spark_session, config, steps, bronze_sources={"events": sample_bronze_df}
+        )
+
+        # Initial run using params-based transform
+        report1, _ = session.run_step("clean_events", write_outputs=False)
+        assert report1.status == PipelineStatus.COMPLETED
+        base_count = session.context["clean_events"].count()
+
+        # Rerun with a new transform implementation
+        def new_transform(spark, bronze_df, prior_silvers, params=None):
+            # Ignore params and apply a different static filter
+            return bronze_df.filter(F.col("value") > 25)
+
+        report2, _ = session.rerun_step(
+            "clean_events",
+            write_outputs=False,
+            step_transform=new_transform,
+        )
+        assert report2.status == PipelineStatus.COMPLETED
+        new_count = session.context["clean_events"].count()
+        assert new_count != base_count
 
     def test_debug_session_clear_params(
         self, spark_session, config, bronze_step, silver_step_with_params

@@ -414,6 +414,7 @@ report, context = runner.run_step(
     bronze_sources: Optional[Dict[str, DataFrame]] = None,
     step_params: Optional[Dict[str, Dict[str, Any]]] = None,
     write_outputs: bool = True,
+    step_transform: Optional[Callable[..., DataFrame]] = None,
 ) -> tuple[PipelineReport, Dict[str, DataFrame]]
 ```
 
@@ -425,6 +426,7 @@ report, context = runner.run_step(
 - `bronze_sources`: Optional dict mapping bronze step names to DataFrames. Merged into context so you can run a bronze step or a silver/gold step without pre-populating context.
 - `step_params`: Optional parameter overrides
 - `write_outputs`: If True, write outputs to tables
+- `step_transform`: Optional transform function override for `step_name`. When provided, this callable is assigned to the step's `transform` attribute before execution, allowing you to change the step's logic without rebuilding the pipeline.
 
 **Returns:**
 - `report`: PipelineReport with execution results
@@ -500,6 +502,7 @@ report, context = runner.rerun_step(
     step_params: Optional[Dict[str, Dict[str, Any]]] = None,
     invalidate_downstream: bool = True,
     write_outputs: bool = True,
+    step_transform: Optional[Callable[..., DataFrame]] = None,
 ) -> tuple[PipelineReport, Dict[str, DataFrame]]
 ```
 
@@ -511,6 +514,7 @@ report, context = runner.rerun_step(
 - `step_params`: Optional parameter overrides
 - `invalidate_downstream`: If True, remove downstream outputs from context
 - `write_outputs`: If True, write outputs to tables
+- `step_transform`: Optional transform function override for `step_name`, applied before the rerun so you can change the step's implementation between runs.
 
 **Returns:**
 - `report`: PipelineReport with execution results

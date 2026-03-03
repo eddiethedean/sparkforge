@@ -423,6 +423,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
         bronze_sources: Optional[Dict[str, DataFrame]] = None,  # type: ignore[valid-type]
         step_params: Optional[Dict[str, Dict[str, Any]]] = None,
         write_outputs: bool = True,
+        step_transform: Optional[Any] = None,
     ) -> tuple[PipelineReport, Dict[str, DataFrame]]:  # type: ignore[valid-type]
         """Run a single step, loading dependencies from context or tables.
 
@@ -450,6 +451,16 @@ class SimplePipelineRunner(BaseRunner, Runner):
             >>> report, context = runner.run_step("events", bronze_sources={"events": df})
         """
         all_steps = self._get_all_steps(steps)
+        if step_transform is not None:
+            # Override the transform function for the target step in this execution.
+            for step in all_steps:
+                if step.name == step_name:
+                    if not hasattr(step, "transform"):
+                        raise ValueError(
+                            f"Step '{step_name}' does not support a transform override"
+                        )
+                    step.transform = step_transform  # type: ignore[attr-defined]
+                    break
         start_time = datetime.now()
         pipeline_id = f"pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         execution_mode = self._convert_mode(mode)
@@ -505,6 +516,7 @@ class SimplePipelineRunner(BaseRunner, Runner):
         step_params: Optional[Dict[str, Dict[str, Any]]] = None,
         invalidate_downstream: bool = True,
         write_outputs: bool = True,
+        step_transform: Optional[Any] = None,
     ) -> tuple[PipelineReport, Dict[str, DataFrame]]:  # type: ignore[valid-type]
         """Rerun a step with optional parameter overrides.
 
@@ -537,6 +549,16 @@ class SimplePipelineRunner(BaseRunner, Runner):
             ... )
         """
         all_steps = self._get_all_steps(steps)
+        if step_transform is not None:
+            # Override the transform function for the target step in this rerun.
+            for step in all_steps:
+                if step.name == step_name:
+                    if not hasattr(step, "transform"):
+                        raise ValueError(
+                            f"Step '{step_name}' does not support a transform override"
+                        )
+                    step.transform = step_transform  # type: ignore[attr-defined]
+                    break
         start_time = datetime.now()
         pipeline_id = f"pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         execution_mode = self._convert_mode(mode)
