@@ -93,8 +93,19 @@ class SilverStepExecutor(BaseStepExecutor):
         if sql_src is not None:
             from ..sql_source import read_sql_source
 
-            # read_sql_source returns a Spark DataFrame; cast for type checkers.
-            return cast(DataFrame, read_sql_source(sql_src, self.spark))
+            try:
+                # read_sql_source returns a Spark DataFrame; cast for type checkers.
+                return cast(DataFrame, read_sql_source(sql_src, self.spark))
+            except Exception as exc:
+                if getattr(step, "optional", False):
+                    self.logger.warning(
+                        f"Silver SQL-source step '{step.name}' failed to read from SQL source "
+                        f"(optional=True). Using empty DataFrame instead. Error: {exc!r}"
+                    )
+                    return self._empty_dataframe()
+                raise ExecutionError(
+                    f"Silver SQL-source step '{step.name}' failed to read from SQL source: {exc!r}"
+                ) from exc
 
         # Handle validation-only steps (no transform function) - check this first
         if step.transform is None:
@@ -190,7 +201,11 @@ class SilverStepExecutor(BaseStepExecutor):
                         return transform(  # type: ignore[call-arg]
                             self.spark, bronze_df, prior_silvers, **step_params
                         )
-            except Exception:
+            except TypeError as exc:
+                self.logger.warning(
+                    f"Silver step '{step.name}': transform raised TypeError when called "
+                    f"with step_params; falling back to call without params. Error: {exc!r}"
+                )
                 if has_prior_golds:
                     return transform(self.spark, bronze_df, prior_silvers, prior_golds)
                 else:

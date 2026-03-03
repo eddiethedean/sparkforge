@@ -43,7 +43,7 @@ def create_schema_if_not_exists(session: Any, schema: Optional[str]) -> None:
         schema: Schema name to create
 
     Raises:
-        TableOperationError: If schema creation fails
+        DataError: If schema creation fails
     """
     if not schema:
         # Some databases (like SQLite) don't support schemas
@@ -94,7 +94,7 @@ def read_table(
         SQLAlchemy Query object
 
     Raises:
-        TableOperationError: If read operation fails
+        DataError: If read operation fails
     """
     try:
         if model_class is not None:
@@ -204,7 +204,7 @@ def write_table(
         Number of rows written
 
     Raises:
-        TableOperationError: If write operation fails
+        DataError: If write operation fails
     """
     try:
         if model_class is None:
