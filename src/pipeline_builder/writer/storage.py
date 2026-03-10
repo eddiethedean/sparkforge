@@ -266,6 +266,14 @@ class StorageManager:
             self.logger = logger
         self.table_fqn = f"{config.table_schema}.{config.table_name}"
 
+    def _run_sql(self, query: str):  # type: ignore[no-untyped-def]
+        """Run SQL (overridable in tests; do not patch spark.sql)."""
+        return self.spark.sql(query)  # type: ignore[attr-defined]
+
+    def _get_table_row_count(self) -> int:  # type: ignore[no-untyped-def]
+        """Return row count of the log table (overridable in tests)."""
+        return self.spark.table(self.table_fqn).count()  # type: ignore[attr-defined]
+
     def create_table_if_not_exists(self, schema: types.StructType) -> None:
         """
         Create the log table if it doesn't exist.
@@ -786,8 +794,7 @@ class StorageManager:
             self.logger.warning(
                 f"Delta Lake not available, using basic table info for {self.table_fqn}"
             )
-            # Get basic info without Delta Lake
-            row_count = self.spark.table(self.table_fqn).count()  # type: ignore[attr-defined]
+            row_count = self._get_table_row_count()
             return {
                 "table_name": self.table_fqn,
                 "row_count": row_count,
@@ -808,7 +815,7 @@ class StorageManager:
                 table_details = delta_table.detail().collect()
             else:
                 # Fallback: use SQL command
-                table_details = self.spark.sql(
+                table_details = self._run_sql(
                     f"DESCRIBE DETAIL {self.table_fqn}"
                 ).collect()  # type: ignore[attr-defined]
 
@@ -816,7 +823,7 @@ class StorageManager:
             table_history = delta_table.history().collect()
 
             # Get row count
-            row_count = self.spark.table(self.table_fqn).count()  # type: ignore[attr-defined]
+            row_count = self._get_table_row_count()
 
             table_info = {
                 "table_name": self.table_fqn,

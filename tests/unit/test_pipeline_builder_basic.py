@@ -179,14 +179,12 @@ class TestHelperMethods:
         assert "new_schema_basic_test" in db_names
 
     def test_create_schema_if_not_exists_failure(self, spark_session):
-        """Test _create_schema_if_not_exists with failure."""
-
+        """Test _create_schema_if_not_exists with failure (patch abstraction, not spark.sql)."""
         builder = PipelineBuilder(spark=spark_session, schema="test_schema")
 
-        # Patch the spark.sql method to raise exception
         with patch.object(
-            spark_session,
-            "sql",
+            builder,
+            "_run_schema_creation_sql",
             side_effect=Exception("Permission denied"),
         ):
             with pytest.raises(ExecutionError):

@@ -607,5 +607,6 @@ class TestSparkForgeWorking:
 
         # 10. Edge Cases
         empty_schema = StructType([])
-        empty_df = mock_spark_session.createDataFrame([{}], empty_schema)
-        assert empty_df.count() == 1
+        empty_df = mock_spark_session.createDataFrame([], empty_schema)
+        assert empty_df.count() == 0
+        assert len(empty_df.columns) == 0

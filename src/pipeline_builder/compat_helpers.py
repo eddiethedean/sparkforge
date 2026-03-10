@@ -105,8 +105,12 @@ def detect_spark_type(spark: SparkSession) -> str:
 
     try:
         spark_module = type(spark).__module__
+        spark_name = type(spark).__name__
         if "pyspark" in spark_module:
             return "pyspark"
+        # Sparkless 4 exposes session as builtins.PySparkSession
+        if spark_module == "builtins" and spark_name == "PySparkSession":
+            return "mock"
         # Detect sparkless/mock sessions by module path
         if "sparkless" in spark_module or "mock" in spark_module:
             return "mock"

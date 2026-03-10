@@ -352,28 +352,25 @@ class TestGetDataframeInfo:
 
     def test_error_handling(self, spark_session, monkeypatch):
         """Test error handling in get_dataframe_info without patching DataFrame methods."""
+        import sys
+
         schema = StructType([StructField("id", StringType(), True)])
         df = spark_session.createDataFrame([], schema)
-
-        # Patch get_dataframe_info itself to simulate a failure in the counting logic
-        original_get_dataframe_info = get_dataframe_info
 
         def failing_get_dataframe_info(inner_df):
             raise Exception("Count failed")
 
-        try:
-            monkeypatch.setattr(
-                "tests.integration.test_validation_integration.get_dataframe_info",
-                failing_get_dataframe_info,
-            )
-            with pytest.raises(Exception, match="Count failed"):
-                get_dataframe_info(df)
-        finally:
-            # Restore original for safety, though pytest will reload module between tests
-            monkeypatch.setattr(
-                "tests.integration.test_validation_integration.get_dataframe_info",
-                original_get_dataframe_info,
-            )
+        # Patch where the code under test lives so the call inside the package raises
+        monkeypatch.setattr(
+            "pipeline_builder.validation.utils.get_dataframe_info",
+            failing_get_dataframe_info,
+        )
+        # Also patch the test module's reference so our direct call uses the same path
+        mod = sys.modules[__name__]
+        monkeypatch.setattr(mod, "get_dataframe_info", failing_get_dataframe_info)
+
+        with pytest.raises(Exception, match="Count failed"):
+            get_dataframe_info(df)
 
 
 class TestAssessDataQuality:
@@ -429,31 +426,24 @@ class TestAssessDataQuality:
 
     def test_error_handling(self, spark_session, monkeypatch):
         """Test error handling in assess_data_quality without patching DataFrame methods."""
-        schema = StructType([StructField("id", StringType(), True)])
-        df = spark_session.createDataFrame([], schema)
-
-        from pipeline_builder import validation
         from pipeline_builder.errors import ValidationError
 
-        original_get_dataframe_info = validation.get_dataframe_info
+        # Use a DataFrame with rows and rules so apply_column_rules is called (path we can patch)
+        df = spark_session.createDataFrame(
+            [("1", "a"), ("2", "b")], ["id", "name"]
+        )
+        rules = {"id": [F.col("id").isNotNull()]}
 
-        def failing_get_dataframe_info(inner_df):
+        def failing_apply_column_rules(*args, **kwargs):
             raise Exception("Assessment failed")
 
-        try:
-            monkeypatch.setattr(
-                validation,
-                "get_dataframe_info",
-                failing_get_dataframe_info,
-            )
-            with pytest.raises(ValidationError, match="Data quality assessment failed"):
-                assess_data_quality(df)
-        finally:
-            monkeypatch.setattr(
-                validation,
-                "get_dataframe_info",
-                original_get_dataframe_info,
-            )
+        monkeypatch.setattr(
+            "pipeline_builder.validation.data_validation.apply_column_rules",
+            failing_apply_column_rules,
+        )
+
+        with pytest.raises(ValidationError, match="Data quality assessment failed"):
+            assess_data_quality(df, rules=rules)
 
 
 class TestValidationResult:

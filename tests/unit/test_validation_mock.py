@@ -27,13 +27,13 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "real":
 else:
     from sparkless import (  # type: ignore[import]
         DoubleType,
-        Functions,
         IntegerType,
         SparkSession,
         StructField,
         StructType,
         StringType,
     )
+    from sparkless.sql import functions as Functions  # type: ignore[import]
 
 from pipeline_builder.validation import (
     _convert_rule_to_expression,
@@ -104,7 +104,7 @@ def mock_functions(spark_session):
 
         return functions
     else:
-        return Functions()
+        return Functions
 
 
 @pytest.fixture

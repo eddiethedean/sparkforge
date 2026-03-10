@@ -273,6 +273,6 @@ class TestWorkingExamples:
         with pytest.raises(AnalysisException):
             mock_spark_session.table("nonexistent.table")
 
-        # Test invalid parameters - this should raise an exception
-        with pytest.raises(IllegalArgumentException):
+        # Test invalid parameters - sparkless raises TypeError, PySpark may raise IllegalArgumentException
+        with pytest.raises((TypeError, IllegalArgumentException)):
             mock_spark_session.createDataFrame("invalid_data", "invalid_schema")

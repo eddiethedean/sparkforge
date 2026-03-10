@@ -54,13 +54,13 @@ class TestTrap1SilentExceptionHandling:
 
     def test_unexpected_error_is_logged_and_re_raised(self, spark_session):
         """Test that unexpected errors are logged and re-raised with context."""
-        # Create a DataFrame
         sample_data = [("user1", "click")]
         df = spark_session.createDataFrame(sample_data, ["user_id", "action"])
 
-        # Mock df.count() to raise an unexpected exception
-        with patch.object(
-            df, "count", side_effect=RuntimeError("Mock database connection failed")
+        # Patch abstraction layer so we don't patch read-only DataFrame.count
+        with patch(
+            "pipeline_builder.validation.data_validation._get_dataframe_count",
+            side_effect=RuntimeError("Mock database connection failed"),
         ):
             with patch("logging.getLogger") as mock_get_logger:
                 # The function should raise ValidationError with context

@@ -979,12 +979,12 @@ def isolated_spark_session():
         except Exception as e:
             print(f"❌ Could not create isolated test database {schema_name}: {e}")
 
-        # Attach storage wrapper
+        # Attach storage wrapper only if session allows it
         try:
             from tests.builder_tests.storage_wrapper import StorageWrapper
 
             spark.storage = StorageWrapper(spark)  # type: ignore[attr-defined]
-        except ImportError:
+        except (ImportError, AttributeError):
             pass
 
         yield spark
@@ -1013,12 +1013,13 @@ def isolated_spark_session():
         except Exception as e:
             print(f"❌ Could not create isolated test database {schema_name}: {e}")
 
-        # Attach storage wrapper
+        # Attach storage wrapper only if session allows arbitrary attributes (e.g. real PySpark).
+        # Sparkless 4 (builtins.PySparkSession) may not allow setattr for 'storage'.
         try:
             from tests.builder_tests.storage_wrapper import StorageWrapper
 
             spark.storage = StorageWrapper(spark)  # type: ignore[attr-defined]
-        except ImportError:
+        except (ImportError, AttributeError):
             pass
 
         yield spark

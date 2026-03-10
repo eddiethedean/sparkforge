@@ -74,7 +74,7 @@ class TestTrap4BroadExceptionCatching:
             assert "Query failed" in error_msg
 
     def test_storage_manager_raises_specific_exceptions(self, spark_session):
-        """Test that StorageManager raises WriterTableError instead of returning generic responses."""
+        """Test that StorageManager raises WriterTableError (patch abstraction, not spark.sql)."""
         config = WriterConfig(
             table_schema="test_schema",
             table_name="test_logs",
@@ -84,11 +84,12 @@ class TestTrap4BroadExceptionCatching:
             config=config,
         )
 
-        # Mock Spark to raise an exception
+        # Patch abstraction so we don't patch read-only spark.sql
         with patch.object(
-            storage.spark, "sql", side_effect=RuntimeError("SQL execution failed")
+            storage,
+            "_get_table_row_count",
+            side_effect=RuntimeError("SQL execution failed"),
         ):
-            # Should raise WriterTableError, not return {"error": "..."}
             with pytest.raises(WriterTableError) as excinfo:
                 storage.get_table_info()
 
@@ -97,14 +98,7 @@ class TestTrap4BroadExceptionCatching:
             assert "Failed to get table info" in error_msg
 
     def test_analytics_raises_specific_exceptions(self, spark_session):
-        """Test that DataQualityAnalyzer raises WriterError instead of returning generic responses."""
-        analyzer = DataQualityAnalyzer(
-            spark=spark_session,
-            logger=Mock(),
-        )
-
-        # Create a real DataFrame that will cause an exception
-        # Use compatibility layer for mock-spark support
+        """Test that DataQualityAnalyzer raises WriterError (patch abstraction, not df.count)."""
         import os
 
         if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
@@ -112,19 +106,22 @@ class TestTrap4BroadExceptionCatching:
         else:
             from pyspark.sql.types import StringType, StructField, StructType
 
+        analyzer = DataQualityAnalyzer(
+            spark=spark_session,
+            logger=Mock(),
+        )
         schema = StructType([StructField("test_col", StringType(), True)])
         mock_df = spark_session.createDataFrame([], schema)
 
-        # Mock the count method to raise an exception
-        with patch.object(
-            mock_df, "count", side_effect=RuntimeError("DataFrame operation failed")
+        # Patch the query builder so we don't patch read-only DataFrame.count
+        with patch(
+            "pipeline_builder.writer.analytics.QueryBuilder.build_quality_trends_query",
+            side_effect=RuntimeError("DataFrame operation failed"),
         ):
-            # Should raise WriterError, not return {"error": "..."}
             with pytest.raises(WriterError) as excinfo:
                 analyzer.analyze_quality_trends(mock_df)
 
             error_msg = str(excinfo.value)
-            assert "Failed to analyze quality trends" in error_msg
             assert "Failed to analyze quality trends" in error_msg
 
     def test_monitoring_raises_specific_exceptions(self, spark_session):

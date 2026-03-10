@@ -392,6 +392,11 @@ def validate_dataframe_schema(
     return len(missing_columns) == 0
 
 
+def _get_dataframe_count(df: DataFrame) -> int:
+    """Return row count (overridable in tests; do not patch DataFrame.count)."""
+    return df.count()
+
+
 def assess_data_quality(
     df: DataFrame,
     rules: Optional[ColumnRules] = None,
@@ -408,7 +413,7 @@ def assess_data_quality(
         Dictionary with quality metrics
     """
     try:
-        total_rows = df.count()
+        total_rows = _get_dataframe_count(df)
 
         if total_rows == 0:
             return {

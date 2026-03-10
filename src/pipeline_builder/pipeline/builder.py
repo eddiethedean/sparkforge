@@ -1882,6 +1882,10 @@ class PipelineBuilder(BasePipelineBuilder):
                 ],
             ) from e
 
+    def _run_schema_creation_sql(self, schema: str) -> None:
+        """Run the SQL to create schema (overridable for tests; do not patch spark.sql)."""
+        self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+
     def _create_schema_if_not_exists(self, schema: str) -> None:
         """Create a schema if it doesn't exist.
 
@@ -1899,8 +1903,7 @@ class PipelineBuilder(BasePipelineBuilder):
             Errors are wrapped in StepError with helpful suggestions.
         """
         try:
-            # Use SQL to create schema
-            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+            self._run_schema_creation_sql(schema)
             self.logger.info(f"✅ Schema '{schema}' created or already exists")
         except Exception as e:
             raise StepError(

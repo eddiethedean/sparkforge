@@ -33,7 +33,8 @@ else:
         StructType,
         StringType,
     )
-    from sparkless import SparkSession, Functions  # type: ignore[import]
+    from sparkless import SparkSession  # type: ignore[import]
+    from sparkless.sql import functions as Functions  # type: ignore[import]
 
 # Import SparkForge validation modules
 from pipeline_builder.validation.data_validation import (
@@ -97,7 +98,7 @@ class TestValidationWithFunctionsSimple:
             self.mock_functions = functions
         else:
             self.mock_spark = SparkSession("TestApp")
-            self.mock_functions = Functions()
+            self.mock_functions = Functions
 
         # Create sample data
         self.sample_data = [
@@ -128,8 +129,8 @@ class TestValidationWithFunctionsSimple:
         # Test not_null rule
         expr = _convert_rule_to_expression("not_null", "name", self.mock_functions)
         assert expr is not None
-        # ColumnOperation should have operation attribute
-        assert hasattr(expr, "operation")
+        # Column-like: PySpark has .operation, sparkless PyColumn has .isNotNull etc.
+        assert hasattr(expr, "operation") or hasattr(expr, "isNotNull")
 
         # Test positive rule
         expr = _convert_rule_to_expression("positive", "age", self.mock_functions)
@@ -335,7 +336,7 @@ class TestPipelineBuilderWithFunctionsSimple:
             self.mock_functions = functions
         else:
             self.mock_spark = SparkSession("TestApp")
-            self.mock_functions = Functions()
+            self.mock_functions = Functions
 
     def test_pipeline_builder_with_mock_functions(self):
         """Test PipelineBuilder initialization with mock functions."""
@@ -432,7 +433,7 @@ class TestFunctionsIntegrationSimple:
             self.mock_functions = functions
         else:
             self.mock_spark = SparkSession("TestApp")
-            self.mock_functions = Functions()
+            self.mock_functions = Functions
 
     def test_mock_functions_behavior(self):
         """Test that Functions behaves correctly with validation."""

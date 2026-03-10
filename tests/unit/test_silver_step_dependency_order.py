@@ -9,16 +9,21 @@ from unittest.mock import Mock
 
 import pytest
 
+from pipeline_builder.engine_config import configure_engine
 from pipeline_builder.functions import get_default_functions
 from pipeline_builder.models import SilverStep
 from pipeline_builder_base.models import ExecutionMode, PipelineConfig
 from pipeline_builder.execution import ExecutionEngine
 
-F = get_default_functions()
-
 
 class TestSilverStepDependencyOrder:
     """Test that silver steps execute in correct order when one depends on another."""
+
+    @pytest.fixture
+    def session_scoped_f(self, mock_spark_session):
+        """Provide F bound to active session so F.col()/F.lit() work (PySpark/sparkless)."""
+        configure_engine(spark=mock_spark_session)
+        return get_default_functions()
 
     @pytest.fixture
     def mock_spark(self):
@@ -33,7 +38,7 @@ class TestSilverStepDependencyOrder:
         data = [("user1", "event1", 100), ("user2", "event2", 200)]
         return mock_spark.createDataFrame(data, ["user_id", "event_type", "value"])
 
-    def test_silver_steps_execute_in_wrong_order(self, mock_spark, bronze_df):
+    def test_silver_steps_execute_in_wrong_order(self, mock_spark, bronze_df, session_scoped_f):
         """Test that silver steps execute in wrong order when second depends on first.
 
         This test reproduces the bug where:
@@ -41,6 +46,7 @@ class TestSilverStepDependencyOrder:
         - silver_step_2 depends on silver_step_1 via prior_silvers
         - But silver_step_2 runs first and fails because silver_step_1 isn't in prior_silvers yet
         """
+        F = session_scoped_f
         # Track execution order
         execution_order = []
 

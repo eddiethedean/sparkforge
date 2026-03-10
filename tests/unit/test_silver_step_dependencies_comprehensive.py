@@ -9,15 +9,20 @@ from unittest.mock import Mock
 
 import pytest
 
+from pipeline_builder.engine_config import configure_engine
 from pipeline_builder.functions import get_default_functions
 from pipeline_builder.models import SilverStep
 from pipeline_builder.dependencies import DependencyAnalyzer
 
-F = get_default_functions()
-
 
 class TestSilverStepDependencyOrdering:
     """Test that silver steps execute in correct order based on dependencies."""
+
+    @pytest.fixture
+    def session_scoped_f(self, mock_spark_session):
+        """Provide F bound to active session so F.col() works (PySpark/sparkless)."""
+        configure_engine(spark=mock_spark_session)
+        return get_default_functions()
 
     @pytest.fixture
     def mock_spark(self):
@@ -45,7 +50,7 @@ class TestSilverStepDependencyOrdering:
         data = [("user1", "event1", 100), ("user2", "event2", 200)]
         return mock_spark.createDataFrame(data, ["user_id", "event_type", "value"])
 
-    def test_two_silver_steps_with_dependency(self, mock_spark, bronze_df):
+    def test_two_silver_steps_with_dependency(self, mock_spark, bronze_df, session_scoped_f):
         """Test that two silver steps execute in correct order when second depends on first."""
         execution_order = []
 
@@ -58,6 +63,7 @@ class TestSilverStepDependencyOrdering:
             assert "silver_1" in prior_silvers, "silver_1 should be in prior_silvers"
             return prior_silvers["silver_1"]
 
+        F = session_scoped_f
         silver_1 = SilverStep(
             name="silver_1",
             source_bronze="bronze_step",
@@ -89,8 +95,9 @@ class TestSilverStepDependencyOrdering:
         silver_2_idx = analysis.execution_order.index("silver_2")
         assert silver_1_idx < silver_2_idx, "silver_1 should execute before silver_2"
 
-    def test_three_silver_steps_chain_dependency(self, mock_spark, bronze_df):
+    def test_three_silver_steps_chain_dependency(self, mock_spark, bronze_df, session_scoped_f):
         """Test chain of three silver steps: silver_1 -> silver_2 -> silver_3."""
+        F = session_scoped_f
         execution_order = []
 
         def silver_1_transform(spark, bronze_df, prior_silvers):
@@ -154,8 +161,9 @@ class TestSilverStepDependencyOrdering:
             "Chain order: silver_1 -> silver_2 -> silver_3"
         )
 
-    def test_multiple_silver_dependencies(self, mock_spark, bronze_df):
+    def test_multiple_silver_dependencies(self, mock_spark, bronze_df, session_scoped_f):
         """Test silver step that depends on multiple other silver steps."""
+        F = session_scoped_f
         execution_order = []
 
         def silver_1_transform(spark, bronze_df, prior_silvers):
@@ -219,8 +227,9 @@ class TestSilverStepDependencyOrdering:
         assert silver_3_idx > silver_1_idx, "silver_3 should execute after silver_1"
         assert silver_3_idx > silver_2_idx, "silver_3 should execute after silver_2"
 
-    def test_silver_without_dependencies_still_works(self, mock_spark, bronze_df):
+    def test_silver_without_dependencies_still_works(self, mock_spark, bronze_df, session_scoped_f):
         """Test that silver steps without source_silvers still work (backward compatibility)."""
+        F = session_scoped_f
         execution_order = []
 
         def silver_1_transform(spark, bronze_df, prior_silvers):
@@ -268,8 +277,9 @@ class TestSilverStepDependencyOrdering:
         assert "silver_1" in analysis.execution_order
         assert "silver_2" in analysis.execution_order
 
-    def test_silver_depends_on_nonexistent_silver_warns(self, mock_spark, bronze_df):
+    def test_silver_depends_on_nonexistent_silver_warns(self, mock_spark, bronze_df, session_scoped_f):
         """Test that depending on non-existent silver step logs a warning."""
+        F = session_scoped_f
         silver_1 = SilverStep(
             name="silver_1",
             source_bronze="bronze_step",
@@ -291,8 +301,9 @@ class TestSilverStepDependencyOrdering:
         # Should still create execution groups
         assert len(analysis.execution_order) > 0
 
-    def test_mixed_bronze_and_silver_dependencies(self, mock_spark, bronze_df):
+    def test_mixed_bronze_and_silver_dependencies(self, mock_spark, bronze_df, session_scoped_f):
         """Test silver step that depends on both bronze (via source_bronze) and silver (via source_silvers)."""
+        F = session_scoped_f
         execution_order = []
 
         def silver_1_transform(spark, bronze_df, prior_silvers):
@@ -337,8 +348,9 @@ class TestSilverStepDependencyOrdering:
         assert bronze_idx < silver_1_idx, "bronze should execute before silver_1"
         assert silver_1_idx < silver_2_idx, "silver_1 should execute before silver_2"
 
-    def test_complex_dependency_graph(self, mock_spark, bronze_df):
+    def test_complex_dependency_graph(self, mock_spark, bronze_df, session_scoped_f):
         """Test complex dependency graph with multiple paths."""
+        F = session_scoped_f
         # Graph: bronze -> silver_1 -> silver_3
         #                  -> silver_2 -> silver_3
         #                  -> silver_4 (no dependencies)
@@ -409,8 +421,9 @@ class TestSilverStepDependencyOrdering:
         assert silver_3_idx > silver_1_idx, "silver_3 should execute after silver_1"
         assert silver_3_idx > silver_2_idx, "silver_3 should execute after silver_2"
 
-    def test_prior_silvers_only_includes_specified_steps(self, mock_spark, bronze_df):
+    def test_prior_silvers_only_includes_specified_steps(self, mock_spark, bronze_df, session_scoped_f):
         """Test that prior_silvers only includes steps specified in source_silvers."""
+        F = session_scoped_f
         execution_order = []
         prior_silvers_captured = {}
 
@@ -469,8 +482,9 @@ class TestSilverStepDependencyOrdering:
         silver_3_idx = analysis.execution_order.index("silver_3")
         assert silver_1_idx < silver_3_idx, "silver_3 should execute after silver_1"
 
-    def test_empty_source_silvers_list(self, mock_spark, bronze_df):
+    def test_empty_source_silvers_list(self, mock_spark, bronze_df, session_scoped_f):
         """Test that empty source_silvers list is handled correctly."""
+        F = session_scoped_f
         silver_1 = SilverStep(
             name="silver_1",
             source_bronze="bronze_step",
@@ -490,8 +504,9 @@ class TestSilverStepDependencyOrdering:
         # Should work without errors
         assert len(analysis.execution_order) > 0
 
-    def test_source_silvers_with_single_string(self, mock_spark, bronze_df):
+    def test_source_silvers_with_single_string(self, mock_spark, bronze_df, session_scoped_f):
         """Test that source_silvers can be a single string (backward compatibility)."""
+        F = session_scoped_f
         execution_order = []
 
         def silver_1_transform(spark, bronze_df, prior_silvers):

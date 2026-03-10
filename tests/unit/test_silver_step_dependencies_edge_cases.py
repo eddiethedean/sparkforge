@@ -9,23 +9,29 @@ from unittest.mock import Mock
 
 import pytest
 
+from pipeline_builder.engine_config import configure_engine
 from pipeline_builder.functions import get_default_functions
 from pipeline_builder.models import SilverStep
 from pipeline_builder.dependencies import DependencyAnalyzer
-
-F = get_default_functions()
 
 
 class TestSilverStepDependencyEdgeCases:
     """Test edge cases for silver step dependencies."""
 
     @pytest.fixture
+    def session_scoped_f(self, mock_spark_session):
+        """Provide F bound to active session so F.col() works (PySpark/sparkless)."""
+        configure_engine(spark=mock_spark_session)
+        return get_default_functions()
+
+    @pytest.fixture
     def mock_spark(self):
         """Create a mock SparkSession."""
         return Mock()
 
-    def test_circular_dependency_detection(self, mock_spark):
+    def test_circular_dependency_detection(self, mock_spark, session_scoped_f):
         """Test that circular dependencies between silver steps are handled."""
+        F = session_scoped_f
         silver_1 = SilverStep(
             name="silver_1",
             source_bronze="bronze_step",
@@ -57,8 +63,9 @@ class TestSilverStepDependencyEdgeCases:
         # Cycles may be detected or resolved - either is acceptable
         assert len(analysis.execution_order) > 0, "Should have execution order"
 
-    def test_self_dependency_handled(self, mock_spark):
+    def test_self_dependency_handled(self, mock_spark, session_scoped_f):
         """Test that a silver step depending on itself is handled gracefully."""
+        F = session_scoped_f
         silver_1 = SilverStep(
             name="silver_1",
             source_bronze="bronze_step",
@@ -79,8 +86,9 @@ class TestSilverStepDependencyEdgeCases:
         # Should complete analysis (may detect cycle)
         assert analysis is not None
 
-    def test_duplicate_source_silvers(self, mock_spark):
+    def test_duplicate_source_silvers(self, mock_spark, session_scoped_f):
         """Test that duplicate entries in source_silvers are handled."""
+        F = session_scoped_f
         silver_1 = SilverStep(
             name="silver_1",
             source_bronze="bronze_step",
@@ -110,8 +118,9 @@ class TestSilverStepDependencyEdgeCases:
         silver_2_idx = analysis.execution_order.index("silver_2")
         assert silver_1_idx < silver_2_idx, "silver_1 should execute before silver_2"
 
-    def test_source_silvers_with_mixed_valid_invalid(self, mock_spark):
+    def test_source_silvers_with_mixed_valid_invalid(self, mock_spark, session_scoped_f):
         """Test source_silvers with mix of valid and invalid step names."""
+        F = session_scoped_f
         silver_1 = SilverStep(
             name="silver_1",
             source_bronze="bronze_step",
@@ -142,8 +151,9 @@ class TestSilverStepDependencyEdgeCases:
         silver_2_idx = analysis.execution_order.index("silver_2")
         assert silver_1_idx < silver_2_idx, "Valid dependency should be respected"
 
-    def test_large_dependency_graph(self, mock_spark):
+    def test_large_dependency_graph(self, mock_spark, session_scoped_f):
         """Test dependency graph with many silver steps."""
+        F = session_scoped_f
         # Create 10 silver steps in a chain
         silver_steps = {}
         for i in range(10):
@@ -173,8 +183,9 @@ class TestSilverStepDependencyEdgeCases:
                 f"silver_{i - 1} should execute before silver_{i}"
             )
 
-    def test_silver_depends_on_gold_should_fail(self, mock_spark):
+    def test_silver_depends_on_gold_should_fail(self, mock_spark, session_scoped_f):
         """Test that silver step depending on gold step is invalid."""
+        F = session_scoped_f
         # Create a proper gold step mock
         from pipeline_builder.models import GoldStep
 
@@ -209,8 +220,9 @@ class TestSilverStepDependencyEdgeCases:
         # Analysis should complete (may warn about invalid dependency)
         assert analysis is not None
 
-    def test_source_silvers_none_vs_empty_list(self, mock_spark):
+    def test_source_silvers_none_vs_empty_list(self, mock_spark, session_scoped_f):
         """Test that None and empty list for source_silvers are handled the same."""
+        F = session_scoped_f
         silver_1_none = SilverStep(
             name="silver_1_none",
             source_bronze="bronze_step",
@@ -245,8 +257,9 @@ class TestSilverStepDependencyEdgeCases:
         # Both should behave the same (no silver dependencies)
         assert len(analysis_none.execution_order) == len(analysis_empty.execution_order)
 
-    def test_prior_silvers_includes_only_executed_steps(self, mock_spark):
+    def test_prior_silvers_includes_only_executed_steps(self, mock_spark, session_scoped_f):
         """Test that prior_silvers only includes steps that have been executed."""
+        F = session_scoped_f
         # This is tested at execution time, but verify the dependency graph
         # correctly orders steps so this will work
         silver_1 = SilverStep(

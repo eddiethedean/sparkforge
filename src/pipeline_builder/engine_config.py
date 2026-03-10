@@ -44,6 +44,13 @@ _thread_local = threading.local()
 def _configure_engine_from_session(spark: Any) -> None:
     """Configure engine from a SparkSession (PySpark or sparkless). Used by configure_engine(spark=...)."""
     session_module = type(spark).__module__
+    session_name = type(spark).__name__
+    # Sparkless 4 exposes session as builtins.PySparkSession
+    is_sparkless = (
+        "sparkless" in session_module
+        or "mock_spark" in session_module
+        or (session_module == "builtins" and session_name == "PySparkSession")
+    )
     if "pyspark" in session_module:
         from pyspark.sql import (
             Column as PySparkColumn,
@@ -71,7 +78,7 @@ def _configure_engine_from_session(spark: Any) -> None:
             spark_session_cls=PySparkSparkSession,
             column_cls=PySparkColumn,
         )
-    elif "sparkless" in session_module or "mock_spark" in session_module:
+    elif is_sparkless:
         from sparkless.sql.utils import AnalysisException as MockAnalysisException
         from sparkless import Column as MockColumn
         from sparkless import DataFrame as MockDataFrame

@@ -40,7 +40,7 @@ else:
         StructType,
         StringType,
     )
-    from sparkless import Functions  # type: ignore[import]
+    from sparkless.sql import functions as Functions  # type: ignore[import]
 
 from pipeline_builder.validation import (
     _convert_rule_to_expression,
@@ -170,7 +170,7 @@ class TestConvertRuleToExpression:
 
             mock_functions = functions
         else:
-            mock_functions = Functions()
+            mock_functions = Functions
         expr = _convert_rule_to_expression("not_null", "user_id", mock_functions)
         assert expr is not None
         assert hasattr(expr, "isNotNull") or hasattr(expr, "operation")
@@ -184,7 +184,7 @@ class TestConvertRuleToExpression:
 
             mock_functions = functions
         else:
-            mock_functions = Functions()
+            mock_functions = Functions
         expr = _convert_rule_to_expression("positive", "age", mock_functions)
         assert expr is not None
 
@@ -197,7 +197,7 @@ class TestConvertRuleToExpression:
 
             mock_functions = functions
         else:
-            mock_functions = Functions()
+            mock_functions = Functions
         expr = _convert_rule_to_expression("non_negative", "score", mock_functions)
         assert expr is not None
 
@@ -210,7 +210,7 @@ class TestConvertRuleToExpression:
 
             mock_functions = functions
         else:
-            mock_functions = Functions()
+            mock_functions = Functions
         expr = _convert_rule_to_expression("non_zero", "age", mock_functions)
         assert expr is not None
 
@@ -249,7 +249,7 @@ class TestConvertRulesToExpressions:
 
             mock_functions = functions
         else:
-            mock_functions = Functions()
+            mock_functions = Functions
         rules = {"user_id": ["not_null"]}
         expressions = _convert_rules_to_expressions(rules, mock_functions)
         assert len(expressions) == 1
@@ -264,7 +264,7 @@ class TestConvertRulesToExpressions:
 
             mock_functions = functions
         else:
-            mock_functions = Functions()
+            mock_functions = Functions
         rules = {"user_id": ["not_null"], "age": ["positive", "non_zero"]}
         expressions = _convert_rules_to_expressions(rules, mock_functions)
         assert len(expressions) == 2
@@ -280,7 +280,7 @@ class TestConvertRulesToExpressions:
 
             mock_functions = functions
         else:
-            mock_functions = Functions()
+            mock_functions = Functions
         expressions = _convert_rules_to_expressions({}, mock_functions)
         assert len(expressions) == 0
 
@@ -297,7 +297,7 @@ class TestAndAllRules:
 
             mock_functions = functions
         else:
-            mock_functions = Functions()
+            mock_functions = Functions
         result = and_all_rules([], mock_functions)
         assert result is not None
 
@@ -310,7 +310,7 @@ class TestAndAllRules:
 
             mock_functions = functions
         else:
-            mock_functions = Functions()
+            mock_functions = Functions
         rules = {"user_id": ["not_null"]}
         result = and_all_rules(rules, mock_functions)
         assert result is not None
@@ -324,7 +324,7 @@ class TestAndAllRules:
 
             mock_functions = functions
         else:
-            mock_functions = Functions()
+            mock_functions = Functions
         rules = {"user_id": ["not_null"], "age": ["positive"]}
         result = and_all_rules(rules, mock_functions)
         assert result is not None
@@ -344,7 +344,7 @@ class TestApplyColumnRules:
 
             mock_functions = functions
         else:
-            mock_functions = Functions()
+            mock_functions = Functions
 
         schema = StructType(
             [
@@ -381,7 +381,7 @@ class TestApplyColumnRules:
 
             mock_functions = functions
         else:
-            mock_functions = Functions()
+            mock_functions = Functions
 
         schema = StructType(
             [
@@ -418,7 +418,7 @@ class TestApplyColumnRules:
 
             mock_functions = functions
         else:
-            mock_functions = Functions()
+            mock_functions = Functions
 
         schema = StructType(
             [
@@ -446,7 +446,7 @@ class TestAssessDataQuality:
 
             mock_functions = functions
         else:
-            mock_functions = Functions()
+            mock_functions = Functions
 
         schema = StructType(
             [
@@ -481,7 +481,7 @@ class TestAssessDataQuality:
 
             mock_functions = functions
         else:
-            mock_functions = Functions()
+            mock_functions = Functions
 
         schema = StructType(
             [
@@ -518,7 +518,7 @@ class TestAssessDataQuality:
 
             mock_functions = functions
         else:
-            mock_functions = Functions()
+            mock_functions = Functions
 
         schema = StructType(
             [
