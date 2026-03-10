@@ -56,9 +56,9 @@ if SPARK_MODE == "real":
     )
 else:
     from sparkless import SparkSession  # type: ignore[import]
-    from sparkless import functions as mock_functions
+    from sparkless.sql import functions as mock_functions
     from sparkless import spark_types as mock_types  # type: ignore[import]
-    from sparkless.functions import desc as mock_desc  # type: ignore[import]
+    mock_desc = mock_functions.desc
     from sparkless.window import Window as MockWindow  # type: ignore[import]
 
     # Create mock AnalysisException
@@ -72,7 +72,7 @@ else:
         types=mock_types,
         analysis_exception=MockAnalysisException,
         window=MockWindow,
-        desc=mock_desc,
+        desc=mock_functions.desc,
         engine_name="sparkless",
     )
 

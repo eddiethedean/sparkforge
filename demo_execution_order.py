@@ -2,7 +2,7 @@
 """Demo of execution order feature in PipelineBuilder."""
 
 # Configure engine BEFORE importing pipeline_builder
-from sparkless import AnalysisException as MockAnalysisException
+from sparkless.sql.utils import AnalysisException as MockAnalysisException
 from sparkless import Column as MockColumn
 from sparkless import DataFrame as MockDataFrame
 from sparkless import (
@@ -10,13 +10,13 @@ from sparkless import (
 )
 from sparkless import SparkSession as MockSparkSession
 from sparkless import Window as MockWindow
-from sparkless import (
+from sparkless.sql import (
     functions as mock_functions,
 )
 from sparkless import (
     spark_types as mock_types,
 )
-from sparkless.functions import desc as mock_desc
+mock_desc = mock_functions.desc
 
 from pipeline_builder.engine_config import configure_engine
 
@@ -25,7 +25,7 @@ configure_engine(
     types=mock_types,
     analysis_exception=MockAnalysisException,
     window=MockWindow,
-    desc=mock_desc,
+    desc=mock_functions.desc,
     engine_name="mock",
     dataframe_cls=MockDataFrame,
     spark_session_cls=MockSparkSession,

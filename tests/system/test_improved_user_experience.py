@@ -23,7 +23,7 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
         StructType,
         TimestampType,
     )
-    from sparkless import functions as F  # type: ignore[import]
+    from sparkless.sql import functions as F  # type: ignore[import]
 
     MockF = F
 else:

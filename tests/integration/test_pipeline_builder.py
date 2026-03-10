@@ -23,7 +23,7 @@ from pipeline_builder.pipeline import (
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless import functions as MockF  # type: ignore[import]
+    from sparkless.sql import functions as MockF  # type: ignore[import]
 else:
     MockF = None
 

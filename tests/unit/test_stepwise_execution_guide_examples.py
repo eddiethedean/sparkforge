@@ -10,7 +10,7 @@ spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
 if spark_mode == "real":
     from pyspark.sql import functions as F
 else:
-    from sparkless import functions as F  # type: ignore[import]
+    from sparkless.sql import functions as F  # type: ignore[import]
 
 
 class TestStepwiseGuideMinimalExample:

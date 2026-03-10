@@ -40,7 +40,7 @@ from pipeline_builder.pipeline.runner import SimplePipelineRunner
 
 # Use engine-specific functions based on mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless import functions as F  # type: ignore[import]
+    from sparkless.sql import functions as F  # type: ignore[import]
 else:
     from pyspark.sql import functions as F
 

@@ -19,7 +19,8 @@ def test_combined_and_expression() -> Tuple[bool, str]:
     # Test with sparkless
     print("\n--- Testing with sparkless 3.17.0 ---")
     try:
-        from sparkless import SparkSession, functions as F  # noqa: I001
+        from sparkless import SparkSession  # noqa: I001
+        from sparkless.sql import functions as F  # noqa: I001
 
         spark = SparkSession("test")
         df = spark.createDataFrame(
@@ -98,7 +99,8 @@ def test_combined_or_expression() -> Tuple[bool, str]:
     # Test with sparkless
     print("\n--- Testing with sparkless 3.17.0 ---")
     try:
-        from sparkless import SparkSession, functions as F  # noqa: I001
+        from sparkless import SparkSession  # noqa: I001
+        from sparkless.sql import functions as F  # noqa: I001
 
         spark = SparkSession("test")
         df = spark.createDataFrame(

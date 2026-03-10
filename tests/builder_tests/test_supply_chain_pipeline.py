@@ -13,7 +13,7 @@ import os
 if os.environ.get("SPARK_MODE", "mock").lower() == "real":
     from pyspark.sql import functions as F
 else:
-    from sparkless import functions as F  # type: ignore[import]
+    from sparkless.sql import functions as F  # type: ignore[import]
 
 from pipeline_builder.pipeline import PipelineBuilder
 from pipeline_builder.writer import LogWriter

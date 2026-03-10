@@ -59,11 +59,13 @@ from pipeline_builder.engine_config import configure_engine
 
 spark_mode_env = os.environ.get("SPARK_MODE", "mock").lower()
 if spark_mode_env == "mock":
-    from sparkless import functions as mock_functions  # type: ignore[import]
+    from sparkless.sql import functions as mock_functions  # type: ignore[import]
     from sparkless import spark_types as mock_types  # type: ignore[import]
-    from sparkless import AnalysisException as MockAnalysisException  # type: ignore[import]
+    from sparkless.sql.utils import (  # type: ignore[import]
+        AnalysisException as MockAnalysisException,
+    )
     from sparkless import Window as MockWindow  # type: ignore[import]
-    from sparkless.functions import desc as mock_desc  # type: ignore[import]
+    mock_desc = mock_functions.desc
     from sparkless import DataFrame as MockDataFrame  # type: ignore[import]
     from sparkless import SparkSession as MockSparkSession  # type: ignore[import]
     from sparkless import Column as MockColumn  # type: ignore[import]
@@ -436,11 +438,14 @@ def _log_session_configs(spark, context: str = ""):
 
 def _create_mock_spark_session():
     """Create a mock Spark session."""
-    from sparkless import SparkSession, functions as mock_functions  # type: ignore[import]
+    from sparkless import SparkSession  # type: ignore[import]
+    from sparkless.sql import functions as mock_functions  # type: ignore[import]
     from sparkless import spark_types as mock_types  # type: ignore[import]
-    from sparkless import AnalysisException as MockAnalysisException  # type: ignore[import]
+    from sparkless.sql.utils import (  # type: ignore[import]
+        AnalysisException as MockAnalysisException,
+    )
     from sparkless import Window as MockWindow  # type: ignore[import]
-    from sparkless.functions import desc as mock_desc  # type: ignore[import]
+    mock_desc = mock_functions.desc
     from pipeline_builder.engine import configure_engine
 
     print("🔧 Creating Mock Spark session for all tests")
@@ -887,16 +892,7 @@ def spark_session():
     else:
         spark = _create_mock_spark_session()
 
-    # Attach storage wrapper to SparkSession for all tests
-    try:
-        from tests.builder_tests.storage_wrapper import StorageWrapper
-
-        spark.storage = StorageWrapper(spark)  # type: ignore[attr-defined]
-    except ImportError:
-        # If storage wrapper is not available, skip attaching it
-        # This allows tests to work even if builder_tests is not available
-        pass
-
+    # Yield Spark session without attaching non-standard attributes like 'storage'
     yield spark
 
     # Cleanup using comprehensive isolation helpers
@@ -1327,7 +1323,7 @@ def mock_pyspark_functions():
     if spark_mode == "mock":
         import sys
 
-        from sparkless import functions as mock_functions  # type: ignore[import]
+        from sparkless.sql import functions as mock_functions  # type: ignore[import]
 
         # Store original module
         original_pyspark_functions = sys.modules.get("pyspark.sql.functions")

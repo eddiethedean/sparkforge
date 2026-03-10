@@ -18,7 +18,7 @@ from typing import Any, Dict
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless import functions as F  # type: ignore[import]
+    from sparkless.sql import functions as F  # type: ignore[import]
 else:
     from pyspark.sql import functions as F
 

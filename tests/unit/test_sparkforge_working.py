@@ -77,7 +77,7 @@ from pipeline_builder.writer.models import (
 
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless import functions as F  # type: ignore[import]
+    from sparkless.sql import functions as F  # type: ignore[import]
 
     MockF = F
 else:
@@ -417,10 +417,10 @@ class TestSparkForgeWorking:
 
     def test_edge_cases_working(self, mock_spark_session):
         """Test edge cases using actual API."""
-        # Test with empty DataFrame
+        # Test with empty DataFrame using explicit schema and no rows
         empty_schema = StructType([])
-        empty_df = mock_spark_session.createDataFrame([{}], empty_schema)
-        assert empty_df.count() == 1
+        empty_df = mock_spark_session.createDataFrame([], empty_schema)
+        assert empty_df.count() == 0
         assert len(empty_df.columns) == 0
 
         # Test with null values

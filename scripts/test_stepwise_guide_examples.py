@@ -14,16 +14,15 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 # Configure engine based on mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless import AnalysisException as MockAnalysisException
+    from sparkless.sql.utils import AnalysisException as MockAnalysisException
     from sparkless import Column as MockColumn
     from sparkless import DataFrame as MockDataFrame
     from sparkless import SparkSession
     from sparkless import SparkSession as MockSparkSession
     from sparkless import Window as MockWindow
-    from sparkless import functions as F
-    from sparkless import functions as mock_functions
+    from sparkless.sql import functions as F
+    from sparkless.sql import functions as mock_functions
     from sparkless import spark_types as mock_types
-    from sparkless.functions import desc as mock_desc
 
     from pipeline_builder.engine_config import configure_engine
 
@@ -32,7 +31,7 @@ if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
         types=mock_types,
         analysis_exception=MockAnalysisException,
         window=MockWindow,
-        desc=mock_desc,
+        desc=mock_functions.desc,
         engine_name="mock",
         dataframe_cls=MockDataFrame,
         spark_session_cls=MockSparkSession,

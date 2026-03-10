@@ -184,27 +184,20 @@ def _create_spark_with_storage(spark_session_from_main=None):
 
         spark = SparkSession()
 
-    # Attach storage wrapper to SparkSession
-    spark.storage = StorageWrapper(spark)  # type: ignore[attr-defined]
-
+    # Return Spark session without attaching non-standard attributes like 'storage'
     return spark
 
 
 @pytest.fixture
 def mock_spark_session(spark_session):
     """
-    Mock Spark session for testing with storage wrapper attached.
+    Mock Spark session for tests.
 
     Works with both mock-spark (default) and real PySpark (when SPARK_MODE=real).
 
     Uses the spark_session fixture from main conftest.py to ensure Delta configs are set.
-    Just attaches storage wrapper to the session from main conftest.
     """
-    # Use session from main conftest (which has Delta configs) and attach storage wrapper
-    spark = spark_session
-    # Attach storage wrapper
-    spark.storage = StorageWrapper(spark)  # type: ignore[attr-defined]
-    return spark
+    return spark_session
 
 
 @pytest.fixture

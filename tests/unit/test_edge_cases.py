@@ -43,7 +43,7 @@ else:
         AnalysisException,
         PySparkValueError,
     )
-    from sparkless.functions import (  # type: ignore[import]
+    from sparkless.sql.functions import (  # type: ignore[import]
         Column,
         Literal,
         WindowFunction,

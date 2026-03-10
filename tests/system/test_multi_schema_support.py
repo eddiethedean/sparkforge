@@ -16,7 +16,7 @@ import pytest
 
 # Use engine-specific functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless import functions as F  # type: ignore[import]
+    from sparkless.sql import functions as F  # type: ignore[import]
 else:
     from pyspark.sql import functions as F
 
@@ -214,10 +214,20 @@ class TestMultiSchemaSupport:
         assert effective_schema == "default_schema"
 
     def test_schema_creation(self):
-        """Test schema creation functionality."""
-        with patch.object(self.builder.spark, "sql") as mock_sql:
-            self.builder._create_schema_if_not_exists("new_schema")
-            mock_sql.assert_called_once_with("CREATE SCHEMA IF NOT EXISTS new_schema")
+        """Test schema creation functionality via observable catalog behavior."""
+        target_schema = "new_schema_behavior_test"
+
+        # Ensure schema does not exist first
+        try:
+            self.spark.sql(f"DROP SCHEMA IF EXISTS {target_schema} CASCADE")
+        except Exception:
+            pass
+
+        self.builder._create_schema_if_not_exists(target_schema)
+
+        # Verify schema now exists using catalog APIs that work for both engines
+        schemas = [db.name for db in self.spark.catalog.listDatabases()]
+        assert target_schema in schemas
 
     def test_schema_creation_failure(self):
         """Test schema creation failure handling."""

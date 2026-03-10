@@ -12,14 +12,30 @@ spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
 class TestGettingStartedGuideFirstPipeline:
     """Run the 'Your First Pipeline' example from GETTING_STARTED_GUIDE.md."""
 
-    def test_first_pipeline_builds_and_runs(self, mock_spark_session):
+    def test_first_pipeline_builds_and_runs(self, mock_spark_session, isolate_engine_config):
         from pipeline_builder import PipelineBuilder
         from pipeline_builder.engine_config import configure_engine
         from pipeline_builder.functions import get_default_functions
 
         spark = mock_spark_session
-        configure_engine(spark=spark)
-        F_local = get_default_functions()
+        with isolate_engine_config():
+            # Use explicit sparkless bindings rather than attributes on the session
+            from sparkless.sql import functions as mock_functions  # type: ignore[import]
+            from sparkless import spark_types as mock_types  # type: ignore[import]
+            from sparkless.sql.utils import (  # type: ignore[import]
+                AnalysisException as MockAnalysisException,
+            )
+            from sparkless.window import Window as MockWindow  # type: ignore[import]
+
+            configure_engine(
+                functions=mock_functions,
+                types=mock_types,
+                analysis_exception=MockAnalysisException,
+                window=MockWindow,
+                desc=mock_functions.desc,
+                engine_name="mock",
+            )
+            F_local = get_default_functions()
 
         data = [
             ("user1", "click", "2024-01-01 10:00:00", 1.0),
@@ -92,14 +108,29 @@ class TestGettingStartedGuideFirstPipeline:
 class TestUseCaseBIGuide:
     """Run the BI use-case pipeline from USE_CASE_BI_GUIDE.md."""
 
-    def test_bi_pipeline_builds_and_runs(self, mock_spark_session):
+    def test_bi_pipeline_builds_and_runs(self, mock_spark_session, isolate_engine_config):
         from pipeline_builder import PipelineBuilder
         from pipeline_builder.engine_config import configure_engine
         from pipeline_builder.functions import get_default_functions
 
         spark = mock_spark_session
-        configure_engine(spark=spark)
-        F_local = get_default_functions()
+        with isolate_engine_config():
+            from sparkless.sql import functions as mock_functions  # type: ignore[import]
+            from sparkless import spark_types as mock_types  # type: ignore[import]
+            from sparkless.sql.utils import (  # type: ignore[import]
+                AnalysisException as MockAnalysisException,
+            )
+            from sparkless.window import Window as MockWindow  # type: ignore[import]
+
+            configure_engine(
+                functions=mock_functions,
+                types=mock_types,
+                analysis_exception=MockAnalysisException,
+                window=MockWindow,
+                desc=mock_functions.desc,
+                engine_name="mock",
+            )
+            F_local = get_default_functions()
 
         import random
         from datetime import datetime, timedelta
@@ -222,14 +253,29 @@ class TestUseCaseBIGuide:
 class TestUseCaseEcommerceGuide:
     """Run the E-commerce use-case pipeline from USE_CASE_ECOMMERCE_GUIDE.md."""
 
-    def test_ecommerce_pipeline_builds_and_runs(self, mock_spark_session):
+    def test_ecommerce_pipeline_builds_and_runs(self, mock_spark_session, isolate_engine_config):
         from pipeline_builder import PipelineBuilder
         from pipeline_builder.engine_config import configure_engine
         from pipeline_builder.functions import get_default_functions
 
         spark = mock_spark_session
-        configure_engine(spark=spark)
-        F_local = get_default_functions()
+        with isolate_engine_config():
+            from sparkless.sql import functions as mock_functions  # type: ignore[import]
+            from sparkless import spark_types as mock_types  # type: ignore[import]
+            from sparkless.sql.utils import (  # type: ignore[import]
+                AnalysisException as MockAnalysisException,
+            )
+            from sparkless.window import Window as MockWindow  # type: ignore[import]
+
+            configure_engine(
+                functions=mock_functions,
+                types=mock_types,
+                analysis_exception=MockAnalysisException,
+                window=MockWindow,
+                desc=mock_functions.desc,
+                engine_name="mock",
+            )
+            F_local = get_default_functions()
 
         import random
         from datetime import datetime, timedelta
@@ -360,14 +406,29 @@ class TestUseCaseEcommerceGuide:
 class TestUseCaseIoTGuide:
     """Run the IoT use-case pipeline from USE_CASE_IOT_GUIDE.md."""
 
-    def test_iot_pipeline_builds_and_runs(self, mock_spark_session):
+    def test_iot_pipeline_builds_and_runs(self, mock_spark_session, isolate_engine_config):
         from pipeline_builder import PipelineBuilder
         from pipeline_builder.engine_config import configure_engine
         from pipeline_builder.functions import get_default_functions
 
         spark = mock_spark_session
-        configure_engine(spark=spark)
-        F_local = get_default_functions()
+        with isolate_engine_config():
+            from sparkless.sql import functions as mock_functions  # type: ignore[import]
+            from sparkless import spark_types as mock_types  # type: ignore[import]
+            from sparkless.sql.utils import (  # type: ignore[import]
+                AnalysisException as MockAnalysisException,
+            )
+            from sparkless.window import Window as MockWindow  # type: ignore[import]
+
+            configure_engine(
+                functions=mock_functions,
+                types=mock_types,
+                analysis_exception=MockAnalysisException,
+                window=MockWindow,
+                desc=mock_functions.desc,
+                engine_name="mock",
+            )
+            F_local = get_default_functions()
 
         import random
         from datetime import datetime, timedelta

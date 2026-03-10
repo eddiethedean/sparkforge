@@ -267,7 +267,7 @@ class TestWorkingExamples:
     def test_error_handling(self, mock_spark_session):
         """Test error handling with mock Spark-like engine."""
         from sparkless.errors import AnalysisException  # type: ignore[import]
-        from sparkless import IllegalArgumentException  # type: ignore[import]
+        from sparkless.sql.utils import IllegalArgumentException  # type: ignore[import]
 
         # Test table not found error
         with pytest.raises(AnalysisException):

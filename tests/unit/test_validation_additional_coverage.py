@@ -14,8 +14,8 @@ import pytest
 # Use mock functions when in mock mode
 if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
     from sparkless import DataFrame as DataFrame  # type: ignore[import]
-    from sparkless import functions as F  # type: ignore[import]
-    from sparkless.functions import col  # type: ignore[import]
+    from sparkless.sql import functions as F  # type: ignore[import]
+    from sparkless.sql.functions import col  # type: ignore[import]
 else:
     from pyspark.sql import DataFrame
     from pyspark.sql import functions as F
@@ -224,30 +224,35 @@ class TestValidationEdgeCasesContinued:
     """Remaining validation edge case tests (split for clarity)."""
 
     def test_convert_rule_to_expression_edge_cases(self, spark_session) -> None:
-        """Test _convert_rule_to_expression with edge cases."""
-        # mock-spark 3.11.0+ requires active SparkSession for function calls (like PySpark)
-        # Test with valid string expressions
-        result = _convert_rule_to_expression("col1 > 0", "col1", F)
-        # Check for Column-like object (works with both PySpark and mock-spark)
-        assert hasattr(result, "__and__") and hasattr(result, "__invert__")
+        """Test _convert_rule_to_expression with edge cases using DataFrame behavior."""
+        # Build a small DataFrame and apply the expression to verify behavior
+        df = spark_session.createDataFrame([(1,), (0,)], ["col1"])
+        expr = _convert_rule_to_expression("col1 > 0", "col1", F)
+        filtered = df.filter(expr)
+        rows = [r.col1 for r in filtered.collect()]
+        assert rows == [1]
 
     def test_and_all_rules_single_expression(self, spark_session) -> None:
         """Test and_all_rules with single expression."""
         # mock-spark 3.11.0+ requires active SparkSession for function calls (like PySpark)
-        # Test with single valid expression
+        # Test with single valid expression by applying it to a DataFrame
         rules = {"col1": ["col1 > 0"]}
-        result = and_all_rules(rules, F)
-        # Check for Column-like object (works with both PySpark and mock-spark)
-        assert hasattr(result, "__and__") and hasattr(result, "__invert__")
+        df = spark_session.createDataFrame([(1,), (0,)], ["col1"])
+        expr = and_all_rules(rules, F)
+        filtered = df.filter(expr)
+        rows = [r.col1 for r in filtered.collect()]
+        assert rows == [1]
 
     def test_and_all_rules_multiple_expressions(self, spark_session) -> None:
         """Test and_all_rules with multiple expressions."""
         # mock-spark 3.11.0+ requires active SparkSession for function calls (like PySpark)
-        # Test with multiple expressions
+        # Test with multiple expressions by applying them to a DataFrame
         rules = {"col1": ["col1 > 0"], "col2": ["col2 IS NOT NULL"]}
-        result = and_all_rules(rules, F)
-        # Check for Column-like object (works with both PySpark and mock-spark)
-        assert hasattr(result, "__and__") and hasattr(result, "__invert__")
+        df = spark_session.createDataFrame([(1, "x"), (0, None)], ["col1", "col2"])
+        expr = and_all_rules(rules, F)
+        filtered = df.filter(expr)
+        rows = [(r.col1, r.col2) for r in filtered.collect()]
+        assert rows == [(1, "x")]
 
     def test_string_rule_conversion_edge_cases(self, spark_session) -> None:
         """Test string rule conversion edge cases."""
@@ -269,9 +274,14 @@ class TestValidationEdgeCasesContinued:
             test_cases.append("col1 IN ('a', 'b', 'c')")
 
         for rule in test_cases:
-            result = _convert_rule_to_expression(rule, "col1", F)
-            # Check for Column-like object (works with both PySpark and mock-spark)
-            assert hasattr(result, "__and__") and hasattr(result, "__invert__")
+            df = spark_session.createDataFrame([(1,), (0,)], ["col1"])
+            if "LENGTH" in rule:
+                # LENGTH is not supported in sparkless; skip this case there
+                if spark_mode != "real":
+                    continue
+            expr = _convert_rule_to_expression(rule, "col1", F)
+            # Just ensure the expression can be applied without error
+            df.filter(expr).collect()
 
     def test_validation_error_handling(self) -> None:
         """Test validation error handling paths."""
