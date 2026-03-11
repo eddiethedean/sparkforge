@@ -3,48 +3,53 @@ Shared fixtures and utilities for builder system tests.
 
 This module provides common fixtures, data generators, and utility functions
 for testing realistic bronze-silver-gold pipeline scenarios.
+
+Runs in both mock and real mode: when SPARK_MODE=mock uses root base_spark_session
+(sparkless); when SPARK_MODE=real creates a real PySpark session with Delta.
 """
 
 import os
 import shutil
+import sys
 from datetime import datetime, timedelta
 from typing import Any, List
 
 import pytest
-from pyspark.sql.types import (
-    DoubleType,
-    IntegerType,
-    StringType,
-    StructField,
-    StructType,
-)
 
-# Import functions after setting environment
+# Import types based on SPARK_MODE so DataGenerator works in both modes
+if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+    from pyspark.sql.types import (
+        DoubleType,
+        IntegerType,
+        StringType,
+        StructField,
+        StructType,
+    )
+else:
+    from sparkless.spark_types import (  # type: ignore[import]
+        DoubleType,
+        IntegerType,
+        StringType,
+        StructField,
+        StructType,
+    )
+
 from pipeline_builder.models import PipelineConfig, ValidationThresholds
 from pipeline_builder.writer import WriteMode, WriterConfig
 from pipeline_builder.writer.models import LogLevel
-import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from test_helpers.isolation import get_unique_warehouse_dir
 
 
-@pytest.fixture(scope="function")
-def spark_session(request):
-    """
-    Real Spark session for testing.
-
-    Function-scoped to ensure isolation between parallel tests.
-    Each test gets its own Spark session with a unique warehouse directory and app name.
-    """
+def _create_real_pyspark_session(request):
+    """Create a real PySpark session with Delta (used when SPARK_MODE=real)."""
     from pyspark.sql import SparkSession
     import uuid
 
     warehouse_dir = get_unique_warehouse_dir()
     os.makedirs(warehouse_dir, exist_ok=True)
 
-    # Stop any existing Spark session for this worker to ensure isolation
-    # This prevents getOrCreate from reusing a session from a previous test
     try:
         existing_spark = SparkSession.getActiveSession()
         if existing_spark is not None:
@@ -52,17 +57,14 @@ def spark_session(request):
                 existing_spark.catalog.clearCache()
                 existing_spark.stop()
             except Exception:
-                pass  # Ignore errors when stopping existing session
+                pass
     except Exception:
-        pass  # Ignore if no active session
+        pass
 
-    # Generate a unique app name that includes test identifier
-    # Use test node name + unique ID to ensure each test gets its own session
     test_name = request.node.name if hasattr(request, "node") else "unknown_test"
     test_id = uuid.uuid4().hex[:8]
     unique_app_name = f"builder_pyspark_tests_{test_name}_{test_id}"
 
-    # Configure Spark with Delta Lake support
     spark = None
     try:
         from delta import configure_spark_with_delta_pip
@@ -86,29 +88,22 @@ def spark_session(request):
             )
         )
 
-        # Use getOrCreate() with unique app name - the unique app name ensures
-        # each test gets its own session, and we've already stopped any existing session
         spark = configure_spark_with_delta_pip(builder).getOrCreate()
 
-        # Verify this is a new session by checking the app name matches our unique name
         actual_app_name = spark.sparkContext.getConf().get("spark.app.name", "")
         if actual_app_name != unique_app_name:
-            # If app name doesn't match, we got a reused session - stop it and try again
             try:
                 spark.stop()
                 spark = configure_spark_with_delta_pip(builder).getOrCreate()
             except Exception:
-                pass  # If stopping/recreating fails, continue with what we have
+                pass
 
-        # Clear catalog cache at start to ensure clean state
-        # This prevents stale table metadata from causing conflicts
         try:
             spark.catalog.clearCache()
         except Exception:
-            pass  # Ignore cache clearing errors
+            pass
     except Exception as e:
         print(f"⚠️ Delta Lake configuration failed: {e}")
-        # Fall back to basic Spark
         spark = (
             SparkSession.builder.appName(unique_app_name)
             .master("local[1]")
@@ -124,10 +119,8 @@ def spark_session(request):
             .getOrCreate()
         )
 
-        # Verify this is a new session by checking the app name matches our unique name
         actual_app_name = spark.sparkContext.getConf().get("spark.app.name", "")
         if actual_app_name != unique_app_name:
-            # If app name doesn't match, we got a reused session - stop it and try again
             try:
                 spark.stop()
                 spark = (
@@ -145,12 +138,10 @@ def spark_session(request):
                     .getOrCreate()
                 )
             except Exception:
-                pass  # If stopping/recreating fails, continue with what we have
+                pass
 
     spark._warehouse_dir = warehouse_dir  # type: ignore[attr-defined]
 
-    # Configure pipeline_builder engine for PySpark
-    # This is critical - without this, the engine won't be configured and tests will fail
     from pipeline_builder.engine_config import configure_engine
     from pyspark.sql import functions as pyspark_functions
     from pyspark.sql import types as pyspark_types
@@ -173,21 +164,34 @@ def spark_session(request):
         column_cls=PySparkColumn,
     )
 
-    # Note: Each test should create its own schemas with unique names
-    # We no longer create shared schemas to avoid conflicts in parallel execution
+    return spark, warehouse_dir
 
-    yield spark
 
-    # Cleanup: Clear catalog cache and stop session
+@pytest.fixture(scope="function")
+def spark_session(request):
+    """
+    Spark session for testing: mock (sparkless) or real PySpark with Delta.
+
+    When SPARK_MODE=mock, uses the root base_spark_session. When SPARK_MODE=real,
+    creates a real PySpark session with Delta and configures the engine.
+    """
+    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+    if spark_mode != "real":
+        session = request.getfixturevalue("base_spark_session")
+        yield session
+        return
+
+    spark, warehouse_dir = _create_real_pyspark_session(request)
     try:
-        spark.catalog.clearCache()
-    except Exception:
-        pass  # Ignore cleanup errors
-
-    spark.stop()
-
-    if os.path.exists(warehouse_dir):
-        shutil.rmtree(warehouse_dir, ignore_errors=True)
+        yield spark
+    finally:
+        try:
+            spark.catalog.clearCache()
+        except Exception:
+            pass
+        spark.stop()
+        if os.path.exists(warehouse_dir):
+            shutil.rmtree(warehouse_dir, ignore_errors=True)
 
 
 @pytest.fixture(autouse=True)

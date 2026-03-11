@@ -15,10 +15,7 @@ if spark_mode == "real":
 else:
     from sparkless.sql import functions as F  # type: ignore[import]
 
-pytestmark = pytest.mark.skipif(
-    spark_mode == "real",
-    reason="SQL source builder tests use mock Spark",
-)
+# Run in both mock and real mode (F and mock_spark_session are mode-aware).
 
 
 class TestWithBronzeSqlSource:

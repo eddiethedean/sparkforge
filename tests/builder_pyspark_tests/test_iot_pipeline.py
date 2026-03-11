@@ -10,14 +10,12 @@ import os
 
 import pytest
 
-# Skip all tests in this module if SPARK_MODE is not "real"
-if os.environ.get("SPARK_MODE", "mock").lower() != "real":
-    pytestmark = pytest.mark.skip(
-        reason="PySpark-specific tests require SPARK_MODE=real"
-    )
-
-from pyspark.sql import Window
-from pyspark.sql import functions as F
+if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+    from pyspark.sql import Window
+    from pyspark.sql import functions as F
+else:
+    from sparkless.sql import functions as F  # type: ignore[import]
+    from sparkless import Window  # type: ignore[import]
 
 from pipeline_builder.pipeline import PipelineBuilder
 from pipeline_builder.writer import LogWriter

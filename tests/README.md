@@ -43,6 +43,25 @@ Tests can run in two modes:
 
 Set mode via `--mode` flag or `SPARK_MODE` environment variable.
 
+### Which tests run in mock vs real mode
+
+All test modules are set up to run in **both** mock and real mode:
+
+- **Dual-mode (run in both)**  
+  The majority of tests use the shared `spark_session` (or `mock_spark_session`) fixture and conditional imports for `F` and types so they run in either mode. This includes:
+  - `integration/test_validation_integration.py`, `unit/test_execution_write_mode.py`
+  - `unit/test_validation_mock.py`, `unit/test_validation_enhanced_simple.py`
+  - `unit/test_trap_5_default_schema_fallbacks.py`, `unit/sql_source/test_sql_source_builder.py`
+  - All `builder_tests/` and `builder_pyspark_tests/` (session comes from root or mode-specific conftest)
+  - `compat_pyspark/test_pyspark_compatibility.py` (engine-switching and detection tests run in both; some tests that create a real PySpark session are skipped in mock mode)
+
+- **Individual tests that skip in one mode**  
+  A few tests still skip in one mode due to external requirements:
+  - **Real-only (skip in mock):** Tests that create their own real PySpark/Delta session (e.g. in `compat_pyspark`) use `@pytest.mark.skipif(SPARK_MODE != "real", ...)`. Integration tests that require PostgreSQL (e.g. `test_sql_source_postgres.py`) or real Delta (e.g. `test_delta_overwrite_real.py`) skip when not in real mode.
+  - **Mock-only (skip in real):** Rare; e.g. a test that exercises mock-only fallback behavior may skip in real mode.
+
+The root `conftest.py` still applies markers: mock mode skips `real_spark_only`; real mode skips `mock_only`.
+
 ## Test Organization
 
 ### Directory Structure

@@ -35,11 +35,7 @@ from pipeline_builder.execution import ExecutionEngine, ExecutionMode
 from pipeline_builder.models.steps import GoldStep, SilverStep
 
 
-# Skip all tests in this file when running in real mode
-pytestmark = pytest.mark.skipif(
-    os.environ.get("SPARK_MODE", "mock").lower() == "real",
-    reason="This test module is designed for sparkless/mock mode only",
-)
+# Run in both mock and real mode (types and spark_session are mode-aware).
 
 
 class TestTrap5DefaultSchemaFallbacks:

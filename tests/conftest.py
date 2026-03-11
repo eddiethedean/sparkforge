@@ -854,19 +854,14 @@ def isolate_engine_config():
 
 
 @pytest.fixture(scope="function")
-def spark_session():
+def base_spark_session():
     """
-    Create a Spark session for testing (function-scoped for test isolation).
+    Create a Spark session for testing (function-scoped).
 
-    This fixture creates either a mock Spark session or a real Spark session
-    based on the SPARK_MODE environment variable:
-    - SPARK_MODE=mock (default): Uses mock_spark
-    - SPARK_MODE=real: Uses real Spark with Delta Lake
-
-    This is the primary fixture for all tests - it automatically provides
-    the correct session type based on SPARK_MODE.
+    Used as the single implementation for spark_session. Subdir conftests
+    (e.g. builder_pyspark_tests) can request this fixture to get the
+    root session when running in mock mode.
     """
-    # Set mock as default if SPARK_MODE is not explicitly set
     spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
 
     if spark_mode == "real":
@@ -874,7 +869,6 @@ def spark_session():
         print(f"🔧 spark_session fixture: PID={os.getpid()}")
         spark = _create_real_spark_session()
 
-        # Log session identity before yielding
         print(f"🔧 spark_session fixture: Session ID (Python)={id(spark)}")
         try:
             if hasattr(spark, "_jsparkSession"):
@@ -884,14 +878,11 @@ def spark_session():
         except Exception:
             pass
 
-        # Verify Delta configs are still set before yielding to tests
-        # This ensures configs haven't been lost between creation and test execution
         print("🔧 spark_session fixture: Verifying Delta configs before yielding...")
         _log_session_configs(spark, "spark_session fixture (BEFORE YIELD)")
         ext = spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
         cat = spark.conf.get("spark.sql.catalog.spark_catalog", "")  # type: ignore[attr-defined]
         if "DeltaSparkSessionExtension" not in ext or "DeltaCatalog" not in cat:
-            # Use our debug logging helper
             _log_session_configs(
                 spark, "spark_session fixture (BEFORE YIELD - CONFIGS MISSING)"
             )
@@ -903,26 +894,20 @@ def spark_session():
     else:
         spark = _create_mock_spark_session()
 
-    # Yield Spark session without attaching non-standard attributes like 'storage'
     yield spark
 
-    # Cleanup using comprehensive isolation helpers
     try:
-        # Import isolation helpers
         from tests.test_helpers.isolation import (
             reset_execution_state,
             reset_global_state,
         )
 
-        # Reset global caches first (before Spark cleanup)
         reset_global_state()
         reset_execution_state()
 
         if spark_mode == "real":
-            # Real Spark cleanup - Stop session to maintain test isolation with function scope
             if spark:
                 try:
-                    # Clear cache first
                     if (
                         hasattr(spark, "sparkContext")
                         and spark.sparkContext._jsc is not None
@@ -931,12 +916,10 @@ def spark_session():
                             spark.catalog.clearCache()
                         except Exception:
                             pass
-                    # Stop the session to ensure clean state for next test
                     print(
                         "🔧 spark_session fixture: Stopping session after test (function scope isolation)"
                     )
                     spark.stop()
-                    # Clear internal cache to prevent getOrCreate() from reusing this session
                     try:
                         from pyspark.sql import SparkSession as PySparkSparkSession  # noqa: F401
 
@@ -947,20 +930,32 @@ def spark_session():
                 except Exception as e:
                     print(f"⚠️ Error stopping Spark session: {e}")
         else:
-            # Mock Spark cleanup - minimal since we use unique table names
             if spark:
                 try:
                     spark.catalog.clearCache()
                 except Exception:
                     pass
-
-            # Stop the session
             if spark and hasattr(spark, "stop"):
                 spark.stop()
-
             print("🧹 Mock Spark session cleanup completed")
     except Exception as e:
         print(f"Warning: Could not clean up test database: {e}")
+
+
+@pytest.fixture(scope="function")
+def spark_session(base_spark_session):
+    """
+    Create a Spark session for testing (function-scoped for test isolation).
+
+    This fixture creates either a mock Spark session or a real Spark session
+    based on the SPARK_MODE environment variable:
+    - SPARK_MODE=mock (default): Uses mock_spark
+    - SPARK_MODE=real: Uses real Spark with Delta Lake
+
+    This is the primary fixture for all tests - it automatically provides
+    the correct session type based on SPARK_MODE.
+    """
+    return base_spark_session
 
 
 @pytest.fixture(scope="function")

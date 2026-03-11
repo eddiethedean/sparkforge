@@ -1,20 +1,13 @@
 """
-Simple test to verify basic functionality.
+Simple test to verify basic functionality. Runs in both mock and real mode.
 """
 
 import os
+import sys
 
 import pytest
 
-# Skip all tests in this module if SPARK_MODE is not "real"
-if os.environ.get("SPARK_MODE", "mock").lower() != "real":
-    pytestmark = pytest.mark.skip(
-        reason="PySpark-specific tests require SPARK_MODE=real"
-    )
-
 from pipeline_builder.pipeline import PipelineBuilder
-import sys
-import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from test_helpers.isolation import get_unique_schema

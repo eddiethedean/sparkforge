@@ -47,11 +47,7 @@ from pipeline_builder.validation import (
 )
 
 
-# Skip all tests in this file when running in real mode
-pytestmark = pytest.mark.skipif(
-    os.environ.get("SPARK_MODE", "mock").lower() == "real",
-    reason="This test module is designed for sparkless/mock mode only",
-)
+# Run in both mock and real mode (F and types are set conditionally above).
 
 
 @pytest.fixture(scope="function", autouse=True)
