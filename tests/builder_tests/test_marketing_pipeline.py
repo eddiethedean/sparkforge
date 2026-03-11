@@ -456,9 +456,8 @@ class TestMarketingPipeline:
                 .agg(
                     F.min("impression_date_parsed").alias("first_touch_date"),
                     F.max("conversion_date_parsed").alias("conversion_date"),
-                    # Use min/max instead of first/last so sparkless (no .alias on first/last) works
-                    F.min("channel").alias("first_touch_channel"),
-                    F.max("channel").alias("last_touch_channel"),
+                    F.first("channel").alias("first_touch_channel"),
+                    F.last("channel").alias("last_touch_channel"),
                     F.sum("conversion_value").alias("total_conversion_value"),
                 )
             )

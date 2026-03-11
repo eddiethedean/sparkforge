@@ -59,6 +59,17 @@ from pipeline_builder.engine_config import configure_engine
 
 spark_mode_env = os.environ.get("SPARK_MODE", "mock").lower()
 if spark_mode_env == "mock":
+    import sparkless  # type: ignore[import]
+    _sparkless_version = getattr(sparkless, "__version__", "0.0.0")
+    try:
+        _parts = tuple(int(x) for x in _sparkless_version.split(".")[:3])
+    except (ValueError, AttributeError):
+        _parts = (0, 0, 0)
+    if _parts < (4, 1, 0):
+        raise RuntimeError(
+            f"Mock mode requires sparkless>=4.1.0; found {_sparkless_version}. "
+            "Install with: pip install 'sparkless>=4.1.0'"
+        )
     from sparkless.sql import functions as mock_functions  # type: ignore[import]
     from sparkless import spark_types as mock_types  # type: ignore[import]
     from sparkless.sql.utils import (  # type: ignore[import]
