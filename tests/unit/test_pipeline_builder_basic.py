@@ -14,11 +14,9 @@ from pipeline_builder.models import (
 )
 from pipeline_builder.pipeline.builder import PipelineBuilder
 
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as MockF  # type: ignore[import]
-else:
-    MockF = None
+from pipeline_builder.compat import F
+
+MockF = F
 
 
 class TestPipelineBuilderInitialization:

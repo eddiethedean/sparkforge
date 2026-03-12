@@ -11,19 +11,18 @@ import time
 
 import pytest
 
-# Use engine-specific functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-else:
-    from pyspark.sql import functions as F
+from pipeline_builder.compat import F
 
 
 @pytest.fixture(scope="function")
-def integration_spark_session():
+def integration_spark_session(request):
     """
     Create a real Spark session for integration tests.
-    This is shared across all integration tests for efficiency.
+    In real mode reuses root spark_session (one per JVM with -n N).
     """
+    if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+        yield request.getfixturevalue("spark_session")
+        return
     # Clean up any existing test data
     warehouse_dir = f"/tmp/spark-warehouse-integration-{os.getpid()}"
     if os.path.exists(warehouse_dir):

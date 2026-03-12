@@ -10,24 +10,12 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-else:
-    from pyspark.sql import functions as F
-# Import types based on engine
-import os
+# Use configured engine (same API for PySpark and sparkless)
+from pipeline_builder.compat import F, types
 
-# Check SPARK_MODE first (used by tests), then SPARKFORGE_ENGINE
-_SPARK_MODE = os.environ.get("SPARK_MODE", "mock").lower()
-_ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
-if _SPARK_MODE == "real" or _ENGINE in ("pyspark", "spark", "real"):
-    try:
-        from pyspark.sql.types import StringType, StructField, StructType
-    except ImportError:
-        from sparkless.spark_types import StringType, StructField, StructType  # type: ignore[import]
-else:
-    from sparkless.spark_types import StringType, StructField, StructType  # type: ignore[import]
+StringType = types.StringType
+StructField = types.StructField
+StructType = types.StructType
 
 from pipeline_builder.models import (
     BronzeStep,

@@ -3,44 +3,12 @@
 Unit tests for the validation module.
 
 This module tests all data validation and quality assessment functions.
+Uses configured engine (PySpark or sparkless) via pipeline_builder.compat.
 """
-
-import os
 
 import pytest
 
-# Use compatibility layer
-
-# For tests, we'll use functions from spark_session when available
-# This avoids SparkContext requirements
-
-# Import types based on engine - check both SPARK_MODE and SPARKFORGE_ENGINE
-_SPARK_MODE = os.environ.get("SPARK_MODE", "mock").lower()
-_ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
-
-# Use real PySpark types if either SPARK_MODE=real or SPARKFORGE_ENGINE indicates real
-use_real_spark = _SPARK_MODE == "real" or _ENGINE in ("pyspark", "spark", "real")
-
-if use_real_spark:
-    try:
-        from pyspark.sql.types import (
-            StringType,
-            StructField,
-            StructType,
-        )
-    except ImportError:
-        from sparkless.spark_types import (  # type: ignore[import]
-            StringType,
-            StructField,
-            StructType,
-        )
-else:
-    from sparkless.spark_types import (  # type: ignore[import]
-        StringType,
-        StructField,
-        StructType,
-    )
-
+from pipeline_builder.compat import types
 from pipeline_builder.errors import ValidationError
 from pipeline_builder.validation import (
     _convert_rule_to_expression,
@@ -53,14 +21,9 @@ from pipeline_builder.validation import (
     validate_dataframe_schema,
 )
 
-# Using shared spark_session fixture from conftest.py
-
-
-# Skip all tests in this file when running in real mode
-pytestmark = pytest.mark.skipif(
-    os.environ.get("SPARK_MODE", "mock").lower() == "real",
-    reason="This test module is designed for sparkless/mock mode only",
-)
+StringType = types.StringType
+StructField = types.StructField
+StructType = types.StructType
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -94,29 +57,8 @@ def reset_test_environment(spark_session):
 @pytest.fixture(scope="function")
 def sample_dataframe(spark_session):
     """Create sample DataFrame for testing - validation test specific (4 rows, no category)."""
-    # Use types that match the spark_session (already imported at top based on SPARK_MODE)
-    # The types are already imported at module level based on SPARKFORGE_ENGINE
-    # But we should check SPARK_MODE to ensure compatibility
-
-    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-    if spark_mode == "real":
-        # Use PySpark types for real Spark
-        from pyspark.sql.types import (
-            DoubleType,
-            IntegerType,
-            StringType,
-            StructField,
-            StructType,
-        )
-    else:
-        # Use sparkless types for mock Spark
-        from sparkless.spark_types import (  # type: ignore[import]
-            DoubleType,
-            IntegerType,
-            StringType,
-            StructField,
-            StructType,
-        )
+    DoubleType = types.DoubleType
+    IntegerType = types.IntegerType
 
     # Force using StructType for consistency
     schema = StructType(

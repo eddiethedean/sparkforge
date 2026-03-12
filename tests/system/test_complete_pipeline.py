@@ -101,6 +101,9 @@ class TestCompletePipeline:
         mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
         mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
         mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        # Drop tables if they exist (shared session in real mode)
+        for t in ("bronze.raw_data", "silver.processed_data", "gold.aggregated_data"):
+            mock_spark_session.sql(f"DROP TABLE IF EXISTS {t}")
 
         # Create pipeline builder
         PipelineBuilder(spark=mock_spark_session, schema="bronze")
@@ -147,6 +150,8 @@ class TestCompletePipeline:
         mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
         mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
         mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        for t in ("bronze.raw_data", "silver.processed_data", "gold.aggregated_data"):
+            mock_spark_session.sql(f"DROP TABLE IF EXISTS {t}")
 
         # Create pipeline builder
         PipelineBuilder(spark=mock_spark_session, schema="bronze")
@@ -202,6 +207,8 @@ class TestCompletePipeline:
         mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
         mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
         mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        for t in ("bronze.raw_data", "silver.processed_data", "gold.aggregated_data"):
+            mock_spark_session.sql(f"DROP TABLE IF EXISTS {t}")
 
         # Create pipeline builder
         builder = PipelineBuilder(spark=mock_spark_session, schema="bronze")
@@ -251,6 +258,8 @@ class TestCompletePipeline:
         mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
         mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
         mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        for t in ("bronze.raw_data", "silver.processed_data", "gold.aggregated_data"):
+            mock_spark_session.sql(f"DROP TABLE IF EXISTS {t}")
 
         # Create pipeline builder
         builder = PipelineBuilder(spark=mock_spark_session, schema="bronze")

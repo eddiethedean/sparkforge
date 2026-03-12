@@ -7,17 +7,12 @@ from datetime import datetime
 
 import pytest
 
-# Import types based on SPARK_MODE
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql.types import IntegerType, StructField, StructType
-else:
-    from sparkless import (  # type: ignore[import]
-        IntegerType,
-        StructField,
-        StructType,
-    )
-
+from pipeline_builder.compat import types
 from pipeline_builder.logging import PipelineLogger
+
+IntegerType = types.IntegerType
+StructField = types.StructField
+StructType = types.StructType
 from pipeline_builder.models import (
     ExecutionMode,
     ExecutionResult,
@@ -35,17 +30,16 @@ from pipeline_builder.writer.models import (
 )
 
 
-# Skip all tests in this file when running in real mode
-pytestmark = pytest.mark.skipif(
-    os.environ.get("SPARK_MODE", "mock").lower() == "real",
-    reason="This test module is designed for sparkless/mock mode only",
-)
-
-
 @pytest.fixture(scope="function", autouse=True)
 def reset_test_environment(spark_session):
     """Reset test environment before each test in this file."""
     import gc
+
+    # Drop shared table so Delta/Parquet format conflicts don't occur with -n N
+    try:
+        spark_session.sql("DROP TABLE IF EXISTS test_schema.test_table")
+    except Exception:
+        pass
 
     # Reset global state before test
     try:
@@ -441,6 +435,7 @@ class TestWriterComprehensive:
     # No patch needed - F.current_timestamp works directly with mock-spark
     def test_writer_metrics_tracking(self, mock_spark_session):
         """Test that writer metrics are properly tracked."""
+        mock_spark_session.sql("DROP TABLE IF EXISTS test_schema.test_table")
         config = WriterConfig(
             table_schema="test_schema",
             table_name="test_table",
@@ -582,6 +577,7 @@ class TestWriterComprehensive:
     # No patch needed - F.current_timestamp works directly with mock-spark
     def test_writer_with_partition_settings(self, mock_spark_session):
         """Test writer with partition settings."""
+        mock_spark_session.sql("DROP TABLE IF EXISTS test_schema.test_table")
         config = WriterConfig(
             table_schema="test_schema",
             table_name="test_table",

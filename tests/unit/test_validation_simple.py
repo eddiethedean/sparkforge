@@ -1,22 +1,18 @@
 """
-Simplified tests for pipeline_builder.validation modules that work with mock_spark.
+Simplified tests for pipeline_builder.validation modules.
+Work with any configured engine (PySpark or sparkless).
 """
 
-import os
 from datetime import datetime
 
 import pytest
 
-# Import types based on SPARK_MODE
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql.types import IntegerType, StringType, StructField, StructType
-else:
-    from sparkless.spark_types import (  # type: ignore[import]
-        IntegerType,
-        StructField,
-        StructType,
-        StringType,
-    )
+from pipeline_builder.compat import types
+
+IntegerType = types.IntegerType
+StringType = types.StringType
+StructField = types.StructField
+StructType = types.StructType
 
 from pipeline_builder.errors import ValidationError
 from pipeline_builder.logging import PipelineLogger
@@ -35,13 +31,6 @@ from pipeline_builder.validation.pipeline_validation import (
     ValidationResult,
 )
 from pipeline_builder.validation.utils import get_dataframe_info, safe_divide
-
-
-# Skip all tests in this file when running in real mode
-pytestmark = pytest.mark.skipif(
-    os.environ.get("SPARK_MODE", "mock").lower() == "real",
-    reason="This test module is designed for sparkless/mock mode only",
-)
 
 
 @pytest.fixture(scope="function", autouse=True)

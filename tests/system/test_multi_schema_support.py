@@ -12,25 +12,12 @@ from unittest.mock import patch
 
 import pytest
 
-# Multi-schema tests now run with sparkless in mock mode
+# Use configured engine (same API for PySpark and sparkless)
+from pipeline_builder.compat import F, types
 
-# Use engine-specific functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-else:
-    from pyspark.sql import functions as F
-
-# Import types based on SPARK_MODE (preferred) or SPARKFORGE_ENGINE
-_SPARK_MODE = os.environ.get("SPARK_MODE", "mock").lower()
-_ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
-if _SPARK_MODE == "real" or _ENGINE in ("pyspark", "spark", "real"):
-    from pyspark.sql.types import StringType, StructField, StructType
-else:
-    from sparkless.spark_types import (  # type: ignore[import]
-        StringType,
-        StructField,
-        StructType,
-    )
+StringType = types.StringType
+StructField = types.StructField
+StructType = types.StructType
 
 from pipeline_builder.errors import StepError
 from pipeline_builder.pipeline.builder import PipelineBuilder

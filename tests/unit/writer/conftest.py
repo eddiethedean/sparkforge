@@ -15,9 +15,6 @@ from unittest.mock import Mock
 
 import pytest
 
-# Use compatibility layer
-from pipeline_builder.compat import SparkSession
-
 from pipeline_builder.logging import PipelineLogger
 from pipeline_builder.models import (
     ExecutionContext,
@@ -28,27 +25,8 @@ from pipeline_builder.models import (
 from pipeline_builder.writer.models import LogRow, WriteMode, WriterConfig
 
 
-@pytest.fixture(scope="session")
-def spark_session():
-    """Create a SparkSession for testing."""
-    import os
-
-    # Get worker ID for concurrent testing isolation (pytest-xdist)
-    worker_id = os.environ.get("PYTEST_XDIST_WORKER", "gw0")
-    spark = (
-        SparkSession.builder.appName(f"pytest-spark-{worker_id}")
-        .master("local[1]")
-        .config("spark.ui.enabled", "false")
-        .config("spark.sql.shuffle.partitions", "1")
-        .config("spark.default.parallelism", "1")
-        .config("spark.sql.adaptive.enabled", "false")
-        .config("spark.driver.host", "127.0.0.1")
-        .config("spark.driver.bindAddress", "127.0.0.1")
-        .getOrCreate()
-    )
-
-    yield spark
-    spark.stop()
+# spark_session: use root tests/conftest.py fixture (no override here)
+# so real mode uses one shared session per JVM with pytest-xdist -n N.
 
 
 @pytest.fixture

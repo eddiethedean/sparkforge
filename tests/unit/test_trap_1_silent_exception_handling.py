@@ -11,21 +11,9 @@ from unittest.mock import patch
 
 import pytest
 
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-else:
-    from pyspark.sql import functions as F
-
+from pipeline_builder.compat import F
 from pipeline_builder.errors import ValidationError
 from pipeline_builder.validation.data_validation import assess_data_quality
-
-
-# Skip all tests in this file when running in real mode
-pytestmark = pytest.mark.skipif(
-    os.environ.get("SPARK_MODE", "mock").lower() == "real",
-    reason="This test module is designed for sparkless/mock mode only",
-)
 
 
 class TestTrap1SilentExceptionHandling:

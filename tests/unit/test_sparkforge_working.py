@@ -8,24 +8,7 @@ from datetime import datetime
 
 import pytest
 
-# Import types based on SPARK_MODE
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql.types import (
-        DoubleType,
-        IntegerType,
-        StringType,
-        StructField,
-        StructType,
-    )
-else:
-    from sparkless import (  # type: ignore[import]
-        DoubleType,
-        IntegerType,
-        StructField,
-        StructType,
-        StringType,
-    )
-
+from pipeline_builder.compat import F, types
 from pipeline_builder.errors import (
     ConfigurationError,
     DataError,
@@ -36,14 +19,15 @@ from pipeline_builder.errors import (
     ValidationError,
 )
 from pipeline_builder.execution import ExecutionEngine, ExecutionMode
+
+DoubleType = types.DoubleType
+IntegerType = types.IntegerType
+StringType = types.StringType
+StructField = types.StructField
+StructType = types.StructType
 from pipeline_builder.logging import PipelineLogger
 
 
-# Skip all tests in this file when running in real mode
-pytestmark = pytest.mark.skipif(
-    os.environ.get("SPARK_MODE", "mock").lower() == "real",
-    reason="This test module is designed for sparkless/mock mode only",
-)
 from pipeline_builder.models import (
     ExecutionContext,
     PipelineConfig,
@@ -75,15 +59,7 @@ from pipeline_builder.writer.models import (
     WriterMetrics,
 )
 
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-
-    MockF = F
-else:
-    from pyspark.sql import functions as F
-
-    MockF = None
+MockF = F  # alias for tests that pass functions explicitly
 
 
 class TestSparkForgeWorking:

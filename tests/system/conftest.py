@@ -35,12 +35,16 @@ def _ensure_java_home():
 
 
 @pytest.fixture(scope="function")
-def system_spark_session():
+def system_spark_session(spark_session):
     """
     Create a full Spark session with Delta Lake for system tests.
-    This is shared across all system tests for efficiency.
+    In real mode reuses the root spark_session (one SparkContext per JVM).
     """
-    # Ensure JAVA_HOME is set
+    if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+        # Reuse root session to avoid multiple SparkContexts with pytest-xdist
+        yield spark_session
+        return
+    # Ensure JAVA_HOME is set for real mode fallback
     _ensure_java_home()
 
     # Clean up any existing test data

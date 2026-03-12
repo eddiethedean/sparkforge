@@ -251,6 +251,7 @@ class TestWorkingExamples:
 
         # Test schema operations using standard Spark SQL
         mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS test_schema")
+        mock_spark_session.sql("DROP TABLE IF EXISTS test_schema.test_table")
 
         # Test table operations using standard Spark operations
         sample_dataframe.write.saveAsTable("test_schema.test_table")

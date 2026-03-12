@@ -853,93 +853,85 @@ def isolate_engine_config():
     return _isolate
 
 
-@pytest.fixture(scope="function")
-def base_spark_session():
+@pytest.fixture(scope="session")
+def _shared_real_spark_session():
     """
-    Create a Spark session for testing (function-scoped).
+    Session-scoped real Spark session for PySpark mode.
 
-    Used as the single implementation for spark_session. Subdir conftests
-    (e.g. builder_pyspark_tests) can request this fixture to get the
-    root session when running in mock mode.
+    One SparkContext per JVM: with pytest-xdist (-n N), each worker gets one
+    session. All tests in that worker reuse it to avoid "Only one SparkContext
+    should be running in this JVM" (SPARK-2243).
+    """
+    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+    if spark_mode != "real":
+        yield None
+        return
+    print("🔧 _shared_real_spark_session: Creating session-scoped real Spark...")
+    spark = _create_real_spark_session()
+    print("✅ _shared_real_spark_session: Created (one per worker)")
+    try:
+        yield spark
+    finally:
+        try:
+            if spark:
+                try:
+                    spark.catalog.clearCache()
+                except Exception:
+                    pass
+                print("🔧 _shared_real_spark_session: Stopping session at end of worker run")
+                spark.stop()
+                from pyspark.sql import SparkSession as PySparkSparkSession  # noqa: F401
+
+                if hasattr(PySparkSparkSession, "_instantiatedContext"):
+                    PySparkSparkSession._instantiatedContext = None  # type: ignore[attr-defined]
+        except Exception as e:
+            print(f"⚠️ Error stopping shared Spark session: {e}")
+
+
+@pytest.fixture(scope="function")
+def base_spark_session(_shared_real_spark_session):
+    """
+    Create a Spark session for testing (function-scoped for mock; reuses session in real).
+
+    In real mode, reuses the session-scoped Spark to avoid multiple SparkContexts per JVM.
+    In mock mode, creates a new mock session per test.
     """
     spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
 
     if spark_mode == "real":
-        print("🔧 spark_session fixture: Creating real Spark session...")
-        print(f"🔧 spark_session fixture: PID={os.getpid()}")
-        spark = _create_real_spark_session()
-
-        print(f"🔧 spark_session fixture: Session ID (Python)={id(spark)}")
+        spark = _shared_real_spark_session
+        if spark is None:
+            raise RuntimeError("_shared_real_spark_session was None in real mode")
+        # Clear cache between tests for isolation; do not stop the session
         try:
-            if hasattr(spark, "_jsparkSession"):
-                print(
-                    f"🔧 spark_session fixture: Session ID (JVM)={id(spark._jsparkSession)}"
-                )
+            spark.catalog.clearCache()
         except Exception:
             pass
-
-        print("🔧 spark_session fixture: Verifying Delta configs before yielding...")
-        _log_session_configs(spark, "spark_session fixture (BEFORE YIELD)")
-        ext = spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
-        cat = spark.conf.get("spark.sql.catalog.spark_catalog", "")  # type: ignore[attr-defined]
-        if "DeltaSparkSessionExtension" not in ext or "DeltaCatalog" not in cat:
-            _log_session_configs(
-                spark, "spark_session fixture (BEFORE YIELD - CONFIGS MISSING)"
-            )
-            raise RuntimeError(
-                f"Delta configs lost before test execution! Extensions: '{ext}', Catalog: '{cat}'. "
-                f"This indicates the session configuration was lost or overridden."
-            )
-        print("✅ spark_session fixture: Verified Delta configs - ready to yield")
+        yield spark
     else:
         spark = _create_mock_spark_session()
-
-    yield spark
+        yield spark
+        try:
+            if spark:
+                try:
+                    spark.catalog.clearCache()
+                except Exception:
+                    pass
+                if hasattr(spark, "stop"):
+                    spark.stop()
+                print("🧹 Mock Spark session cleanup completed")
+        except Exception as e:
+            print(f"Warning: Could not clean up test database: {e}")
 
     try:
         from tests.test_helpers.isolation import (
             reset_execution_state,
             reset_global_state,
         )
-
         reset_global_state()
         reset_execution_state()
-
-        if spark_mode == "real":
-            if spark:
-                try:
-                    if (
-                        hasattr(spark, "sparkContext")
-                        and spark.sparkContext._jsc is not None
-                    ):
-                        try:
-                            spark.catalog.clearCache()
-                        except Exception:
-                            pass
-                    print(
-                        "🔧 spark_session fixture: Stopping session after test (function scope isolation)"
-                    )
-                    spark.stop()
-                    try:
-                        from pyspark.sql import SparkSession as PySparkSparkSession  # noqa: F401
-
-                        if hasattr(PySparkSparkSession, "_instantiatedContext"):
-                            PySparkSparkSession._instantiatedContext = None  # type: ignore[attr-defined]
-                    except Exception:
-                        pass
-                except Exception as e:
-                    print(f"⚠️ Error stopping Spark session: {e}")
-        else:
-            if spark:
-                try:
-                    spark.catalog.clearCache()
-                except Exception:
-                    pass
-            if spark and hasattr(spark, "stop"):
-                spark.stop()
-            print("🧹 Mock Spark session cleanup completed")
     except Exception as e:
-        print(f"Warning: Could not clean up test database: {e}")
+        print(f"Warning: Could not reset state: {e}")
 
 
 @pytest.fixture(scope="function")
@@ -959,48 +951,25 @@ def spark_session(base_spark_session):
 
 
 @pytest.fixture(scope="function")
-def isolated_spark_session():
+def isolated_spark_session(_shared_real_spark_session):
     """
     Create an isolated Spark session for tests that need complete isolation.
 
-    This fixture creates a new Spark session for each test function.
+    In real mode reuses the shared session (one SparkContext per JVM).
+    In mock mode creates a new mock session per test.
     """
-    # Set mock as default if SPARK_MODE is not explicitly set
     spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
 
     if spark_mode == "real":
-        # For real Spark, create a new session
-        unique_id = int(time.time() * 1000000) % 1000000
-        schema_name = f"test_schema_{unique_id}"
-
-        print(f"🔧 Creating isolated real Spark session for {schema_name}")
-
-        # Create the spark session using the helper function
-        spark = _create_real_spark_session()
-
-        # Create isolated test database
+        # Reuse shared session to avoid "Only one SparkContext" (SPARK-2243)
+        spark = _shared_real_spark_session
+        if spark is None:
+            raise RuntimeError("_shared_real_spark_session was None in real mode")
         try:
-            spark.sql(f"CREATE DATABASE IF NOT EXISTS {schema_name}")
-            print(f"✅ Isolated test database {schema_name} created successfully")
-        except Exception as e:
-            print(f"❌ Could not create isolated test database {schema_name}: {e}")
-
-        # Attach storage wrapper only if session allows it
-        try:
-            from tests.builder_tests.storage_wrapper import StorageWrapper
-
-            spark.storage = StorageWrapper(spark)  # type: ignore[attr-defined]
-        except (ImportError, AttributeError):
-            pass
-
-        yield spark
-
-        # Minimal cleanup - unique schema names ensure isolation
-        try:
-            if spark:
-                spark.catalog.clearCache()
+            spark.catalog.clearCache()
         except Exception:
             pass
+        yield spark
     else:
         # For mock Spark, create a new session using sparkless
         unique_id = int(time.time() * 1000000) % 1000000

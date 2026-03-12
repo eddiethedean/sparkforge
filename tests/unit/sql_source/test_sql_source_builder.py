@@ -9,11 +9,7 @@ from pipeline_builder.pipeline.builder import PipelineBuilder
 from pipeline_builder.sql_source import JdbcSource, SqlAlchemySource
 from pipeline_builder_base.errors import ExecutionError
 
-spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-if spark_mode == "real":
-    from pyspark.sql import functions as F
-else:
-    from sparkless.sql import functions as F  # type: ignore[import]
+from pipeline_builder.compat import F
 
 # Run in both mock and real mode (F and mock_spark_session are mode-aware).
 

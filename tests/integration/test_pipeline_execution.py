@@ -9,12 +9,7 @@ import os
 
 import pytest
 
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-else:
-    from pyspark.sql import functions as F
-
+from pipeline_builder.compat import F
 from pipeline_builder.execution import ExecutionEngine
 from pipeline_builder.models import (
     BronzeStep,
@@ -22,13 +17,6 @@ from pipeline_builder.models import (
     ValidationThresholds,
 )
 from pipeline_builder.pipeline.builder import PipelineBuilder
-
-
-# Skip all tests in this file when running in real mode
-pytestmark = pytest.mark.skipif(
-    os.environ.get("SPARK_MODE", "mock").lower() == "real",
-    reason="This test module is designed for sparkless/mock mode only",
-)
 
 
 @pytest.fixture(scope="function", autouse=True)

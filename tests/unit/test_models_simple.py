@@ -13,12 +13,7 @@ from datetime import datetime
 
 import pytest
 
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-else:
-    from pyspark.sql import functions as F
-
+from pipeline_builder.compat import F
 from pipeline_builder.errors import ValidationError
 from pipeline_builder.models import (
     BaseModel,

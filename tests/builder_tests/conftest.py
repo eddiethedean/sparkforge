@@ -15,23 +15,14 @@ from typing import Any, List
 
 import pytest
 
-# Import types based on SPARK_MODE
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql.types import (
-        DoubleType,
-        IntegerType,
-        StringType,
-        StructField,
-        StructType,
-    )
-else:
-    from sparkless.spark_types import (  # type: ignore[import]
-        DoubleType,
-        IntegerType,
-        StringType,
-        StructField,
-        StructType,
-    )
+# Use configured engine (same API for PySpark and sparkless)
+from pipeline_builder.compat import types
+
+DoubleType = types.DoubleType
+IntegerType = types.IntegerType
+StringType = types.StringType
+StructField = types.StructField
+StructType = types.StructType
 
 # Import functions after setting environment
 from pipeline_builder.models import PipelineConfig, ValidationThresholds

@@ -13,30 +13,7 @@ import os
 
 import pytest
 
-# Import types based on SPARK_MODE
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql.types import (
-        BooleanType,
-        DoubleType,
-        IntegerType,
-        StringType,
-        StructField,
-        StructType,
-    )
-    from pyspark.sql import SparkSession, functions as Functions
-else:
-    from sparkless.spark_types import (  # type: ignore[import]
-        BooleanType,
-        DoubleType,
-        IntegerType,
-        StructField,
-        StructType,
-        StringType,
-    )
-    from sparkless import SparkSession  # type: ignore[import]
-    from sparkless.sql import functions as Functions  # type: ignore[import]
-
-# Import SparkForge validation modules
+from pipeline_builder.compat import F, types
 from pipeline_builder.validation.data_validation import (
     _convert_rule_to_expression,
     _convert_rules_to_expressions,
@@ -46,12 +23,12 @@ from pipeline_builder.validation.data_validation import (
     validate_dataframe_schema,
 )
 
-
-# Skip all tests in this file when running in real mode
-pytestmark = pytest.mark.skipif(
-    os.environ.get("SPARK_MODE", "mock").lower() == "real",
-    reason="This test module is designed for sparkless/mock mode only",
-)
+BooleanType = types.BooleanType
+DoubleType = types.DoubleType
+IntegerType = types.IntegerType
+StringType = types.StringType
+StructField = types.StructField
+StructType = types.StructType
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -88,16 +65,8 @@ class TestValidationWithFunctions:
     @pytest.fixture(autouse=True)
     def setup_fixtures(self, spark_session):
         """Set up test fixtures automatically for all tests."""
-        # Use spark_session fixture for PySpark compatibility
-        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-        if spark_mode == "real":
-            self.mock_spark = spark_session
-            from pyspark.sql import functions
-
-            self.mock_functions = functions
-        else:
-            self.mock_spark = SparkSession("TestApp")
-            self.mock_functions = Functions
+        self.mock_spark = spark_session
+        self.mock_functions = F
 
         # Create sample data
         self.sample_data = [
@@ -317,16 +286,8 @@ class TestPipelineBuilderWithFunctions:
     @pytest.fixture(autouse=True)
     def setup_fixtures(self, spark_session):
         """Set up test fixtures automatically for all tests."""
-        # Use spark_session fixture for PySpark compatibility
-        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-        if spark_mode == "real":
-            self.mock_spark = spark_session
-            from pyspark.sql import functions
-
-            self.mock_functions = functions
-        else:
-            self.mock_spark = SparkSession("TestApp")
-            self.mock_functions = Functions
+        self.mock_spark = spark_session
+        self.mock_functions = F
 
     def test_pipeline_builder_with_mock_functions(self):
         """Test PipelineBuilder initialization with mock functions."""
@@ -414,16 +375,8 @@ class TestFunctionsIntegration:
     @pytest.fixture(autouse=True)
     def setup_fixtures(self, spark_session):
         """Set up test fixtures automatically for all tests."""
-        # Use spark_session fixture for PySpark compatibility
-        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-        if spark_mode == "real":
-            self.mock_spark = spark_session
-            from pyspark.sql import functions
-
-            self.mock_functions = functions
-        else:
-            self.mock_spark = SparkSession("TestApp")
-            self.mock_functions = Functions
+        self.mock_spark = spark_session
+        self.mock_functions = F
 
     def test_mock_functions_behavior(self):
         """Test that Functions behaves correctly with validation."""

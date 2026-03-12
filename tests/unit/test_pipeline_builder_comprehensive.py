@@ -7,11 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-else:
-    from pyspark.sql import functions as F
-
+from pipeline_builder.compat import F
 from pipeline_builder.errors import ConfigurationError, ExecutionError
 from pipeline_builder.logging import PipelineLogger
 from pipeline_builder.models import (
@@ -21,15 +17,7 @@ from pipeline_builder.models import (
 )
 from pipeline_builder.pipeline.builder import PipelineBuilder
 
-# Use functions based on SPARK_MODE
-MockF = F
-
-
-# Skip all tests in this file when running in real mode
-pytestmark = pytest.mark.skipif(
-    os.environ.get("SPARK_MODE", "mock").lower() == "real",
-    reason="This test module is designed for sparkless/mock mode only",
-)
+MockF = F  # alias for tests that pass functions explicitly
 
 
 class TestPipelineBuilderInitialization:

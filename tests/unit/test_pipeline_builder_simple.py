@@ -17,22 +17,9 @@ from pipeline_builder.models import (
 )
 from pipeline_builder.pipeline.builder import PipelineBuilder
 
-# Import functions based on SPARK_MODE
-spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-if spark_mode == "real":
-    from pyspark.sql import functions as F
-else:
-    from sparkless.sql import functions as F  # type: ignore[import]
+from pipeline_builder.compat import F
 
-# Use appropriate functions based on mode
-MockF = F  # Will be PySpark F in real mode, sparkless F in mock mode
-
-
-# Skip all tests in this file when running in real mode
-pytestmark = pytest.mark.skipif(
-    os.environ.get("SPARK_MODE", "mock").lower() == "real",
-    reason="This test module is designed for sparkless/mock mode only",
-)
+MockF = F
 
 
 class TestPipelineBuilderInitialization:
@@ -43,7 +30,7 @@ class TestPipelineBuilderInitialization:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         assert builder.spark == mock_spark_session
@@ -91,7 +78,7 @@ class TestPipelineBuilderInitialization:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         assert builder.pipeline_id.startswith("pipeline_test_schema_")
@@ -102,7 +89,7 @@ class TestPipelineBuilderInitialization:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         assert hasattr(builder, "validators")
@@ -121,7 +108,7 @@ class TestSilverRules:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         rules = {"id": ["not_null"]}
@@ -153,7 +140,7 @@ class TestSilverRules:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         rules = {"id": ["not_null"]}
@@ -176,7 +163,7 @@ class TestSilverRules:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         rules = {"id": ["not_null"]}
@@ -201,7 +188,7 @@ class TestGoldRules:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         rules = {"id": ["not_null"]}
@@ -231,7 +218,7 @@ class TestGoldRules:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         rules = {"id": ["not_null"]}
@@ -254,7 +241,7 @@ class TestGoldRules:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         rules = {"id": ["not_null"]}
@@ -273,7 +260,7 @@ class TestGoldRules:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         rules = {"id": ["not_null"]}
@@ -290,7 +277,7 @@ class TestGoldRules:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         rules = {"id": ["not_null"]}
@@ -319,7 +306,7 @@ class TestBronzeRules:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         rules = {"id": ["not_null"], "name": ["not_null"]}
@@ -340,7 +327,7 @@ class TestBronzeRules:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         rules = {"id": ["not_null"]}
@@ -361,7 +348,7 @@ class TestBronzeRules:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         # Mock the schema validation
@@ -384,7 +371,7 @@ class TestBronzeRules:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         rules = {"id": ["not_null"]}
@@ -398,7 +385,7 @@ class TestBronzeRules:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         rules = {"id": ["not_null"]}
@@ -417,7 +404,7 @@ class TestSilverTransform:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         # Add bronze step first
@@ -450,7 +437,7 @@ class TestSilverTransform:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         # Add bronze step first
@@ -474,7 +461,7 @@ class TestSilverTransform:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         def transform_func(spark, df, silvers):
@@ -498,7 +485,7 @@ class TestSilverTransform:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         def transform_func(spark, df, silvers):
@@ -525,7 +512,7 @@ class TestGoldTransform:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         # Add bronze and silver steps first
@@ -565,7 +552,7 @@ class TestGoldTransform:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         # Add bronze and silver steps first
@@ -596,7 +583,7 @@ class TestGoldTransform:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         def transform_func(spark, silvers):
@@ -620,7 +607,7 @@ class TestGoldTransform:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         def transform_func(spark, silvers):
@@ -644,7 +631,7 @@ class TestValidatorManagement:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         class CustomValidator:
@@ -662,7 +649,7 @@ class TestValidatorManagement:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         class Validator1:
@@ -687,7 +674,7 @@ class TestPipelineValidation:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         errors = builder.validate_pipeline()
@@ -701,7 +688,7 @@ class TestPipelineValidation:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         # Add valid steps
@@ -734,7 +721,7 @@ class TestPipelineValidation:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         # Add validation-only silver step (should not require source_bronze)
@@ -764,7 +751,7 @@ class TestPipelineValidation:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         # Add bronze step
@@ -829,7 +816,7 @@ class TestToPipeline:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         # Add valid steps
@@ -863,7 +850,7 @@ class TestToPipeline:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         # Add invalid step (no source bronze for silver)
@@ -881,7 +868,7 @@ class TestToPipeline:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         pipeline = builder.to_pipeline()
@@ -900,7 +887,7 @@ class TestHelperMethods:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         # Test with None (should return default)
@@ -919,7 +906,7 @@ class TestHelperMethods:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         # Should not raise exception
@@ -930,7 +917,7 @@ class TestHelperMethods:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         # Try to validate a schema that doesn't exist
@@ -942,7 +929,7 @@ class TestHelperMethods:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         # Create a new schema
@@ -960,7 +947,7 @@ class TestHelperMethods:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         with patch.object(
@@ -1010,7 +997,7 @@ class TestIntegration:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         # Add bronze step
@@ -1062,7 +1049,7 @@ class TestIntegration:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         # Add custom validator
@@ -1091,7 +1078,7 @@ class TestIntegration:
         builder = PipelineBuilder(
             spark=mock_spark_session,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=MockF,
         )
 
         # Mock schema validation

@@ -11,16 +11,7 @@ from unittest.mock import Mock
 
 import pytest
 
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless import DataFrame as DataFrame  # type: ignore[import]
-    from sparkless.sql import functions as F  # type: ignore[import]
-    from sparkless.sql.functions import col  # type: ignore[import]
-else:
-    from pyspark.sql import DataFrame
-    from pyspark.sql import functions as F
-    from pyspark.sql.functions import col
-
+from pipeline_builder.compat import DataFrame, F
 from pipeline_builder.validation import (
     _convert_rule_to_expression,
     _convert_rules_to_expressions,
@@ -167,7 +158,7 @@ class TestValidationEdgeCases:
         # Test with mixed rule types
         rules = {
             "col1": ["not_null"],
-            "col2": [col("col2") > 0],
+            "col2": [F.col("col2") > 0],
             "col3": [None, "invalid"],
         }
 

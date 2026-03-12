@@ -16,23 +16,14 @@ from typing import Any, List
 
 import pytest
 
-# Import types based on SPARK_MODE so DataGenerator works in both modes
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql.types import (
-        DoubleType,
-        IntegerType,
-        StringType,
-        StructField,
-        StructType,
-    )
-else:
-    from sparkless.spark_types import (  # type: ignore[import]
-        DoubleType,
-        IntegerType,
-        StringType,
-        StructField,
-        StructType,
-    )
+# Use configured engine (same API for PySpark and sparkless)
+from pipeline_builder.compat import types
+
+DoubleType = types.DoubleType
+IntegerType = types.IntegerType
+StringType = types.StringType
+StructField = types.StructField
+StructType = types.StructType
 
 from pipeline_builder.models import PipelineConfig, ValidationThresholds
 from pipeline_builder.writer import WriteMode, WriterConfig
@@ -173,7 +164,7 @@ def spark_session(request):
     Spark session for testing: mock (sparkless) or real PySpark with Delta.
 
     When SPARK_MODE=mock, uses the root base_spark_session. When SPARK_MODE=real,
-    creates a real PySpark session with Delta and configures the engine.
+    uses the root _shared_real_spark_session (one per JVM) to avoid SPARK-2243.
     """
     spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
     if spark_mode != "real":
@@ -181,17 +172,14 @@ def spark_session(request):
         yield session
         return
 
-    spark, warehouse_dir = _create_real_pyspark_session(request)
+    spark = request.getfixturevalue("_shared_real_spark_session")
+    if spark is None:
+        raise RuntimeError("_shared_real_spark_session was None in real mode")
     try:
-        yield spark
-    finally:
-        try:
-            spark.catalog.clearCache()
-        except Exception:
-            pass
-        spark.stop()
-        if os.path.exists(warehouse_dir):
-            shutil.rmtree(warehouse_dir, ignore_errors=True)
+        spark.catalog.clearCache()
+    except Exception:
+        pass
+    yield spark
 
 
 @pytest.fixture(autouse=True)

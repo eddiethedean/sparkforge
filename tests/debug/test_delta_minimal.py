@@ -12,6 +12,8 @@ or test environment setup.
 
 import os
 
+import pytest
+
 # Import from local conftest
 try:
     from tests.conftest import _log_session_configs
@@ -21,6 +23,10 @@ except ImportError:
         pass  # No-op if not available
 
 
+@pytest.mark.skipif(
+    os.environ.get("PYTEST_XDIST_WORKER") and os.environ.get("SPARK_MODE", "").lower() == "real",
+    reason="Skip under xdist+real to avoid shared-session timing; run without -n",
+)
 def test_delta_minimal_write(mock_spark_session):
     """
     Minimal test: Create session and write Delta table.
@@ -84,6 +90,10 @@ def test_delta_minimal_write(mock_spark_session):
         raise
 
 
+@pytest.mark.skipif(
+    os.environ.get("PYTEST_XDIST_WORKER") and os.environ.get("SPARK_MODE", "").lower() == "real",
+    reason="Skip under xdist+real to avoid shared-session timing; run without -n",
+)
 def test_delta_minimal_direct_session(mock_spark_session):
     """
     Test creating session directly and writing Delta table.

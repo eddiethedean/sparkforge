@@ -12,17 +12,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-# Use compatibility layer
-from pipeline_builder.compat import DataFrame, SparkSession
-
-# Use engine-specific functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless import DataFrame as DataFrame  # type: ignore[import]
-    from sparkless.sql import functions as F  # type: ignore[import]
-else:
-    from pyspark.sql import DataFrame
-    from pyspark.sql import functions as F
-
+from pipeline_builder.compat import DataFrame, F, SparkSession
 from pipeline_builder.errors import ExecutionError, ValidationError
 from pipeline_builder.execution import (
     ExecutionEngine,
@@ -33,13 +23,6 @@ from pipeline_builder.execution import (
     StepType,
 )
 from pipeline_builder.models import BronzeStep, GoldStep, PipelineConfig, SilverStep
-
-
-# Skip all tests in this file when running in real mode
-pytestmark = pytest.mark.skipif(
-    os.environ.get("SPARK_MODE", "mock").lower() == "real",
-    reason="This test module is designed for sparkless/mock mode only",
-)
 
 
 @pytest.fixture(scope="function", autouse=True)

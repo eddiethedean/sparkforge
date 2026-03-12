@@ -7,12 +7,11 @@ import pytest
 
 from pipeline_builder_base.models import ExecutionMode
 
-spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-if spark_mode == "real":
-    from pyspark.sql import functions as F
-else:
-    from sparkless.sql import functions as F  # type: ignore[import]
+import os
 
+from pipeline_builder.compat import F
+
+spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
 pytestmark = pytest.mark.skipif(
     spark_mode == "real",
     reason="SQL source execution tests use mock Spark",

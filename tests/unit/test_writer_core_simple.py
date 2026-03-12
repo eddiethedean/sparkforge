@@ -1,27 +1,13 @@
 """
-Simple unit tests for writer core using Mock Spark.
+Unit tests for writer core. Uses configured engine (PySpark or sparkless) via compat.
 """
-
-import os
 
 import pytest
 
-# Import AnalysisException based on SPARK_MODE
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql.utils import AnalysisException
-else:
-    from sparkless.errors import AnalysisException  # type: ignore[import]
-
+from pipeline_builder.compat import AnalysisException, F
 from pipeline_builder.table_operations import table_exists
 from pipeline_builder.writer.core import LogWriter
 from pipeline_builder.writer.models import LogLevel, WriteMode, WriterConfig
-
-
-# Skip all tests in this file when running in real mode
-pytestmark = pytest.mark.skipif(
-    os.environ.get("SPARK_MODE", "mock").lower() == "real",
-    reason="This test module is designed for sparkless/mock mode only",
-)
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -130,6 +116,7 @@ class TestWriterCoreSimple:
             )
 
             spark_session.sql("CREATE DATABASE IF NOT EXISTS test_schema")
+            spark_session.sql("DROP TABLE IF EXISTS test_schema.test_table")
             schema = StructType(
                 [
                     StructField("id", IntegerType()),
@@ -151,6 +138,7 @@ class TestWriterCoreSimple:
 
             # Create schema using standard SQL
             spark_session.sql("CREATE DATABASE IF NOT EXISTS test_schema")
+            spark_session.sql("DROP TABLE IF EXISTS test_schema.test_table")
 
             # Create table using standard Spark operations
             schema = StructType(

@@ -387,6 +387,7 @@ class TestWriteModeRegression:
             ValidationThresholds,
         )
 
+        spark_session.sql("DROP TABLE IF EXISTS test_schema.test_silver_table")
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
@@ -421,6 +422,7 @@ class TestWriteModeRegression:
 
     def test_gold_incremental_mode_uses_overwrite(self, spark_session):
         """Regression test ensuring gold steps keep overwrite semantics."""
+        spark_session.sql("DROP TABLE IF EXISTS test_schema.test_gold_table")
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),

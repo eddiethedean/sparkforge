@@ -6,21 +6,11 @@ Bronze → Silver → Gold medallion architecture with order data, customer prof
 and sales analytics using mock-spark.
 """
 
-from pipeline_builder.compat import F
-
-import os
-
 import pytest
 
+from pipeline_builder.compat import F
 from pipeline_builder.pipeline import PipelineBuilder
 from pipeline_builder.writer import LogWriter
-
-
-# Skip all tests in this file when running in real mode
-pytestmark = pytest.mark.skipif(
-    os.environ.get("SPARK_MODE", "mock").lower() == "real",
-    reason="This test module is designed for sparkless/mock mode only",
-)
 
 
 class TestEcommercePipeline:

@@ -22,18 +22,7 @@ from pipeline_builder.models import (
 from pipeline_builder.pipeline.models import PipelineMode
 from pipeline_builder.pipeline.runner import SimplePipelineRunner
 
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-else:
-    from pyspark.sql import functions as F
-
-
-# Skip all tests in this file when running in real mode
-pytestmark = pytest.mark.skipif(
-    os.environ.get("SPARK_MODE", "mock").lower() == "real",
-    reason="This test module is designed for sparkless/mock mode only",
-)
+from pipeline_builder.compat import F
 
 
 class TestPipelineRunnerWriteMode:

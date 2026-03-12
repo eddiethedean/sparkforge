@@ -38,11 +38,7 @@ from pipeline_builder.pipeline.debug_session import PipelineDebugSession
 from pipeline_builder.pipeline.models import PipelineMode, PipelineStatus
 from pipeline_builder.pipeline.runner import SimplePipelineRunner
 
-# Use engine-specific functions based on mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-else:
-    from pyspark.sql import functions as F
+from pipeline_builder.compat import F
 
 
 # Note: spark_session fixture is provided by conftest.py
