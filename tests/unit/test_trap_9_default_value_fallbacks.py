@@ -137,11 +137,7 @@ class TestTrap9DefaultValueFallbacks:
 
     def test_log_writer_run_id_handling(self, spark_session):
         """Test that LogWriter properly handles None run_id."""
-        config = WriterConfig(
-            table_schema="test_schema",
-            table_name="test_table",
-        )
-        writer = LogWriter(spark=spark_session, config=config)
+        writer = LogWriter(spark=spark_session, schema="test_schema", table_name="test_table")
 
         # Should generate new run_id when None is provided
         from datetime import datetime
@@ -176,11 +172,7 @@ class TestTrap9DefaultValueFallbacks:
 
     def test_log_writer_batch_run_ids_handling(self, spark_session):
         """Test that LogWriter properly handles None run_ids in batch operations."""
-        config = WriterConfig(
-            table_schema="test_schema",
-            table_name="test_table",
-        )
-        writer = LogWriter(spark=spark_session, config=config)
+        writer = LogWriter(spark=spark_session, schema="test_schema", table_name="test_table")
 
         from datetime import datetime
 
@@ -214,11 +206,7 @@ class TestTrap9DefaultValueFallbacks:
 
     def test_log_writer_display_limit_handling(self, spark_session):
         """Test that LogWriter properly handles None limit parameter."""
-        config = WriterConfig(
-            table_schema="test_schema",
-            table_name="test_table",
-        )
-        writer = LogWriter(spark=spark_session, config=config)
+        writer = LogWriter(spark=spark_session, schema="test_schema", table_name="test_table")
 
         # This should work without raising an error
         # The limit will default to 20 if None is provided

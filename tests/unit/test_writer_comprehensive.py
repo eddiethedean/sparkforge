@@ -188,17 +188,13 @@ class TestWriterComprehensive:
 
     def test_log_writer_initialization(self, mock_spark_session):
         """Test LogWriter initialization."""
-        config = WriterConfig(
-            table_schema="test_schema",
-            table_name="test_table",
-            write_mode=WriteMode.APPEND,
-            log_level=LogLevel.INFO,
+        writer = LogWriter(
+            spark=mock_spark_session, schema="test_schema", table_name="test_table"
         )
 
-        writer = LogWriter(spark=mock_spark_session, config=config)
-
         assert writer.spark == mock_spark_session
-        assert writer.config == config
+        assert writer.config.table_schema == "test_schema"
+        assert writer.config.table_name == "test_table"
         assert isinstance(writer.logger, PipelineLogger)
         assert writer.table_fqn == "test_schema.test_table"
         assert isinstance(writer.metrics, dict)
@@ -208,44 +204,28 @@ class TestWriterComprehensive:
 
     def test_log_writer_with_custom_logger(self, mock_spark_session):
         """Test LogWriter with custom logger."""
-        config = WriterConfig(
-            table_schema="test_schema",
-            table_name="test_table",
-            write_mode=WriteMode.APPEND,
-            log_level=LogLevel.INFO,
-        )
-
         custom_logger = PipelineLogger("CustomLogger")
         writer = LogWriter(
-            spark=mock_spark_session, config=config, logger=custom_logger
+            spark=mock_spark_session,
+            schema="test_schema",
+            table_name="test_table",
+            logger=custom_logger,
         )
 
         assert writer.logger == custom_logger
 
     def test_log_writer_invalid_config(self, mock_spark_session):
-        """Test LogWriter with invalid configuration."""
-        # Create invalid config (missing required fields)
-        config = WriterConfig(
-            table_schema="",  # Empty schema name
-            table_name="test_table",
-            write_mode=WriteMode.APPEND,
-            log_level=LogLevel.INFO,
-        )
-
+        """Test LogWriter with invalid configuration (empty schema)."""
         with pytest.raises(WriterConfigurationError):
-            LogWriter(spark=mock_spark_session, config=config)
+            LogWriter(spark=mock_spark_session, schema="", table_name="test_table")
 
     # No patch needed - F.current_timestamp works directly with mock-spark
     def test_write_execution_result(self, mock_spark_session):
         """Test writing execution result."""
-        # Create config and writer
-        config = WriterConfig(
-            table_schema="test_schema",
-            table_name="test_table",
-            write_mode=WriteMode.APPEND,
-            log_level=LogLevel.INFO,
+        # Create writer
+        writer = LogWriter(
+            spark=mock_spark_session, schema="test_schema", table_name="test_table"
         )
-        writer = LogWriter(spark=mock_spark_session, config=config)
 
         # Create execution result
         from pipeline_builder.models import ExecutionContext, PipelineMetrics
@@ -296,13 +276,9 @@ class TestWriterComprehensive:
     # No patch needed - F.current_timestamp works directly with mock-spark
     def test_write_execution_result_with_metadata(self, mock_spark_session):
         """Test writing execution result with metadata."""
-        config = WriterConfig(
-            table_schema="test_schema",
-            table_name="test_table",
-            write_mode=WriteMode.APPEND,
-            log_level=LogLevel.INFO,
+        writer = LogWriter(
+            spark=mock_spark_session, schema="test_schema", table_name="test_table"
         )
-        writer = LogWriter(spark=mock_spark_session, config=config)
 
         execution_result = create_execution_result(
             "test-execution-123", ExecutionMode.INITIAL
@@ -322,13 +298,9 @@ class TestWriterComprehensive:
     # No patch needed - F.current_timestamp works directly with mock-spark
     def test_write_step_results(self, mock_spark_session):
         """Test writing step results."""
-        config = WriterConfig(
-            table_schema="test_schema",
-            table_name="test_table",
-            write_mode=WriteMode.APPEND,
-            log_level=LogLevel.INFO,
+        writer = LogWriter(
+            spark=mock_spark_session, schema="test_schema", table_name="test_table"
         )
-        writer = LogWriter(spark=mock_spark_session, config=config)
 
         # Create step results
         step_results = {
@@ -364,13 +336,9 @@ class TestWriterComprehensive:
     # No patch needed - F.current_timestamp works directly with mock-spark
     def test_write_log_rows(self, mock_spark_session):
         """Test writing log rows directly."""
-        config = WriterConfig(
-            table_schema="test_schema",
-            table_name="test_table",
-            write_mode=WriteMode.APPEND,
-            log_level=LogLevel.INFO,
+        writer = LogWriter(
+            spark=mock_spark_session, schema="test_schema", table_name="test_table"
         )
-        writer = LogWriter(spark=mock_spark_session, config=config)
 
         # Create log rows
         log_rows = [
@@ -413,13 +381,9 @@ class TestWriterComprehensive:
     # No patch needed - F.current_timestamp works directly with mock-spark
     def test_write_execution_result_batch(self, mock_spark_session):
         """Test writing multiple execution results in batch."""
-        config = WriterConfig(
-            table_schema="test_schema",
-            table_name="test_table",
-            write_mode=WriteMode.APPEND,
-            log_level=LogLevel.INFO,
+        writer = LogWriter(
+            spark=mock_spark_session, schema="test_schema", table_name="test_table"
         )
-        writer = LogWriter(spark=mock_spark_session, config=config)
 
         # Create multiple execution results
         execution_results = [
@@ -436,13 +400,9 @@ class TestWriterComprehensive:
     def test_writer_metrics_tracking(self, mock_spark_session):
         """Test that writer metrics are properly tracked."""
         mock_spark_session.sql("DROP TABLE IF EXISTS test_schema.test_table")
-        config = WriterConfig(
-            table_schema="test_schema",
-            table_name="test_table",
-            write_mode=WriteMode.APPEND,
-            log_level=LogLevel.INFO,
+        writer = LogWriter(
+            spark=mock_spark_session, schema="test_schema", table_name="test_table"
         )
-        writer = LogWriter(spark=mock_spark_session, config=config)
 
         # Initial metrics
         assert writer.metrics["total_writes"] == 0
@@ -472,6 +432,7 @@ class TestWriterComprehensive:
         )  # Duration might be 0 for very fast operations
 
     # No patch needed - F.current_timestamp works directly with mock-spark
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_writer_with_different_write_modes(self, mock_spark_session):
         """Test writer with different write modes."""
         # Test APPEND mode
@@ -503,6 +464,7 @@ class TestWriterComprehensive:
         assert isinstance(result_overwrite, dict)
 
     # No patch needed - F.current_timestamp works directly with mock-spark
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_writer_with_different_log_levels(self, mock_spark_session):
         """Test writer with different log levels."""
         log_levels = [
@@ -530,6 +492,7 @@ class TestWriterComprehensive:
             assert isinstance(result, dict)
 
     # No patch needed - F.current_timestamp works directly with mock-spark
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_writer_with_custom_batch_size(self, mock_spark_session):
         """Test writer with custom batch size."""
         config = WriterConfig(
@@ -551,6 +514,7 @@ class TestWriterComprehensive:
         assert isinstance(result, dict)
 
     # No patch needed - F.current_timestamp works directly with mock-spark
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_writer_with_compression_settings(self, mock_spark_session):
         """Test writer with different compression settings."""
         compression_options = ["snappy", "gzip", "lz4", "zstd"]
@@ -575,6 +539,7 @@ class TestWriterComprehensive:
             assert isinstance(result, dict)
 
     # No patch needed - F.current_timestamp works directly with mock-spark
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_writer_with_partition_settings(self, mock_spark_session):
         """Test writer with partition settings."""
         mock_spark_session.sql("DROP TABLE IF EXISTS test_schema.test_table")
@@ -599,6 +564,7 @@ class TestWriterComprehensive:
         assert isinstance(result, dict)
 
     # No patch needed - F.current_timestamp works directly with mock-spark
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_writer_schema_evolution_settings(self, mock_spark_session):
         """Test writer with schema evolution settings."""
         config = WriterConfig(
@@ -625,13 +591,9 @@ class TestWriterComprehensive:
 
     def test_writer_error_handling(self, mock_spark_session):
         """Test writer error handling."""
-        config = WriterConfig(
-            table_schema="test_schema",
-            table_name="test_table",
-            write_mode=WriteMode.APPEND,
-            log_level=LogLevel.INFO,
+        writer = LogWriter(
+            spark=mock_spark_session, schema="test_schema", table_name="test_table"
         )
-        writer = LogWriter(spark=mock_spark_session, config=config)
 
         # Test with invalid execution result (missing required fields)
         with pytest.raises((ValueError, TypeError, AttributeError)):
@@ -639,13 +601,9 @@ class TestWriterComprehensive:
 
     def test_writer_components_initialization(self, mock_spark_session):
         """Test that all writer components are properly initialized."""
-        config = WriterConfig(
-            table_schema="test_schema",
-            table_name="test_table",
-            write_mode=WriteMode.APPEND,
-            log_level=LogLevel.INFO,
+        writer = LogWriter(
+            spark=mock_spark_session, schema="test_schema", table_name="test_table"
         )
-        writer = LogWriter(spark=mock_spark_session, config=config)
 
         # Check that all components are initialized
         assert hasattr(writer, "data_processor")
@@ -665,13 +623,9 @@ class TestWriterComprehensive:
 
     def test_writer_schema_creation(self, mock_spark_session):
         """Test that writer schema is properly created."""
-        config = WriterConfig(
-            table_schema="test_schema",
-            table_name="test_table",
-            write_mode=WriteMode.APPEND,
-            log_level=LogLevel.INFO,
+        writer = LogWriter(
+            spark=mock_spark_session, schema="test_schema", table_name="test_table"
         )
-        writer = LogWriter(spark=mock_spark_session, config=config)
 
         # Check that schema is created
         assert hasattr(writer, "schema")
@@ -684,23 +638,15 @@ class TestWriterComprehensive:
 
     def test_writer_table_fqn(self, mock_spark_session):
         """Test that table FQN is properly constructed."""
-        config = WriterConfig(
-            table_schema="test_schema",
-            table_name="test_table",
-            write_mode=WriteMode.APPEND,
-            log_level=LogLevel.INFO,
+        writer = LogWriter(
+            spark=mock_spark_session, schema="test_schema", table_name="test_table"
         )
-        writer = LogWriter(spark=mock_spark_session, config=config)
 
         assert writer.table_fqn == "test_schema.test_table"
 
         # Test with different schema and table names
-        config2 = WriterConfig(
-            table_schema="another_schema",
-            table_name="another_table",
-            write_mode=WriteMode.APPEND,
-            log_level=LogLevel.INFO,
+        writer2 = LogWriter(
+            spark=mock_spark_session, schema="another_schema", table_name="another_table"
         )
-        writer2 = LogWriter(spark=mock_spark_session, config=config2)
 
         assert writer2.table_fqn == "another_schema.another_table"

@@ -95,16 +95,12 @@ class TestWorkingExamples:
 
     def test_log_writer_with_config(self, mock_spark_session):
         """Test LogWriter with proper config."""
-        config = WriterConfig(
-            table_schema="test_schema",
-            table_name="test_logs",
-            write_mode=WriteMode.APPEND,
-            log_level=LogLevel.INFO,
+        writer = LogWriter(
+            spark=mock_spark_session, schema="test_schema", table_name="test_logs"
         )
-
-        writer = LogWriter(spark=mock_spark_session, config=config)
         assert writer.spark == mock_spark_session
-        assert writer.config == config
+        assert writer.config.table_schema == "test_schema"
+        assert writer.config.table_name == "test_logs"
 
     def test_enum_values(self):
         """Test enum values match expected format."""

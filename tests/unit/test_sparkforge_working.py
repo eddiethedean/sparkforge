@@ -158,6 +158,7 @@ class TestSparkForgeWorking:
         assert len(result.warnings) == 1
         assert len(result.recommendations) == 1
 
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_writer_system_working(self, mock_spark_session):
         """Test writer system using actual API."""
         # Test WriterConfig
@@ -518,6 +519,7 @@ class TestSparkForgeWorking:
         with pytest.raises((ValueError, AttributeError)):
             invalid_stage_stats.validate()
 
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_comprehensive_coverage_working(self, mock_spark_session):
         """Test comprehensive coverage using actual APIs."""
         # Test all major components together

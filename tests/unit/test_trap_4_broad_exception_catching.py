@@ -24,13 +24,10 @@ class TestTrap4BroadExceptionCatching:
     def test_core_writer_raises_specific_exceptions(self, spark_session):
         """Test that LogWriter raises WriterError instead of returning generic responses."""
         # Create LogWriter
-        config = WriterConfig(
-            table_schema="test_schema",
-            table_name="test_logs",
-        )
         writer = LogWriter(
             spark=spark_session,
-            config=config,
+            schema="test_schema",
+            table_name="test_logs",
         )
 
         # Mock storage manager to raise an exception
@@ -50,13 +47,10 @@ class TestTrap4BroadExceptionCatching:
 
     def test_core_writer_analytics_raises_specific_exceptions(self, spark_session):
         """Test that analytics methods raise WriterError instead of returning generic responses."""
-        config = WriterConfig(
-            table_schema="test_schema",
-            table_name="test_logs",
-        )
         writer = LogWriter(
             spark=spark_session,
-            config=config,
+            schema="test_schema",
+            table_name="test_logs",
         )
 
         # Mock storage manager to raise an exception
@@ -145,13 +139,10 @@ class TestTrap4BroadExceptionCatching:
 
     def test_exception_chaining_preserves_original_error(self, spark_session):
         """Test that exceptions are properly chained to preserve the original error."""
-        config = WriterConfig(
-            table_schema="test_schema",
-            table_name="test_logs",
-        )
         writer = LogWriter(
             spark=spark_session,
-            config=config,
+            schema="test_schema",
+            table_name="test_logs",
         )
 
         original_error = RuntimeError("Original database error")
@@ -168,13 +159,10 @@ class TestTrap4BroadExceptionCatching:
 
     def test_no_generic_error_responses_returned(self, spark_session):
         """Test that no methods return generic error responses."""
-        config = WriterConfig(
-            table_schema="test_schema",
-            table_name="test_logs",
-        )
         writer = LogWriter(
             spark=spark_session,
-            config=config,
+            schema="test_schema",
+            table_name="test_logs",
         )
 
         # Mock all methods to raise exceptions
@@ -206,13 +194,10 @@ class TestTrap4BroadExceptionCatching:
 
     def test_error_logging_before_raising(self, spark_session):
         """Test that errors are logged before raising exceptions."""
-        config = WriterConfig(
-            table_schema="test_schema",
-            table_name="test_logs",
-        )
         writer = LogWriter(
             spark=spark_session,
-            config=config,
+            schema="test_schema",
+            table_name="test_logs",
         )
 
         with patch.object(

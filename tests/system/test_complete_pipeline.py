@@ -49,14 +49,9 @@ class TestCompletePipeline:
         validator = UnifiedValidator()
 
         # Create log writer
-        writer_config = WriterConfig(
-            table_schema="bronze",
-            table_name="pipeline_logs",
-            write_mode=WriteMode.APPEND,
-            log_level=LogLevel.INFO,
+        writer = LogWriter(
+            spark=mock_spark_session, schema="bronze", table_name="pipeline_logs"
         )
-
-        writer = LogWriter(spark=mock_spark_session, config=writer_config)
 
         # Create Bronze layer table using standard Spark operations
         sample_dataframe.write.saveAsTable("bronze.raw_events")
@@ -142,6 +137,7 @@ class TestCompletePipeline:
         assert validator.logger is not None
         assert engine.config.thresholds == thresholds
 
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_pipeline_with_logging_and_monitoring(
         self, mock_spark_session, sample_dataframe
     ):
@@ -156,7 +152,7 @@ class TestCompletePipeline:
         # Create pipeline builder
         PipelineBuilder(spark=mock_spark_session, schema="bronze")
 
-        # Create log writer
+        # Create log writer with specific config options being tested
         writer_config = WriterConfig(
             table_schema="bronze",
             table_name="pipeline_logs",
