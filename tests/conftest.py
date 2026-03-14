@@ -21,8 +21,54 @@ import time
 
 import pytest
 
+# Configure Delta Lake packages for PySpark before any Spark session is created
+# This ensures all pytest-xdist workers have Delta Lake available
+_mode = os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower()
+if _mode == "pyspark":
+    _pyspark_args = os.environ.get("PYSPARK_SUBMIT_ARGS", "")
+    if "io.delta" not in _pyspark_args:
+        # Add Delta Lake packages to PYSPARK_SUBMIT_ARGS
+        _delta_packages = "io.delta:delta-spark_2.12:3.0.0"
+        if _pyspark_args:
+            if "--packages" in _pyspark_args:
+                # Append to existing packages
+                _pyspark_args = _pyspark_args.replace(
+                    "--packages ",
+                    f"--packages {_delta_packages},"
+                )
+            else:
+                _pyspark_args = f"--packages {_delta_packages} {_pyspark_args}"
+        else:
+            _pyspark_args = f"--packages {_delta_packages} pyspark-shell"
+        os.environ["PYSPARK_SUBMIT_ARGS"] = _pyspark_args
+
 # Register sparkless.testing plugin - provides spark, spark_imports, spark_mode fixtures
 pytest_plugins = ["sparkless.testing"]
+
+# Override spark fixture to enable Delta Lake in PySpark mode
+@pytest.fixture
+def spark(request):
+    """SparkSession fixture with Delta Lake enabled for PySpark mode."""
+    from sparkless.testing import get_mode, Mode, create_session
+    
+    mode = get_mode()
+    test_name = "test_app"
+    if hasattr(request, "node") and hasattr(request.node, "name"):
+        test_name = f"test_{request.node.name[:50]}"
+    
+    # Enable Delta Lake only in PySpark mode
+    enable_delta = (mode == Mode.PYSPARK)
+    
+    session = create_session(app_name=test_name, mode=mode, enable_delta=enable_delta)
+    yield session
+    
+    # Cleanup - don't stop PySpark session (reused across tests)
+    if mode == Mode.SPARKLESS:
+        try:
+            session.stop()
+        except Exception:
+            pass
+
 
 # Ensure project root and src directory are on sys.path
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
