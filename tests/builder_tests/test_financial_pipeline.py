@@ -16,17 +16,17 @@ class TestFinancialPipeline:
     """Test financial transaction processing pipeline with bronze-silver-gold architecture."""
 
     def test_complete_financial_transaction_pipeline_execution(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test complete financial pipeline: transactions → validation → fraud detection → compliance."""
 
         # Create realistic financial data
         transactions_df = data_generator.create_financial_transactions(
-            mock_spark_session, num_transactions=100
+            spark, num_transactions=100
         )
 
         # Create account data
-        accounts_data = mock_spark_session.createDataFrame(
+        accounts_data = spark.createDataFrame(
             [
                 ("ACC-0001", "checking", 1500.00, "active", "2023-01-01"),
                 ("ACC-0002", "savings", 5000.00, "active", "2023-01-15"),
@@ -38,13 +38,13 @@ class TestFinancialPipeline:
         )
 
         # Setup schemas
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=mock_spark_session,
+            spark=spark,
             schema="bronze",
             min_bronze_rate=99.0,  # Very strict validation for financial data
             min_silver_rate=99.5,
@@ -382,12 +382,12 @@ class TestFinancialPipeline:
         # Pipeline execution verified above - storage verification not needed for unit tests
 
     def test_fraud_detection_scenarios(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test fraud detection with various suspicious patterns."""
 
         # Create transactions with fraud patterns
-        suspicious_transactions = mock_spark_session.createDataFrame(
+        suspicious_transactions = spark.createDataFrame(
             [
                 (
                     "TXN-001",
@@ -443,7 +443,7 @@ class TestFinancialPipeline:
         )
 
         # Create account data
-        accounts_data = mock_spark_session.createDataFrame(
+        accounts_data = spark.createDataFrame(
             [
                 ("ACC-001", "checking", 1000.00, "active", "2023-01-01"),
                 ("ACC-002", "checking", 5000.00, "active", "2023-01-01"),
@@ -453,13 +453,13 @@ class TestFinancialPipeline:
         )
 
         # Setup schemas
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="bronze", functions=F
+            spark=spark, schema="bronze", functions=F
         )
 
         builder.with_bronze_rules(
@@ -544,12 +544,12 @@ class TestFinancialPipeline:
         # Pipeline execution verified above - storage verification not needed for unit tests
 
     def test_compliance_monitoring(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test compliance monitoring and reporting."""
 
         # Create transactions for compliance testing
-        compliance_transactions = mock_spark_session.createDataFrame(
+        compliance_transactions = spark.createDataFrame(
             [
                 (
                     "TXN-001",
@@ -595,13 +595,13 @@ class TestFinancialPipeline:
         )
 
         # Setup schemas
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="bronze", functions=F
+            spark=spark, schema="bronze", functions=F
         )
 
         builder.with_bronze_rules(
@@ -677,29 +677,29 @@ class TestFinancialPipeline:
         # Pipeline execution verified above - storage verification not needed for unit tests
 
     def test_financial_audit_logging(
-        self, mock_spark_session, data_generator, log_writer_config, test_assertions
+        self, spark, data_generator, log_writer_config, test_assertions
     ):
         """Test comprehensive audit logging for financial pipeline."""
 
         # Create test data
         transactions_df = data_generator.create_financial_transactions(
-            mock_spark_session, num_transactions=50
+            spark, num_transactions=50
         )
 
         # Setup schemas
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS audit")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS audit")
 
         # Create LogWriter for audit logging
         log_writer = LogWriter(
-            spark=mock_spark_session, schema="audit", table_name="financial_audit_logs"
+            spark=spark, schema="audit", table_name="financial_audit_logs"
         )
 
         # Create pipeline
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="bronze", functions=F
+            spark=spark, schema="bronze", functions=F
         )
 
         builder.with_bronze_rules(
@@ -740,7 +740,7 @@ class TestFinancialPipeline:
 
         # Verify audit log table was created
         # Verify audit log table exists by accessing it
-        audit_df = mock_spark_session.table("audit.financial_audit_logs")
+        audit_df = spark.table("audit.financial_audit_logs")
         assert audit_df is not None
 
         # Verify audit log data

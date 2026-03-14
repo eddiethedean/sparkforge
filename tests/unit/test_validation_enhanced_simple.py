@@ -5,38 +5,8 @@ This module tests the core SparkForge validation system using mock PySpark funct
 focusing on the most important functionality.
 """
 
-
-# NOTE: mock-spark patches removed - now using mock-spark 1.3.0 which doesn't need patches
-# The apply_mock_spark_patches() call was causing test pollution
-
-import os
-
 import pytest
 
-# Import types based on SPARK_MODE
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql.types import (
-        BooleanType,
-        DoubleType,
-        IntegerType,
-        StringType,
-        StructField,
-        StructType,
-    )
-    from pyspark.sql import SparkSession, functions as Functions
-else:
-    from sparkless.spark_types import (  # type: ignore[import]
-        BooleanType,
-        DoubleType,
-        IntegerType,
-        StructField,
-        StructType,
-        StringType,
-    )
-    from sparkless import SparkSession  # type: ignore[import]
-    from sparkless.sql import functions as Functions  # type: ignore[import]
-
-# Import SparkForge validation modules
 from pipeline_builder.validation.data_validation import (
     _convert_rule_to_expression,
     _convert_rules_to_expressions,
@@ -48,11 +18,8 @@ from pipeline_builder.validation.data_validation import (
 from pipeline_builder_base.errors import ValidationError
 
 
-# Run in both mock and real mode (F and types are set conditionally above).
-
-
 @pytest.fixture(scope="function", autouse=True)
-def reset_test_environment(spark_session):
+def reset_test_environment(spark):
     """Reset test environment before each test in this file."""
     import gc
 
@@ -83,18 +50,17 @@ class TestValidationWithFunctionsSimple:
     """Test validation functions using injectable mock functions - simplified version."""
 
     @pytest.fixture(autouse=True)
-    def setup_fixtures(self, spark_session):
+    def setup_fixtures(self, spark, spark_imports):
         """Set up test fixtures automatically for all tests."""
-        # Use spark_session fixture for PySpark compatibility
-        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-        if spark_mode == "real":
-            self.mock_spark = spark_session
-            from pyspark.sql import functions
-
-            self.mock_functions = functions
-        else:
-            self.mock_spark = SparkSession("TestApp")
-            self.mock_functions = Functions
+        self.mock_spark = spark
+        self.mock_functions = spark_imports.F
+        
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
+        StringType = spark_imports.StringType
+        DoubleType = spark_imports.DoubleType
+        BooleanType = spark_imports.BooleanType
 
         # Create sample data
         self.sample_data = [
@@ -321,18 +287,10 @@ class TestPipelineBuilderWithFunctionsSimple:
     """Test PipelineBuilder with injectable mock functions - simplified version."""
 
     @pytest.fixture(autouse=True)
-    def setup_fixtures(self, spark_session):
+    def setup_fixtures(self, spark, spark_imports):
         """Set up test fixtures automatically for all tests."""
-        # Use spark_session fixture for PySpark compatibility
-        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-        if spark_mode == "real":
-            self.mock_spark = spark_session
-            from pyspark.sql import functions
-
-            self.mock_functions = functions
-        else:
-            self.mock_spark = SparkSession("TestApp")
-            self.mock_functions = Functions
+        self.mock_spark = spark
+        self.mock_functions = spark_imports.F
 
     def test_pipeline_builder_with_mock_functions(self):
         """Test PipelineBuilder initialization with mock functions."""
@@ -418,18 +376,10 @@ class TestFunctionsIntegrationSimple:
     """Test integration between Functions and SparkForge validation - simplified version."""
 
     @pytest.fixture(autouse=True)
-    def setup_fixtures(self, spark_session):
+    def setup_fixtures(self, spark, spark_imports):
         """Set up test fixtures automatically for all tests."""
-        # Use spark_session fixture for PySpark compatibility
-        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-        if spark_mode == "real":
-            self.mock_spark = spark_session
-            from pyspark.sql import functions
-
-            self.mock_functions = functions
-        else:
-            self.mock_spark = SparkSession("TestApp")
-            self.mock_functions = Functions
+        self.mock_spark = spark
+        self.mock_functions = spark_imports.F
 
     def test_mock_functions_behavior(self):
         """Test that Functions behaves correctly with validation."""
@@ -446,9 +396,15 @@ class TestFunctionsIntegrationSimple:
         length_expr = self.mock_functions.length(col_expr)
         assert length_expr is not None
 
-    def test_validation_with_mock_functions_end_to_end(self):
+    def test_validation_with_mock_functions_end_to_end(self, spark_imports):
         """Test complete validation workflow with mock functions."""
         from pipeline_builder import PipelineBuilder
+
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
+        StringType = spark_imports.StringType
+        DoubleType = spark_imports.DoubleType
 
         # Create sample data
         sample_data = [
@@ -481,12 +437,11 @@ class TestFunctionsIntegrationSimple:
         assert isinstance(result, dict)
         assert "quality_rate" in result
 
-    @pytest.mark.skipif(
-        os.environ.get("SPARK_MODE", "mock").lower() == "real",
-        reason="Tests mock-spark specific functions performance",
-    )
-    def test_mock_functions_performance(self):
+    def test_mock_functions_performance(self, spark_mode):
         """Test Functions performance characteristics."""
+        if spark_mode == "real":
+            pytest.skip("Tests mock-spark specific functions performance")
+        
         import time
 
         # Test function call performance
@@ -499,41 +454,23 @@ class TestFunctionsIntegrationSimple:
 
         end_time = time.time()
 
-        # Should be very fast
-        # PySpark is slower due to JVM overhead, so use different threshold
-        import os
+        # Should be very fast with mock-spark
+        assert (
+            end_time - start_time
+        ) < 0.1  # Less than 100ms for 1000 calls with mock-spark
 
-        if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-            assert (
-                end_time - start_time
-            ) < 2.0  # Less than 2s for 1000 calls with PySpark
-        else:
-            assert (
-                end_time - start_time
-            ) < 0.1  # Less than 100ms for 1000 calls with mock-spark
-
-    @pytest.mark.skipif(
-        os.environ.get("SPARK_MODE", "mock").lower() == "real",
-        reason="Tests mock-spark specific functions error handling",
-    )
-    def test_mock_functions_error_handling(self):
+    def test_mock_functions_error_handling(self, spark_mode):
         """Test Functions error handling."""
-        # Test with invalid inputs
-        import os
-        from py4j.protocol import Py4JJavaError
-
+        if spark_mode == "real":
+            pytest.skip("Tests mock-spark specific functions error handling")
+        
         try:
             self.mock_functions.col(None)
             # Functions should handle this gracefully
         except Exception as e:
             # If it raises an exception, that's also acceptable
-            # PySpark throws Py4JJavaError, mock-spark throws Python exceptions
-            if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-                assert isinstance(
-                    e, (TypeError, ValueError, AttributeError, Py4JJavaError)
-                )
-            else:
-                assert isinstance(e, (TypeError, ValueError, AttributeError))
+            # mock-spark throws Python exceptions
+            assert isinstance(e, (TypeError, ValueError, AttributeError))
 
     def test_functions_protocol_compatibility(self):
         """Test that Functions is compatible with FunctionsProtocol."""

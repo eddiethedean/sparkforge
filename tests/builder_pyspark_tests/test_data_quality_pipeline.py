@@ -7,11 +7,6 @@ import sys
 
 import pytest
 
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql import functions as F
-else:
-    from sparkless.sql import functions as F  # type: ignore[import]
-
 from pipeline_builder.pipeline import PipelineBuilder
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -23,23 +18,24 @@ class TestDataQualityPipeline:
 
     @pytest.mark.sequential
     def test_complete_data_quality_pipeline_execution(
-        self, spark_session, data_generator, test_assertions
+        self, spark, spark_imports, data_generator, test_assertions
     ):
         """Test complete data quality pipeline: raw sources → quality scoring → reconciliation insights."""
+        F = spark_imports.F
 
         # Create realistic data with quality issues
         source_a_df = data_generator.create_data_quality_source_a(
-            spark_session, num_records=80
+            spark, num_records=80
         )
         source_b_df = data_generator.create_data_quality_source_b(
-            spark_session, num_records=100
+            spark, num_records=100
         )
         # Use get_unique_schema for proper concurrent testing isolation (includes worker ID)
         unique_schema = get_unique_schema("bronze")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
 
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema=unique_schema,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
@@ -430,24 +426,26 @@ class TestDataQualityPipeline:
             sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             from test_helpers.isolation import cleanup_test_tables
 
-            cleanup_test_tables(spark_session, unique_schema)
+            cleanup_test_tables(spark, unique_schema)
         except Exception:
             pass  # Ignore cleanup errors
 
     def test_incremental_data_quality_processing(
-        self, spark_session, data_generator, test_assertions
+        self, spark, spark_imports, data_generator, test_assertions
     ):
         """Test incremental processing of new data quality data."""
+        F = spark_imports.F
+
         # Create initial data
         source_a_initial = data_generator.create_data_quality_source_a(
-            spark_session, num_records=30
+            spark, num_records=30
         )
 
         # Create pipeline builder
         unique_schema = get_unique_schema("bronze")
 
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema=unique_schema,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
@@ -491,7 +489,7 @@ class TestDataQualityPipeline:
 
         # Incremental load with new records
         source_a_incremental = data_generator.create_data_quality_source_a(
-            spark_session, num_records=20
+            spark, num_records=20
         )
 
         result2 = pipeline.run_incremental(

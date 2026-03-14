@@ -6,24 +6,9 @@ This module tests all utility functions, validation, table operations, and repor
 with actual Spark DataFrames and Delta Lake operations.
 """
 
-import os
 from datetime import datetime
 
 import pytest
-
-# TypedDict is available in typing for Python 3.8+
-# Note: TypedDict is not used in this file, but kept for reference
-try:
-    pass  # from typing import TypedDict
-except ImportError:
-    pass
-
-# Use configured engine (same API for PySpark and sparkless)
-from pipeline_builder.compat import F, types
-
-StringType = types.StringType
-StructField = types.StructField
-StructType = types.StructType
 
 # add_metadata_columns and remove_metadata_columns functions removed - not needed for simplified system
 from pipeline_builder.models import StageStats
@@ -43,9 +28,18 @@ class TestDataValidation:
     """Test data validation utility functions with real Spark operations."""
 
     @pytest.fixture
-    def sample_dataframe(self, spark_session):
+    def F(self, spark_imports):
+        """Get F functions from spark_imports."""
+        return spark_imports.F
+
+    @pytest.fixture
+    def sample_dataframe(self, spark, spark_imports):
         """Create a sample DataFrame for testing."""
         from pipeline_builder.compat_helpers import create_test_dataframe
+
+        StringType = spark_imports.StringType
+        StructField = spark_imports.StructField
+        StructType = spark_imports.StructType
 
         data = [
             {"user_id": "user1", "action": "click", "timestamp": "2024-01-01 10:00:00"},
@@ -65,10 +59,10 @@ class TestDataValidation:
                 StructField("timestamp", StringType(), True),
             ]
         )
-        return create_test_dataframe(spark_session, data, schema)
+        return create_test_dataframe(spark, data, schema)
 
     @pytest.mark.spark
-    def test_and_all_rules(self, sample_dataframe):
+    def test_and_all_rules(self, F, sample_dataframe):
         """Test rule combination with real Spark operations."""
         rules = {
             "user_id": [F.col("user_id").isNotNull()],
@@ -91,7 +85,7 @@ class TestDataValidation:
         assert isinstance(result, bool)
 
     @pytest.mark.spark
-    def test_apply_column_rules(self, sample_dataframe):
+    def test_apply_column_rules(self, F, sample_dataframe):
         """Test column rule application with real Spark operations."""
         rules = {
             "user_id": [F.col("user_id").isNotNull()],
@@ -169,9 +163,18 @@ class TestDataTransformationUtilities:
     """Test data transformation utility functions with real Spark operations."""
 
     @pytest.fixture
-    def sample_dataframe(self, spark_session):
+    def F(self, spark_imports):
+        """Get F functions from spark_imports."""
+        return spark_imports.F
+
+    @pytest.fixture
+    def sample_dataframe(self, spark, spark_imports):
         """Create a sample DataFrame for testing."""
         from pipeline_builder.compat_helpers import create_test_dataframe
+
+        StringType = spark_imports.StringType
+        StructField = spark_imports.StructField
+        StructType = spark_imports.StructType
 
         data = [
             {"user_id": "user1", "action": "click", "timestamp": "2024-01-01 10:00:00"},
@@ -189,10 +192,10 @@ class TestDataTransformationUtilities:
                 StructField("timestamp", StringType(), True),
             ]
         )
-        return create_test_dataframe(spark_session, data, schema)
+        return create_test_dataframe(spark, data, schema)
 
     @pytest.mark.spark
-    def test_basic_dataframe_operations(self, sample_dataframe):
+    def test_basic_dataframe_operations(self, F, sample_dataframe):
         """Test basic DataFrame operations (metadata functions removed in simplified system)."""
         # Test basic DataFrame operations
         result = sample_dataframe.withColumn("_test_column", F.lit("test_value"))
@@ -209,7 +212,7 @@ class TestDataTransformationUtilities:
         assert result.count() == original_count
 
     @pytest.mark.spark
-    def test_dataframe_filtering(self, sample_dataframe, spark_session):
+    def test_dataframe_filtering(self, F, sample_dataframe):
         """Test DataFrame filtering operations."""
         # Verify original DataFrame (this fixture creates 3 rows, not 5)
         original_count = sample_dataframe.count()
@@ -237,7 +240,7 @@ class TestFactoryFunctions:
     """Test factory functions with real data."""
 
     @pytest.mark.spark
-    def test_create_validation_dict(self, spark_session):
+    def test_create_validation_dict(self):
         """Test validation dictionary creation with real data."""
         stats = StageStats(
             stage="bronze",
@@ -263,7 +266,7 @@ class TestFactoryFunctions:
         assert result["end_at"] == end_time
 
     @pytest.mark.spark
-    def test_create_write_dict(self, spark_session):
+    def test_create_write_dict(self):
         """Test write dictionary creation with real data."""
         start_time = datetime(2024, 1, 1, 10, 0, 0)
         end_time = datetime(2024, 1, 1, 10, 5, 0)
@@ -291,14 +294,15 @@ class TestPerformanceWithRealData:
     """Test performance with real Spark operations and larger datasets."""
 
     @pytest.mark.spark
-    def test_large_dataset_validation(self, spark_session):
+    def test_large_dataset_validation(self, spark, spark_imports):
         """Test validation with a larger dataset."""
+        F = spark_imports.F
         # Create a larger dataset
         data = []
         for i in range(1000):
             data.append((f"user{i}", "click", f"2024-01-01 {10 + i % 14:02d}:00:00"))
 
-        df = spark_session.createDataFrame(data, ["user_id", "action", "timestamp"])
+        df = spark.createDataFrame(data, ["user_id", "action", "timestamp"])
 
         # Test validation rules
         rules = {
@@ -316,8 +320,9 @@ class TestPerformanceWithRealData:
         assert stats.validation_rate <= 100.0
 
     @pytest.mark.spark
-    def test_complex_transformations(self, spark_session):
+    def test_complex_transformations(self, spark, spark_imports):
         """Test complex transformations with real Spark operations."""
+        F = spark_imports.F
         # Create test data
         data = [
             ("user1", "click", "2024-01-01 10:00:00"),
@@ -325,7 +330,7 @@ class TestPerformanceWithRealData:
             ("user2", "click", "2024-01-01 12:00:00"),
             ("user2", "purchase", "2024-01-01 13:00:00"),
         ]
-        df = spark_session.createDataFrame(data, ["user_id", "action", "timestamp"])
+        df = spark.createDataFrame(data, ["user_id", "action", "timestamp"])
 
         # Test complex transformation
         result = (

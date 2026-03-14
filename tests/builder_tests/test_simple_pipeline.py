@@ -11,23 +11,23 @@ class TestSimplePipeline:
     """Test simple pipeline execution with mock-spark."""
 
     def test_simple_pipeline_execution(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test simple pipeline without complex validation rules."""
 
         # Create test data
         orders_df = data_generator.create_ecommerce_orders(
-            mock_spark_session, num_orders=10
+            spark, num_orders=10
         )
 
         # Setup schemas
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=mock_spark_session,
+            spark=spark,
             schema="bronze",
             min_bronze_rate=95.0,
             min_silver_rate=98.0,

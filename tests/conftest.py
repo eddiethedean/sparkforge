@@ -1,11 +1,17 @@
 """
-Enhanced pytest configuration and shared fixtures for pipeline tests.
+Pytest configuration using sparkless.testing framework.
 
-This module provides comprehensive test configuration, shared fixtures,
-and utilities to support the entire test suite with better organization
-and reduced duplication.
+This module provides test configuration using the sparkless.testing plugin
+which handles Spark session management, imports, and mode switching automatically.
 
-Supports both mock_spark and real Spark environments via SPARK_MODE environment variable.
+The sparkless.testing plugin provides:
+- `spark` fixture: Main Spark session (works in both sparkless and pyspark modes)
+- `spark_imports` fixture: Unified access to F, types, Window, etc.
+- `spark_mode` fixture: Returns current Mode enum (Mode.SPARKLESS or Mode.PYSPARK)
+- `isolated_session` fixture: Fresh session for isolation
+- `table_prefix` fixture: Unique prefix for test isolation
+- `@pytest.mark.sparkless_only`: Skip test in pyspark mode
+- `@pytest.mark.pyspark_only`: Skip test in sparkless mode
 """
 
 import os
@@ -13,32 +19,12 @@ import shutil
 import sys
 import time
 
-# CRITICAL: Ensure Delta jars are always on classpath for PySpark workers (including xdist)
-# This MUST be set before any PySpark imports to propagate to child workers in pytest-xdist.
-# Worker processes in pytest-xdist will inherit this environment variable, ensuring
-# Delta Lake JARs are available in all worker processes.
-if "PYSPARK_SUBMIT_ARGS" not in os.environ:
-    os.environ["PYSPARK_SUBMIT_ARGS"] = (
-        "--packages io.delta:delta-spark_2.12:3.0.0 pyspark-shell"
-    )
-    print(
-        f"🔧 Set PYSPARK_SUBMIT_ARGS for Delta Lake: {os.environ['PYSPARK_SUBMIT_ARGS']}"
-    )
-else:
-    # Log if already set to help debug worker process issues
-    print(
-        f"🔧 PYSPARK_SUBMIT_ARGS already set: {os.environ.get('PYSPARK_SUBMIT_ARGS', 'NOT SET')}"
-    )
+import pytest
 
-# Set PySpark Python environment variables early, before any Spark imports
-# This ensures workers use the same Python version as the driver
-# Use absolute path to ensure consistency
-python_executable = os.path.abspath(sys.executable)
-# Always set these to override any existing values and ensure consistency
-os.environ["PYSPARK_PYTHON"] = python_executable
-os.environ["PYSPARK_DRIVER_PYTHON"] = python_executable
+# Register sparkless.testing plugin - provides spark, spark_imports, spark_mode fixtures
+pytest_plugins = ["sparkless.testing"]
 
-# Ensure project root and src directory are on sys.path before loading compatibility shims
+# Ensure project root and src directory are on sys.path
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC_DIR = os.path.join(PROJECT_ROOT, "src")
 if PROJECT_ROOT not in sys.path:
@@ -46,784 +32,334 @@ if PROJECT_ROOT not in sys.path:
 if SRC_DIR not in sys.path:
     sys.path.insert(0, SRC_DIR)
 
-# Load interpreter compatibility tweaks (e.g., typing.TypeAlias patch for Python 3.8)
+# Add tests directory to path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Load interpreter compatibility tweaks
 try:
     import sitecustomize  # type: ignore  # noqa: E402,F401
 except ImportError:
-    pass  # sitecustomize is optional
+    pass
 
-import pytest
 
-# Configure engine early based on SPARK_MODE
-from pipeline_builder.engine_config import configure_engine
+# Configure default engine early (before test modules are collected)
+# This allows test modules to import from pipeline_builder.compat at module level
+def _configure_default_engine():
+    """Configure default sparkless engine early for module-level imports."""
+    mode_str = os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower()
+    from pipeline_builder.engine_config import configure_engine
 
-spark_mode_env = os.environ.get("SPARK_MODE", "mock").lower()
-if spark_mode_env == "mock":
-    import sparkless  # type: ignore[import]
-    _sparkless_version = getattr(sparkless, "__version__", "0.0.0")
-    try:
-        _parts = tuple(int(x) for x in _sparkless_version.split(".")[:3])
-    except (ValueError, AttributeError):
-        _parts = (0, 0, 0)
-    if _parts < (4, 1, 0):
-        raise RuntimeError(
-            f"Mock mode requires sparkless>=4.1.0; found {_sparkless_version}. "
-            "Install with: pip install 'sparkless>=4.1.0'"
-        )
-    from sparkless.sql import functions as mock_functions  # type: ignore[import]
-    from sparkless import spark_types as mock_types  # type: ignore[import]
-    from sparkless.sql.utils import (  # type: ignore[import]
-        AnalysisException as MockAnalysisException,
-    )
-    from sparkless import Window as MockWindow  # type: ignore[import]
-    mock_desc = mock_functions.desc
-    from sparkless import DataFrame as MockDataFrame  # type: ignore[import]
-    from sparkless import SparkSession as MockSparkSession  # type: ignore[import]
-    from sparkless import Column as MockColumn  # type: ignore[import]
+    if mode_str == "pyspark":
+        try:
+            from pyspark.sql import functions as pyspark_functions
+            from pyspark.sql import types as pyspark_types
+            from pyspark.sql.functions import desc as pyspark_desc
+            from pyspark.sql.utils import AnalysisException as PySparkAnalysisException
+            from pyspark.sql.window import Window as PySparkWindow
+            from pyspark.sql import DataFrame as PySparkDataFrame
+            from pyspark.sql import SparkSession as PySparkSparkSession
+            from pyspark.sql import Column as PySparkColumn
+
+            configure_engine(
+                functions=pyspark_functions,
+                types=pyspark_types,
+                analysis_exception=PySparkAnalysisException,
+                window=PySparkWindow,
+                desc=pyspark_desc,
+                engine_name="pyspark",
+                dataframe_cls=PySparkDataFrame,
+                spark_session_cls=PySparkSparkSession,
+                column_cls=PySparkColumn,
+            )
+            return
+        except ImportError:
+            pass
+
+    # Default to sparkless
+    from sparkless.sql import functions as mock_functions
+    from sparkless import spark_types as mock_types
+    from sparkless.sql.utils import AnalysisException as MockAnalysisException
+    from sparkless import Window as MockWindow
+    from sparkless import DataFrame as MockDataFrame
+    from sparkless import SparkSession as MockSparkSession
+    from sparkless import Column as MockColumn
 
     configure_engine(
         functions=mock_functions,
         types=mock_types,
         analysis_exception=MockAnalysisException,
         window=MockWindow,
-        desc=mock_desc,
+        desc=mock_functions.desc,
         engine_name="mock",
         dataframe_cls=MockDataFrame,
         spark_session_cls=MockSparkSession,
         column_cls=MockColumn,
     )
-else:
-    from pyspark.sql import functions as pyspark_functions
-    from pyspark.sql import types as pyspark_types
-    from pyspark.sql.functions import desc as pyspark_desc
-    from pyspark.sql.utils import AnalysisException as PySparkAnalysisException
-    from pyspark.sql.window import Window as PySparkWindow
-    from pyspark.sql import DataFrame as PySparkDataFrame
-    from pyspark.sql import SparkSession as PySparkSparkSession
-    from pyspark.sql import Column as PySparkColumn
 
-    configure_engine(
-        functions=pyspark_functions,
-        types=pyspark_types,
-        analysis_exception=PySparkAnalysisException,
-        window=PySparkWindow,
-        desc=pyspark_desc,
-        engine_name="pyspark",
-        dataframe_cls=PySparkDataFrame,
-        spark_session_cls=PySparkSparkSession,
-        column_cls=PySparkColumn,
-    )
 
-# Add the tests directory to the Python path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Configure engine immediately at import time
+_configure_default_engine()
 
-# Import test helpers from system directory
-try:
-    from system.system_test_helpers import (
-        TestAssertions,
-        TestDataGenerator,
-        TestPerformance,
-        TestPipelineBuilder,
-    )
-except ImportError:
-    # Fallback if test_helpers is not available
-    class TestAssertions:
-        pass
 
-    class TestDataGenerator:
-        pass
+# Configure engine based on spark mode when tests start
+def _configure_engine_for_mode(spark_mode):
+    """Configure pipeline_builder engine based on current spark mode."""
+    from sparkless.testing import Mode
+    from pipeline_builder.engine_config import configure_engine
 
-    class TestPerformance:
-        pass
+    if spark_mode == Mode.SPARKLESS:
+        from sparkless.sql import functions as mock_functions
+        from sparkless import spark_types as mock_types
+        from sparkless.sql.utils import AnalysisException as MockAnalysisException
+        from sparkless import Window as MockWindow
+        from sparkless import DataFrame as MockDataFrame
+        from sparkless import SparkSession as MockSparkSession
+        from sparkless import Column as MockColumn
 
-    class TestPipelineBuilder:
-        pass
+        configure_engine(
+            functions=mock_functions,
+            types=mock_types,
+            analysis_exception=MockAnalysisException,
+            window=MockWindow,
+            desc=mock_functions.desc,
+            engine_name="mock",
+            dataframe_cls=MockDataFrame,
+            spark_session_cls=MockSparkSession,
+            column_cls=MockColumn,
+        )
+    else:
+        from pyspark.sql import functions as pyspark_functions
+        from pyspark.sql import types as pyspark_types
+        from pyspark.sql.functions import desc as pyspark_desc
+        from pyspark.sql.utils import AnalysisException as PySparkAnalysisException
+        from pyspark.sql.window import Window as PySparkWindow
+        from pyspark.sql import DataFrame as PySparkDataFrame
+        from pyspark.sql import SparkSession as PySparkSparkSession
+        from pyspark.sql import Column as PySparkColumn
+
+        configure_engine(
+            functions=pyspark_functions,
+            types=pyspark_types,
+            analysis_exception=PySparkAnalysisException,
+            window=PySparkWindow,
+            desc=pyspark_desc,
+            engine_name="pyspark",
+            dataframe_cls=PySparkDataFrame,
+            spark_session_cls=PySparkSparkSession,
+            column_cls=PySparkColumn,
+        )
+
+
+@pytest.fixture(autouse=True)
+def configure_engine_for_test(spark_mode):
+    """Auto-configure pipeline_builder engine based on current test mode."""
+    _configure_engine_for_mode(spark_mode)
+    yield
 
 
 @pytest.fixture(autouse=True, scope="function")
 def reset_global_state():
     """Reset global state before and after each test to prevent pollution."""
-    # Reset before test
     try:
         from pipeline_builder.logging import reset_global_logger
-
         reset_global_logger()
     except Exception:
         pass
 
-    # Reset execution state and global caches
     try:
         from tests.test_helpers.isolation import (
             reset_execution_state,
             reset_global_state as reset_globals,
         )
-
         reset_globals()
-        reset_execution_state()
-    except Exception:
-        pass
-
-    # Clear any cached Spark modules
-    import sys
-
-    [k for k in sys.modules.keys() if "pyspark" in k.lower() and "_jvm" not in k]
-
-    yield  # Run the test
-
-    # Reset after test - clear engine state and global caches
-    try:
-        from tests.test_helpers.isolation import reset_engine_state
-
-        reset_engine_state()
-    except Exception:
-        pass
-
-    try:
-        from pipeline_builder.logging import reset_global_logger
-
-        reset_global_logger()
-    except Exception:
-        pass
-
-    # Reset execution state and global caches after test
-    try:
-        from tests.test_helpers.isolation import (
-            reset_execution_state,
-            reset_global_state as reset_globals,
-        )
-
-        reset_globals()
-        reset_execution_state()
-    except Exception:
-        pass
-
-    # Don't remove modules, just ensure SparkContext is clean
-    try:
-        from pipeline_builder.compat import compat_name
-
-        if compat_name() == "pyspark":
-            # Use compatibility layer
-
-            # SparkContext is accessed via SparkSession
-            SparkContext = None  # Not needed for mock-spark
-
-            if SparkContext._active_spark_context is not None:
-                # Don't stop it as other tests might need it
-                pass
-    except Exception:
-        pass
-
-
-@pytest.fixture(scope="function", autouse=True)
-def cleanup_before_test():
-    """Reset global state before and after each test."""
-    # Only reset global state - no table cleanup needed since we use unique names
-    try:
-        from tests.test_helpers.isolation import (
-            reset_execution_state,
-            reset_global_state,
-        )
-
-        reset_global_state()
         reset_execution_state()
     except Exception:
         pass
 
     yield
 
-    # Only reset global state after test
+    try:
+        from tests.test_helpers.isolation import reset_engine_state
+        reset_engine_state()
+    except Exception:
+        pass
+
+    try:
+        from pipeline_builder.logging import reset_global_logger
+        reset_global_logger()
+    except Exception:
+        pass
+
     try:
         from tests.test_helpers.isolation import (
             reset_execution_state,
-            reset_global_state,
+            reset_global_state as reset_globals,
         )
-
-        reset_global_state()
+        reset_globals()
         reset_execution_state()
     except Exception:
         pass
 
 
+# Alias fixtures for backward compatibility during migration
+@pytest.fixture(scope="function")
+def spark_session(spark):
+    """Backward compatibility alias: use `spark` fixture instead."""
+    return spark
+
+
+@pytest.fixture(scope="function")
+def mock_spark_session(spark):
+    """Backward compatibility alias: use `spark` fixture instead."""
+    return spark
+
+
+@pytest.fixture(scope="function")
+def base_spark_session(spark):
+    """Backward compatibility alias: use `spark` fixture instead."""
+    return spark
+
+
+@pytest.fixture(scope="function")
+def isolated_spark_session(isolated_session):
+    """Backward compatibility alias: use `isolated_session` fixture instead."""
+    return isolated_session
+
+
+@pytest.fixture(scope="function")
+def unique_schema(table_prefix):
+    """Unique schema name for test isolation."""
+    return f"test_{table_prefix}"
+
+
+@pytest.fixture(scope="function")
+def unique_name(table_prefix):
+    """Generate unique schema/table names per test."""
+    def _make(kind: str, name: str) -> str:
+        return f"{kind}_{name}_{table_prefix}"
+    return _make
+
+
+@pytest.fixture(scope="function")
+def unique_table_name(table_prefix):
+    """Provide a function to generate unique table names for each test."""
+    def _get_unique_table(base_name: str) -> str:
+        return f"{base_name}_{table_prefix}"
+    return _get_unique_table
+
+
+@pytest.fixture(scope="function")
+def sample_dataframe(spark, spark_imports):
+    """Create a sample DataFrame for testing."""
+    StructType = spark_imports.StructType
+    StructField = spark_imports.StructField
+    StringType = spark_imports.StringType
+    IntegerType = spark_imports.IntegerType
+    DoubleType = spark_imports.DoubleType
+
+    schema = StructType([
+        StructField("user_id", StringType(), True),
+        StructField("age", IntegerType(), True),
+        StructField("score", DoubleType(), True),
+        StructField("category", StringType(), True),
+    ])
+
+    data = [
+        ("user1", 25, 85.5, "A"),
+        ("user2", 30, 92.0, "B"),
+        ("user3", None, 78.5, "A"),
+        ("user4", 35, None, "C"),
+        ("user5", 28, 88.0, "B"),
+    ]
+
+    return spark.createDataFrame(data, schema)
+
+
+@pytest.fixture(scope="function")
+def empty_dataframe(spark, spark_imports):
+    """Create an empty DataFrame for testing."""
+    StructType = spark_imports.StructType
+    StructField = spark_imports.StructField
+    StringType = spark_imports.StringType
+
+    schema = StructType([
+        StructField("col1", StringType(), True),
+        StructField("col2", StringType(), True),
+    ])
+
+    return spark.createDataFrame([], schema)
+
+
+@pytest.fixture(scope="function")
+def large_dataset():
+    """Create a large dataset for testing."""
+    return [
+        {
+            "id": i,
+            "name": f"name_{i}",
+            "value": float(i * 1.5),
+            "category": f"category_{i % 10}",
+        }
+        for i in range(1, 1001)
+    ]
+
+
+@pytest.fixture(scope="function")
+def test_warehouse_dir():
+    """Create a temporary warehouse directory for testing."""
+    warehouse_dir = f"/tmp/spark-warehouse-{os.getpid()}"
+    os.makedirs(warehouse_dir, exist_ok=True)
+
+    yield warehouse_dir
+
+    if os.path.exists(warehouse_dir):
+        shutil.rmtree(warehouse_dir, ignore_errors=True)
+
+
+@pytest.fixture(scope="function")
+def test_config():
+    """Provide test configuration for pipeline tests."""
+    from pipeline_builder.models import PipelineConfig, ValidationThresholds
+
+    return PipelineConfig(
+        schema="test_schema",
+        thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
+    )
+
+
 @pytest.fixture
-def fully_isolated_test(spark_session):
-    """
-    Comprehensive isolation fixture that combines all isolation mechanisms.
-
-    Provides:
-    - Unique Spark session (from spark_session fixture)
-    - Isolated engine state (thread-local)
-    - Isolated environment variables (thread-local)
-    - Unique schemas and warehouse directories
-
-    Usage:
-        def test_something(fully_isolated_test):
-            # Test has complete isolation
-            pass
-    """
-    import sys
-    import os
-
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+def fully_isolated_test(spark, table_prefix):
+    """Comprehensive isolation fixture that combines all isolation mechanisms."""
     from test_helpers.isolation import (
         ThreadLocalEnvVar,
         get_unique_schema,
         reset_engine_state,
     )
 
-    # Isolate environment variables
     env_vars = {}
     for var_name in ["SPARKFORGE_ENGINE"]:
         env_var = ThreadLocalEnvVar(var_name)
         env_vars[var_name] = env_var
 
-    # Reset engine state at start
     reset_engine_state()
 
     yield {
-        "spark": spark_session,
+        "spark": spark,
         "get_unique_schema": get_unique_schema,
         "env_vars": env_vars,
     }
 
-    # Cleanup: reset engine state
     reset_engine_state()
-
-
-@pytest.fixture(scope="function")
-def unique_schema():
-    """Provide a unique schema name for each test."""
-    return get_unique_test_schema()
-
-
-@pytest.fixture(scope="function")
-def unique_name():
-    """Generate unique schema/table names per test."""
-    unique_id = int(time.time() * 1_000_000) % 1_000_000
-    base = f"t{os.getpid()}_{unique_id}"
-
-    def _make(kind: str, name: str) -> str:
-        return f"{kind}_{name}_{base}"
-
-    return _make
-
-
-@pytest.fixture(scope="function")
-def unique_table_name():
-    """Provide a function to generate unique table names for each test."""
-    import time
-
-    def _get_unique_table(base_name: str) -> str:
-        unique_id = int(time.time() * 1000000) % 1000000
-        return f"{base_name}_{unique_id}"
-
-    return _get_unique_table
-
-
-def get_test_schema():
-    """Get the test schema name."""
-    return "test_schema"
-
-
-def get_unique_test_schema():
-    """Get a unique test schema name for isolated tests."""
-    unique_id = int(time.time() * 1000000) % 1000000
-    return f"test_schema_{unique_id}"
-
-
-def get_unique_table_name(base_name: str) -> str:
-    """Generate a unique table name by appending a timestamp-based ID."""
-    import time
-
-    unique_id = int(time.time() * 1000000) % 1000000
-    return f"{base_name}_{unique_id}"
-
-
-def _log_session_configs(spark, context: str = ""):
-    """
-    Log current session configs and identity for debugging Delta Lake configuration issues.
-
-    Args:
-        spark: SparkSession to check
-        context: Context string to include in log message
-    """
-    try:
-        import os
-        from pyspark.sql import SparkSession as PySparkSparkSession
-
-        # Get session identity
-        session_id = id(spark)
-        session_pid = os.getpid()
-
-        # Try to get JVM session ID if available
-        jvm_session_id = None
-        try:
-            if hasattr(spark, "_jsparkSession"):
-                jvm_session_id = str(id(spark._jsparkSession))
-        except Exception:
-            pass
-
-        # Get active session for comparison
-        active_session_id = None
-        active_session_match = False
-        try:
-            active_session = PySparkSparkSession.getActiveSession()
-            if active_session:
-                active_session_id = id(active_session)
-                active_session_match = active_session_id == session_id
-        except Exception:
-            pass
-
-        # Get configs
-        ext = spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
-        cat = spark.conf.get("spark.sql.catalog.spark_catalog", "")  # type: ignore[attr-defined]
-
-        # Try to check JVM-level configuration
-        jvm_extensions = None
-        jvm_catalog = None
-        try:
-            if hasattr(spark, "_jsparkSession"):
-                jspark_session = spark._jsparkSession
-                # Try to get config from JVM session
-                try:
-                    jvm_extensions = jspark_session.conf().get(
-                        "spark.sql.extensions", ""
-                    )
-                except Exception:
-                    pass
-                try:
-                    jvm_catalog = jspark_session.conf().get(
-                        "spark.sql.catalog.spark_catalog", ""
-                    )
-                except Exception:
-                    pass
-        except Exception:
-            pass
-
-        # Log comprehensive session state
-        print(f"🔍 {context} - Session State:")
-        print(f"   PID: {session_pid}")
-        print(f"   Session ID (Python): {session_id}")
-        if jvm_session_id:
-            print(f"   Session ID (JVM): {jvm_session_id}")
-        if active_session_id is not None:
-            print(f"   Active Session ID: {active_session_id}")
-            print(f"   Matches Active: {active_session_match}")
-        print(f"   Extensions (Python): '{ext}'")
-        print(f"   Catalog (Python): '{cat}'")
-        if jvm_extensions is not None:
-            print(f"   Extensions (JVM): '{jvm_extensions}'")
-        if jvm_catalog is not None:
-            print(f"   Catalog (JVM): '{jvm_catalog}'")
-
-        # Check if Delta is actually configured
-        delta_configured = "DeltaSparkSessionExtension" in ext and "DeltaCatalog" in cat
-        if not delta_configured:
-            print(f"⚠️ {context} - Delta Lake NOT properly configured!")
-        else:
-            print(f"✅ {context} - Delta Lake configuration verified (Python level)")
-
-        # Check JVM level if available
-        if jvm_extensions is not None or jvm_catalog is not None:
-            jvm_delta_configured = (
-                jvm_extensions
-                and "DeltaSparkSessionExtension" in jvm_extensions
-                and jvm_catalog
-                and "DeltaCatalog" in jvm_catalog
-            )
-            if jvm_delta_configured:
-                print(f"✅ {context} - Delta Lake configuration verified (JVM level)")
-            else:
-                print(f"⚠️ {context} - Delta Lake NOT properly configured at JVM level!")
-                print(
-                    "   This may explain why Delta operations fail despite Python configs being set"
-                )
-
-        return delta_configured
-    except Exception as e:
-        import traceback
-
-        print(f"⚠️ {context} - Could not read session configs: {e}")
-        traceback.print_exc()
-        return False
-
-
-def _create_mock_spark_session():
-    """Create a mock Spark session."""
-    from sparkless import SparkSession  # type: ignore[import]
-    from sparkless.sql import functions as mock_functions  # type: ignore[import]
-    from sparkless import spark_types as mock_types  # type: ignore[import]
-    from sparkless.sql.utils import (  # type: ignore[import]
-        AnalysisException as MockAnalysisException,
-    )
-    from sparkless import Window as MockWindow  # type: ignore[import]
-    mock_desc = mock_functions.desc
-    from pipeline_builder.engine import configure_engine
-
-    print("🔧 Creating Mock Spark session for all tests")
-
-    # Create mock Spark session
-    spark = SparkSession(f"SparkForgeTests-{os.getpid()}")
-
-    # Create test database using SQL (works for both mock-spark and PySpark)
-    try:
-        spark.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
-        print("✅ Test database created successfully")
-    except Exception as e:
-        print(f"❌ Could not create test_schema database: {e}")
-
-    # Configure pipeline_builder engine for sparkless
-    configure_engine(
-        functions=mock_functions,
-        types=mock_types,
-        analysis_exception=MockAnalysisException,
-        window=MockWindow,
-        desc=mock_desc,
-    )
-
-    return spark
-
-
-def _create_real_spark_session():
-    """Create a real Spark session with Delta Lake support."""
-    from pyspark.sql import SparkSession, functions as pyspark_functions
-    from pyspark.sql import types as pyspark_types
-    from pyspark.sql.functions import desc as pyspark_desc
-    from pyspark.sql.utils import AnalysisException as PySparkAnalysisException
-    from pyspark.sql.window import Window as PySparkWindow
-    from pipeline_builder.engine import configure_engine
-
-    # Set Python version for PySpark to match current interpreter
-    # This prevents Python version mismatch between driver and workers
-    # Use the python_executable from module level (set early)
-    # Force update to ensure it's set before Spark initialization
-    os.environ["PYSPARK_PYTHON"] = python_executable
-    os.environ["PYSPARK_DRIVER_PYTHON"] = python_executable
-    print(f"🔧 Using Python at: {python_executable}")
-    print(f"🔧 PYSPARK_PYTHON={os.environ.get('PYSPARK_PYTHON')}")
-    print(f"🔧 PYSPARK_DRIVER_PYTHON={os.environ.get('PYSPARK_DRIVER_PYTHON')}")
-
-    # Set Java environment
-    java_home = os.environ.get("JAVA_HOME", "/opt/homebrew/opt/java11")
-    if not os.path.exists(java_home):
-        # Try alternative Java paths
-        for alt_path in [
-            "/opt/homebrew/opt/openjdk@11",
-            "/usr/lib/jvm/java-11-openjdk",
-        ]:
-            if os.path.exists(alt_path):
-                java_home = alt_path
-                break
-
-    os.environ["JAVA_HOME"] = java_home
-    print(f"🔧 Using Java at: {java_home}")
-
-    # Clean up any existing test data
-    warehouse_dir = f"/tmp/spark-warehouse-{os.getpid()}"
-    if os.path.exists(warehouse_dir):
-        shutil.rmtree(warehouse_dir, ignore_errors=True)
-
-    # Configure Spark with Delta Lake support
-    spark = None
-    try:
-        # Import delta-spark module - handle namespace package issues
-        try:
-            from delta import configure_spark_with_delta_pip
-        except ImportError:
-            # Try alternative import path
-            import delta.pip_utils as pip_utils
-
-            configure_spark_with_delta_pip = pip_utils.configure_spark_with_delta_pip
-
-        print("🔧 Configuring real Spark with Delta Lake support for all tests")
-
-        # CRITICAL: Stop any existing Spark session to ensure getOrCreate() doesn't reuse it
-        # getOrCreate() will reuse an existing session if one exists, even if it doesn't have Delta config
-        # We must stop it first to force creation of a new session with our Delta config
-        try:
-            existing_spark = SparkSession.getActiveSession()
-            if existing_spark:
-                print(
-                    "🔧 Stopping existing Spark session before creating new one (prevent getOrCreate() reuse)"
-                )
-                existing_spark.stop()
-                # Also clear internal cache to be absolutely sure
-                if hasattr(SparkSession, "_instantiatedContext"):
-                    SparkSession._instantiatedContext = None  # type: ignore[attr-defined]
-        except Exception:
-            pass  # Ignore errors when stopping sessions
-
-        # Build Spark session builder - match conftest_delta.py pattern exactly
-        # Set Delta configs in builder BEFORE calling configure_spark_with_delta_pip
-        # Get worker ID for concurrent testing isolation (pytest-xdist)
-        worker_id = os.environ.get("PYTEST_XDIST_WORKER", "gw0")
-        unique_app_name = f"pytest-spark-{worker_id}"
-        builder = (
-            SparkSession.builder.appName(unique_app_name)
-            .master("local[1]")
-            .config("spark.sql.warehouse.dir", warehouse_dir)
-            .config("spark.ui.enabled", "false")
-            .config("spark.sql.shuffle.partitions", "1")
-            .config("spark.default.parallelism", "1")
-            .config("spark.sql.adaptive.enabled", "false")
-            .config("spark.driver.host", "127.0.0.1")
-            .config("spark.driver.bindAddress", "127.0.0.1")
-            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-            .config(
-                "spark.sql.catalog.spark_catalog",
-                "org.apache.spark.sql.delta.catalog.DeltaCatalog",
-            )
-        )
-
-        # Use configure_spark_with_delta_pip for JAR management
-        # Match conftest_delta.py: use getOrCreate() but ensure no existing session
-        print(f"🔍 Creating Spark session with app name: {unique_app_name}")
-
-        # Check if there's an active session before calling getOrCreate()
-        active_before = SparkSession.getActiveSession()
-        if active_before:
-            print(
-                f"⚠️ WARNING: Active session exists before getOrCreate(): {id(active_before)}"
-            )
-            _log_session_configs(active_before, "Active session BEFORE getOrCreate()")
-
-        configured_builder = configure_spark_with_delta_pip(builder)
-
-        # Use getOrCreate() - .create() only works with Spark Connect (remote mode)
-        # We've already stopped any existing session, so getOrCreate() should create a new one
-        print("🔍 Calling getOrCreate() (after stopping existing session)...")
-        spark = configured_builder.getOrCreate()
-        print(f"✅ getOrCreate() returned session: {id(spark)}")
-
-        # Verify configuration is correct
-        actual_ext = spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
-        actual_cat = spark.conf.get("spark.sql.catalog.spark_catalog", "")  # type: ignore[attr-defined]
-        print(
-            f"🔍 Delta config after session creation - Extensions: '{actual_ext}', Catalog: '{actual_cat}'"
-        )
-
-        # If configs aren't set, something went wrong
-        if (
-            "DeltaSparkSessionExtension" not in actual_ext
-            or "DeltaCatalog" not in actual_cat
-        ):
-            raise RuntimeError(
-                f"Delta Lake not properly configured. Extensions: '{actual_ext}', Catalog: '{actual_cat}'. "
-                f"This should not happen if configs are set in builder before .create()."
-            )
-
-        print("✅ Delta Lake configuration completed and verified")
-
-        # Log session identity after creation
-        print("🔍 _create_real_spark_session - Session created:")
-        print(f"   Session ID (Python): {id(spark)}")
-        try:
-            if hasattr(spark, "_jsparkSession"):
-                print(f"   Session ID (JVM): {id(spark._jsparkSession)}")
-        except Exception:
-            pass
-        _log_session_configs(spark, "_create_real_spark_session (after creation)")
-
-        # Set log level to WARN to reduce noise (matching conftest_delta.py pattern)
-        spark.sparkContext.setLogLevel("WARN")
-
-        # Clear catalog cache at start to ensure clean state
-        # This prevents stale table metadata from causing conflicts in parallel tests
-        try:
-            spark.catalog.clearCache()
-        except Exception:
-            pass  # Ignore cache clearing errors
-
-    except Exception as e:
-        import traceback
-
-        print(f"❌ Delta Lake configuration failed: {e}")
-        print("💡 Error details:")
-        traceback.print_exc()
-        print("\n💡 To fix this issue:")
-        print("   1. Install Delta Lake: pip install delta-spark")
-        print("   2. Ensure PySpark is installed: pip install pyspark>=3.5.0")
-        print("   3. Check Java version: java -version (should be Java 8, 11, or 17)")
-        print("   4. Set JAVA_HOME environment variable if needed")
-        print("   5. Or set SPARKFORGE_SKIP_DELTA=1 to skip Delta Lake tests")
-        print(
-            "   6. Or set SPARKFORGE_BASIC_SPARK=1 to use basic Spark without Delta Lake"
-        )
-
-        # Check if user explicitly wants to skip Delta Lake or use basic Spark
-        skip_delta = os.environ.get("SPARKFORGE_SKIP_DELTA", "0") == "1"
-        basic_spark = os.environ.get("SPARKFORGE_BASIC_SPARK", "0") == "1"
-
-        if skip_delta or basic_spark:
-            print("🔧 Using basic Spark configuration as requested")
-            try:
-                worker_id = os.environ.get("PYTEST_XDIST_WORKER", "gw0")
-                builder = (
-                    SparkSession.builder.appName(f"pytest-spark-{worker_id}")
-                    .master("local[1]")
-                    .config("spark.sql.warehouse.dir", warehouse_dir)
-                    .config("spark.ui.enabled", "false")
-                    .config("spark.sql.shuffle.partitions", "1")
-                    .config("spark.default.parallelism", "1")
-                    .config("spark.sql.adaptive.enabled", "false")
-                    .config("spark.driver.host", "127.0.0.1")
-                    .config("spark.driver.bindAddress", "127.0.0.1")
-                    .config(
-                        "spark.serializer", "org.apache.spark.serializer.KryoSerializer"
-                    )
-                    .config("spark.driver.memory", "1g")
-                    .config("spark.executor.memory", "1g")
-                )
-                spark = builder.getOrCreate()
-                try:
-                    spark.catalog.clearCache()
-                except Exception:
-                    pass
-            except Exception as e2:
-                print(f"❌ Failed to create basic Spark session: {e2}")
-                raise
-        else:
-            print("🔧 Delta Lake not available, using basic Spark configuration")
-            try:
-                worker_id = os.environ.get("PYTEST_XDIST_WORKER", "gw0")
-                builder = (
-                    SparkSession.builder.appName(f"pytest-spark-{worker_id}")
-                    .master("local[1]")
-                    .config("spark.sql.warehouse.dir", warehouse_dir)
-                    .config("spark.ui.enabled", "false")
-                    .config("spark.sql.shuffle.partitions", "1")
-                    .config("spark.default.parallelism", "1")
-                    .config("spark.sql.adaptive.enabled", "false")
-                    .config("spark.driver.host", "127.0.0.1")
-                    .config("spark.driver.bindAddress", "127.0.0.1")
-                    .config(
-                        "spark.serializer", "org.apache.spark.serializer.KryoSerializer"
-                    )
-                    .config("spark.driver.memory", "1g")
-                    .config("spark.executor.memory", "1g")
-                )
-                spark = builder.getOrCreate()
-                try:
-                    spark.catalog.clearCache()
-                except Exception:
-                    pass
-            except Exception as e2:
-                print(f"❌ Failed to create basic Spark session: {e2}")
-                raise
-
-    if spark is None:
-        raise RuntimeError("Failed to create Spark session")
-    if not hasattr(spark, "sparkContext") or spark.sparkContext is None:
-        raise RuntimeError("Spark context is not properly initialized")
-    if not hasattr(spark.sparkContext, "_jsc") or spark.sparkContext._jsc is None:
-        raise RuntimeError("Spark JVM context is not properly initialized")
-    spark.sparkContext.setLogLevel("WARN")
-    try:
-        spark.sql("CREATE DATABASE IF NOT EXISTS test_schema")
-        print("✅ Test database created successfully")
-    except Exception as e:
-        print(f"❌ Could not create test_schema database: {e}")
-    configure_engine(
-        functions=pyspark_functions,
-        types=pyspark_types,
-        analysis_exception=PySparkAnalysisException,
-        window=PySparkWindow,
-        desc=pyspark_desc,
-    )
-    return spark
-
-
-def _create_real_spark_session_with_postgres_jdbc():
-    """Create a real Spark session with Delta Lake and PostgreSQL JDBC driver.
-
-    Uses spark.jars.packages with both Delta and org.postgresql so that
-    configure_spark_with_delta_pip does not overwrite the Postgres driver.
-    """
-    from pyspark.sql import SparkSession, functions as pyspark_functions
-    from pyspark.sql import types as pyspark_types
-    from pyspark.sql.functions import desc as pyspark_desc
-    from pyspark.sql.utils import AnalysisException as PySparkAnalysisException
-    from pyspark.sql.window import Window as PySparkWindow
-    from pipeline_builder.engine import configure_engine
-
-    os.environ["PYSPARK_PYTHON"] = python_executable
-    os.environ["PYSPARK_DRIVER_PYTHON"] = python_executable
-
-    worker_id = os.environ.get("PYTEST_XDIST_WORKER", "gw0")
-    unique_app_name = f"pytest-spark-pg-jdbc-{worker_id}"
-    warehouse_dir = f"/tmp/spark-warehouse-pg-{os.getpid()}"
-    if os.path.exists(warehouse_dir):
-        shutil.rmtree(warehouse_dir, ignore_errors=True)
-
-    try:
-        existing_spark = SparkSession.getActiveSession()
-        if existing_spark:
-            existing_spark.stop()
-            if hasattr(SparkSession, "_instantiatedContext"):
-                SparkSession._instantiatedContext = None  # type: ignore[attr-defined]
-    except Exception:
-        pass
-
-    # Delta + PostgreSQL JDBC in one config (configure_spark_with_delta_pip overwrites packages)
-    packages = "io.delta:delta-spark_2.12:3.0.0,org.postgresql:postgresql:42.7.3"
-    builder = (
-        SparkSession.builder.appName(unique_app_name)
-        .master("local[1]")
-        .config("spark.sql.warehouse.dir", warehouse_dir)
-        .config("spark.ui.enabled", "false")
-        .config("spark.sql.shuffle.partitions", "1")
-        .config("spark.jars.packages", packages)
-        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-        .config(
-            "spark.sql.catalog.spark_catalog",
-            "org.apache.spark.sql.delta.catalog.DeltaCatalog",
-        )
-    )
-    # Use create() so we get a new session with our jars.packages (getOrCreate can reuse one without driver)
-    spark = builder.getOrCreate()
-
-    spark.sparkContext.setLogLevel("WARN")
-    try:
-        spark.catalog.clearCache()
-    except Exception:
-        pass
-    try:
-        spark.sql("CREATE DATABASE IF NOT EXISTS test_schema")
-    except Exception:
-        pass
-
-    configure_engine(
-        functions=pyspark_functions,
-        types=pyspark_types,
-        analysis_exception=PySparkAnalysisException,
-        window=PySparkWindow,
-        desc=pyspark_desc,
-    )
-    return spark
 
 
 @pytest.fixture
 def isolate_engine_config():
-    """
-    Context manager fixture to isolate engine configuration changes.
-
-    Saves the current engine state, allows modification within the test,
-    and restores it after the test completes.
-
-    Usage:
-        def test_something(isolate_engine_config):
-            with isolate_engine_config():
-                # Modify engine configuration
-                configure_engine(...)
-                # Test code
-                pass
-            # Engine state automatically restored
-    """
+    """Context manager fixture to isolate engine configuration changes."""
     from contextlib import contextmanager
     from pipeline_builder.engine_config import get_engine, configure_engine
 
     @contextmanager
     def _isolate():
-        # Save current engine state
         try:
             current_engine = get_engine()
             saved_config = {
@@ -843,7 +379,6 @@ def isolate_engine_config():
         try:
             yield
         finally:
-            # Restore saved engine state
             if saved_config is not None:
                 try:
                     configure_engine(**saved_config)
@@ -853,471 +388,51 @@ def isolate_engine_config():
     return _isolate
 
 
-@pytest.fixture(scope="session")
-def _shared_real_spark_session():
-    """
-    Session-scoped real Spark session for PySpark mode.
-
-    One SparkContext per JVM: with pytest-xdist (-n N), each worker gets one
-    session. All tests in that worker reuse it to avoid "Only one SparkContext
-    should be running in this JVM" (SPARK-2243).
-    """
-    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-    if spark_mode != "real":
-        yield None
-        return
-    print("🔧 _shared_real_spark_session: Creating session-scoped real Spark...")
-    spark = _create_real_spark_session()
-    print("✅ _shared_real_spark_session: Created (one per worker)")
-    try:
-        yield spark
-    finally:
-        try:
-            if spark:
-                try:
-                    spark.catalog.clearCache()
-                except Exception:
-                    pass
-                print("🔧 _shared_real_spark_session: Stopping session at end of worker run")
-                spark.stop()
-                from pyspark.sql import SparkSession as PySparkSparkSession  # noqa: F401
-
-                if hasattr(PySparkSparkSession, "_instantiatedContext"):
-                    PySparkSparkSession._instantiatedContext = None  # type: ignore[attr-defined]
-        except Exception as e:
-            print(f"⚠️ Error stopping shared Spark session: {e}")
-
-
-@pytest.fixture(scope="function")
-def base_spark_session(_shared_real_spark_session):
-    """
-    Create a Spark session for testing (function-scoped for mock; reuses session in real).
-
-    In real mode, reuses the session-scoped Spark to avoid multiple SparkContexts per JVM.
-    In mock mode, creates a new mock session per test.
-    """
-    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-
-    if spark_mode == "real":
-        spark = _shared_real_spark_session
-        if spark is None:
-            raise RuntimeError("_shared_real_spark_session was None in real mode")
-        # Clear cache between tests for isolation; do not stop the session
-        try:
-            spark.catalog.clearCache()
-        except Exception:
-            pass
-        yield spark
-    else:
-        spark = _create_mock_spark_session()
-        yield spark
-        try:
-            if spark:
-                try:
-                    spark.catalog.clearCache()
-                except Exception:
-                    pass
-                if hasattr(spark, "stop"):
-                    spark.stop()
-                print("🧹 Mock Spark session cleanup completed")
-        except Exception as e:
-            print(f"Warning: Could not clean up test database: {e}")
-
-    try:
-        from tests.test_helpers.isolation import (
-            reset_execution_state,
-            reset_global_state,
-        )
-        reset_global_state()
-        reset_execution_state()
-    except Exception as e:
-        print(f"Warning: Could not reset state: {e}")
-
-
-@pytest.fixture(scope="function")
-def spark_session(base_spark_session):
-    """
-    Create a Spark session for testing (function-scoped for test isolation).
-
-    This fixture creates either a mock Spark session or a real Spark session
-    based on the SPARK_MODE environment variable:
-    - SPARK_MODE=mock (default): Uses mock_spark
-    - SPARK_MODE=real: Uses real Spark with Delta Lake
-
-    This is the primary fixture for all tests - it automatically provides
-    the correct session type based on SPARK_MODE.
-    """
-    return base_spark_session
-
-
-@pytest.fixture(scope="function")
-def isolated_spark_session(_shared_real_spark_session):
-    """
-    Create an isolated Spark session for tests that need complete isolation.
-
-    In real mode reuses the shared session (one SparkContext per JVM).
-    In mock mode creates a new mock session per test.
-    """
-    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-
-    if spark_mode == "real":
-        # Reuse shared session to avoid "Only one SparkContext" (SPARK-2243)
-        spark = _shared_real_spark_session
-        if spark is None:
-            raise RuntimeError("_shared_real_spark_session was None in real mode")
-        try:
-            spark.catalog.clearCache()
-        except Exception:
-            pass
-        yield spark
-    else:
-        # For mock Spark, create a new session using sparkless
-        unique_id = int(time.time() * 1000000) % 1000000
-        schema_name = f"test_schema_{unique_id}"
-
-        print(f"🔧 Creating isolated Mock Spark session for {schema_name}")
-
-        from sparkless import SparkSession  # type: ignore[import]
-
-        spark = SparkSession(f"SparkForgeTests-{os.getpid()}-{unique_id}")
-
-        # Create isolated test database using SQL
-        try:
-            spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
-            print(f"✅ Isolated test database {schema_name} created successfully")
-        except Exception as e:
-            print(f"❌ Could not create isolated test database {schema_name}: {e}")
-
-        # Attach storage wrapper only if session allows arbitrary attributes (e.g. real PySpark).
-        # Sparkless 4 (builtins.PySparkSession) may not allow setattr for 'storage'.
-        try:
-            from tests.builder_tests.storage_wrapper import StorageWrapper
-
-            spark.storage = StorageWrapper(spark)  # type: ignore[attr-defined]
-        except (ImportError, AttributeError):
-            pass
-
-        yield spark
-
-        # Minimal cleanup - unique schema names ensure isolation
-        print(f"🧹 Isolated Mock Spark session cleanup completed for {schema_name}")
-
-
-@pytest.fixture(scope="function")
-def mock_spark_session(spark_session):
-    """
-    Create a Spark session for testing (interchangeable with spark_session).
-
-    This fixture is an alias for spark_session - it automatically provides
-    the correct session type based on SPARK_MODE:
-    - SPARK_MODE=mock (default): Returns mock-spark session
-    - SPARK_MODE=real: Returns real PySpark session
-
-    Use this fixture when you want to make it clear you're using a session
-    that works in both modes. For maximum compatibility, prefer spark_session.
-
-    This makes tests work seamlessly in both modes without code changes.
-    """
-    import os
-
-    print("🔧 mock_spark_session fixture: Executing (alias for spark_session)")
-    print(f"🔧 mock_spark_session fixture: PID={os.getpid()}")
-    print(f"🔧 mock_spark_session fixture: Session ID (Python)={id(spark_session)}")
-    try:
-        if hasattr(spark_session, "_jsparkSession"):
-            print(
-                f"🔧 mock_spark_session fixture: Session ID (JVM)={id(spark_session._jsparkSession)}"
-            )
-    except Exception:
+# Import test helpers (optional - may not be available in all test setups)
+# These imports may fail if engine is not configured yet, so use fallback classes
+try:
+    from system.system_test_helpers import (
+        TestAssertions,
+        TestDataGenerator,
+        TestPerformance,
+        TestPipelineBuilder,
+    )
+except (ImportError, RuntimeError):
+    class TestAssertions:
         pass
-    # Simply return the spark_session fixture which already handles mode switching
-    # The spark_session fixture handles all cleanup automatically
-    return spark_session
 
+    class TestDataGenerator:
+        pass
 
-@pytest.fixture(scope="function")
-def spark_session_with_pg_jdbc(request):
-    """
-    Spark session with PostgreSQL JDBC driver on the classpath.
+    class TestPerformance:
+        pass
 
-    Use this fixture for tests that use JdbcSource against PostgreSQL (e.g.
-    tests/integration/test_sql_source_postgres.py). When SPARK_MODE=real,
-    creates a session with spark.jars.packages including org.postgresql so
-    spark.read.jdbc() can connect to Postgres. When SPARK_MODE=mock, returns
-    the regular spark_session (JdbcSource postgres tests are skipped in mock).
-    """
-    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-    if spark_mode != "real":
-        return request.getfixturevalue("spark_session")
-    spark = _create_real_spark_session_with_postgres_jdbc()
-    yield spark
-    try:
-        if spark:
-            try:
-                spark.catalog.clearCache()
-            except Exception:
-                pass
-            spark.stop()
-            from pyspark.sql import SparkSession as PySparkSession
-
-            if hasattr(PySparkSession, "_instantiatedContext"):
-                PySparkSession._instantiatedContext = None  # type: ignore[attr-defined]
-    except Exception as e:
-        print(f"⚠️ Error stopping Spark session (pg jdbc): {e}")
-
-
-@pytest.fixture(scope="function")
-def mock_functions():
-    """
-    Create a Mock Functions instance for testing.
-
-    This fixture provides mock PySpark functions for testing.
-    Only available when using mock Spark mode.
-    """
-    # Set mock as default if SPARK_MODE is not explicitly set
-    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-
-    if spark_mode == "real":
-        # For real Spark, return None or skip this fixture
-        pytest.skip("Mock functions not available in real Spark mode")
-
-    from sparkless import Functions  # type: ignore[import]
-
-    return Functions()
+    class TestPipelineBuilder:
+        pass
 
 
 @pytest.fixture(scope="function")
 def test_data_generator():
-    """
-    Create a test data generator instance.
-
-    This fixture provides utilities for generating test data.
-    """
+    """Create a test data generator instance."""
     return TestDataGenerator()
 
 
 @pytest.fixture(scope="function")
 def test_assertions():
-    """
-    Create a test assertions instance.
-
-    This fixture provides custom assertion utilities.
-    """
+    """Create a test assertions instance."""
     return TestAssertions()
 
 
 @pytest.fixture(scope="function")
 def test_performance():
-    """
-    Create a test performance instance.
-
-    This fixture provides performance testing utilities.
-    """
+    """Create a test performance instance."""
     return TestPerformance()
 
 
 @pytest.fixture(scope="function")
 def test_pipeline_builder():
-    """
-    Create a test pipeline builder instance.
-
-    This fixture provides pipeline building utilities.
-    """
+    """Create a test pipeline builder instance."""
     return TestPipelineBuilder()
-
-
-@pytest.fixture(scope="function")
-def sample_dataframe(spark_session):
-    """
-    Create a sample DataFrame for testing.
-
-    This fixture creates a sample DataFrame with common test data.
-    """
-    # Set mock as default if SPARK_MODE is not explicitly set
-    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-
-    if spark_mode == "real":
-        from pyspark.sql.types import (
-            DoubleType,
-            IntegerType,
-            StringType,
-            StructField,
-            StructType,
-        )
-
-        schema = StructType(
-            [
-                StructField("user_id", StringType(), True),
-                StructField("age", IntegerType(), True),
-                StructField("score", DoubleType(), True),
-                StructField("category", StringType(), True),
-            ]
-        )
-
-        data = [
-            ("user1", 25, 85.5, "A"),
-            ("user2", 30, 92.0, "B"),
-            ("user3", None, 78.5, "A"),
-            ("user4", 35, None, "C"),
-            ("user5", 28, 88.0, "B"),
-        ]
-
-        return spark_session.createDataFrame(data, schema)
-    else:
-        from sparkless.spark_types import (  # type: ignore[import]
-            DoubleType,
-            IntegerType,
-            StructField,
-            StructType,
-            StringType,
-        )
-
-        schema = StructType(
-            [
-                StructField("user_id", StringType(), True),
-                StructField("age", IntegerType(), True),
-                StructField("score", DoubleType(), True),
-                StructField("category", StringType(), True),
-            ]
-        )
-
-        data = [
-            ("user1", 25, 85.5, "A"),
-            ("user2", 30, 92.0, "B"),
-            ("user3", None, 78.5, "A"),
-            ("user4", 35, None, "C"),
-            ("user5", 28, 88.0, "B"),
-        ]
-
-        return spark_session.createDataFrame(data, schema)
-
-
-@pytest.fixture(scope="function")
-def empty_dataframe(spark_session):
-    """
-    Create an empty DataFrame for testing.
-
-    This fixture creates an empty DataFrame with a defined schema.
-    """
-    # Set mock as default if SPARK_MODE is not explicitly set
-    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-
-    if spark_mode == "real":
-        from pyspark.sql.types import StringType, StructField, StructType
-
-        schema = StructType(
-            [
-                StructField("col1", StringType(), True),
-                StructField("col2", StringType(), True),
-            ]
-        )
-
-        return spark_session.createDataFrame([], schema)
-    else:
-        from sparkless.spark_types import (  # type: ignore[import]
-            StructField,
-            StructType,
-            StringType,
-        )
-
-        schema = StructType(
-            [
-                StructField("col1", StringType(), True),
-                StructField("col2", StringType(), True),
-            ]
-        )
-
-        return spark_session.createDataFrame([], schema)
-
-
-@pytest.fixture(scope="function")
-def large_dataset():
-    """
-    Create a large dataset for testing.
-
-    This fixture creates a list of dictionaries representing a large dataset
-    for testing pipeline performance and data handling.
-    """
-    # Create 1000 rows of test data
-    return [
-        {
-            "id": i,
-            "name": f"name_{i}",
-            "value": float(i * 1.5),
-            "category": f"category_{i % 10}",
-        }
-        for i in range(1, 1001)
-    ]
-
-
-@pytest.fixture(scope="function")
-def test_warehouse_dir():
-    """
-    Create a temporary warehouse directory for testing.
-
-    This fixture creates a temporary directory for warehouse operations.
-    """
-    warehouse_dir = f"/tmp/spark-warehouse-{os.getpid()}"
-    os.makedirs(warehouse_dir, exist_ok=True)
-
-    yield warehouse_dir
-
-    # Cleanup
-    if os.path.exists(warehouse_dir):
-        shutil.rmtree(warehouse_dir, ignore_errors=True)
-
-
-@pytest.fixture(scope="function")
-def test_config():
-    """
-    Provide test configuration for pipeline tests.
-
-    Returns a PipelineConfig object for testing.
-    """
-    from pipeline_builder.models import (
-        PipelineConfig,
-        ValidationThresholds,
-    )
-
-    return PipelineConfig(
-        schema="test_schema",
-        thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
-    )
-
-
-@pytest.fixture(scope="function", autouse=True)
-def mock_pyspark_functions():
-    """
-    Automatically mock PySpark functions when in mock mode.
-
-    This fixture replaces PySpark functions with mock functions
-    when SPARK_MODE=mock to prevent JVM-related errors.
-    """
-    # Set mock as default if SPARK_MODE is not explicitly set
-    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-
-    if spark_mode == "mock":
-        import sys
-
-        from sparkless.sql import functions as mock_functions  # type: ignore[import]
-
-        # Store original module
-        original_pyspark_functions = sys.modules.get("pyspark.sql.functions")
-
-        # Replace with mock functions
-        sys.modules["pyspark.sql.functions"] = mock_functions
-
-        yield
-
-        # Restore original module
-        if original_pyspark_functions:
-            sys.modules["pyspark.sql.functions"] = original_pyspark_functions
-        else:
-            # Remove the mock if it wasn't there originally
-            if "pyspark.sql.functions" in sys.modules:
-                del sys.modules["pyspark.sql.functions"]
-    else:
-        yield
 
 
 # Test configuration
@@ -1330,21 +445,25 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "unit: marks tests as unit tests")
     config.addinivalue_line("markers", "system: marks tests as system tests")
     config.addinivalue_line(
-        "markers", "mock_only: marks tests that only work with mock Spark"
-    )
-    config.addinivalue_line(
-        "markers", "real_spark_only: marks tests that only work with real Spark"
-    )
-    config.addinivalue_line(
         "markers",
-        "sequential: marks tests that must run sequentially (not in parallel) to avoid race conditions",
+        "sequential: marks tests that must run sequentially (not in parallel)",
+    )
+    # Legacy markers - mapped to sparkless.testing markers
+    config.addinivalue_line(
+        "markers", "mock_only: DEPRECATED - use @pytest.mark.sparkless_only instead"
+    )
+    config.addinivalue_line(
+        "markers", "real_spark_only: DEPRECATED - use @pytest.mark.pyspark_only instead"
     )
 
 
 def pytest_collection_modifyitems(config, items):
-    """Modify test collection to add markers based on file location and environment."""
-    # Set mock as default if SPARK_MODE is not explicitly set
-    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+    """Modify test collection to add markers based on file location."""
+    from sparkless.testing import Mode
+
+    # Get current mode from environment
+    mode_str = os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower()
+    is_pyspark = mode_str == "pyspark"
 
     for item in items:
         # Add markers based on file location
@@ -1355,12 +474,11 @@ def pytest_collection_modifyitems(config, items):
         else:
             item.add_marker(pytest.mark.unit)
 
-        # Add slow marker for tests that take longer than 1 second
         if "performance" in str(item.fspath) or "load" in str(item.fspath):
             item.add_marker(pytest.mark.slow)
 
-        # Skip tests based on Spark mode
-        if spark_mode == "real" and "mock_only" in item.keywords:
-            item.add_marker(pytest.mark.skip(reason="Test requires mock Spark mode"))
-        elif spark_mode == "mock" and "real_spark_only" in item.keywords:
-            item.add_marker(pytest.mark.skip(reason="Test requires real Spark mode"))
+        # Handle legacy markers by mapping to new behavior
+        if "mock_only" in item.keywords and is_pyspark:
+            item.add_marker(pytest.mark.skip(reason="Test requires sparkless mode (legacy mock_only marker)"))
+        elif "real_spark_only" in item.keywords and not is_pyspark:
+            item.add_marker(pytest.mark.skip(reason="Test requires pyspark mode (legacy real_spark_only marker)"))

@@ -10,33 +10,7 @@ Tests for the new user experience improvements:
 - Timestamp detection
 """
 
-import os
-
 import pytest
-
-# Use engine-specific functions and types based on SPARK_MODE
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.spark_types import (  # type: ignore[import]
-        IntegerType,
-        StringType,
-        StructField,
-        StructType,
-        TimestampType,
-    )
-    from sparkless.sql import functions as F  # type: ignore[import]
-
-    MockF = F
-else:
-    from pyspark.sql import functions as F
-    from pyspark.sql.types import (
-        IntegerType,
-        StringType,
-        StructField,
-        StructType,
-        TimestampType,
-    )
-
-    MockF = None
 
 from pipeline_builder import PipelineBuilder
 from pipeline_builder.errors import StepError
@@ -46,12 +20,14 @@ class TestImprovedUserExperience:
     """Test improved user experience features."""
 
     @pytest.fixture(autouse=True)
-    def setup_test(self, spark_session):
+    def setup_test(self, spark, spark_imports):
         """Set up for each test."""
+        self.F = spark_imports.F
+        self.spark_imports = spark_imports
+        F = self.F
         self.builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema="test_schema",
-            functions=MockF if MockF else None,
         )
         self.mock_silver_transform = (
             lambda spark, bronze_df, prior_silvers: bronze_df.withColumn(
@@ -62,7 +38,7 @@ class TestImprovedUserExperience:
             0
         ].withColumn("gold_col", F.lit(1))
         self.rules = {"id": [F.col("id").isNotNull()]}
-        self.spark = spark_session
+        self.spark = spark
 
     def test_auto_infer_gold_source_silvers(self):
         """Test auto-inference of source_silvers for gold transforms."""
@@ -166,6 +142,7 @@ class TestImprovedUserExperience:
 
     def test_validation_helper_not_null_rules(self):
         """Test not_null_rules helper method."""
+        F = self.F
         rules = PipelineBuilder.not_null_rules(
             ["user_id", "timestamp", "value"], functions=F
         )
@@ -185,6 +162,7 @@ class TestImprovedUserExperience:
 
     def test_validation_helper_positive_number_rules(self):
         """Test positive_number_rules helper method."""
+        F = self.F
         rules = PipelineBuilder.positive_number_rules(["value", "count"], functions=F)
 
         assert len(rules) == 2
@@ -194,6 +172,7 @@ class TestImprovedUserExperience:
 
     def test_validation_helper_string_not_empty_rules(self):
         """Test string_not_empty_rules helper method."""
+        F = self.F
         rules = PipelineBuilder.string_not_empty_rules(
             ["name", "category"], functions=F
         )
@@ -205,6 +184,7 @@ class TestImprovedUserExperience:
 
     def test_validation_helper_timestamp_rules(self):
         """Test timestamp_rules helper method."""
+        F = self.F
         rules = PipelineBuilder.timestamp_rules(
             ["created_at", "updated_at"], functions=F
         )
@@ -216,6 +196,12 @@ class TestImprovedUserExperience:
 
     def test_detect_timestamp_columns(self):
         """Test timestamp column detection."""
+        StructType = self.spark_imports.StructType
+        StructField = self.spark_imports.StructField
+        StringType = self.spark_imports.StringType
+        TimestampType = self.spark_imports.TimestampType
+        IntegerType = self.spark_imports.IntegerType
+
         # Test with DataFrame schema
         schema = StructType(
             [

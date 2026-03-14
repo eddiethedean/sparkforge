@@ -20,7 +20,7 @@ from pipeline_builder.pipeline.builder import PipelineBuilder
 
 
 @pytest.fixture(scope="function", autouse=True)
-def reset_test_environment(spark_session):
+def reset_test_environment(spark):
     """Reset test environment before each test in this file."""
     import gc
 
@@ -50,19 +50,19 @@ def reset_test_environment(spark_session):
 class TestPipelineExecutionFlow:
     """Test the complete pipeline execution flow."""
 
-    def test_pipeline_builder_creation(self, spark_session):
+    def test_pipeline_builder_creation(self, spark):
         """Test that pipeline builder creates correctly."""
-        builder = PipelineBuilder(spark=spark_session, schema="test_schema")
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
 
-        assert builder.spark == spark_session
+        assert builder.spark == spark
         assert builder.schema == "test_schema"
         assert builder.bronze_steps == {}
         assert builder.silver_steps == {}
         assert builder.gold_steps == {}
 
-    def test_pipeline_builder_bronze_step_creation(self, spark_session):
+    def test_pipeline_builder_bronze_step_creation(self, spark):
         """Test that pipeline builder can create bronze steps."""
-        builder = PipelineBuilder(spark=spark_session, schema="test_schema")
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
 
         # Add bronze step
         builder.with_bronze_rules(
@@ -75,9 +75,9 @@ class TestPipelineExecutionFlow:
         assert builder.bronze_steps["events"].name == "events"
         assert builder.bronze_steps["events"].incremental_col == "timestamp"
 
-    def test_pipeline_builder_silver_step_creation(self, spark_session):
+    def test_pipeline_builder_silver_step_creation(self, spark):
         """Test that pipeline builder can create silver steps."""
-        builder = PipelineBuilder(spark=spark_session, schema="test_schema")
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
 
         # Add bronze step first
         builder.with_bronze_rules(
@@ -100,9 +100,9 @@ class TestPipelineExecutionFlow:
         assert builder.silver_steps["clean_events"].source_bronze == "events"
         assert builder.silver_steps["clean_events"].table_name == "clean_events"
 
-    def test_pipeline_builder_gold_step_creation(self, spark_session):
+    def test_pipeline_builder_gold_step_creation(self, spark):
         """Test that pipeline builder can create gold steps."""
-        builder = PipelineBuilder(spark=spark_session, schema="test_schema")
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
 
         # Add bronze step first
         builder.with_bronze_rules(
@@ -134,9 +134,9 @@ class TestPipelineExecutionFlow:
         assert builder.gold_steps["event_summary"].name == "event_summary"
         assert builder.gold_steps["event_summary"].table_name == "event_summary"
 
-    def test_pipeline_builder_validation(self, spark_session):
+    def test_pipeline_builder_validation(self, spark):
         """Test that pipeline builder validation works correctly."""
-        builder = PipelineBuilder(spark=spark_session, schema="test_schema")
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
 
         # Add steps
         builder.with_bronze_rules(
@@ -157,9 +157,9 @@ class TestPipelineExecutionFlow:
         errors = builder.validate_pipeline()
         assert len(errors) == 0
 
-    def test_pipeline_builder_to_pipeline(self, spark_session):
+    def test_pipeline_builder_to_pipeline(self, spark):
         """Test that pipeline builder can create a pipeline."""
-        builder = PipelineBuilder(spark=spark_session, schema="test_schema")
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
 
         # Add steps
         builder.with_bronze_rules(
@@ -183,9 +183,9 @@ class TestPipelineExecutionFlow:
         assert hasattr(pipeline, "run_initial_load")
         assert hasattr(pipeline, "run_pipeline")
 
-    def test_pipeline_execution_with_mock_data(self, spark_session):
+    def test_pipeline_execution_with_mock_data(self, spark):
         """Test pipeline execution with mock data."""
-        builder = PipelineBuilder(spark=spark_session, schema="test_schema")
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
 
         # Add bronze step
         builder.with_bronze_rules(
@@ -203,7 +203,7 @@ class TestPipelineExecutionFlow:
             (2, "view", "2023-01-02"),
             (3, "purchase", "2023-01-03"),
         ]
-        mock_df = spark_session.createDataFrame(
+        mock_df = spark.createDataFrame(
             mock_data, ["id", "event_type", "timestamp"]
         )
 
@@ -214,7 +214,7 @@ class TestPipelineExecutionFlow:
         assert "event_type" in mock_df.columns
         assert "timestamp" in mock_df.columns
 
-    def test_pipeline_configuration_creation(self, spark_session):
+    def test_pipeline_configuration_creation(self, spark):
         """Test that pipeline configuration is created correctly."""
         config = PipelineConfig(
             schema="test_schema",
@@ -226,21 +226,21 @@ class TestPipelineExecutionFlow:
         assert config.thresholds.silver == 98.0
         assert config.thresholds.gold == 99.0
 
-    def test_execution_engine_with_pipeline_config(self, spark_session):
+    def test_execution_engine_with_pipeline_config(self, spark):
         """Test that execution engine works with pipeline configuration."""
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
 
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark, config=config)
 
-        assert engine.spark == spark_session
+        assert engine.spark == spark
         assert engine.config == config
         assert engine.config.schema == "test_schema"
         assert engine.config.thresholds.bronze == 95.0
 
-    def test_step_execution_with_real_data(self, spark_session):
+    def test_step_execution_with_real_data(self, spark):
         """Test step execution with real Spark data."""
         # Create real test data
         test_data = [
@@ -251,7 +251,7 @@ class TestPipelineExecutionFlow:
             (5, "user2", "view", "2023-01-01 14:00:00"),
         ]
 
-        df = spark_session.createDataFrame(
+        df = spark.createDataFrame(
             test_data, ["id", "user_id", "event_type", "timestamp"]
         )
 
@@ -271,7 +271,7 @@ class TestPipelineExecutionFlow:
         agg_df = df.groupBy("event_type").count()
         assert agg_df.count() == 3
 
-    def test_pipeline_step_validation_with_real_data(self, spark_session):
+    def test_pipeline_step_validation_with_real_data(self, spark):
         """Test pipeline step validation with real data."""
         # Create real test data
         test_data = [
@@ -280,7 +280,7 @@ class TestPipelineExecutionFlow:
             (3, "user1", "purchase", "2023-01-01 12:00:00"),
         ]
 
-        spark_session.createDataFrame(
+        spark.createDataFrame(
             test_data, ["id", "user_id", "event_type", "timestamp"]
         )
 
@@ -303,10 +303,10 @@ class TestPipelineExecutionFlow:
         assert len(bronze_step.rules["user_id"]) == 1
         assert len(bronze_step.rules["event_type"]) == 1
 
-    def test_pipeline_execution_flow_integration(self, spark_session):
+    def test_pipeline_execution_flow_integration(self, spark):
         """Test complete pipeline execution flow integration."""
         # Create pipeline builder
-        builder = PipelineBuilder(spark=spark_session, schema="test_schema")
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
 
         # Add bronze step
         builder.with_bronze_rules(

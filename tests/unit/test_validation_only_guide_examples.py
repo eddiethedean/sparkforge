@@ -4,26 +4,20 @@ Tests that run the exact example code from docs/guides/VALIDATION_ONLY_STEPS_GUI
 These tests ensure all guide examples are valid and executable (with mock Spark).
 """
 
-import os
+import pytest
 
 from pipeline_builder import PipelineBuilder
 from pipeline_builder.functions import get_default_functions
-
-spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-if spark_mode == "real":
-    from pyspark.sql import functions as F
-else:
-    from sparkless.sql import functions as F  # type: ignore[import]
 
 
 class TestValidationOnlyGuideBuilderExamples:
     """Run builder examples from the guide (build only)."""
 
-    def test_basic_usage_example(self, mock_spark_session):
+    def test_basic_usage_example(self, spark):
         # From guide: Example Basic Usage
         F_local = get_default_functions()
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="analytics", functions=F_local
+            spark=spark, schema="analytics", functions=F_local
         )
         builder.with_silver_rules(
             name="existing_clean_events",
@@ -40,10 +34,12 @@ class TestValidationOnlyGuideBuilderExamples:
         assert step.existing is True
         assert step.table_name == "clean_events"
 
-    def test_with_string_rules_example(self, mock_spark_session):
+    def test_with_string_rules_example(self, spark, spark_imports):
         # From guide: With String Rules
+        F = spark_imports.F
+        
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="analytics", functions=F
+            spark=spark, schema="analytics", functions=F
         )
         builder.with_silver_rules(
             name="validated_events",
@@ -56,10 +52,12 @@ class TestValidationOnlyGuideBuilderExamples:
         )
         assert "validated_events" in builder.silver_steps
 
-    def test_with_gold_rules_example(self, mock_spark_session):
+    def test_with_gold_rules_example(self, spark, spark_imports):
         # From guide: with_gold_rules basic usage
+        F = spark_imports.F
+        
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="analytics", functions=F
+            spark=spark, schema="analytics", functions=F
         )
         builder.with_gold_rules(
             name="existing_user_metrics",
@@ -79,12 +77,12 @@ class TestValidationOnlyGuideBuilderExamples:
 class TestValidationOnlyGuideCompleteExample:
     """Run the complete example from the guide (build and run with optional=True for validation-only)."""
 
-    def test_complete_example_builds_and_runs(self, mock_spark_session):
+    def test_complete_example_builds_and_runs(self, spark):
         # Complete Example: build pipeline and run_initial_load
         # Use optional=True for validation-only steps so we don't need existing Delta tables
         F_local = get_default_functions()
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="analytics", functions=F_local
+            spark=spark, schema="analytics", functions=F_local
         )
 
         builder.with_bronze_rules(
@@ -142,7 +140,7 @@ class TestValidationOnlyGuideCompleteExample:
         assert pipeline is not None
         assert len(pipeline.execution_order) == 5
 
-        source_df = mock_spark_session.createDataFrame(
+        source_df = spark.createDataFrame(
             [(1, "a", "2024-01-01 00:00:00")], ["id", "event", "timestamp"]
         )
         report = pipeline.run_initial_load(bronze_sources={"events": source_df})

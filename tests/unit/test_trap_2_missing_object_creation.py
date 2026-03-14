@@ -6,34 +6,25 @@ This test verifies that ExecutionEngine and DependencyAnalyzer objects
 are properly created and accessible in the PipelineBuilder.to_pipeline() method.
 """
 
-import os
 from unittest.mock import Mock, patch
 
 import pytest
 
 from pipeline_builder.pipeline.builder import PipelineBuilder
 
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-
-    MockF = F
-else:
-    from pyspark.sql import functions as F
-
-    MockF = None
-
 
 class TestTrap2MissingObjectCreation:
     """Test that objects are properly created and not garbage collected."""
 
-    def test_execution_engine_creation_in_to_pipeline(self, spark_session):
+    def test_execution_engine_creation_in_to_pipeline(self, spark, spark_imports, spark_mode):
         """Test that ExecutionEngine is properly created in to_pipeline()."""
+        F = spark_imports.F
+        
         # Create PipelineBuilder
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema="test_schema",
-            functions=MockF,
+            functions=F if spark_mode == "mock" else None,
         )
 
         # Add a bronze step to make the pipeline valid
@@ -52,7 +43,7 @@ class TestTrap2MissingObjectCreation:
             # Verify PipelineRunner was created with correct parameters
             # Note: steps and engine are now also passed for abstracts compatibility
             call_kwargs = mock_pipeline_runner.call_args[1]
-            assert call_kwargs["spark"] == spark_session
+            assert call_kwargs["spark"] == spark
             assert call_kwargs["config"] == builder.config
             assert call_kwargs["bronze_steps"] == builder.bronze_steps
             assert call_kwargs["silver_steps"] == builder.silver_steps
@@ -64,13 +55,15 @@ class TestTrap2MissingObjectCreation:
             # Verify runner was created
             assert runner is not None
 
-    def test_objects_are_not_garbage_collected(self, spark_session):
+    def test_objects_are_not_garbage_collected(self, spark, spark_imports, spark_mode):
         """Test that created objects are not immediately garbage collected."""
+        F = spark_imports.F
+        
         # Create PipelineBuilder
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema="test_schema",
-            functions=MockF,
+            functions=F if spark_mode == "mock" else None,
         )
 
         # Add a bronze step
@@ -101,20 +94,22 @@ class TestTrap2MissingObjectCreation:
             # Verify runner was created
             assert runner is not None
 
-    def test_pipeline_validation_before_object_creation(self, spark_session):
+    def test_pipeline_validation_before_object_creation(self, spark, spark_imports, spark_mode):
         """Test that pipeline validation occurs before object creation."""
+        F = spark_imports.F
+        
         # Test that invalid schema causes validation failure at constructor level
         with pytest.raises(Exception, match="Schema name cannot be empty"):
             PipelineBuilder(
-                spark=spark_session,
+                spark=spark,
                 schema="",  # Empty schema should cause validation failure
             )
 
         # Test that valid pipeline creates objects properly
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema="test_schema",
-            functions=MockF,
+            functions=F if spark_mode == "mock" else None,
         )
 
         # Add a bronze step to make it valid
@@ -133,13 +128,15 @@ class TestTrap2MissingObjectCreation:
             mock_pipeline_runner.assert_called_once()
             assert runner is not None
 
-    def test_objects_are_accessible_after_creation(self, spark_session):
+    def test_objects_are_accessible_after_creation(self, spark, spark_imports, spark_mode):
         """Test that created objects are accessible after creation."""
+        F = spark_imports.F
+        
         # Create PipelineBuilder
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema="test_schema",
-            functions=MockF,
+            functions=F if spark_mode == "mock" else None,
         )
 
         # Add a bronze step

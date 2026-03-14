@@ -5,23 +5,7 @@ This module tests that the simplified execution system properly handles
 DataFrame operations and transformations.
 """
 
-import os
-
 import pytest
-
-# Use engine-specific functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-else:
-    from pyspark.sql import functions as F
-
-# Import Window based on SPARK_MODE (preferred) or SPARKFORGE_ENGINE
-_SPARK_MODE = os.environ.get("SPARK_MODE", "mock").lower()
-_ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
-if _SPARK_MODE == "real" or _ENGINE in ("pyspark", "spark", "real"):
-    from pyspark.sql.window import Window
-else:
-    from sparkless import Window  # type: ignore[import]
 
 from pipeline_builder import PipelineBuilder
 from pipeline_builder.execution import ExecutionEngine
@@ -38,7 +22,7 @@ class TestDataFrameAccess:
     """Test DataFrame access in the simplified execution system."""
 
     @pytest.fixture
-    def sample_bronze_data(self, spark_session):
+    def sample_bronze_data(self, spark):
         """Create sample bronze data for testing."""
         data = [
             ("user1", "click", "2023-01-01 10:00:00"),
@@ -47,11 +31,12 @@ class TestDataFrameAccess:
             ("user4", "click", "2023-01-01 13:00:00"),
             ("user5", "view", "2023-01-01 14:00:00"),
         ]
-        return spark_session.createDataFrame(data, ["user_id", "action", "timestamp"])
+        return spark.createDataFrame(data, ["user_id", "action", "timestamp"])
 
     @pytest.fixture
-    def sample_bronze_rules(self):
+    def sample_bronze_rules(self, spark_imports):
         """Create sample bronze validation rules."""
+        F = spark_imports.F
         return {
             "user_id": [F.col("user_id").isNotNull()],
             "action": [F.col("action").isNotNull()],
@@ -59,8 +44,9 @@ class TestDataFrameAccess:
         }
 
     @pytest.fixture
-    def sample_silver_rules(self):
+    def sample_silver_rules(self, spark_imports):
         """Create sample silver validation rules."""
+        F = spark_imports.F
         return {
             "user_id": [F.col("user_id").isNotNull()],
             "action": [F.col("action").isNotNull()],
@@ -68,16 +54,17 @@ class TestDataFrameAccess:
         }
 
     @pytest.fixture
-    def sample_gold_rules(self):
+    def sample_gold_rules(self, spark_imports):
         """Create sample gold validation rules."""
+        F = spark_imports.F
         return {
             "action": [F.col("action").isNotNull()],
             "event_date": [F.col("event_date").isNotNull()],
         }
 
-    def test_bronze_step_creation(self, spark_session, sample_bronze_rules):
+    def test_bronze_step_creation(self, spark, sample_bronze_rules):
         """Test that bronze steps are created correctly."""
-        builder = PipelineBuilder(spark=spark_session, schema="test_schema")
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
 
         # Add bronze step
         builder.with_bronze_rules(
@@ -93,10 +80,11 @@ class TestDataFrameAccess:
         assert "timestamp" in bronze_step.rules
 
     def test_silver_step_creation(
-        self, spark_session, sample_bronze_rules, sample_silver_rules
+        self, spark, spark_imports, sample_bronze_rules, sample_silver_rules
     ):
         """Test that silver steps are created correctly."""
-        builder = PipelineBuilder(spark=spark_session, schema="test_schema")
+        F = spark_imports.F
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
 
         # Add bronze step first
         builder.with_bronze_rules(
@@ -126,10 +114,12 @@ class TestDataFrameAccess:
         assert callable(silver_step.transform)
 
     def test_gold_step_creation(
-        self, spark_session, sample_bronze_rules, sample_silver_rules, sample_gold_rules
+        self, spark, spark_imports, spark_mode, sample_bronze_rules, sample_silver_rules, sample_gold_rules
     ):
         """Test that gold steps are created correctly."""
-        builder = PipelineBuilder(spark=spark_session, schema="test_schema")
+        F = spark_imports.F
+        Window = spark_imports.Window
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
 
         # Add bronze step first
         builder.with_bronze_rules(
@@ -179,10 +169,12 @@ class TestDataFrameAccess:
         assert callable(gold_step.transform)
 
     def test_pipeline_builder_validation(
-        self, spark_session, sample_bronze_rules, sample_silver_rules, sample_gold_rules
+        self, spark, spark_imports, sample_bronze_rules, sample_silver_rules, sample_gold_rules
     ):
         """Test that pipeline builder validation works correctly."""
-        builder = PipelineBuilder(spark=spark_session, schema="test_schema")
+        F = spark_imports.F
+        Window = spark_imports.Window
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
 
         # Add bronze step
         builder.with_bronze_rules(
@@ -230,10 +222,12 @@ class TestDataFrameAccess:
         assert len(errors) == 0
 
     def test_pipeline_creation(
-        self, spark_session, sample_bronze_rules, sample_silver_rules, sample_gold_rules
+        self, spark, spark_imports, sample_bronze_rules, sample_silver_rules, sample_gold_rules
     ):
         """Test that pipeline can be created successfully."""
-        builder = PipelineBuilder(spark=spark_session, schema="test_schema")
+        F = spark_imports.F
+        Window = spark_imports.Window
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
 
         # Add bronze step
         builder.with_bronze_rules(
@@ -282,8 +276,12 @@ class TestDataFrameAccess:
         assert hasattr(pipeline, "run_initial_load")
         assert hasattr(pipeline, "run_pipeline")
 
-    def test_dataframe_operations(self, spark_session, sample_bronze_data):
+    def test_dataframe_operations(self, spark_imports, spark_mode, sample_bronze_data):
         """Test that DataFrame operations work correctly."""
+        from sparkless.testing import Mode
+
+        F = spark_imports.F
+        Window = spark_imports.Window
         # Test basic DataFrame operations
         assert sample_bronze_data.count() == 5
         assert len(sample_bronze_data.columns) == 3
@@ -302,28 +300,29 @@ class TestDataFrameAccess:
         assert "event_date" in df_with_date.columns
 
         # Test window functions - skip in mock mode as Window requires JVM
-        if os.environ.get("SPARK_MODE", "mock").lower() != "mock":
+        if spark_mode != Mode.SPARKLESS:
             w = Window.partitionBy("action").orderBy("timestamp")
             df_with_rank = sample_bronze_data.withColumn("rn", F.row_number().over(w))
             assert "rn" in df_with_rank.columns
 
-    def test_execution_engine_initialization(self, spark_session):
+    def test_execution_engine_initialization(self, spark):
         """Test that execution engine initializes correctly."""
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
 
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark, config=config)
 
-        assert engine.spark == spark_session
+        assert engine.spark == spark
         assert engine.config == config
         assert engine.logger is not None
 
     def test_step_type_detection(
-        self, spark_session, sample_bronze_rules, sample_silver_rules, sample_gold_rules
+        self, spark_imports, sample_bronze_rules, sample_silver_rules, sample_gold_rules
     ):
         """Test that step types are correctly detected."""
+        F = spark_imports.F
         # Test BronzeStep
         bronze_step = BronzeStep(
             name="test_bronze", rules=sample_bronze_rules, incremental_col="timestamp"
@@ -362,7 +361,7 @@ class TestDataFrameAccess:
         )
         assert isinstance(gold_step, GoldStep)
 
-    def test_pipeline_configuration(self, spark_session):
+    def test_pipeline_configuration(self):
         """Test that pipeline configuration works correctly."""
         config = PipelineConfig(
             schema="test_schema",

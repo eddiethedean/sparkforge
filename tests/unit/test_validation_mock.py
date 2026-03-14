@@ -10,30 +10,7 @@ This module tests all data validation and quality assessment functions.
 # sparkless does not require the old patching approach and behaves as a
 # drop-in mock engine for these tests.
 
-import os
-
 import pytest
-
-# Import types based on SPARK_MODE
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql.types import (
-        DoubleType,
-        IntegerType,
-        StringType,
-        StructField,
-        StructType,
-    )
-    from pyspark.sql import SparkSession, functions as Functions
-else:
-    from sparkless import (  # type: ignore[import]
-        DoubleType,
-        IntegerType,
-        SparkSession,
-        StructField,
-        StructType,
-        StringType,
-    )
-    from sparkless.sql import functions as Functions  # type: ignore[import]
 
 from pipeline_builder.validation import (
     _convert_rule_to_expression,
@@ -51,7 +28,7 @@ from pipeline_builder.validation import (
 
 
 @pytest.fixture(scope="function", autouse=True)
-def reset_test_environment(spark_session):
+def reset_test_environment(spark):
     """Reset test environment before each test in this file."""
     import gc
 
@@ -79,33 +56,14 @@ def reset_test_environment(spark_session):
 
 
 @pytest.fixture
-def mock_spark_session(spark_session):
-    """Create mock Spark session for testing."""
-    # Use spark_session fixture from conftest for PySpark compatibility
-    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-    if spark_mode == "real":
-        return spark_session
-    else:
-        return SparkSession("TestApp")
-
-
-@pytest.fixture
-def mock_functions(spark_session):
-    """Create mock functions for testing."""
-    # PySpark requires active SparkContext for function calls
-    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-    if spark_mode == "real":
-        # In PySpark, functions is a module, not a class
-        from pyspark.sql import functions
-
-        return functions
-    else:
-        return Functions
-
-
-@pytest.fixture
-def sample_dataframe(mock_spark_session):
+def sample_dataframe(spark, spark_imports):
     """Create sample DataFrame for testing."""
+    StructType = spark_imports.StructType
+    StructField = spark_imports.StructField
+    StringType = spark_imports.StringType
+    IntegerType = spark_imports.IntegerType
+    DoubleType = spark_imports.DoubleType
+
     schema = StructType(
         [
             StructField("user_id", StringType(), True),
@@ -119,7 +77,7 @@ def sample_dataframe(mock_spark_session):
         {"user_id": "user3", "age": 20, "score": 78.5},
         {"user_id": "user4", "age": 35, "score": 50.0},
     ]
-    return mock_spark_session.createDataFrame(data, schema)
+    return spark.createDataFrame(data, schema)
 
 
 class TestSafeDivide:
@@ -162,10 +120,13 @@ class TestGetDataframeInfo:
         assert "columns" in info
         assert len(info["columns"]) == 3
 
-    def test_empty_dataframe(self, mock_spark_session):
+    def test_empty_dataframe(self, spark, spark_imports):
         """Test empty DataFrame info."""
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        StringType = spark_imports.StringType
         schema = StructType([StructField("col1", StringType(), True)])
-        empty_df = mock_spark_session.createDataFrame([], schema)
+        empty_df = spark.createDataFrame([], schema)
         info = get_dataframe_info(empty_df)
         assert info["row_count"] == 0
         assert info["is_empty"]
@@ -181,120 +142,124 @@ class TestGetDataframeInfo:
 class TestConvertRuleToExpression:
     """Test _convert_rule_to_expression function."""
 
-    def test_not_null_rule(self, mock_functions):
+    def test_not_null_rule(self, spark_imports):
         """Test not_null rule conversion."""
-        expr = _convert_rule_to_expression("not_null", "user_id", mock_functions)
+        F = spark_imports.F
+        expr = _convert_rule_to_expression("not_null", "user_id", F)
         assert expr is not None
         assert hasattr(expr, "isNotNull") or hasattr(expr, "operation")
 
-    def test_positive_rule(self, mock_functions):
+    def test_positive_rule(self, spark_imports):
         """Test positive rule conversion."""
-        expr = _convert_rule_to_expression("positive", "age", mock_functions)
+        F = spark_imports.F
+        expr = _convert_rule_to_expression("positive", "age", F)
         assert expr is not None
 
-    def test_non_negative_rule(self, mock_functions):
+    def test_non_negative_rule(self, spark_imports):
         """Test non_negative rule conversion."""
-        expr = _convert_rule_to_expression("non_negative", "score", mock_functions)
+        F = spark_imports.F
+        expr = _convert_rule_to_expression("non_negative", "score", F)
         assert expr is not None
 
-    def test_non_zero_rule(self, mock_functions):
+    def test_non_zero_rule(self, spark_imports):
         """Test non_zero rule conversion."""
-        expr = _convert_rule_to_expression("non_zero", "age", mock_functions)
+        F = spark_imports.F
+        expr = _convert_rule_to_expression("non_zero", "age", F)
         assert expr is not None
 
-    def test_custom_expression(self, mock_functions):
+    def test_custom_expression(self, spark_imports):
         """Test custom expression rule."""
-        import os
-
-        # PySpark's F.expr() expects SQL, not Python code
-        # Mock-spark 3.12.0+ also expects SQL expressions
-        if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-            # For PySpark, use SQL expression
-            expr = _convert_rule_to_expression(
-                "user_id IS NOT NULL", "user_id", mock_functions
-            )
-        else:
-            # For mock-spark 3.12.0+, use SQL expression (Python-like expressions deprecated)
-            expr = _convert_rule_to_expression(
-                "user_id IS NOT NULL", "user_id", mock_functions
-            )
+        F = spark_imports.F
+        # Both PySpark and sparkless expect SQL expressions
+        expr = _convert_rule_to_expression(
+            "user_id IS NOT NULL", "user_id", F
+        )
         assert expr is not None
 
 
 class TestConvertRulesToExpressions:
     """Test _convert_rules_to_expressions function."""
 
-    def test_single_rule(self, mock_functions):
+    def test_single_rule(self, spark_imports):
         """Test single rule conversion."""
+        F = spark_imports.F
         rules = {"user_id": ["not_null"]}
-        expressions = _convert_rules_to_expressions(rules, mock_functions)
+        expressions = _convert_rules_to_expressions(rules, F)
         assert len(expressions) == 1
         assert "user_id" in expressions
 
-    def test_multiple_rules(self, mock_functions):
+    def test_multiple_rules(self, spark_imports):
         """Test multiple rules conversion."""
+        F = spark_imports.F
         rules = {"user_id": ["not_null"], "age": ["positive", "non_zero"]}
-        expressions = _convert_rules_to_expressions(rules, mock_functions)
+        expressions = _convert_rules_to_expressions(rules, F)
         assert len(expressions) == 2
         assert "user_id" in expressions
         assert "age" in expressions
 
-    def test_empty_rules(self, mock_functions):
+    def test_empty_rules(self, spark_imports):
         """Test empty rules."""
-        expressions = _convert_rules_to_expressions({}, mock_functions)
+        F = spark_imports.F
+        expressions = _convert_rules_to_expressions({}, F)
         assert len(expressions) == 0
 
 
 class TestAndAllRules:
     """Test and_all_rules function."""
 
-    def test_empty_rules(self, mock_functions):
+    def test_empty_rules(self, spark_imports):
         """Test empty rules."""
-        result = and_all_rules({}, mock_functions)
+        F = spark_imports.F
+        result = and_all_rules({}, F)
         assert result is not None
 
-    def test_single_rule(self, mock_functions):
+    def test_single_rule(self, spark_imports):
         """Test single rule."""
+        F = spark_imports.F
         rules = {"user_id": ["not_null"]}
-        result = and_all_rules(rules, mock_functions)
+        result = and_all_rules(rules, F)
         assert result is not None
 
-    def test_multiple_rules(self, mock_functions):
+    def test_multiple_rules(self, spark_imports):
         """Test multiple rules."""
+        F = spark_imports.F
         rules = {"user_id": ["not_null"], "age": ["positive"]}
-        result = and_all_rules(rules, mock_functions)
+        result = and_all_rules(rules, F)
         assert result is not None
 
 
 class TestApplyColumnRules:
     """Test apply_column_rules function."""
 
-    def test_basic_validation(self, sample_dataframe, mock_functions):
+    def test_basic_validation(self, sample_dataframe, spark_imports):
         """Test basic column validation."""
+        F = spark_imports.F
         rules = {"user_id": ["not_null"]}
         valid_df, invalid_df, stats = apply_column_rules(
-            sample_dataframe, rules, "bronze", "test", functions=mock_functions
+            sample_dataframe, rules, "bronze", "test", functions=F
         )
         assert valid_df is not None
         assert invalid_df is not None
         assert stats is not None
         assert stats.validation_rate >= 0
 
-    def test_multiple_columns(self, sample_dataframe, mock_functions):
+    def test_multiple_columns(self, sample_dataframe, spark_imports):
         """Test multiple column validation."""
+        F = spark_imports.F
         rules = {"user_id": ["not_null"], "age": ["positive"]}
         valid_df, invalid_df, stats = apply_column_rules(
-            sample_dataframe, rules, "bronze", "test", functions=mock_functions
+            sample_dataframe, rules, "bronze", "test", functions=F
         )
         assert valid_df is not None
         assert invalid_df is not None
         assert stats is not None
         assert stats.validation_rate >= 0
 
-    def test_empty_rules(self, sample_dataframe, mock_functions):
+    def test_empty_rules(self, sample_dataframe, spark_imports):
         """Test empty rules."""
+        F = spark_imports.F
         valid_df, invalid_df, stats = apply_column_rules(
-            sample_dataframe, {}, "bronze", "test", mock_functions
+            sample_dataframe, {}, "bronze", "test", F
         )
         assert valid_df is not None
         assert invalid_df is not None
@@ -304,29 +269,32 @@ class TestApplyColumnRules:
 class TestAssessDataQuality:
     """Test assess_data_quality function."""
 
-    def test_basic_quality_assessment(self, sample_dataframe, mock_functions):
+    def test_basic_quality_assessment(self, sample_dataframe, spark_imports):
         """Test basic data quality assessment."""
+        F = spark_imports.F
         rules = {"user_id": ["not_null"]}
-        result = assess_data_quality(sample_dataframe, rules, mock_functions)
+        result = assess_data_quality(sample_dataframe, rules, F)
         assert result is not None
         assert "quality_rate" in result
         assert "total_rows" in result
         assert "invalid_rows" in result
 
-    def test_multiple_quality_rules(self, sample_dataframe, mock_functions):
+    def test_multiple_quality_rules(self, sample_dataframe, spark_imports):
         """Test multiple quality rules."""
+        F = spark_imports.F
         rules = {
             "user_id": ["not_null"],
             "age": ["positive"],
             "score": ["non_negative"],
         }
-        result = assess_data_quality(sample_dataframe, rules, mock_functions)
+        result = assess_data_quality(sample_dataframe, rules, F)
         assert result is not None
         assert "quality_rate" in result
 
-    def test_empty_rules(self, sample_dataframe, mock_functions):
+    def test_empty_rules(self, sample_dataframe, spark_imports):
         """Test empty quality rules."""
-        result = assess_data_quality(sample_dataframe, {}, mock_functions)
+        F = spark_imports.F
+        result = assess_data_quality(sample_dataframe, {}, F)
         assert result is not None
 
 

@@ -12,16 +12,10 @@ This module contains multiple test variations to ensure robust system test cover
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
-import os
 import pytest
 
-# Use engine-specific functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-else:
-    from pyspark.sql import functions as F  # type: ignore
-
 from pipeline_builder import PipelineBuilder
+from pipeline_builder.compat import F, types
 from pipeline_builder.writer.core import LogWriter
 from pipeline_builder.writer.models import create_log_rows_from_pipeline_report
 
@@ -106,28 +100,13 @@ def create_empty_dataframe(
     Returns:
         Empty DataFrame with specified schema
     """
-    import os
-
-    if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-        from pyspark.sql.types import (
-            StringType,
-            IntegerType,
-            LongType,
-            DoubleType,
-            FloatType,
-            StructField,
-            StructType,
-        )
-    else:
-        from sparkless.spark_types import (  # type: ignore[import]
-            StringType,
-            IntegerType,
-            LongType,
-            DoubleType,
-            FloatType,
-            StructField,
-            StructType,
-        )
+    StringType = types.StringType
+    IntegerType = types.IntegerType
+    LongType = types.LongType
+    DoubleType = types.DoubleType
+    FloatType = types.FloatType
+    StructField = types.StructField
+    StructType = types.StructType
 
     # Default to StringType if types not specified
     if column_types is None:
@@ -251,13 +230,7 @@ def create_mixed_valid_invalid_data(
 
 def get_log_entries_by_run(log_df, run_id: str) -> List[Dict]:
     """Filter log entries by run_id."""
-    # Use F.col() for PySpark compatibility
-    if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-        from pyspark.sql import functions as F
-
-        filtered = log_df.filter(F.col("run_id") == run_id)
-    else:
-        filtered = log_df.filter(log_df.run_id == run_id)
+    filtered = log_df.filter(F.col("run_id") == run_id)
     return [row.asDict() for row in filtered.collect()]
 
 
@@ -270,7 +243,7 @@ class TestMinimalPipelines:
     """Tests for minimal pipeline configurations."""
 
     @pytest.fixture
-    def log_writer(self, spark_session, unique_name):
+    def log_writer(self, spark, unique_name):
         """Create LogWriter instance."""
         # Force LogWriter to use non-Delta path and unique names to avoid cross-worker collisions
         from pipeline_builder.writer import storage  # type: ignore
@@ -280,26 +253,26 @@ class TestMinimalPipelines:
 
         schema = unique_name("schema", "test_schema")
         table = unique_name("table", "pipeline_logs")
-        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw = LogWriter(spark, schema=schema, table_name=table)
         # Expose for tests that need to read the logs
         lw._test_schema = schema
         lw._test_table = table
         return lw
 
     def test_minimal_pipeline_with_logging(
-        self, spark_session, log_writer, unique_name
+        self, spark, log_writer, unique_name
     ):
         """Test minimal pipeline: 1 bronze → 1 silver → 1 gold."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create small dataset
-        data = create_test_data_initial(spark_session, num_records=15)
-        df = spark_session.createDataFrame(
+        data = create_test_data_initial(spark, num_records=15)
+        df = spark.createDataFrame(
             data, ["user_id", "action", "timestamp", "value"]
         )
 
         # Build minimal pipeline
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
 
         builder.with_bronze_rules(
             name="events",
@@ -378,7 +351,7 @@ class TestMinimalPipelines:
         assert log_result["success"] is True
         assert log_result["rows_written"] >= 3  # At least 3 step rows
 
-        log_df = spark_session.table(
+        log_df = spark.table(
             f"{schema}.{getattr(log_writer, '_test_table', 'pipeline_logs')}"
         )
         logs = get_log_entries_by_run(log_df, run_id)
@@ -389,7 +362,7 @@ class TestLargePipelines:
     """Tests for large pipeline configurations."""
 
     @pytest.fixture
-    def log_writer(self, spark_session, unique_name):
+    def log_writer(self, spark, unique_name):
         """Create LogWriter instance."""
         from pipeline_builder.writer import storage  # type: ignore
 
@@ -398,26 +371,26 @@ class TestLargePipelines:
 
         schema = unique_name("schema", "test_schema")
         table = unique_name("table", "pipeline_logs")
-        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw = LogWriter(spark, schema=schema, table_name=table)
         lw._test_schema = schema
         lw._test_table = table
         return lw
 
-    def test_large_pipeline_with_logging(self, spark_session, log_writer, unique_name):
+    def test_large_pipeline_with_logging(self, spark, log_writer, unique_name):
         """Test large pipeline: 5 bronze → 5 silver → 3 gold."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create large dataset
         bronze_sources = {}
         for i in range(5):
-            data = create_test_data_initial(spark_session, num_records=200)
-            df = spark_session.createDataFrame(
+            data = create_test_data_initial(spark, num_records=200)
+            df = spark.createDataFrame(
                 data, ["user_id", "action", "timestamp", "value"]
             )
             bronze_sources[f"events_{i}"] = df
 
         # Build large pipeline
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
 
         # Add 5 bronze steps
         for i in range(5):
@@ -549,7 +522,7 @@ class TestEdgeCases:
     """Tests for edge cases and error scenarios."""
 
     @pytest.fixture
-    def log_writer(self, spark_session, unique_name):
+    def log_writer(self, spark, unique_name):
         """Create LogWriter instance."""
         from pipeline_builder.writer import storage  # type: ignore
 
@@ -558,23 +531,23 @@ class TestEdgeCases:
 
         schema = unique_name("schema", "test_schema")
         table = unique_name("table", "pipeline_logs")
-        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw = LogWriter(spark, schema=schema, table_name=table)
         lw._test_schema = schema
         lw._test_table = table
         return lw
 
-    def test_pipeline_with_empty_data(self, spark_session, log_writer, unique_name):
+    def test_pipeline_with_empty_data(self, spark, log_writer, unique_name):
         """Test pipeline with empty DataFrames."""
         schema_name = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create empty data with explicit schema (Both PySpark and mock-spark 3.10.4+ require schema for empty DataFrames)
         df = create_empty_dataframe(
-            spark_session,
+            spark,
             columns=["user_id", "action", "timestamp", "value"],
             column_types=["string", "string", "string", "double"],
         )
 
-        builder = PipelineBuilder(spark=spark_session, schema=schema_name)
+        builder = PipelineBuilder(spark=spark, schema=schema_name)
 
         builder.with_bronze_rules(
             name="events",
@@ -629,20 +602,20 @@ class TestEdgeCases:
         assert log_result["success"] is True
 
     def test_pipeline_with_partial_validation_failures(
-        self, spark_session, log_writer, unique_name
+        self, spark, log_writer, unique_name
     ):
         """Test pipeline with mixed valid/invalid data."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create mixed data (30% invalid)
         data = create_mixed_valid_invalid_data(
-            spark_session, num_records=100, invalid_ratio=0.3
+            spark, num_records=100, invalid_ratio=0.3
         )
-        df = spark_session.createDataFrame(
+        df = spark.createDataFrame(
             data, ["user_id", "action", "timestamp", "value"]
         )
 
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
 
         builder.with_bronze_rules(
             name="events",
@@ -702,17 +675,17 @@ class TestEdgeCases:
         log_result = log_writer.write_log_rows(log_rows, run_id=run_id)
         assert log_result["success"] is True
 
-    def test_pipeline_all_invalid_data(self, spark_session, log_writer, unique_name):
+    def test_pipeline_all_invalid_data(self, spark, log_writer, unique_name):
         """Test pipeline where all data fails validation."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create all invalid data
-        data = create_invalid_data(spark_session, num_records=50)
-        df = spark_session.createDataFrame(
+        data = create_invalid_data(spark, num_records=50)
+        df = spark.createDataFrame(
             data, ["user_id", "action", "timestamp", "value"]
         )
 
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
 
         builder.with_bronze_rules(
             name="events",
@@ -774,7 +747,7 @@ class TestExecutionModes:
     """Tests for different execution modes."""
 
     @pytest.fixture
-    def log_writer(self, spark_session, unique_name):
+    def log_writer(self, spark, unique_name):
         """Create LogWriter instance."""
         from pipeline_builder.writer import storage  # type: ignore
 
@@ -783,24 +756,24 @@ class TestExecutionModes:
 
         schema = unique_name("schema", "test_schema")
         table = unique_name("table", "pipeline_logs")
-        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw = LogWriter(spark, schema=schema, table_name=table)
         lw._test_schema = schema
         lw._test_table = table
         return lw
 
     def test_pipeline_sequential_execution_with_logging(
-        self, spark_session, log_writer, unique_name
+        self, spark, log_writer, unique_name
     ):
         """Test sequential execution mode (parallel disabled)."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
-        data = create_test_data_initial(spark_session, num_records=100)
-        df = spark_session.createDataFrame(
+        data = create_test_data_initial(spark, num_records=100)
+        df = spark.createDataFrame(
             data, ["user_id", "action", "timestamp", "value"]
         )
 
         # Build pipeline (sequential execution is default when parallel is not configured)
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
 
         builder.with_bronze_rules(
             name="events",
@@ -864,7 +837,7 @@ class TestIncrementalScenarios:
     """Tests for incremental processing scenarios."""
 
     @pytest.fixture
-    def log_writer(self, spark_session, unique_name):
+    def log_writer(self, spark, unique_name):
         """Create LogWriter instance."""
         from pipeline_builder.writer import storage  # type: ignore
 
@@ -873,24 +846,24 @@ class TestIncrementalScenarios:
 
         schema = unique_name("schema", "test_schema")
         table = unique_name("table", "pipeline_logs")
-        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw = LogWriter(spark, schema=schema, table_name=table)
         lw._test_schema = schema
         lw._test_table = table
         return lw
 
     def test_pipeline_multiple_incremental_runs(
-        self, spark_session, log_writer, unique_name
+        self, spark, log_writer, unique_name
     ):
         """Test multiple incremental runs (initial + 3 incremental)."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Initial data
-        initial_data = create_test_data_initial(spark_session, num_records=100)
-        initial_df = spark_session.createDataFrame(
+        initial_data = create_test_data_initial(spark, num_records=100)
+        initial_df = spark.createDataFrame(
             initial_data, ["user_id", "action", "timestamp", "value"]
         )
 
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
 
         builder.with_bronze_rules(
             name="events",
@@ -959,12 +932,12 @@ class TestIncrementalScenarios:
         for inc_num in range(1, 4):
             inc_date = datetime(2024, 1, 1 + inc_num, 0, 0, 0)
             inc_data = create_test_data_incremental(
-                spark_session,
+                spark,
                 num_records=30,
                 start_date=inc_date,
                 end_date=inc_date + timedelta(days=1),
             )
-            inc_df = spark_session.createDataFrame(
+            inc_df = spark.createDataFrame(
                 inc_data, ["user_id", "action", "timestamp", "value"]
             )
 
@@ -978,7 +951,7 @@ class TestIncrementalScenarios:
             log_writer.write_log_rows(log_rows_inc, run_id=run_id_inc)
 
         # Verify all runs logged
-        log_df = spark_session.table(
+        log_df = spark.table(
             f"{schema}.{getattr(log_writer, '_test_table', 'pipeline_logs')}"
         )
         initial_logs = get_log_entries_by_run(log_df, run_id_initial)
@@ -989,18 +962,18 @@ class TestIncrementalScenarios:
             assert len(inc_logs) > 0
 
     def test_pipeline_incremental_with_gaps(
-        self, spark_session, log_writer, unique_name
+        self, spark, log_writer, unique_name
     ):
         """Test incremental processing with timestamp gaps."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Initial data on 2024-01-01
-        initial_data = create_test_data_initial(spark_session, num_records=100)
-        initial_df = spark_session.createDataFrame(
+        initial_data = create_test_data_initial(spark, num_records=100)
+        initial_df = spark.createDataFrame(
             initial_data, ["user_id", "action", "timestamp", "value"]
         )
 
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
 
         builder.with_bronze_rules(
             name="events",
@@ -1065,12 +1038,12 @@ class TestIncrementalScenarios:
 
         # Incremental with gap (skip 2024-01-02, go to 2024-01-05)
         gap_data = create_test_data_incremental(
-            spark_session,
+            spark,
             num_records=50,
             start_date=datetime(2024, 1, 5, 0, 0, 0),
             end_date=datetime(2024, 1, 5, 23, 59, 59),
         )
-        gap_df = spark_session.createDataFrame(
+        gap_df = spark.createDataFrame(
             gap_data, ["user_id", "action", "timestamp", "value"]
         )
 
@@ -1090,7 +1063,7 @@ class TestDataQuality:
     """Tests for data quality scenarios."""
 
     @pytest.fixture
-    def log_writer(self, spark_session, unique_name):
+    def log_writer(self, spark, unique_name):
         """Create LogWriter instance."""
         from pipeline_builder.writer import storage  # type: ignore
 
@@ -1099,24 +1072,24 @@ class TestDataQuality:
 
         schema = unique_name("schema", "test_schema")
         table = unique_name("table", "pipeline_logs")
-        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw = LogWriter(spark, schema=schema, table_name=table)
         lw._test_schema = schema
         lw._test_table = table
         return lw
 
     def test_pipeline_null_handling_with_logging(
-        self, spark_session, log_writer, unique_name
+        self, spark, log_writer, unique_name
     ):
         """Test pipeline with various null patterns."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create data with nulls
-        data = create_data_with_nulls(spark_session, num_records=100)
-        df = spark_session.createDataFrame(
+        data = create_data_with_nulls(spark, num_records=100)
+        df = spark.createDataFrame(
             data, ["user_id", "action", "timestamp", "value"]
         )
 
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
 
         builder.with_bronze_rules(
             name="events",
@@ -1171,18 +1144,18 @@ class TestDataQuality:
         assert log_result["success"] is True
 
     def test_pipeline_duplicate_data_with_logging(
-        self, spark_session, log_writer, unique_name
+        self, spark, log_writer, unique_name
     ):
         """Test pipeline with duplicate records."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create duplicate data
-        data = create_duplicate_data(spark_session, num_records=100)
-        df = spark_session.createDataFrame(
+        data = create_duplicate_data(spark, num_records=100)
+        df = spark.createDataFrame(
             data, ["user_id", "action", "timestamp", "value"]
         )
 
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
 
         builder.with_bronze_rules(
             name="events",
@@ -1238,7 +1211,7 @@ class TestHighVolume:
     """Tests for high volume data scenarios."""
 
     @pytest.fixture
-    def log_writer(self, spark_session, unique_name):
+    def log_writer(self, spark, unique_name):
         """Create LogWriter instance."""
         from pipeline_builder.writer import storage  # type: ignore
 
@@ -1247,24 +1220,24 @@ class TestHighVolume:
 
         schema = unique_name("schema", "test_schema")
         table = unique_name("table", "pipeline_logs")
-        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw = LogWriter(spark, schema=schema, table_name=table)
         lw._test_schema = schema
         lw._test_table = table
         return lw
 
     def test_pipeline_high_volume_with_logging(
-        self, spark_session, log_writer, unique_name
+        self, spark, log_writer, unique_name
     ):
         """Test pipeline with very large dataset (10,000+ records)."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create large dataset
-        data = create_test_data_initial(spark_session, num_records=10000)
-        df = spark_session.createDataFrame(
+        data = create_test_data_initial(spark, num_records=10000)
+        df = spark.createDataFrame(
             data, ["user_id", "action", "timestamp", "value"]
         )
 
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
 
         builder.with_bronze_rules(
             name="events",
@@ -1333,7 +1306,7 @@ class TestComplexDependencies:
     """Tests for complex dependency scenarios."""
 
     @pytest.fixture
-    def log_writer(self, spark_session, unique_name):
+    def log_writer(self, spark, unique_name):
         """Create LogWriter instance."""
         from pipeline_builder.writer import storage  # type: ignore
 
@@ -1342,13 +1315,13 @@ class TestComplexDependencies:
 
         schema = unique_name("schema", "test_schema")
         table = unique_name("table", "pipeline_logs")
-        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw = LogWriter(spark, schema=schema, table_name=table)
         lw._test_schema = schema
         lw._test_table = table
         return lw
 
     def test_pipeline_complex_dependencies_with_logging(
-        self, spark_session, log_writer, unique_name
+        self, spark, log_writer, unique_name
     ):
         """Test pipeline with complex cross-dependencies."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
@@ -1356,13 +1329,13 @@ class TestComplexDependencies:
         # Create data for 3 bronze sources
         bronze_sources = {}
         for i in range(3):
-            data = create_test_data_initial(spark_session, num_records=200)
-            df = spark_session.createDataFrame(
+            data = create_test_data_initial(spark, num_records=200)
+            df = spark.createDataFrame(
                 data, ["user_id", "action", "timestamp", "value"]
             )
             bronze_sources[f"events_{i}"] = df
 
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
 
         # Add 3 bronze steps
         for i in range(3):
@@ -1521,7 +1494,7 @@ class TestParallelStress:
     """Tests for parallel execution stress scenarios."""
 
     @pytest.fixture
-    def log_writer(self, spark_session, unique_name):
+    def log_writer(self, spark, unique_name):
         """Create LogWriter instance."""
         from pipeline_builder.writer import storage  # type: ignore
 
@@ -1530,13 +1503,13 @@ class TestParallelStress:
 
         schema = unique_name("schema", "test_schema")
         table = unique_name("table", "pipeline_logs")
-        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw = LogWriter(spark, schema=schema, table_name=table)
         lw._test_schema = schema
         lw._test_table = table
         return lw
 
     def test_pipeline_parallel_execution_stress(
-        self, spark_session, log_writer, unique_name
+        self, spark, log_writer, unique_name
     ):
         """Test parallel execution with many concurrent steps (10 bronze → 10 silver → 5 gold)."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
@@ -1544,13 +1517,13 @@ class TestParallelStress:
         # Create data for 10 bronze sources
         bronze_sources = {}
         for i in range(10):
-            data = create_test_data_initial(spark_session, num_records=100)
-            df = spark_session.createDataFrame(
+            data = create_test_data_initial(spark, num_records=100)
+            df = spark.createDataFrame(
                 data, ["user_id", "action", "timestamp", "value"]
             )
             bronze_sources[f"events_{i}"] = df
 
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
 
         # Add 10 bronze steps
         for i in range(10):
@@ -1633,7 +1606,7 @@ class TestSchemaEvolution:
     """Tests for schema evolution scenarios."""
 
     @pytest.fixture
-    def log_writer(self, spark_session, unique_name):
+    def log_writer(self, spark, unique_name):
         """Create LogWriter instance."""
         from pipeline_builder.writer import storage  # type: ignore
 
@@ -1642,24 +1615,24 @@ class TestSchemaEvolution:
 
         schema = unique_name("schema", "test_schema")
         table = unique_name("table", "pipeline_logs")
-        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw = LogWriter(spark, schema=schema, table_name=table)
         lw._test_schema = schema
         lw._test_table = table
         return lw
 
     def test_pipeline_with_schema_evolution_logging(
-        self, spark_session, log_writer, unique_name
+        self, spark, log_writer, unique_name
     ):
         """Test schema evolution: initial run with columns A,B,C; incremental adds column D."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Initial data with columns: user_id, action, timestamp, value
-        initial_data = create_test_data_initial(spark_session, num_records=100)
-        initial_df = spark_session.createDataFrame(
+        initial_data = create_test_data_initial(spark, num_records=100)
+        initial_df = spark.createDataFrame(
             initial_data, ["user_id", "action", "timestamp", "value"]
         )
 
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
 
         builder.with_bronze_rules(
             name="events",
@@ -1723,8 +1696,8 @@ class TestSchemaEvolution:
 
         # Incremental run - schema should evolve if new columns are added
         # (In this case, we're using the same schema, but the test verifies schema evolution handling)
-        incremental_data = create_test_data_incremental(spark_session, num_records=50)
-        incremental_df = spark_session.createDataFrame(
+        incremental_data = create_test_data_incremental(spark, num_records=50)
+        incremental_df = spark.createDataFrame(
             incremental_data, ["user_id", "action", "timestamp", "value"]
         )
 
@@ -1752,7 +1725,7 @@ class TestDataTypes:
     """Tests for various data types."""
 
     @pytest.fixture
-    def log_writer(self, spark_session, unique_name):
+    def log_writer(self, spark, unique_name):
         """Create LogWriter instance."""
         from pipeline_builder.writer import storage  # type: ignore
 
@@ -1761,13 +1734,13 @@ class TestDataTypes:
 
         schema = unique_name("schema", "test_schema")
         table = unique_name("table", "pipeline_logs")
-        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw = LogWriter(spark, schema=schema, table_name=table)
         lw._test_schema = schema
         lw._test_table = table
         return lw
 
     def test_pipeline_data_type_variations(
-        self, spark_session, log_writer, unique_name
+        self, spark, log_writer, unique_name
     ):
         """Test pipeline with various data types (strings, numbers, dates, booleans)."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
@@ -1786,11 +1759,11 @@ class TestDataTypes:
 
             data.append((user_id, age, score, is_active, created_at))
 
-        df = spark_session.createDataFrame(
+        df = spark.createDataFrame(
             data, ["user_id", "age", "score", "is_active", "created_at"]
         )
 
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
 
         builder.with_bronze_rules(
             name="users",
@@ -1875,7 +1848,7 @@ class TestValidationThresholds:
     """Tests for validation threshold scenarios."""
 
     @pytest.fixture
-    def log_writer(self, spark_session, unique_name):
+    def log_writer(self, spark, unique_name):
         """Create LogWriter instance."""
         from pipeline_builder.writer import storage  # type: ignore
 
@@ -1884,26 +1857,26 @@ class TestValidationThresholds:
 
         schema = unique_name("schema", "test_schema")
         table = unique_name("table", "pipeline_logs")
-        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw = LogWriter(spark, schema=schema, table_name=table)
         lw._test_schema = schema
         lw._test_table = table
         return lw
 
     def test_pipeline_validation_thresholds_logging(
-        self, spark_session, log_writer, unique_name
+        self, spark, log_writer, unique_name
     ):
         """Test validation threshold enforcement and logging."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create data with some invalid records (20% invalid)
         data = create_mixed_valid_invalid_data(
-            spark_session, num_records=100, invalid_ratio=0.2
+            spark, num_records=100, invalid_ratio=0.2
         )
-        df = spark_session.createDataFrame(
+        df = spark.createDataFrame(
             data, ["user_id", "action", "timestamp", "value"]
         )
 
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
 
         builder.with_bronze_rules(
             name="events",
@@ -1968,7 +1941,7 @@ class TestWriteModes:
     """Tests for different write mode scenarios."""
 
     @pytest.fixture
-    def log_writer(self, spark_session, unique_name):
+    def log_writer(self, spark, unique_name):
         """Create LogWriter instance."""
         from pipeline_builder.writer import storage  # type: ignore
 
@@ -1977,24 +1950,24 @@ class TestWriteModes:
 
         schema = unique_name("schema", "test_schema")
         table = unique_name("table", "pipeline_logs")
-        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw = LogWriter(spark, schema=schema, table_name=table)
         lw._test_schema = schema
         lw._test_table = table
         return lw
 
     def test_pipeline_write_mode_variations(
-        self, spark_session, log_writer, unique_name
+        self, spark, log_writer, unique_name
     ):
         """Test different write modes (overwrite, append via watermark)."""
         schema = unique_name("schema", "test_schema")
 
         # Initial data
-        initial_data = create_test_data_initial(spark_session, num_records=100)
-        initial_df = spark_session.createDataFrame(
+        initial_data = create_test_data_initial(spark, num_records=100)
+        initial_df = spark.createDataFrame(
             initial_data, ["user_id", "action", "timestamp", "value"]
         )
 
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
 
         builder.with_bronze_rules(
             name="events",
@@ -2061,8 +2034,8 @@ class TestWriteModes:
         assert initial_result.status.value == "completed"
 
         # Incremental run (append mode due to watermark)
-        incremental_data = create_test_data_incremental(spark_session, num_records=50)
-        incremental_df = spark_session.createDataFrame(
+        incremental_data = create_test_data_incremental(spark, num_records=50)
+        incremental_df = spark.createDataFrame(
             incremental_data, ["user_id", "action", "timestamp", "value"]
         )
 
@@ -2101,7 +2074,7 @@ class TestMixedSuccessFailure:
     """Tests for mixed success/failure scenarios."""
 
     @pytest.fixture
-    def log_writer(self, spark_session, unique_name):
+    def log_writer(self, spark, unique_name):
         """Create LogWriter instance."""
         from pipeline_builder.writer import storage  # type: ignore
 
@@ -2110,13 +2083,13 @@ class TestMixedSuccessFailure:
 
         schema = unique_name("schema", "test_schema")
         table = unique_name("table", "pipeline_logs")
-        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw = LogWriter(spark, schema=schema, table_name=table)
         lw._test_schema = schema
         lw._test_table = table
         return lw
 
     def test_pipeline_mixed_success_failure(
-        self, spark_session, log_writer, unique_name
+        self, spark, log_writer, unique_name
     ):
         """Test pipeline where some steps succeed, some fail (simulated)."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
@@ -2125,15 +2098,15 @@ class TestMixedSuccessFailure:
         bronze_sources = {}
         bronze_step_names = []
         for i in range(3):
-            data = create_test_data_initial(spark_session, num_records=100)
-            df = spark_session.createDataFrame(
+            data = create_test_data_initial(spark, num_records=100)
+            df = spark.createDataFrame(
                 data, ["user_id", "action", "timestamp", "value"]
             )
             bronze_step = unique_name("bronze", f"events_{i}")
             bronze_step_names.append(bronze_step)
             bronze_sources[bronze_step] = df
 
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
 
         # Add 3 bronze steps
         for bronze_step in bronze_step_names:
@@ -2255,7 +2228,7 @@ class TestLongRunning:
     """Tests for long-running pipeline scenarios."""
 
     @pytest.fixture
-    def log_writer(self, spark_session, unique_name):
+    def log_writer(self, spark, unique_name):
         """Create LogWriter instance."""
         from pipeline_builder.writer import storage  # type: ignore
 
@@ -2264,24 +2237,24 @@ class TestLongRunning:
 
         schema = unique_name("schema", "test_schema")
         table = unique_name("table", "pipeline_logs")
-        lw = LogWriter(spark_session, schema=schema, table_name=table)
+        lw = LogWriter(spark, schema=schema, table_name=table)
         lw._test_schema = schema
         lw._test_table = table
         return lw
 
     def test_pipeline_long_running_with_logging(
-        self, spark_session, log_writer, unique_name
+        self, spark, log_writer, unique_name
     ):
         """Test logging for long-running pipelines (simulated with large dataset and complex transforms)."""
         schema = getattr(log_writer, "_test_schema", "test_schema")
 
         # Create large dataset to simulate long runtime
-        data = create_test_data_initial(spark_session, num_records=5000)
-        df = spark_session.createDataFrame(
+        data = create_test_data_initial(spark, num_records=5000)
+        df = spark.createDataFrame(
             data, ["user_id", "action", "timestamp", "value"]
         )
 
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
 
         builder.with_bronze_rules(
             name="events",
@@ -2379,7 +2352,7 @@ class TestLongRunning:
         assert log_result["success"] is True
 
         # Verify logs contain duration information
-        log_df = spark_session.table(
+        log_df = spark.table(
             f"{schema}.{getattr(log_writer, '_test_table', 'pipeline_logs')}"
         )
         logs = get_log_entries_by_run(log_df, run_id)

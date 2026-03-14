@@ -6,8 +6,8 @@ from pipeline_builder.transformation.transform_service import TransformService
 class TestTransformService:
     """Tests for TransformService."""
 
-    def test_transform_service_initialization(self, spark_session):
+    def test_transform_service_initialization(self, spark):
         """Test TransformService can be initialized."""
-        service = TransformService(spark_session)
-        assert service.spark == spark_session
+        service = TransformService(spark)
+        assert service.spark == spark
         assert service.logger is not None

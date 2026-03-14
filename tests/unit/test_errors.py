@@ -192,13 +192,13 @@ class TestErrorTypeSafety:
         error = SystemError(
             message="System error",
             error_code="SYSTEM_001",
-            context={"component": "spark_session", "memory_usage": "80%"},
+            context={"component": "spark", "memory_usage": "80%"},
             suggestions=["Increase memory"],
         )
 
         assert error.message == "System error"
         assert error.error_code == "SYSTEM_001"
-        assert error.context["component"] == "spark_session"
+        assert error.context["component"] == "spark"
 
     def test_performance_error_explicit_types(self):
         """Test PerformanceError uses explicit types."""

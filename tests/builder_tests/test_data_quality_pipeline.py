@@ -6,15 +6,7 @@ Bronze → Silver → Gold medallion architecture with data quality scoring, ano
 and source reconciliation.
 """
 
-import os
-
-
-# Import functions based on SPARK_MODE
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql import functions as F
-else:
-    from sparkless.sql import functions as F  # type: ignore[import]
-
+from pipeline_builder.compat import F
 from pipeline_builder.pipeline import PipelineBuilder
 
 
@@ -22,7 +14,7 @@ class TestDataQualityPipeline:
     """Test data quality and reconciliation pipeline with bronze-silver-gold architecture."""
 
     def test_complete_data_quality_pipeline_execution(
-        self, spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test complete data quality pipeline: raw sources → quality scoring → reconciliation insights."""
 
@@ -32,21 +24,21 @@ class TestDataQualityPipeline:
             spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
 
         # Setup schemas
-        create_schema_if_not_exists(spark_session, "bronze")
-        create_schema_if_not_exists(spark_session, "silver")
-        create_schema_if_not_exists(spark_session, "gold")
+        create_schema_if_not_exists(spark, "bronze")
+        create_schema_if_not_exists(spark, "silver")
+        create_schema_if_not_exists(spark, "gold")
 
         # Create realistic data with quality issues
         source_a_df = data_generator.create_data_quality_source_a(
-            spark_session, num_records=80
+            spark, num_records=80
         )
         source_b_df = data_generator.create_data_quality_source_b(
-            spark_session, num_records=100
+            spark, num_records=100
         )
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             functions=F,
             schema="bronze",
             min_bronze_rate=95.0,
@@ -458,17 +450,17 @@ class TestDataQualityPipeline:
         assert reconciliation_result.get("rows_processed", 0) >= 0
 
     def test_incremental_data_quality_processing(
-        self, spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test incremental processing of new data quality data."""
         # Create initial data
         source_a_initial = data_generator.create_data_quality_source_a(
-            spark_session, num_records=30
+            spark, num_records=30
         )
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema="bronze",
             functions=F,
             min_bronze_rate=95.0,
@@ -491,8 +483,8 @@ class TestDataQualityPipeline:
             """Create a schema using SQL (works for both mock-spark and PySpark)."""
             spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
 
-        create_schema_if_not_exists(spark_session, "bronze")
-        create_schema_if_not_exists(spark_session, "silver")
+        create_schema_if_not_exists(spark, "bronze")
+        create_schema_if_not_exists(spark, "silver")
 
         def normalized_source_a_transform(spark, df, silvers):
             return (
@@ -529,7 +521,7 @@ class TestDataQualityPipeline:
 
         # Incremental load with new records
         source_a_incremental = data_generator.create_data_quality_source_a(
-            spark_session, num_records=20
+            spark, num_records=20
         )
 
         result2 = pipeline.run_incremental(

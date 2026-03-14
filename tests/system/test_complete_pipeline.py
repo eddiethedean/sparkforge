@@ -2,16 +2,9 @@
 System tests for complete pipeline execution using Mock Spark.
 """
 
-import os
-
 import pytest
 
-# Import AnalysisException - available in both PySpark and sparkless
-try:
-    from pyspark.sql.utils import AnalysisException  # noqa: F401
-except ImportError:
-    pass  # type: ignore[import]
-
+from pipeline_builder.compat import AnalysisException  # noqa: F401
 from pipeline_builder.execution import ExecutionEngine
 from pipeline_builder.models import PipelineConfig, ValidationThresholds
 from pipeline_builder.pipeline.builder import PipelineBuilder
@@ -24,16 +17,16 @@ class TestCompletePipeline:
     """System tests for complete pipeline execution with Mock Spark."""
 
     def test_bronze_to_silver_to_gold_pipeline(
-        self, mock_spark_session, sample_dataframe
+        self, spark, sample_dataframe
     ):
         """Test complete Bronze → Silver → Gold pipeline execution."""
         # Setup schemas using standard Spark SQL
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline builder
-        builder = PipelineBuilder(spark=mock_spark_session, schema="bronze")
+        builder = PipelineBuilder(spark=spark, schema="bronze")
 
         # Create execution engine
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
@@ -43,21 +36,21 @@ class TestCompletePipeline:
             verbose=True,
         )
 
-        engine = ExecutionEngine(spark=mock_spark_session, config=config)
+        engine = ExecutionEngine(spark=spark, config=config)
 
         # Create validator
         validator = UnifiedValidator()
 
         # Create log writer
         writer = LogWriter(
-            spark=mock_spark_session, schema="bronze", table_name="pipeline_logs"
+            spark=spark, schema="bronze", table_name="pipeline_logs"
         )
 
         # Create Bronze layer table using standard Spark operations
         sample_dataframe.write.saveAsTable("bronze.raw_events")
 
         # Verify Bronze layer data using standard Spark operations
-        bronze_df = mock_spark_session.table("bronze.raw_events")
+        bronze_df = spark.table("bronze.raw_events")
         bronze_data = [row.asDict() for row in bronze_df.collect()]
         assert len(bronze_data) > 0
         # Verify table exists by successfully accessing it
@@ -67,7 +60,7 @@ class TestCompletePipeline:
         sample_dataframe.write.saveAsTable("silver.processed_events")
 
         # Verify Silver layer data
-        silver_df = mock_spark_session.table("silver.processed_events")
+        silver_df = spark.table("silver.processed_events")
         silver_data = [row.asDict() for row in silver_df.collect()]
         assert len(silver_data) > 0
         assert silver_df.count() > 0
@@ -76,7 +69,7 @@ class TestCompletePipeline:
         sample_dataframe.write.saveAsTable("gold.aggregated_metrics")
 
         # Verify Gold layer data
-        gold_df = mock_spark_session.table("gold.aggregated_metrics")
+        gold_df = spark.table("gold.aggregated_metrics")
         gold_data = [row.asDict() for row in gold_df.collect()]
         assert len(gold_data) > 0
         assert gold_df.count() > 0
@@ -90,18 +83,18 @@ class TestCompletePipeline:
         assert len(bronze_data) == len(silver_data)
         assert len(silver_data) == len(gold_data)
 
-    def test_pipeline_with_data_validation(self, mock_spark_session, sample_dataframe):
+    def test_pipeline_with_data_validation(self, spark, sample_dataframe):
         """Test pipeline with data validation at each layer."""
         # Setup schemas using standard Spark SQL
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
         # Drop tables if they exist (shared session in real mode)
         for t in ("bronze.raw_data", "silver.processed_data", "gold.aggregated_data"):
-            mock_spark_session.sql(f"DROP TABLE IF EXISTS {t}")
+            spark.sql(f"DROP TABLE IF EXISTS {t}")
 
         # Create pipeline builder
-        PipelineBuilder(spark=mock_spark_session, schema="bronze")
+        PipelineBuilder(spark=spark, schema="bronze")
 
         # Create validator
         validator = UnifiedValidator()
@@ -114,7 +107,7 @@ class TestCompletePipeline:
             verbose=True,
         )
 
-        engine = ExecutionEngine(spark=mock_spark_session, config=config)
+        engine = ExecutionEngine(spark=spark, config=config)
 
         # Create tables using standard Spark operations
         sample_dataframe.write.saveAsTable("bronze.raw_data")
@@ -122,15 +115,15 @@ class TestCompletePipeline:
         sample_dataframe.write.saveAsTable("gold.aggregated_data")
 
         # Test validation at Bronze layer
-        bronze_df = mock_spark_session.table("bronze.raw_data")
+        bronze_df = spark.table("bronze.raw_data")
         assert bronze_df.count() > 0
 
         # Test validation at Silver layer
-        silver_df = mock_spark_session.table("silver.processed_data")
+        silver_df = spark.table("silver.processed_data")
         assert silver_df.count() > 0
 
         # Test validation at Gold layer
-        gold_df = mock_spark_session.table("gold.aggregated_data")
+        gold_df = spark.table("gold.aggregated_data")
         assert gold_df.count() > 0
 
         # Verify validation components work
@@ -139,18 +132,18 @@ class TestCompletePipeline:
 
     @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_pipeline_with_logging_and_monitoring(
-        self, mock_spark_session, sample_dataframe
+        self, spark, sample_dataframe
     ):
         """Test pipeline with comprehensive logging and monitoring."""
         # Setup schemas using standard Spark SQL
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
         for t in ("bronze.raw_data", "silver.processed_data", "gold.aggregated_data"):
-            mock_spark_session.sql(f"DROP TABLE IF EXISTS {t}")
+            spark.sql(f"DROP TABLE IF EXISTS {t}")
 
         # Create pipeline builder
-        PipelineBuilder(spark=mock_spark_session, schema="bronze")
+        PipelineBuilder(spark=spark, schema="bronze")
 
         # Create log writer with specific config options being tested
         writer_config = WriterConfig(
@@ -162,7 +155,7 @@ class TestCompletePipeline:
             compression="snappy",
         )
 
-        writer = LogWriter(spark=mock_spark_session, config=writer_config)
+        writer = LogWriter(spark=spark, config=writer_config)
 
         # Create execution engine
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
@@ -172,7 +165,7 @@ class TestCompletePipeline:
             verbose=True,
         )
 
-        engine = ExecutionEngine(spark=mock_spark_session, config=config)
+        engine = ExecutionEngine(spark=spark, config=config)
 
         # Create tables using standard Spark operations
         sample_dataframe.write.saveAsTable("bronze.raw_data")
@@ -189,25 +182,25 @@ class TestCompletePipeline:
         assert engine.config.verbose is True
 
         # Verify data is accessible for monitoring using standard Spark operations
-        bronze_df = mock_spark_session.table("bronze.raw_data")
-        silver_df = mock_spark_session.table("silver.processed_data")
-        gold_df = mock_spark_session.table("gold.aggregated_data")
+        bronze_df = spark.table("bronze.raw_data")
+        silver_df = spark.table("silver.processed_data")
+        gold_df = spark.table("gold.aggregated_data")
 
         assert bronze_df.count() > 0
         assert silver_df.count() > 0
         assert gold_df.count() > 0
 
-    def test_pipeline_error_recovery(self, mock_spark_session, sample_dataframe):
+    def test_pipeline_error_recovery(self, spark, sample_dataframe):
         """Test pipeline error recovery and resilience."""
         # Setup schemas using standard Spark SQL
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
         for t in ("bronze.raw_data", "silver.processed_data", "gold.aggregated_data"):
-            mock_spark_session.sql(f"DROP TABLE IF EXISTS {t}")
+            spark.sql(f"DROP TABLE IF EXISTS {t}")
 
         # Create pipeline builder
-        builder = PipelineBuilder(spark=mock_spark_session, schema="bronze")
+        builder = PipelineBuilder(spark=spark, schema="bronze")
 
         # Create execution engine
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
@@ -217,7 +210,7 @@ class TestCompletePipeline:
             verbose=True,
         )
 
-        engine = ExecutionEngine(spark=mock_spark_session, config=config)
+        engine = ExecutionEngine(spark=spark, config=config)
 
         # Create tables using standard Spark operations
         sample_dataframe.write.saveAsTable("bronze.raw_data")
@@ -227,7 +220,7 @@ class TestCompletePipeline:
         # Test error handling - both PySpark and sparkless raise AnalysisException
         # but they may be different classes, so we catch the base Exception and check the type
         with pytest.raises(Exception) as exc_info:
-            mock_spark_session.table("nonexistent.table")
+            spark.table("nonexistent.table")
         # Verify it's an AnalysisException (works for both PySpark and sparkless)
         assert (
             "AnalysisException" in type(exc_info.value).__name__
@@ -239,26 +232,26 @@ class TestCompletePipeline:
         assert engine.config == config
 
         # Verify data is still accessible using standard Spark operations
-        bronze_df = mock_spark_session.table("bronze.raw_data")
+        bronze_df = spark.table("bronze.raw_data")
         assert bronze_df.count() > 0
 
         # Verify tables still exist by successfully accessing them
-        assert mock_spark_session.table("silver.processed_data").count() > 0
-        assert mock_spark_session.table("gold.aggregated_data").count() > 0
+        assert spark.table("silver.processed_data").count() > 0
+        assert spark.table("gold.aggregated_data").count() > 0
 
     def test_pipeline_with_different_data_sizes(
-        self, mock_spark_session, large_dataset
+        self, spark, spark_imports, large_dataset
     ):
         """Test pipeline with different data sizes."""
         # Setup schemas using standard Spark SQL
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
         for t in ("bronze.raw_data", "silver.processed_data", "gold.aggregated_data"):
-            mock_spark_session.sql(f"DROP TABLE IF EXISTS {t}")
+            spark.sql(f"DROP TABLE IF EXISTS {t}")
 
         # Create pipeline builder
-        builder = PipelineBuilder(spark=mock_spark_session, schema="bronze")
+        builder = PipelineBuilder(spark=spark, schema="bronze")
 
         # Create execution engine
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
@@ -268,29 +261,14 @@ class TestCompletePipeline:
             verbose=True,
         )
 
-        engine = ExecutionEngine(spark=mock_spark_session, config=config)
+        engine = ExecutionEngine(spark=spark, config=config)
 
         # Create tables using standard Spark operations
-        # Use appropriate types based on Spark mode
-
-        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-
-        if spark_mode == "real":
-            from pyspark.sql.types import (
-                DoubleType,
-                IntegerType,
-                StringType,
-                StructField,
-                StructType,
-            )
-        else:
-            from sparkless.spark_types import (  # type: ignore[import]
-                DoubleType,
-                IntegerType,
-                StringType,
-                StructField,
-                StructType,
-            )
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
+        StringType = spark_imports.StringType
+        DoubleType = spark_imports.DoubleType
 
         schema = StructType(
             [
@@ -301,18 +279,18 @@ class TestCompletePipeline:
             ]
         )
 
-        large_df = mock_spark_session.createDataFrame(large_dataset, schema)
+        large_df = spark.createDataFrame(large_dataset, schema)
         large_df.write.saveAsTable("bronze.raw_data")
         large_df.write.saveAsTable("silver.processed_data")
         large_df.write.saveAsTable("gold.aggregated_data")
 
         # Verify large dataset is processed using standard Spark operations
-        bronze_df = mock_spark_session.table("bronze.raw_data")
+        bronze_df = spark.table("bronze.raw_data")
         assert bronze_df.count() == len(large_dataset)
 
         # Verify data flow
-        silver_df = mock_spark_session.table("silver.processed_data")
-        gold_df = mock_spark_session.table("gold.aggregated_data")
+        silver_df = spark.table("silver.processed_data")
+        gold_df = spark.table("gold.aggregated_data")
 
         assert silver_df.count() == len(large_dataset)
         assert gold_df.count() == len(large_dataset)

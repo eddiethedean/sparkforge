@@ -27,7 +27,7 @@ from pipeline_builder.models import (
 )
 
 @pytest.fixture(scope="function", autouse=True)
-def reset_test_environment(spark_session):
+def reset_test_environment(spark):
     """Reset test environment before each test in this file."""
     import gc
 
@@ -57,14 +57,14 @@ def reset_test_environment(spark_session):
 class TestStepExecutionFlow:
     """Test the step-by-step execution flow."""
 
-    def test_bronze_step_execution_flow(self, spark_session):
+    def test_bronze_step_execution_flow(self, spark):
         """Test that bronze step execution follows the correct flow."""
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
 
-        ExecutionEngine(spark=spark_session, config=config)
+        ExecutionEngine(spark=spark, config=config)
 
         # Create a bronze step
         bronze_step = BronzeStep(
@@ -79,14 +79,14 @@ class TestStepExecutionFlow:
         assert "id" in bronze_step.rules
         assert len(bronze_step.rules["id"]) == 1
 
-    def test_silver_step_execution_flow(self, spark_session):
+    def test_silver_step_execution_flow(self, spark):
         """Test that silver step execution follows the correct flow."""
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
 
-        ExecutionEngine(spark=spark_session, config=config)
+        ExecutionEngine(spark=spark, config=config)
 
         # Create a silver step
         def silver_transform(spark, df, silvers):
@@ -107,14 +107,14 @@ class TestStepExecutionFlow:
         assert silver_step.table_name == "test_silver"
         assert callable(silver_step.transform)
 
-    def test_gold_step_execution_flow(self, spark_session):
+    def test_gold_step_execution_flow(self, spark):
         """Test that gold step execution follows the correct flow."""
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
 
-        ExecutionEngine(spark=spark_session, config=config)
+        ExecutionEngine(spark=spark, config=config)
 
         # Create a gold step
         def gold_transform(spark, silvers):
@@ -135,7 +135,7 @@ class TestStepExecutionFlow:
         assert gold_step.table_name == "test_gold"
         assert callable(gold_step.transform)
 
-    def test_step_validation_flow(self, spark_session):
+    def test_step_validation_flow(self, spark):
         """Test that step validation works correctly."""
         # Test valid bronze step
         valid_bronze = BronzeStep(
@@ -164,14 +164,14 @@ class TestStepExecutionFlow:
         )
         valid_gold.validate()  # Should not raise
 
-    def test_step_type_detection_flow(self, spark_session):
+    def test_step_type_detection_flow(self, spark):
         """Test that step types are correctly detected in execution flow."""
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
 
-        ExecutionEngine(spark=spark_session, config=config)
+        ExecutionEngine(spark=spark, config=config)
 
         # Create steps of different types
         bronze_step = BronzeStep(name="bronze_test", rules={"id": ["not_null"]})
@@ -196,32 +196,20 @@ class TestStepExecutionFlow:
         assert isinstance(silver_step, SilverStep)
         assert isinstance(gold_step, GoldStep)
 
-    def test_execution_context_flow(self, spark_session):
+    def test_execution_context_flow(self, spark, spark_imports):
         """Test that execution context is properly managed."""
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
 
-        ExecutionEngine(spark=spark_session, config=config)
+        ExecutionEngine(spark=spark, config=config)
 
         # Create test data with explicit schema
-        import os
-
-        if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-            from pyspark.sql.types import (
-                IntegerType,
-                StructField,
-                StructType,
-                StringType,
-            )
-        else:
-            from sparkless.spark_types import (
-                IntegerType,
-                StructField,
-                StructType,
-                StringType,
-            )  # type: ignore[import]
+        IntegerType = spark_imports.IntegerType
+        StructField = spark_imports.StructField
+        StructType = spark_imports.StructType
+        StringType = spark_imports.StringType
 
         schema = StructType(
             [
@@ -234,7 +222,7 @@ class TestStepExecutionFlow:
             {"id": 2, "name": "test2"},
             {"id": 3, "name": "test3"},
         ]
-        test_df = spark_session.createDataFrame(test_data, schema)
+        test_df = spark.createDataFrame(test_data, schema)
 
         # Create execution context
         context = {
@@ -254,7 +242,7 @@ class TestStepExecutionFlow:
         # Note: silver_data is not filtered in this test setup, so it has the same count
         assert context["silver_data"].count() == 3
 
-    def test_step_execution_result_flow(self, spark_session):
+    def test_step_execution_result_flow(self, spark):
         """Test that step execution results are properly created."""
         from pipeline_builder.execution import StepExecutionResult
 
@@ -288,7 +276,7 @@ class TestStepExecutionFlow:
         assert result.rows_processed == 100
         assert result.output_table == "test_schema.test_table"
 
-    def test_execution_mode_flow(self, spark_session):
+    def test_execution_mode_flow(self, spark):
         """Test that execution modes work correctly."""
         # Test all execution modes
         modes = [
@@ -307,7 +295,7 @@ class TestStepExecutionFlow:
             ]
             assert isinstance(mode, ExecutionMode)
 
-    def test_step_status_flow(self, spark_session):
+    def test_step_status_flow(self, spark):
         """Test that step statuses work correctly."""
         # Test all step statuses
         statuses = [
@@ -328,7 +316,7 @@ class TestStepExecutionFlow:
             ]
             assert isinstance(status, StepStatus)
 
-    def test_pipeline_configuration_flow(self, spark_session):
+    def test_pipeline_configuration_flow(self, spark):
         """Test that pipeline configuration works correctly."""
         # Test valid configuration
         config = PipelineConfig(
@@ -342,7 +330,7 @@ class TestStepExecutionFlow:
         assert config.thresholds.silver == 98.0
         assert config.thresholds.gold == 99.0
 
-    def test_execution_engine_initialization_flow(self, spark_session):
+    def test_execution_engine_initialization_flow(self, spark):
         """Test that execution engine initializes correctly."""
         config = PipelineConfig(
             schema="test_schema",
@@ -351,28 +339,28 @@ class TestStepExecutionFlow:
 
         # Test with explicit logger
         logger = PipelineLogger()
-        engine = ExecutionEngine(spark=spark_session, config=config, logger=logger)
+        engine = ExecutionEngine(spark=spark, config=config, logger=logger)
 
-        assert engine.spark == spark_session
+        assert engine.spark == spark
         assert engine.config == config
         assert engine.logger == logger
 
         # Test without explicit logger
-        engine2 = ExecutionEngine(spark=spark_session, config=config)
+        engine2 = ExecutionEngine(spark=spark, config=config)
 
-        assert engine2.spark == spark_session
+        assert engine2.spark == spark
         assert engine2.config == config
         assert engine2.logger is not None
         assert isinstance(engine2.logger, PipelineLogger)
 
-    def test_step_execution_error_handling_flow(self, spark_session):
+    def test_step_execution_error_handling_flow(self, spark):
         """Test that step execution handles errors correctly."""
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
 
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark, config=config)
 
         # Test with invalid step type
         class InvalidStep:
@@ -386,18 +374,18 @@ class TestStepExecutionFlow:
         with pytest.raises(ValueError, match="Unknown step type"):
             engine.execute_step(invalid_step, context, ExecutionMode.INITIAL)
 
-    def test_step_execution_with_mock_data(self, spark_session):
+    def test_step_execution_with_mock_data(self, spark):
         """Test step execution with mock data."""
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
 
-        ExecutionEngine(spark=spark_session, config=config)
+        ExecutionEngine(spark=spark, config=config)
 
         # Create mock data
         mock_data = [(1, "test1"), (2, "test2"), (3, "test3")]
-        mock_df = spark_session.createDataFrame(mock_data, ["id", "name"])
+        mock_df = spark.createDataFrame(mock_data, ["id", "name"])
 
         # Test that we can work with the mock data
         assert mock_df.count() == 3

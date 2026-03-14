@@ -4,26 +4,19 @@ Tests that run the exact example code from docs/guides/STEPWISE_EXECUTION_GUIDE.
 These tests ensure all guide examples are valid and executable (with mock Spark).
 """
 
-import os
-
-spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-if spark_mode == "real":
-    from pyspark.sql import functions as F
-else:
-    from sparkless.sql import functions as F  # type: ignore[import]
-
 
 class TestStepwiseGuideMinimalExample:
     """Run the Minimal Example from the guide."""
 
-    def test_minimal_example_run_until(self, mock_spark_session):
+    def test_minimal_example_run_until(self, spark, spark_imports):
         # From guide: Minimal Example - Basic Setup and run_until
+        F = spark_imports.F
         from pipeline_builder.models import BronzeStep, SilverStep
         from pipeline_builder.pipeline.runner import SimplePipelineRunner
         from pipeline_builder_base.models import PipelineConfig
 
         config = PipelineConfig.create_default(schema="analytics")
-        runner = SimplePipelineRunner(mock_spark_session, config)
+        runner = SimplePipelineRunner(spark, config)
 
         bronze_step = BronzeStep(
             name="events",
@@ -31,7 +24,7 @@ class TestStepwiseGuideMinimalExample:
             schema="analytics",
         )
 
-        def clean_transform(spark, bronze_df, prior_silvers):
+        def clean_transform(spark_session, bronze_df, prior_silvers):
             return bronze_df.filter(F.col("value") > 10)
 
         silver_step = SilverStep(
@@ -43,7 +36,7 @@ class TestStepwiseGuideMinimalExample:
             schema="analytics",
         )
 
-        source_df = mock_spark_session.createDataFrame(
+        source_df = spark.createDataFrame(
             [("1", "event1", 10), ("2", "event2", 20), ("3", "event3", 30)],
             ["id", "event", "value"],
         )
@@ -62,14 +55,15 @@ class TestStepwiseGuideMinimalExample:
 class TestStepwiseGuideRunStepExample:
     """Run the run_step example from the guide."""
 
-    def test_run_step_example(self, mock_spark_session):
+    def test_run_step_example(self, spark, spark_imports):
         # From guide: run_step() Example
+        F = spark_imports.F
         from pipeline_builder.models import BronzeStep, GoldStep, SilverStep
         from pipeline_builder.pipeline.runner import SimplePipelineRunner
         from pipeline_builder_base.models import PipelineConfig
 
         config = PipelineConfig.create_default(schema="analytics")
-        runner = SimplePipelineRunner(mock_spark_session, config)
+        runner = SimplePipelineRunner(spark, config)
 
         bronze_step = BronzeStep(
             name="events",
@@ -79,21 +73,21 @@ class TestStepwiseGuideRunStepExample:
         silver_step = SilverStep(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.filter(F.col("value") > 15),
+            transform=lambda spark_session, df, silvers: df.filter(F.col("value") > 15),
             rules={"value": [F.col("value").isNotNull()]},
             table_name="clean_events",
             schema="analytics",
         )
         gold_step = GoldStep(
             name="aggregated",
-            transform=lambda spark, silvers: silvers["clean_events"],
+            transform=lambda spark_session, silvers: silvers["clean_events"],
             rules={"id": [F.col("id").isNotNull()]},
             table_name="aggregated",
             source_silvers=["clean_events"],
             schema="analytics",
         )
 
-        source_df = mock_spark_session.createDataFrame(
+        source_df = spark.createDataFrame(
             [("1", "event1", 10), ("2", "event2", 20), ("3", "event3", 30)],
             ["id", "event", "value"],
         )
@@ -111,8 +105,9 @@ class TestStepwiseGuideRunStepExample:
 class TestStepwiseGuideDebugSessionExample:
     """Run the PipelineDebugSession example from the guide."""
 
-    def test_debug_session_run_until_and_run_step(self, mock_spark_session):
+    def test_debug_session_run_until_and_run_step(self, spark, spark_imports):
         # From guide: PipelineDebugSession Basic Usage
+        F = spark_imports.F
         from pipeline_builder.models import BronzeStep, GoldStep, SilverStep
         from pipeline_builder.pipeline.debug_session import PipelineDebugSession
         from pipeline_builder_base.models import PipelineConfig
@@ -126,27 +121,27 @@ class TestStepwiseGuideDebugSessionExample:
         silver_step = SilverStep(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df.filter(F.col("value") > 10),
+            transform=lambda spark_session, df, silvers: df.filter(F.col("value") > 10),
             rules={"value": [F.col("value").isNotNull()]},
             table_name="clean_events",
             schema="analytics",
         )
         gold_step = GoldStep(
             name="aggregated",
-            transform=lambda spark, silvers: silvers["clean_events"],
+            transform=lambda spark_session, silvers: silvers["clean_events"],
             rules={"id": [F.col("id").isNotNull()]},
             table_name="aggregated",
             source_silvers=["clean_events"],
             schema="analytics",
         )
 
-        source_df = mock_spark_session.createDataFrame(
+        source_df = spark.createDataFrame(
             [("1", "event1", 10), ("2", "event2", 20), ("3", "event3", 30)],
             ["id", "event", "value"],
         )
 
         session = PipelineDebugSession(
-            mock_spark_session,
+            spark,
             config,
             steps=[bronze_step, silver_step, gold_step],
             bronze_sources={"events": source_df},
@@ -163,16 +158,17 @@ class TestStepwiseGuideCompleteExample1:
     """Run Example 1: Basic Stepwise Execution from the guide."""
 
     def test_complete_example1_run_until_and_parameter_override(
-        self, mock_spark_session
+        self, spark, spark_imports
     ):
         # From guide: Complete Examples - Example 1
+        F = spark_imports.F
         from pipeline_builder.models import BronzeStep, GoldStep, SilverStep
         from pipeline_builder.pipeline.debug_session import PipelineDebugSession
         from pipeline_builder.pipeline.runner import SimplePipelineRunner
         from pipeline_builder_base.models import PipelineConfig
 
         config = PipelineConfig.create_default(schema="analytics")
-        runner = SimplePipelineRunner(mock_spark_session, config)
+        runner = SimplePipelineRunner(spark, config)
 
         bronze_step = BronzeStep(
             name="events",
@@ -180,7 +176,7 @@ class TestStepwiseGuideCompleteExample1:
             schema="analytics",
         )
 
-        def clean_transform(spark, bronze_df, prior_silvers, params=None):
+        def clean_transform(spark_session, bronze_df, prior_silvers, params=None):
             threshold = params.get("threshold", 0) if params else 0
             return bronze_df.filter(F.col("value") > threshold)
 
@@ -193,7 +189,7 @@ class TestStepwiseGuideCompleteExample1:
             schema="analytics",
         )
 
-        def aggregate_transform(spark, silvers, params=None):
+        def aggregate_transform(spark_session, silvers, params=None):
             multiplier = params.get("multiplier", 1.0) if params else 1.0
             df = silvers["clean_events"]
             return df.withColumn("adjusted_value", F.col("value") * multiplier)
@@ -213,7 +209,7 @@ class TestStepwiseGuideCompleteExample1:
             ("3", "event3", 30),
             ("4", "event4", 40),
         ]
-        source_df = mock_spark_session.createDataFrame(data, ["id", "event", "value"])
+        source_df = spark.createDataFrame(data, ["id", "event", "value"])
 
         report, context = runner.run_until(
             "clean_events",
@@ -235,7 +231,7 @@ class TestStepwiseGuideCompleteExample1:
         assert context["clean_events"].count() == 3
 
         session = PipelineDebugSession(
-            mock_spark_session,
+            spark,
             config,
             steps=[bronze_step, silver_step],
             bronze_sources={"events": source_df},

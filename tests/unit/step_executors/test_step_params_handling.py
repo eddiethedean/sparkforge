@@ -11,8 +11,8 @@ from pipeline_builder_base.models import ExecutionMode
 
 
 class TestSilverStepParamsHandling:
-    def test_silver_falls_back_on_typeerror_and_succeeds(self, mock_spark_session):
-        executor = SilverStepExecutor(spark=mock_spark_session)
+    def test_silver_falls_back_on_typeerror_and_succeeds(self, spark):
+        executor = SilverStepExecutor(spark=spark)
 
         calls = {"with_params": 0, "without_params": 0}
 
@@ -45,8 +45,8 @@ class TestSilverStepParamsHandling:
         assert calls["with_params"] == 1
         assert calls["without_params"] == 1
 
-    def test_silver_does_not_swallow_non_typeerror(self, mock_spark_session):
-        executor = SilverStepExecutor(spark=mock_spark_session)
+    def test_silver_does_not_swallow_non_typeerror(self, spark):
+        executor = SilverStepExecutor(spark=spark)
 
         def transform(spark, bronze_df, prior_silvers, **kwargs):
             raise ValueError("boom")
@@ -74,8 +74,8 @@ class TestSilverStepParamsHandling:
 
 
 class TestGoldStepParamsHandling:
-    def test_gold_falls_back_on_typeerror_and_succeeds(self, mock_spark_session):
-        executor = GoldStepExecutor(spark=mock_spark_session)
+    def test_gold_falls_back_on_typeerror_and_succeeds(self, spark):
+        executor = GoldStepExecutor(spark=spark)
 
         calls = {"with_params": 0, "without_params": 0}
 
@@ -108,8 +108,8 @@ class TestGoldStepParamsHandling:
         assert calls["with_params"] == 1
         assert calls["without_params"] == 1
 
-    def test_gold_does_not_swallow_non_typeerror(self, mock_spark_session):
-        executor = GoldStepExecutor(spark=mock_spark_session)
+    def test_gold_does_not_swallow_non_typeerror(self, spark):
+        executor = GoldStepExecutor(spark=spark)
 
         def transform(spark, silvers, **kwargs):
             raise ValueError("boom")

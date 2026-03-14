@@ -6,15 +6,7 @@ Bronze → Silver → Gold medallion architecture with incremental streaming upd
 and batch backfill capabilities.
 """
 
-import os
-
-
-# Import functions based on SPARK_MODE
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql import functions as F
-else:
-    from sparkless.sql import functions as F  # type: ignore[import]
-
+from pipeline_builder.compat import F
 from pipeline_builder.pipeline import PipelineBuilder
 
 
@@ -22,7 +14,7 @@ class TestStreamingHybridPipeline:
     """Test streaming/batch hybrid pipeline with bronze-silver-gold architecture."""
 
     def test_complete_streaming_hybrid_pipeline_execution(
-        self, spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test complete streaming/batch hybrid pipeline: batch history + streaming events → unified analytics."""
 
@@ -32,21 +24,21 @@ class TestStreamingHybridPipeline:
             spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
 
         # Setup schemas
-        create_schema_if_not_exists(spark_session, "bronze")
-        create_schema_if_not_exists(spark_session, "silver")
-        create_schema_if_not_exists(spark_session, "gold")
+        create_schema_if_not_exists(spark, "bronze")
+        create_schema_if_not_exists(spark, "silver")
+        create_schema_if_not_exists(spark, "gold")
 
         # Create realistic data - batch historical data + streaming events
         batch_history_df = data_generator.create_streaming_batch_history(
-            spark_session, num_records=100
+            spark, num_records=100
         )
         streaming_events_df = data_generator.create_streaming_batch_events(
-            spark_session, num_events=80
+            spark, num_events=80
         )
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             functions=F,
             schema="bronze",
             min_bronze_rate=95.0,
@@ -517,17 +509,17 @@ class TestStreamingHybridPipeline:
         assert sessions_result.get("rows_processed", 0) >= 0
 
     def test_incremental_streaming_processing(
-        self, spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test incremental processing of new streaming events."""
         # Create initial batch data
         batch_initial = data_generator.create_streaming_batch_history(
-            spark_session, num_records=50
+            spark, num_records=50
         )
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema="bronze",
             functions=F,
             min_bronze_rate=95.0,
@@ -546,8 +538,8 @@ class TestStreamingHybridPipeline:
         )
 
         # Setup schemas using SQL (works for both mock-spark and PySpark)
-        spark_session.sql("CREATE SCHEMA IF NOT EXISTS bronze")
-        spark_session.sql("CREATE SCHEMA IF NOT EXISTS silver")
+        spark.sql("CREATE SCHEMA IF NOT EXISTS bronze")
+        spark.sql("CREATE SCHEMA IF NOT EXISTS silver")
 
         def unified_events_transform(spark, df, silvers):
             return (
@@ -583,7 +575,7 @@ class TestStreamingHybridPipeline:
 
         # Incremental load with new batch records (simulating late-arriving data)
         batch_incremental = data_generator.create_streaming_batch_history(
-            spark_session, num_records=30
+            spark, num_records=30
         )
 
         result2 = pipeline.run_incremental(

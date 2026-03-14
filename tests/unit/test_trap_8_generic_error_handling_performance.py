@@ -16,10 +16,10 @@ from pipeline_builder.writer.monitoring import PerformanceMonitor
 class TestTrap8GenericErrorHandlingPerformance:
     """Test cases for generic error handling fixes in performance monitoring."""
 
-    def test_start_operation_raises_specific_exception_on_failure(self, spark_session):
+    def test_start_operation_raises_specific_exception_on_failure(self, spark):
         """Test that start_operation raises WriterError instead of silently failing."""
         # Create performance monitor
-        monitor = PerformanceMonitor(spark=spark_session, logger=Mock())
+        monitor = PerformanceMonitor(spark=spark, logger=Mock())
 
         # Mock time.time to raise an exception
         with patch("time.time", side_effect=Exception("Time service unavailable")):
@@ -33,10 +33,10 @@ class TestTrap8GenericErrorHandlingPerformance:
             # Check that the original exception is chained
             assert exc_info.value.__cause__ is not None
 
-    def test_end_operation_raises_specific_exception_on_failure(self, spark_session):
+    def test_end_operation_raises_specific_exception_on_failure(self, spark):
         """Test that end_operation raises WriterError instead of returning empty dict."""
         # Create performance monitor
-        monitor = PerformanceMonitor(spark=spark_session, logger=Mock())
+        monitor = PerformanceMonitor(spark=spark, logger=Mock())
 
         # Mock the operation_start_times to raise an exception
         monitor.operation_start_times = Mock()
@@ -55,11 +55,11 @@ class TestTrap8GenericErrorHandlingPerformance:
         assert exc_info.value.__cause__ is not None
 
     def test_check_performance_thresholds_raises_specific_exception_on_failure(
-        self, spark_session
+        self, spark
     ):
         """Test that check_performance_thresholds raises WriterError instead of returning generic error."""
         # Create performance monitor
-        monitor = PerformanceMonitor(spark=spark_session, logger=Mock())
+        monitor = PerformanceMonitor(spark=spark, logger=Mock())
 
         # Mock the metrics to raise an exception
         monitor.metrics = Mock()
@@ -75,10 +75,10 @@ class TestTrap8GenericErrorHandlingPerformance:
         # Check that the original exception is chained
         assert exc_info.value.__cause__ is not None
 
-    def test_get_memory_usage_raises_specific_exception_on_failure(self, spark_session):
+    def test_get_memory_usage_raises_specific_exception_on_failure(self, spark):
         """Test that get_memory_usage raises WriterError instead of returning empty dict."""
         # Create performance monitor
-        monitor = PerformanceMonitor(spark=spark_session, logger=Mock())
+        monitor = PerformanceMonitor(spark=spark, logger=Mock())
 
         # Mock psutil to raise an exception
         with patch(
@@ -95,13 +95,13 @@ class TestTrap8GenericErrorHandlingPerformance:
             assert exc_info.value.__cause__ is not None
 
     def test_analyze_execution_trends_raises_specific_exception_on_failure(
-        self, spark_session
+        self, spark
     ):
         """Test that analyze_execution_trends raises WriterError instead of returning empty dict."""
         # Create analytics engine
         from pipeline_builder.writer.monitoring import AnalyticsEngine
 
-        analytics = AnalyticsEngine(spark=spark_session, logger=Mock())
+        analytics = AnalyticsEngine(spark=spark, logger=Mock())
 
         # Mock QueryBuilder.build_daily_trends_query to raise an exception
         with patch(
@@ -118,12 +118,12 @@ class TestTrap8GenericErrorHandlingPerformance:
         # Check that the original exception is chained
         assert exc_info.value.__cause__ is not None
 
-    def test_detect_anomalies_raises_specific_exception_on_failure(self, spark_session):
+    def test_detect_anomalies_raises_specific_exception_on_failure(self, spark):
         """Test that detect_anomalies raises WriterError instead of returning empty dict."""
         # Create analytics engine
         from pipeline_builder.writer.monitoring import AnalyticsEngine
 
-        analytics = AnalyticsEngine(spark=spark_session, logger=Mock())
+        analytics = AnalyticsEngine(spark=spark, logger=Mock())
 
         # Mock QueryBuilder.calculate_statistics to raise an exception
         with patch(
@@ -141,13 +141,13 @@ class TestTrap8GenericErrorHandlingPerformance:
         assert exc_info.value.__cause__ is not None
 
     def test_generate_performance_report_raises_specific_exception_on_failure(
-        self, spark_session
+        self, spark
     ):
         """Test that generate_performance_report raises WriterError instead of returning empty dict."""
         # Create analytics engine
         from pipeline_builder.writer.monitoring import AnalyticsEngine
 
-        analytics = AnalyticsEngine(spark=spark_session, logger=Mock())
+        analytics = AnalyticsEngine(spark=spark, logger=Mock())
 
         # Mock QueryBuilder.get_common_aggregations to raise an exception
         with patch(
@@ -164,10 +164,10 @@ class TestTrap8GenericErrorHandlingPerformance:
         # Check that the original exception is chained
         assert exc_info.value.__cause__ is not None
 
-    def test_error_chaining_preserves_original_exception(self, spark_session):
+    def test_error_chaining_preserves_original_exception(self, spark):
         """Test that error chaining preserves the original exception information."""
         # Create performance monitor
-        monitor = PerformanceMonitor(spark=spark_session, logger=Mock())
+        monitor = PerformanceMonitor(spark=spark, logger=Mock())
 
         # Create a specific exception
         original_error = ValueError("Specific error message")
@@ -182,11 +182,11 @@ class TestTrap8GenericErrorHandlingPerformance:
             assert isinstance(exc_info.value.__cause__, ValueError)
             assert str(original_error) in str(exc_info.value)
 
-    def test_logging_still_occurs_before_exception_raising(self, spark_session):
+    def test_logging_still_occurs_before_exception_raising(self, spark):
         """Test that logging still occurs before raising exceptions."""
         # Create a mock logger
         mock_logger = Mock()
-        monitor = PerformanceMonitor(spark=spark_session, logger=mock_logger)
+        monitor = PerformanceMonitor(spark=spark, logger=mock_logger)
 
         # Mock time.time to raise an exception
         with patch("time.time", side_effect=Exception("Test error")):

@@ -16,13 +16,13 @@ from pipeline_builder.validation.data_validation import apply_column_rules
 class TestColumnValidationEdgeCases:
     """Test column validation edge cases and bug fixes."""
 
-    def test_validation_filters_missing_columns_with_warning(self, spark_session):
+    def test_validation_filters_missing_columns_with_warning(self, spark):
         """Test that validation filters out rules for missing columns with a warning."""
         from pipeline_builder.compat import F
 
         # Create DataFrame with some columns
         data = [("user1", 100, "active"), ("user2", 200, "inactive")]
-        df = spark_session.createDataFrame(data, ["user_id", "value", "status"])
+        df = spark.createDataFrame(data, ["user_id", "value", "status"])
 
         # Rules reference columns that exist and one that doesn't
         rules = {
@@ -44,13 +44,13 @@ class TestColumnValidationEdgeCases:
         assert "value" in valid_df.columns
         assert "missing_col" not in valid_df.columns
 
-    def test_validation_fails_when_all_columns_missing(self, spark_session):
+    def test_validation_fails_when_all_columns_missing(self, spark):
         """Test that validation fails when all rule columns are missing."""
         from pipeline_builder.compat import F
 
         # Create DataFrame
         data = [("user1", 100), ("user2", 200)]
-        df = spark_session.createDataFrame(data, ["user_id", "value"])
+        df = spark.createDataFrame(data, ["user_id", "value"])
 
         # Rules only reference missing columns
         rules = {
@@ -67,7 +67,7 @@ class TestColumnValidationEdgeCases:
         assert "missing_col1" in error_msg
         assert "missing_col2" in error_msg
 
-    def test_validation_handles_dropped_incremental_column(self, spark_session):
+    def test_validation_handles_dropped_incremental_column(self, spark):
         """Test validation when incremental column is dropped by transform."""
         from pipeline_builder.compat import F
 
@@ -76,7 +76,7 @@ class TestColumnValidationEdgeCases:
             ("user1", 100, "2024-01-01"),
             ("user2", 200, "2024-01-02"),
         ]
-        df = spark_session.createDataFrame(data, ["user_id", "value", "timestamp"])
+        df = spark.createDataFrame(data, ["user_id", "value", "timestamp"])
 
         # Simulate transform that drops timestamp but rules still reference it
         # In real scenario, transform would drop it, but for test we'll use a subset
@@ -102,26 +102,14 @@ class TestColumnValidationEdgeCases:
 class TestSchemaValidationEdgeCases:
     """Test schema validation edge cases."""
 
-    def test_schema_validation_handles_nullable_changes(self, spark_session):
+    def test_schema_validation_handles_nullable_changes(self, spark, spark_imports):
         """Test that schema validation detects nullable changes."""
         from pipeline_builder.execution import _schemas_match
-        import os
-
-        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-        if spark_mode == "real":
-            from pyspark.sql.types import (
-                StructType,
-                StructField,
-                StringType,
-                IntegerType,
-            )
-        else:
-            from sparkless.spark_types import (
-                StructType,
-                StructField,
-                StringType,
-                IntegerType,
-            )  # type: ignore[import]
+        
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        StringType = spark_imports.StringType
+        IntegerType = spark_imports.IntegerType
 
         # Existing schema with nullable column
         existing_schema = StructType(
@@ -150,26 +138,14 @@ class TestSchemaValidationEdgeCases:
         # Type matches, so should not fail validation (nullable changes are informational)
         assert matches is True  # Informational differences don't fail validation
 
-    def test_schema_validation_handles_column_reordering(self, spark_session):
+    def test_schema_validation_handles_column_reordering(self, spark, spark_imports):
         """Test that schema validation handles column reordering."""
         from pipeline_builder.execution import _schemas_match
-        import os
-
-        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-        if spark_mode == "real":
-            from pyspark.sql.types import (
-                StructType,
-                StructField,
-                StringType,
-                IntegerType,
-            )
-        else:
-            from sparkless.spark_types import (
-                StructType,
-                StructField,
-                StringType,
-                IntegerType,
-            )  # type: ignore[import]
+        
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        StringType = spark_imports.StringType
+        IntegerType = spark_imports.IntegerType
 
         # Existing schema
         existing_schema = StructType(
@@ -197,13 +173,13 @@ class TestSchemaValidationEdgeCases:
 class TestIncrementalColumnFiltering:
     """Test incremental column filtering improvements."""
 
-    def test_incremental_filtering_validates_column_type(self, spark_session):
+    def test_incremental_filtering_validates_column_type(self, spark):
         """Test that incremental filtering validates column type."""
 
         # This test verifies that the type validation warning is logged
         # The actual filtering logic is tested in integration tests
         data = [("user1", True), ("user2", False)]
-        df = spark_session.createDataFrame(data, ["user_id", "is_active"])
+        df = spark.createDataFrame(data, ["user_id", "is_active"])
 
         # Boolean column is not ideal for incremental filtering
         # The code should log a warning (tested via integration tests)

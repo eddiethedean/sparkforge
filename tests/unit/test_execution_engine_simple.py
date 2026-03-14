@@ -2,15 +2,7 @@
 Simple unit tests for execution engine using Mock Spark.
 """
 
-import os
-
 import pytest
-
-# Import AnalysisException based on SPARK_MODE
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql.utils import AnalysisException
-else:
-    from sparkless.errors import AnalysisException  # type: ignore[import]
 
 from pipeline_builder.execution import (
     ExecutionEngine,
@@ -36,19 +28,19 @@ class TestExecutionEngineSimple:
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
 
-    def test_execution_engine_initialization(self, spark_session):
+    def test_execution_engine_initialization(self, spark):
         """Test execution engine initialization."""
         config = self._create_test_config()
-        engine = ExecutionEngine(spark=spark_session, config=config)
-        assert engine.spark == spark_session
+        engine = ExecutionEngine(spark=spark, config=config)
+        assert engine.spark == spark
 
-    def test_execution_engine_initialization_with_mode(self, spark_session):
+    def test_execution_engine_initialization_with_mode(self, spark):
         """Test execution engine initialization with execution mode."""
         config = self._create_test_config()
-        engine = ExecutionEngine(spark=spark_session, config=config)
-        assert engine.spark == spark_session
+        engine = ExecutionEngine(spark=spark, config=config)
+        assert engine.spark == spark
 
-    def test_execution_engine_invalid_spark_session(self):
+    def test_execution_engine_invalid_spark(self):
         """Test execution engine with invalid spark session."""
         config = self._create_test_config()
         # ExecutionEngine constructor doesn't validate spark parameter, so this won't raise
@@ -61,23 +53,23 @@ class TestExecutionEngineSimple:
             # If it does raise, that's also valid
             pass
 
-    def test_execution_engine_get_spark(self, spark_session):
+    def test_execution_engine_get_spark(self, spark):
         """Test getting spark session from execution engine."""
         config = self._create_test_config()
-        engine = ExecutionEngine(spark=spark_session, config=config)
-        assert engine.spark == spark_session
+        engine = ExecutionEngine(spark=spark, config=config)
+        assert engine.spark == spark
 
-    def test_execution_engine_get_mode(self, spark_session):
+    def test_execution_engine_get_mode(self, spark):
         """Test getting execution mode from execution engine."""
         config = self._create_test_config()
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark, config=config)
         # ExecutionEngine doesn't have a mode property, so we'll test the config instead
         assert engine.config == config
 
-    def test_execution_engine_default_mode(self, spark_session):
+    def test_execution_engine_default_mode(self, spark):
         """Test default execution mode."""
         config = self._create_test_config()
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark, config=config)
         assert engine.config == config
 
     def test_execution_engine_step_status_enum(self):
@@ -102,7 +94,7 @@ class TestExecutionEngineSimple:
         assert hasattr(ExecutionMode, "FULL_REFRESH")
         assert hasattr(ExecutionMode, "VALIDATION_ONLY")
 
-    def test_step_execution_result_creation(self, spark_session):
+    def test_step_execution_result_creation(self, spark):
         """Test creating StepExecutionResult."""
         from datetime import datetime
 
@@ -123,7 +115,7 @@ class TestExecutionEngineSimple:
         assert result.duration is not None  # Duration is calculated automatically
         assert result.rows_processed == 100
 
-    def test_execution_result_creation(self, spark_session):
+    def test_execution_result_creation(self, spark):
         """Test creating ExecutionResult."""
         from datetime import datetime
 
@@ -152,27 +144,15 @@ class TestExecutionEngineSimple:
         assert len(result.steps) == 1
         assert result.steps[0] == step_result
 
-    def test_execution_engine_with_empty_data(self, spark_session):
+    def test_execution_engine_with_empty_data(self, spark, spark_imports):
         """Test execution engine with empty data."""
         config = self._create_test_config()
-        ExecutionEngine(spark=spark_session, config=config)
+        ExecutionEngine(spark=spark, config=config)
 
-        # Create empty DataFrame - use types that match SPARK_MODE
-        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-        if spark_mode == "real":
-            from pyspark.sql.types import (
-                IntegerType,
-                StringType,
-                StructField,
-                StructType,
-            )
-        else:
-            from sparkless.spark_types import (
-                IntegerType,
-                StructField,
-                StructType,
-                StringType,
-            )  # type: ignore[import]
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
+        StringType = spark_imports.StringType
 
         schema = StructType(
             [
@@ -181,15 +161,15 @@ class TestExecutionEngineSimple:
             ]
         )
 
-        empty_df = spark_session.createDataFrame([], schema)
+        empty_df = spark.createDataFrame([], schema)
 
         # This should not raise an exception
         assert empty_df.count() == 0
 
-    def test_execution_engine_with_sample_data(self, spark_session, sample_dataframe):
+    def test_execution_engine_with_sample_data(self, spark, sample_dataframe):
         """Test execution engine with sample data."""
         config = self._create_test_config()
-        ExecutionEngine(spark=spark_session, config=config)
+        ExecutionEngine(spark=spark, config=config)
 
         # Test with sample DataFrame
         assert sample_dataframe.count() > 0
@@ -197,19 +177,21 @@ class TestExecutionEngineSimple:
             len(sample_dataframe.columns) > 0
         )  # Fixed: columns is a property, not a method
 
-    def test_execution_engine_error_handling(self, spark_session):
+    def test_execution_engine_error_handling(self, spark, spark_imports):
         """Test execution engine error handling."""
+        from pipeline_builder.compat import AnalysisException
+        
         config = self._create_test_config()
-        ExecutionEngine(spark=spark_session, config=config)
+        ExecutionEngine(spark=spark, config=config)
 
         # Test with invalid table name
         with pytest.raises(AnalysisException):
-            spark_session.table("nonexistent.table")
+            spark.table("nonexistent.table")
 
-    def test_execution_engine_metrics_collection(self, spark_session, sample_dataframe):
+    def test_execution_engine_metrics_collection(self, spark, sample_dataframe):
         """Test execution engine metrics collection."""
         config = self._create_test_config()
-        ExecutionEngine(spark=spark_session, config=config)
+        ExecutionEngine(spark=spark, config=config)
 
         # Test basic metrics
         start_time = 0.0

@@ -11,7 +11,7 @@ from pipeline_builder.writer.models import LogLevel, WriteMode, WriterConfig
 
 
 @pytest.fixture(scope="function", autouse=True)
-def reset_test_environment(spark_session):
+def reset_test_environment(spark):
     """Reset test environment before each test in this file."""
     import gc
 
@@ -50,19 +50,19 @@ class TestWriterCoreSimple:
             log_level=LogLevel.INFO,
         )
 
-    def test_log_writer_initialization(self, spark_session):
+    def test_log_writer_initialization(self, spark):
         """Test log writer initialization."""
-        writer = LogWriter(spark=spark_session, schema="test_schema", table_name="test_logs")
-        assert writer.spark == spark_session
+        writer = LogWriter(spark=spark, schema="test_schema", table_name="test_logs")
+        assert writer.spark == spark
 
-    def test_log_writer_initialization_with_schema_and_table(self, spark_session):
+    def test_log_writer_initialization_with_schema_and_table(self, spark):
         """Test log writer initialization with schema and table_name."""
-        writer = LogWriter(spark=spark_session, schema="test_schema", table_name="test_logs")
-        assert writer.spark == spark_session
+        writer = LogWriter(spark=spark, schema="test_schema", table_name="test_logs")
+        assert writer.spark == spark
         assert writer.config.table_schema == "test_schema"
         assert writer.config.table_name == "test_logs"
 
-    def test_log_writer_invalid_spark_session(self):
+    def test_log_writer_invalid_spark(self):
         """Test log writer with invalid spark session."""
         # LogWriter constructor doesn't validate spark parameter, so this won't raise
         # Let's test that it accepts None but might fail later
@@ -74,76 +74,45 @@ class TestWriterCoreSimple:
             # If it does raise, that's also valid
             pass
 
-    def test_log_writer_get_spark(self, spark_session):
+    def test_log_writer_get_spark(self, spark):
         """Test getting spark session from log writer."""
-        writer = LogWriter(spark=spark_session, schema="test_schema", table_name="test_logs")
-        assert writer.spark == spark_session
+        writer = LogWriter(spark=spark, schema="test_schema", table_name="test_logs")
+        assert writer.spark == spark
 
-    def test_log_writer_get_config(self, spark_session):
+    def test_log_writer_get_config(self, spark):
         """Test getting config from log writer."""
-        writer = LogWriter(spark=spark_session, schema="test_schema", table_name="test_logs")
+        writer = LogWriter(spark=spark, schema="test_schema", table_name="test_logs")
         assert writer.config.table_schema == "test_schema"
         assert writer.config.table_name == "test_logs"
 
-    def test_table_exists_function(self, spark_session):
+    def test_table_exists_function(self, spark, spark_imports):
         """Test table_exists function."""
-        import os
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
+        StringType = spark_imports.StringType
 
-        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+        spark.sql("CREATE DATABASE IF NOT EXISTS test_schema")
+        spark.sql("DROP TABLE IF EXISTS test_schema.test_table")
 
-        if spark_mode == "real":
-            # Use PySpark SQL commands for real Spark
-            from pyspark.sql.types import (
-                IntegerType,
-                StringType,
-                StructField,
-                StructType,
-            )
-
-            spark_session.sql("CREATE DATABASE IF NOT EXISTS test_schema")
-            spark_session.sql("DROP TABLE IF EXISTS test_schema.test_table")
-            schema = StructType(
-                [
-                    StructField("id", IntegerType()),
-                    StructField("name", StringType()),
-                ]
-            )
-            # Create table using SQL
-            test_data = [{"id": 1, "name": "test"}]
-            df = spark_session.createDataFrame(test_data, schema)
-            df.write.saveAsTable("test_schema.test_table")
-        else:
-            # Use standard Spark SQL operations (compatible with both PySpark and sparkless)
-            from sparkless.spark_types import (  # type: ignore[import]
-                IntegerType,
-                StructField,
-                StructType,
-                StringType,
-            )
-
-            # Create schema using standard SQL
-            spark_session.sql("CREATE DATABASE IF NOT EXISTS test_schema")
-            spark_session.sql("DROP TABLE IF EXISTS test_schema.test_table")
-
-            # Create table using standard Spark operations
-            schema = StructType(
-                [
-                    StructField("id", IntegerType()),
-                    StructField("name", StringType()),
-                ]
-            )
-            test_data = [{"id": 1, "name": "test"}]
-            df = spark_session.createDataFrame(test_data, schema)
-            df.write.saveAsTable("test_schema.test_table")
+        schema = StructType(
+            [
+                StructField("id", IntegerType()),
+                StructField("name", StringType()),
+            ]
+        )
+        test_data = [{"id": 1, "name": "test"}]
+        df = spark.createDataFrame(test_data, schema)
+        df.write.saveAsTable("test_schema.test_table")
 
         # Test table exists
-        assert table_exists(spark_session, "test_schema.test_table")
+        assert table_exists(spark, "test_schema.test_table")
 
         # Test table doesn't exist
-        assert not table_exists(spark_session, "test_schema.nonexistent_table")
-        assert not table_exists(spark_session, "nonexistent_schema.test_table")
+        assert not table_exists(spark, "test_schema.nonexistent_table")
+        assert not table_exists(spark, "nonexistent_schema.test_table")
 
-    def test_table_exists_function_invalid_parameters(self, spark_session):
+    def test_table_exists_function_invalid_parameters(self, spark):
         """Test table_exists function with invalid parameters."""
         # The table_exists function doesn't validate parameters, so these won't raise
         # Let's test that it handles None gracefully
@@ -156,13 +125,13 @@ class TestWriterCoreSimple:
             pass
 
         try:
-            result = table_exists(spark_session, None)
+            result = table_exists(spark, None)
             assert result is False  # None fqn should return False
         except Exception:
             pass
 
         try:
-            result = table_exists(spark_session, "")
+            result = table_exists(spark, "")
             assert result is False  # Empty fqn should return False
         except Exception:
             pass
@@ -204,9 +173,9 @@ class TestWriterCoreSimple:
         assert config.write_mode == WriteMode.APPEND  # Default value
         assert config.log_level == LogLevel.INFO  # Default value
 
-    def test_log_writer_with_sample_data(self, spark_session, sample_dataframe):
+    def test_log_writer_with_sample_data(self, spark, sample_dataframe):
         """Test log writer with sample data."""
-        LogWriter(spark=spark_session, schema="test_schema", table_name="test_logs")
+        LogWriter(spark=spark, schema="test_schema", table_name="test_logs")
 
         # Test with sample DataFrame
         assert sample_dataframe.count() > 0
@@ -214,17 +183,17 @@ class TestWriterCoreSimple:
             len(sample_dataframe.columns) > 0
         )  # Fixed: columns is a property, not a method
 
-    def test_log_writer_error_handling(self, spark_session):
+    def test_log_writer_error_handling(self, spark):
         """Test log writer error handling."""
-        LogWriter(spark=spark_session, schema="test_schema", table_name="test_logs")
+        LogWriter(spark=spark, schema="test_schema", table_name="test_logs")
 
         # Test with invalid table name
         with pytest.raises(AnalysisException):
-            spark_session.table("nonexistent.table")
+            spark.table("nonexistent.table")
 
-    def test_log_writer_metrics_collection(self, spark_session, sample_dataframe):
+    def test_log_writer_metrics_collection(self, spark, sample_dataframe):
         """Test log writer metrics collection."""
-        LogWriter(spark=spark_session, schema="test_schema", table_name="test_logs")
+        LogWriter(spark=spark, schema="test_schema", table_name="test_logs")
 
         # Test basic metrics
         start_time = 0.0

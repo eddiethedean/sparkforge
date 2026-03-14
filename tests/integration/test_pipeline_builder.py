@@ -6,10 +6,10 @@ This module tests all pipeline building and execution functionality, including
 the fluent API, validation, execution modes, error handling, and reporting.
 """
 
-import os
 import unittest
 from datetime import datetime
 
+from pipeline_builder.compat import F, SparkSession
 from pipeline_builder.errors import StepError
 from pipeline_builder.logging import PipelineLogger
 from pipeline_builder.pipeline import (
@@ -20,12 +20,6 @@ from pipeline_builder.pipeline import (
     PipelineRunner,
     PipelineStatus,
 )
-
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as MockF  # type: ignore[import]
-else:
-    MockF = None
 
 
 class TestPipelineMode(unittest.TestCase):
@@ -143,36 +137,11 @@ class TestPipelineBuilder(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        # sparkless requires active SparkSession for function calls (like PySpark)
-        if MockF is not None:
-            from sparkless import SparkSession  # type: ignore[import]
-
-            self.spark = SparkSession("TestApp")
-        else:
-            # For PySpark, create a real SparkSession
-            from pyspark.sql import SparkSession
-            import tempfile
-
-            warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
-            self.spark = (
-                SparkSession.builder.appName("TestApp")
-                .master("local[1]")
-                .config("spark.sql.warehouse.dir", warehouse_dir)
-                .config("spark.driver.host", "127.0.0.1")
-                .config("spark.driver.bindAddress", "127.0.0.1")
-                .getOrCreate()
-            )
+        self.spark = SparkSession.builder.appName("TestApp").getOrCreate()
         self.schema = "test_schema"
-
-        # Create pipeline builder with mock functions if in mock mode
-        if MockF is not None:
-            self.builder = PipelineBuilder(
-                spark=self.spark, schema=self.schema, verbose=False, functions=MockF
-            )
-        else:
-            self.builder = PipelineBuilder(
-                spark=self.spark, schema=self.schema, verbose=False
-            )
+        self.builder = PipelineBuilder(
+            spark=self.spark, schema=self.schema, verbose=False, functions=F
+        )
 
     def test_builder_creation(self):
         """Test pipeline builder creation."""
@@ -571,37 +540,14 @@ class TestPipelineBuilderIntegration(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        # sparkless requires active SparkSession for function calls (like PySpark)
-        if MockF is not None:
-            from sparkless import SparkSession  # type: ignore[import]
-
-            self.spark = SparkSession("TestApp")
-        else:
-            # For PySpark, create a real SparkSession
-            from pyspark.sql import SparkSession
-            import tempfile
-
-            warehouse_dir = tempfile.mkdtemp(prefix="spark-warehouse-")
-            self.spark = (
-                SparkSession.builder.appName("TestApp")
-                .master("local[1]")
-                .config("spark.sql.warehouse.dir", warehouse_dir)
-                .config("spark.driver.host", "127.0.0.1")
-                .config("spark.driver.bindAddress", "127.0.0.1")
-                .getOrCreate()
-            )
+        self.spark = SparkSession.builder.appName("TestApp").getOrCreate()
         self.schema = "test_schema"
 
     def test_complex_pipeline_construction(self):
         """Test construction of a complex pipeline."""
-        if MockF is not None:
-            builder = PipelineBuilder(
-                spark=self.spark, schema=self.schema, verbose=False, functions=MockF
-            )
-        else:
-            builder = PipelineBuilder(
-                spark=self.spark, schema=self.schema, verbose=False
-            )
+        builder = PipelineBuilder(
+            spark=self.spark, schema=self.schema, verbose=False, functions=F
+        )
 
         # Add multiple bronze steps
         builder.with_bronze_rules(

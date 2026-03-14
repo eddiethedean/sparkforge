@@ -5,11 +5,6 @@ This module provides common fixtures, data generators, and utility functions
 for testing realistic bronze-silver-gold pipeline scenarios.
 """
 
-# Set environment to use mock-spark BEFORE any pipeline_builder imports
-import os
-
-os.environ["SPARKFORGE_ENGINE"] = "mock"
-
 from datetime import datetime, timedelta
 from typing import Any, List
 
@@ -24,7 +19,6 @@ StringType = types.StringType
 StructField = types.StructField
 StructType = types.StructType
 
-# Import functions after setting environment
 from pipeline_builder.models import PipelineConfig, ValidationThresholds
 from pipeline_builder.writer import WriteMode, WriterConfig
 from pipeline_builder.writer.models import LogLevel
@@ -32,163 +26,11 @@ from pipeline_builder.writer.models import LogLevel
 from .storage_wrapper import StorageWrapper
 
 
-def _create_spark_with_storage(spark_session_from_main=None):
-    """
-    Helper function to create Spark session with storage wrapper.
-
-    Args:
-        spark_session_from_main: Optional SparkSession from main conftest fixture.
-                                 If provided, use it instead of creating new one.
-    """
-    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-
-    if spark_mode == "real":
-        # If we have a session from main conftest, use it (avoids creating duplicate sessions)
-        if spark_session_from_main is not None:
-            print("🔧 builder_tests/conftest: Using Spark session from main conftest")
-            spark = spark_session_from_main
-        else:
-            # Create our own real session (fallback if main conftest fixture not available)
-            import os as os_module
-
-            try:
-                from pyspark.sql import SparkSession as PySparkSession
-                import tempfile
-
-                # Create temporary warehouse directory
-                warehouse_dir = tempfile.mkdtemp(
-                    prefix="spark-warehouse-builder-tests-"
-                )
-
-                # Try to configure with Delta Lake
-                try:
-                    from delta import configure_spark_with_delta_pip
-
-                    # CRITICAL: Stop any existing session to prevent getOrCreate() from reusing it
-                    try:
-                        existing_spark = PySparkSession.getActiveSession()
-                        if existing_spark:
-                            print(
-                                "🔧 builder_tests/conftest: Stopping existing Spark session before creating new one"
-                            )
-                            existing_spark.stop()
-                            if hasattr(PySparkSession, "_instantiatedContext"):
-                                PySparkSession._instantiatedContext = None  # type: ignore[attr-defined]
-                    except Exception:
-                        pass
-
-                    # CRITICAL: Set Delta configs in builder BEFORE calling configure_spark_with_delta_pip
-                    # Get worker ID for concurrent testing isolation (pytest-xdist)
-                    worker_id = os_module.environ.get("PYTEST_XDIST_WORKER", "gw0")
-                    builder = (
-                        PySparkSession.builder.appName(f"pytest-spark-{worker_id}")
-                        .master("local[1]")
-                        .config("spark.sql.warehouse.dir", warehouse_dir)
-                        .config("spark.ui.enabled", "false")
-                        .config("spark.sql.shuffle.partitions", "1")
-                        .config("spark.default.parallelism", "1")
-                        .config("spark.driver.memory", "1g")
-                        .config("spark.driver.bindAddress", "127.0.0.1")
-                        .config("spark.driver.host", "127.0.0.1")
-                        .config(
-                            "spark.sql.extensions",
-                            "io.delta.sql.DeltaSparkSessionExtension",
-                        )
-                        .config(
-                            "spark.sql.catalog.spark_catalog",
-                            "org.apache.spark.sql.delta.catalog.DeltaCatalog",
-                        )
-                    )
-                    spark = configure_spark_with_delta_pip(builder).getOrCreate()
-
-                    # Verify Delta configs are set
-                    actual_ext = spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
-                    actual_cat = spark.conf.get("spark.sql.catalog.spark_catalog", "")  # type: ignore[attr-defined]
-                    if (
-                        "DeltaSparkSessionExtension" not in actual_ext
-                        or "DeltaCatalog" not in actual_cat
-                    ):
-                        print(
-                            f"⚠️ builder_tests/conftest: Delta configs not set! Ext: '{actual_ext}', Cat: '{actual_cat}'"
-                        )
-                        print(
-                            "   Stopping and recreating with .create() to force fresh session..."
-                        )
-                        spark.stop()
-                        try:
-                            if hasattr(PySparkSession, "_instantiatedContext"):
-                                PySparkSession._instantiatedContext = None  # type: ignore[attr-defined]
-                        except Exception:
-                            pass
-                        # Force new session with .create()
-                        spark = configure_spark_with_delta_pip(builder).create()
-                        # Verify again
-                        actual_ext = spark.conf.get("spark.sql.extensions", "")  # type: ignore[attr-defined]
-                        actual_cat = spark.conf.get(
-                            "spark.sql.catalog.spark_catalog", ""
-                        )  # type: ignore[attr-defined]
-                        if (
-                            "DeltaSparkSessionExtension" not in actual_ext
-                            or "DeltaCatalog" not in actual_cat
-                        ):
-                            raise RuntimeError(
-                                f"Delta Lake not properly configured in builder_tests/conftest. "
-                                f"Extensions: '{actual_ext}', Catalog: '{actual_cat}'"
-                            )
-                        print(
-                            "✅ builder_tests/conftest: Delta configs verified after force create"
-                        )
-                    else:
-                        print(
-                            f"✅ builder_tests/conftest: Delta configs verified - Ext: '{actual_ext}', Cat: '{actual_cat}'"
-                        )
-                except Exception:
-                    # Fall back to basic Spark
-                    # Get worker ID for concurrent testing isolation (pytest-xdist)
-                    worker_id = os_module.environ.get("PYTEST_XDIST_WORKER", "gw0")
-                    spark = (
-                        PySparkSession.builder.appName(f"pytest-spark-{worker_id}")
-                        .master("local[1]")
-                        .config("spark.sql.warehouse.dir", warehouse_dir)
-                        .config("spark.ui.enabled", "false")
-                        .config("spark.sql.shuffle.partitions", "1")
-                        .config("spark.default.parallelism", "1")
-                        .config("spark.driver.memory", "1g")
-                        .config("spark.driver.bindAddress", "127.0.0.1")
-                        .config("spark.driver.host", "127.0.0.1")
-                        .getOrCreate()
-                    )
-
-                # Store warehouse dir for cleanup
-                spark._warehouse_dir = warehouse_dir  # type: ignore[attr-defined]
-            except Exception as e:
-                # If PySpark is not available, fall back to sparkless
-                print(
-                    f"Warning: Could not create real Spark session: {e}, falling back to sparkless"
-                )
-                from sparkless import SparkSession  # type: ignore[import]
-
-                spark = SparkSession()
-    else:
-        # Use sparkless as the mock engine
-        from sparkless import SparkSession  # type: ignore[import]
-
-        spark = SparkSession()
-
-    # Return Spark session without attaching non-standard attributes like 'storage'
-    return spark
-
-
+# Backward compatibility alias - use `spark` fixture from main conftest instead
 @pytest.fixture
-def mock_spark_session(spark_session):
-    """
-    Mock Spark session for tests.
-
-    Works with both mock-spark (default) and real PySpark (when SPARK_MODE=real).
-
-    Uses the spark_session fixture from main conftest.py to ensure Delta configs are set.
-    """
-    return spark_session
+def mock_spark_session(spark):
+    """Backward compatibility alias: use `spark` fixture instead."""
+    return spark
 
 
 @pytest.fixture

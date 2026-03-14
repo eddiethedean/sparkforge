@@ -24,10 +24,10 @@ except ImportError:
 
 
 @pytest.mark.skipif(
-    os.environ.get("PYTEST_XDIST_WORKER") and os.environ.get("SPARK_MODE", "").lower() == "real",
-    reason="Skip under xdist+real to avoid shared-session timing; run without -n",
+    os.environ.get("PYTEST_XDIST_WORKER") is not None,
+    reason="Skip under xdist to avoid shared-session timing; run without -n",
 )
-def test_delta_minimal_write(mock_spark_session):
+def test_delta_minimal_write(spark, spark_mode):
     """
     Minimal test: Create session and write Delta table.
 
@@ -36,19 +36,19 @@ def test_delta_minimal_write(mock_spark_session):
 
     print("🔍 test_delta_minimal_write: Test starting")
     print(f"🔍 test_delta_minimal_write: PID={os.getpid()}")
-    print(f"🔍 test_delta_minimal_write: Session ID (Python)={id(mock_spark_session)}")
+    print(f"🔍 test_delta_minimal_write: Session ID (Python)={id(spark)}")
 
     # Verify session configs at test start
-    _log_session_configs(mock_spark_session, "test_delta_minimal_write (test start)")
+    _log_session_configs(spark, "test_delta_minimal_write (test start)")
 
     # Create simple DataFrame
     print("🔍 test_delta_minimal_write: Creating test DataFrame...")
     test_data = [(1, "test1"), (2, "test2"), (3, "test3")]
-    df = mock_spark_session.createDataFrame(test_data, ["id", "name"])
+    df = spark.createDataFrame(test_data, ["id", "name"])
 
     # Verify configs before Delta write
     print("🔍 test_delta_minimal_write: Verifying configs before Delta write...")
-    _log_session_configs(mock_spark_session, "test_delta_minimal_write (before write)")
+    _log_session_configs(spark, "test_delta_minimal_write (before write)")
 
     # Write to Delta table
     table_name = "test_schema.delta_minimal_test"
@@ -56,24 +56,24 @@ def test_delta_minimal_write(mock_spark_session):
 
     try:
         # Create schema if needed
-        mock_spark_session.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
+        spark.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
 
         # Drop table first to avoid truncate issues with Delta tables
         # Delta tables don't support truncate in batch mode, so we drop and recreate
-        mock_spark_session.sql(f"DROP TABLE IF EXISTS {table_name}")
+        spark.sql(f"DROP TABLE IF EXISTS {table_name}")
 
         # Write DataFrame to Delta table using append mode (table is dropped, so this creates it)
         df.write.format("delta").mode("append").saveAsTable(table_name)
         print("✅ test_delta_minimal_write: Delta write succeeded")
 
         # Verify we can read it back
-        result_df = mock_spark_session.table(table_name)
+        result_df = spark.table(table_name)
         count = result_df.count()
         print(f"✅ test_delta_minimal_write: Read back {count} rows")
         assert count == 3, f"Expected 3 rows, got {count}"
 
         # Cleanup
-        mock_spark_session.sql(f"DROP TABLE IF EXISTS {table_name}")
+        spark.sql(f"DROP TABLE IF EXISTS {table_name}")
         print("✅ test_delta_minimal_write: Test completed successfully")
 
     except Exception as e:
@@ -83,7 +83,7 @@ def test_delta_minimal_write(mock_spark_session):
         print(f"❌ test_delta_minimal_write: Error type: {type(e).__name__}")
         print(f"❌ test_delta_minimal_write: Error message: {e}")
         _log_session_configs(
-            mock_spark_session, "test_delta_minimal_write (ERROR CONTEXT)"
+            spark, "test_delta_minimal_write (ERROR CONTEXT)"
         )
         print("❌ test_delta_minimal_write: Stack trace:")
         traceback.print_exc()
@@ -91,10 +91,10 @@ def test_delta_minimal_write(mock_spark_session):
 
 
 @pytest.mark.skipif(
-    os.environ.get("PYTEST_XDIST_WORKER") and os.environ.get("SPARK_MODE", "").lower() == "real",
-    reason="Skip under xdist+real to avoid shared-session timing; run without -n",
+    os.environ.get("PYTEST_XDIST_WORKER") is not None,
+    reason="Skip under xdist to avoid shared-session timing; run without -n",
 )
-def test_delta_minimal_direct_session(mock_spark_session):
+def test_delta_minimal_direct_session(spark, spark_mode):
     """
     Test creating session directly and writing Delta table.
 
@@ -104,9 +104,6 @@ def test_delta_minimal_direct_session(mock_spark_session):
 
     print("🔍 test_delta_minimal_direct_session: Test starting")
     print(f"🔍 test_delta_minimal_direct_session: PID={os.getpid()}")
-
-    # Use the provided mock_spark_session fixture
-    spark = mock_spark_session
 
     try:
         print(f"🔍 test_delta_minimal_direct_session: Session ID (Python)={id(spark)}")

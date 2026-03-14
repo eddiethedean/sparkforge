@@ -7,12 +7,12 @@ from pipeline_builder.compat import F
 from pipeline_builder.pipeline import PipelineBuilder
 
 
-def test_simple_pipeline_creation(mock_spark_session):
+def test_simple_pipeline_creation(spark):
     """Test basic pipeline creation with mock-spark."""
 
     # Create pipeline builder
     builder = PipelineBuilder(
-        spark=mock_spark_session, schema="bronze", verbose=True, functions=F
+        spark=spark, schema="bronze", verbose=True, functions=F
     )
 
     # Add bronze rules with string-based validation

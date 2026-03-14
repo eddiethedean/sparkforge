@@ -25,26 +25,26 @@ from pipeline_builder.writer.models import LogLevel, WriteMode, WriterConfig
 class TestWorkingExamples:
     """Working tests that use actual SparkForge APIs."""
 
-    def test_pipeline_builder_basic(self, mock_spark_session):
+    def test_pipeline_builder_basic(self, spark):
         """Test basic pipeline builder functionality."""
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema")
-        assert builder.spark == mock_spark_session
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
+        assert builder.spark == spark
         assert builder.schema == "test_schema"
 
-    def test_pipeline_builder_with_quality_rates(self, mock_spark_session):
+    def test_pipeline_builder_with_quality_rates(self, spark):
         """Test pipeline builder with custom quality rates."""
         builder = PipelineBuilder(
-            spark=mock_spark_session,
+            spark=spark,
             schema="test_schema",
             min_bronze_rate=90.0,
             min_silver_rate=95.0,
             min_gold_rate=99.0,
         )
         # Check that the builder was created successfully
-        assert builder.spark == mock_spark_session
+        assert builder.spark == spark
         assert builder.schema == "test_schema"
 
-    def test_execution_engine_with_config(self, mock_spark_session):
+    def test_execution_engine_with_config(self, spark):
         """Test execution engine with proper config."""
         # Create proper config
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
@@ -54,11 +54,11 @@ class TestWorkingExamples:
             verbose=True,
         )
 
-        engine = ExecutionEngine(spark=mock_spark_session, config=config)
-        assert engine.spark == mock_spark_session
+        engine = ExecutionEngine(spark=spark, config=config)
+        assert engine.spark == spark
         assert engine.config == config
 
-    def test_unified_validator_basic(self, mock_spark_session):
+    def test_unified_validator_basic(self, spark):
         """Test unified validator basic functionality."""
         validator = UnifiedValidator()
         assert validator.logger is not None
@@ -93,12 +93,12 @@ class TestWorkingExamples:
         assert "Error 1" in result.errors
         assert "Warning 1" in result.warnings
 
-    def test_log_writer_with_config(self, mock_spark_session):
+    def test_log_writer_with_config(self, spark):
         """Test LogWriter with proper config."""
         writer = LogWriter(
-            spark=mock_spark_session, schema="test_schema", table_name="test_logs"
+            spark=spark, schema="test_schema", table_name="test_logs"
         )
-        assert writer.spark == mock_spark_session
+        assert writer.spark == spark
         assert writer.config.table_schema == "test_schema"
         assert writer.config.table_name == "test_logs"
 
@@ -238,7 +238,7 @@ class TestWorkingExamples:
         # This test is no longer relevant as ParallelConfig has been removed
         pass
 
-    def test_mock_spark_integration(self, mock_spark_session, sample_dataframe):
+    def test_mock_spark_integration(self, spark, sample_dataframe):
         """Test integration with mock Spark session."""
 
         # Test basic DataFrame operations
@@ -246,30 +246,29 @@ class TestWorkingExamples:
         assert len(sample_dataframe.columns) > 0
 
         # Test schema operations using standard Spark SQL
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS test_schema")
-        mock_spark_session.sql("DROP TABLE IF EXISTS test_schema.test_table")
+        spark.sql("CREATE DATABASE IF NOT EXISTS test_schema")
+        spark.sql("DROP TABLE IF EXISTS test_schema.test_table")
 
         # Test table operations using standard Spark operations
         sample_dataframe.write.saveAsTable("test_schema.test_table")
 
         # Verify table exists using standard Spark operations
-        table_df = mock_spark_session.table("test_schema.test_table")
+        table_df = spark.table("test_schema.test_table")
         assert table_df is not None
         assert table_df.count() > 0
 
-    @pytest.mark.skipif(
-        os.environ.get("SPARK_MODE", "mock").lower() == "real",
-        reason="Mock-spark-specific test (uses mock-spark exceptions)",
-    )
-    def test_error_handling(self, mock_spark_session):
+    def test_error_handling(self, spark, spark_mode):
         """Test error handling with mock Spark-like engine."""
+        from sparkless.testing import Mode
+        if spark_mode == Mode.PYSPARK:
+            pytest.skip("Mock-spark-specific test (uses mock-spark exceptions)")
         from sparkless.errors import AnalysisException  # type: ignore[import]
         from sparkless.sql.utils import IllegalArgumentException  # type: ignore[import]
 
         # Test table not found error
         with pytest.raises(AnalysisException):
-            mock_spark_session.table("nonexistent.table")
+            spark.table("nonexistent.table")
 
         # Test invalid parameters - sparkless raises TypeError, PySpark may raise IllegalArgumentException
         with pytest.raises((TypeError, IllegalArgumentException)):
-            mock_spark_session.createDataFrame("invalid_data", "invalid_schema")
+            spark.createDataFrame("invalid_data", "invalid_schema")

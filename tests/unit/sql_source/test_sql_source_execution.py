@@ -1,28 +1,18 @@
 """Execution tests for SQL source steps: runner bronze resolution, silver/gold executors."""
 
-import os
 from unittest.mock import patch
 
 import pytest
 
 from pipeline_builder_base.models import ExecutionMode
-
-import os
-
 from pipeline_builder.compat import F
-
-spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-pytestmark = pytest.mark.skipif(
-    spark_mode == "real",
-    reason="SQL source execution tests use mock Spark",
-)
 
 
 class TestRunnerBronzeSqlSourceResolution:
     """Runner resolves SQL-source bronze steps into context before execution."""
 
     def test_run_initial_load_calls_read_sql_source_for_bronze_sql_step(
-        self, mock_spark_session
+        self, spark
     ):
         from pipeline_builder import PipelineBuilder
         from pipeline_builder.sql_source import JdbcSource
@@ -31,9 +21,9 @@ class TestRunnerBronzeSqlSourceResolution:
 
         def capture_read(source, spark):
             read_calls.append((source, spark))
-            return mock_spark_session.createDataFrame([(1, "a")], ["id", "name"])
+            return spark.createDataFrame([(1, "a")], ["id", "name"])
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="analytics")
+        builder = PipelineBuilder(spark=spark, schema="analytics")
         source = JdbcSource(
             url="jdbc:postgresql://h/db",
             table="orders",
@@ -54,11 +44,11 @@ class TestRunnerBronzeSqlSourceResolution:
 
         assert len(read_calls) == 1
         assert read_calls[0][0] is source
-        assert read_calls[0][1] is mock_spark_session
+        assert read_calls[0][1] is spark
         assert result is not None
 
     def test_bronze_sql_step_not_in_bronze_sources_still_resolved(
-        self, mock_spark_session
+        self, spark
     ):
         from pipeline_builder import PipelineBuilder
         from pipeline_builder.sql_source import JdbcSource
@@ -67,9 +57,9 @@ class TestRunnerBronzeSqlSourceResolution:
 
         def mock_read(source, spark):
             sql_source_called.append(True)
-            return mock_spark_session.createDataFrame([(1,)], ["id"])
+            return spark.createDataFrame([(1,)], ["id"])
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="analytics")
+        builder = PipelineBuilder(spark=spark, schema="analytics")
         builder.with_bronze_sql_source(
             name="from_db",
             sql_source=JdbcSource(
@@ -93,12 +83,12 @@ class TestRunnerBronzeSqlSourceResolution:
 class TestSilverStepExecutorSqlSource:
     """SilverStepExecutor uses read_sql_source when step has sql_source."""
 
-    def test_silver_executor_returns_read_sql_source_result(self, mock_spark_session):
+    def test_silver_executor_returns_read_sql_source_result(self, spark):
         from pipeline_builder.models import SilverStep
         from pipeline_builder.sql_source import JdbcSource
         from pipeline_builder.step_executors.silver import SilverStepExecutor
 
-        expected_df = mock_spark_session.createDataFrame([(1, "x")], ["a", "b"])
+        expected_df = spark.createDataFrame([(1, "x")], ["a", "b"])
 
         def mock_read(source, spark):
             return expected_df
@@ -116,7 +106,7 @@ class TestSilverStepExecutorSqlSource:
             table_name="inventory",
             sql_source=source,
         )
-        executor = SilverStepExecutor(mock_spark_session)
+        executor = SilverStepExecutor(spark)
         context = {}
 
         with patch(
@@ -135,12 +125,12 @@ class TestSilverStepExecutorSqlSource:
 class TestGoldStepExecutorSqlSource:
     """GoldStepExecutor uses read_sql_source when step has sql_source."""
 
-    def test_gold_executor_returns_read_sql_source_result(self, mock_spark_session):
+    def test_gold_executor_returns_read_sql_source_result(self, spark):
         from pipeline_builder.models import GoldStep
         from pipeline_builder.sql_source import JdbcSource
         from pipeline_builder.step_executors.gold import GoldStepExecutor
 
-        expected_df = mock_spark_session.createDataFrame(
+        expected_df = spark.createDataFrame(
             [("r1", 100.0)], ["region", "rev"]
         )
 
@@ -159,7 +149,7 @@ class TestGoldStepExecutorSqlSource:
             table_name="revenue",
             sql_source=source,
         )
-        executor = GoldStepExecutor(mock_spark_session)
+        executor = GoldStepExecutor(spark)
         context = {}
 
         with patch(

@@ -8,15 +8,7 @@ Tests that Delta Lake's automatic schema evolution works when:
 4. Running again without schema_override
 """
 
-import os
-
 import pytest
-
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-else:
-    from pyspark.sql import functions as F
 
 from pipeline_builder.pipeline.builder import PipelineBuilder
 
@@ -26,7 +18,7 @@ class TestSchemaEvolutionWithoutOverride:
     """Test schema evolution without requiring schema_override."""
 
     def test_silver_schema_evolution_on_initial_load_rerun(
-        self, spark_session, unique_schema
+        self, spark, spark_imports, unique_schema
     ):
         """
         Test that changing silver transform to add a new column works
@@ -38,10 +30,11 @@ class TestSchemaEvolutionWithoutOverride:
         3. Add rule for new column
         4. Run initial load again - should work without schema_override
         """
+        F = spark_imports.F
         schema_name = unique_schema
 
         # Create schema (unique name ensures no conflicts)
-        spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
 
         # Create initial data
         initial_data = [
@@ -49,12 +42,12 @@ class TestSchemaEvolutionWithoutOverride:
             ("user2", "Bob", 200),
             ("user3", "Charlie", 300),
         ]
-        source_df = spark_session.createDataFrame(
+        source_df = spark.createDataFrame(
             initial_data, ["user_id", "name", "value"]
         )
 
         # First run: Initial load with basic silver transform
-        builder1 = PipelineBuilder(spark=spark_session, schema=schema_name)
+        builder1 = PipelineBuilder(spark=spark, schema=schema_name)
 
         # Bronze step
         builder1.with_bronze_rules(
@@ -87,14 +80,14 @@ class TestSchemaEvolutionWithoutOverride:
         assert result1.status.value == "completed"
 
         # Verify table exists and has expected columns
-        table1 = spark_session.table(f"{schema_name}.clean_events")
+        table1 = spark.table(f"{schema_name}.clean_events")
         assert "user_id" in table1.columns
         assert "name" in table1.columns
         assert "value" in table1.columns
         assert table1.count() == 3
 
         # Second run: Change silver transform to add new column
-        builder2 = PipelineBuilder(spark=spark_session, schema=schema_name)
+        builder2 = PipelineBuilder(spark=spark, schema=schema_name)
 
         # Bronze step (same as before)
         builder2.with_bronze_rules(
@@ -131,7 +124,7 @@ class TestSchemaEvolutionWithoutOverride:
         assert result2.status.value == "completed"
 
         # Verify table has the new column
-        table2 = spark_session.table(f"{schema_name}.clean_events")
+        table2 = spark.table(f"{schema_name}.clean_events")
         assert "user_id" in table2.columns
         assert "name" in table2.columns
         assert "value" in table2.columns
@@ -147,7 +140,7 @@ class TestSchemaEvolutionWithoutOverride:
         # No cleanup needed - unique schema ensures isolation
 
     def test_silver_schema_evolution_incremental_should_error(
-        self, spark_session, unique_schema
+        self, spark, spark_imports, unique_schema
     ):
         """
         Test that schema mismatch errors in incremental mode without schema_override.
@@ -158,22 +151,23 @@ class TestSchemaEvolutionWithoutOverride:
         3. Change silver transform to add new column
         4. Run incremental again - should ERROR because schema doesn't match existing table
         """
+        F = spark_imports.F
         schema_name = unique_schema
 
         # Create schema (unique name ensures no conflicts)
-        spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
 
         # Initial data
         initial_data = [
             ("user1", "Alice", 100),
             ("user2", "Bob", 200),
         ]
-        source_df = spark_session.createDataFrame(
+        source_df = spark.createDataFrame(
             initial_data, ["user_id", "name", "value"]
         )
 
         # First run: Initial load
-        builder1 = PipelineBuilder(spark=spark_session, schema=schema_name)
+        builder1 = PipelineBuilder(spark=spark, schema=schema_name)
         builder1.with_bronze_rules(
             name="events",
             rules={"user_id": [F.col("user_id").isNotNull()]},
@@ -196,7 +190,7 @@ class TestSchemaEvolutionWithoutOverride:
         assert result1.status.value == "completed"
 
         # Verify initial table
-        table1 = spark_session.table(f"{schema_name}.clean_events")
+        table1 = spark.table(f"{schema_name}.clean_events")
         assert table1.count() == 2
         assert "processed_at" not in table1.columns
 
@@ -204,16 +198,16 @@ class TestSchemaEvolutionWithoutOverride:
         new_data = [
             ("user3", "Charlie", 300),
         ]
-        new_df = spark_session.createDataFrame(new_data, ["user_id", "name", "value"])
+        new_df = spark.createDataFrame(new_data, ["user_id", "name", "value"])
 
         result2 = pipeline1.run_incremental(bronze_sources={"events": new_df})
         assert result2.status.value == "completed"
 
-        table2 = spark_session.table(f"{schema_name}.clean_events")
+        table2 = spark.table(f"{schema_name}.clean_events")
         assert table2.count() == 3  # 2 initial + 1 incremental
 
         # Third run: Change transform to add new column, then run incremental
-        builder3 = PipelineBuilder(spark=spark_session, schema=schema_name)
+        builder3 = PipelineBuilder(spark=spark, schema=schema_name)
         builder3.with_bronze_rules(
             name="events",
             rules={"user_id": [F.col("user_id").isNotNull()]},
@@ -242,7 +236,7 @@ class TestSchemaEvolutionWithoutOverride:
         newer_data = [
             ("user4", "Diana", 400),
         ]
-        newer_df = spark_session.createDataFrame(
+        newer_df = spark.createDataFrame(
             newer_data, ["user_id", "name", "value"]
         )
 
@@ -260,7 +254,7 @@ class TestSchemaEvolutionWithoutOverride:
         assert "incremental" in error_msg.lower() or "append" in error_msg.lower()
 
         # Verify the table still has the old schema (no new column)
-        table3 = spark_session.table(f"{schema_name}.clean_events")
+        table3 = spark.table(f"{schema_name}.clean_events")
         assert "processed_at" not in table3.columns  # New column should NOT exist
         # Should still have 3 rows (no new data appended due to error)
         assert table3.count() == 3
@@ -268,7 +262,7 @@ class TestSchemaEvolutionWithoutOverride:
         # No cleanup needed - unique schema ensures isolation
 
     def test_silver_schema_evolution_with_multiple_new_columns(
-        self, spark_session, unique_schema
+        self, spark, spark_imports, unique_schema
     ):
         """
         Test that adding multiple new columns works without schema_override.
@@ -279,22 +273,23 @@ class TestSchemaEvolutionWithoutOverride:
         3. Add rules for all new columns
         4. Run again - should work without schema_override
         """
+        F = spark_imports.F
         schema_name = unique_schema
 
         # Create schema (unique name ensures no conflicts)
-        spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
 
         # Initial data
         initial_data = [
             ("user1", "Alice", 100),
             ("user2", "Bob", 200),
         ]
-        source_df = spark_session.createDataFrame(
+        source_df = spark.createDataFrame(
             initial_data, ["user_id", "name", "value"]
         )
 
         # First run: Basic transform
-        builder1 = PipelineBuilder(spark=spark_session, schema=schema_name)
+        builder1 = PipelineBuilder(spark=spark, schema=schema_name)
         builder1.with_bronze_rules(
             name="events",
             rules={"user_id": [F.col("user_id").isNotNull()]},
@@ -320,7 +315,7 @@ class TestSchemaEvolutionWithoutOverride:
         assert result1.status.value == "completed"
 
         # Second run: Add multiple new columns
-        builder2 = PipelineBuilder(spark=spark_session, schema=schema_name)
+        builder2 = PipelineBuilder(spark=spark, schema=schema_name)
         builder2.with_bronze_rules(
             name="events",
             rules={"user_id": [F.col("user_id").isNotNull()]},
@@ -357,7 +352,7 @@ class TestSchemaEvolutionWithoutOverride:
         assert result2.status.value == "completed"
 
         # Verify all columns exist
-        table2 = spark_session.table(f"{schema_name}.clean_events")
+        table2 = spark.table(f"{schema_name}.clean_events")
         expected_columns = [
             "user_id",
             "name",
@@ -373,7 +368,7 @@ class TestSchemaEvolutionWithoutOverride:
 
         # No cleanup needed - unique schema ensures isolation
 
-    def test_gold_schema_evolution_without_override(self, spark_session, unique_schema):
+    def test_gold_schema_evolution_without_override(self, spark, spark_imports, unique_schema):
         """
         Test that gold table schema evolution works without schema_override.
 
@@ -383,10 +378,11 @@ class TestSchemaEvolutionWithoutOverride:
         3. Add rule for new column
         4. Run again - should work without schema_override
         """
+        F = spark_imports.F
         schema_name = unique_schema
 
         # Create schema (unique name ensures no conflicts)
-        spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
 
         # Initial data
         initial_data = [
@@ -394,12 +390,12 @@ class TestSchemaEvolutionWithoutOverride:
             ("user2", "purchase", 200),
             ("user1", "view", 50),
         ]
-        source_df = spark_session.createDataFrame(
+        source_df = spark.createDataFrame(
             initial_data, ["user_id", "action", "value"]
         )
 
         # First run: Basic gold aggregation
-        builder1 = PipelineBuilder(spark=spark_session, schema=schema_name)
+        builder1 = PipelineBuilder(spark=spark, schema=schema_name)
         builder1.with_bronze_rules(
             name="events",
             rules={"user_id": [F.col("user_id").isNotNull()]},
@@ -445,13 +441,13 @@ class TestSchemaEvolutionWithoutOverride:
 
         # Verify first run
         # Catalog sync is now fixed in mock-spark 3.10.2 - table should be immediately accessible
-        table1 = spark_session.table(f"{schema_name}.user_metrics")
+        table1 = spark.table(f"{schema_name}.user_metrics")
         assert "user_id" in table1.columns
         assert "event_count" in table1.columns
         assert table1.count() == 2  # 2 unique users
 
         # Second run: Add new aggregated column
-        builder2 = PipelineBuilder(spark=spark_session, schema=schema_name)
+        builder2 = PipelineBuilder(spark=spark, schema=schema_name)
         builder2.with_bronze_rules(
             name="events",
             rules={"user_id": [F.col("user_id").isNotNull()]},
@@ -501,7 +497,7 @@ class TestSchemaEvolutionWithoutOverride:
 
         # Verify new column exists
         # Catalog sync is now fixed in mock-spark 3.10.2 - table should be immediately accessible
-        table2 = spark_session.table(f"{schema_name}.user_metrics")
+        table2 = spark.table(f"{schema_name}.user_metrics")
         assert "user_id" in table2.columns
         assert "event_count" in table2.columns
         assert "total_value" in table2.columns  # New column

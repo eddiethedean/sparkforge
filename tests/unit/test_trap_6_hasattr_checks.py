@@ -22,14 +22,14 @@ class TestTrap6HasattrChecks:
     """Test cases for hasattr check fixes."""
 
     def test_execution_engine_rules_check_without_hasattr(
-        self, spark_session, test_config
+        self, spark, test_config
     ):
         """Test that execution engine checks rules without hasattr."""
         # Create a bronze step with rules (use string rules to avoid SparkContext requirement)
         bronze_step = BronzeStep(name="test_bronze", rules={"user_id": ["not_null"]})
 
         # Create execution engine
-        engine = ExecutionEngine(spark=spark_session, config=test_config, logger=Mock())
+        engine = ExecutionEngine(spark=spark, config=test_config, logger=Mock())
 
         # Mock the apply_column_rules function
         with patch(

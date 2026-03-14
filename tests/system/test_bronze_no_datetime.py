@@ -5,28 +5,7 @@ This module tests the functionality where Bronze steps don't have datetime colum
 and therefore force full refresh of downstream Silver steps.
 """
 
-import os
-
 import pytest
-
-# Use engine-specific functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-else:
-    from pyspark.sql import functions as F  # type: ignore
-
-# Import types based on SPARK_MODE (preferred) or SPARKFORGE_ENGINE
-_SPARK_MODE = os.environ.get("SPARK_MODE", "mock").lower()
-_ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
-if _SPARK_MODE == "real" or _ENGINE in ("pyspark", "spark", "real"):
-    from pyspark.sql.types import IntegerType, StringType, StructField, StructType
-else:
-    from sparkless.spark_types import (  # type: ignore[import]
-        IntegerType,
-        StringType,
-        StructField,
-        StructType,
-    )
 
 from pipeline_builder import PipelineBuilder
 from pipeline_builder.execution import ExecutionEngine
@@ -43,9 +22,14 @@ class TestBronzeNoDatetime:
     """Test Bronze steps without datetime columns in the simplified execution system."""
 
     @pytest.fixture
-    def sample_data_no_datetime(self, spark_session):
+    def sample_data_no_datetime(self, spark, spark_imports):
         """Create sample data without datetime columns."""
         from pipeline_builder.compat_helpers import create_test_dataframe
+
+        IntegerType = spark_imports.IntegerType
+        StringType = spark_imports.StringType
+        StructField = spark_imports.StructField
+        StructType = spark_imports.StructType
 
         data = [
             {"user_id": "user1", "action": "click", "value": 100},
@@ -61,13 +45,14 @@ class TestBronzeNoDatetime:
                 StructField("value", IntegerType(), True),
             ]
         )
-        return create_test_dataframe(spark_session, data, schema)
+        return create_test_dataframe(spark, data, schema)
 
     def test_bronze_step_without_incremental_col(
-        self, spark_session, sample_data_no_datetime
+        self, spark, spark_imports, sample_data_no_datetime
     ):
         """Test Bronze step without incremental column."""
-        builder = PipelineBuilder(spark=spark_session, schema="test_schema")
+        F = spark_imports.F
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
 
         # Add Bronze step without incremental_col
         builder.with_bronze_rules(
@@ -88,9 +73,10 @@ class TestBronzeNoDatetime:
         assert "action" in bronze_step.rules
         assert "value" in bronze_step.rules
 
-    def test_bronze_step_with_incremental_col(self, spark_session):
+    def test_bronze_step_with_incremental_col(self, spark, spark_imports):
         """Test Bronze step with incremental column."""
-        builder = PipelineBuilder(spark=spark_session, schema="test_schema")
+        F = spark_imports.F
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
 
         # Add Bronze step with incremental_col
         builder.with_bronze_rules(
@@ -112,9 +98,10 @@ class TestBronzeNoDatetime:
         assert "action" in bronze_step.rules
         assert "timestamp" in bronze_step.rules
 
-    def test_silver_step_creation(self, spark_session, sample_data_no_datetime):
+    def test_silver_step_creation(self, spark, spark_imports, sample_data_no_datetime):
         """Test Silver step creation."""
-        builder = PipelineBuilder(spark=spark_session, schema="test_schema")
+        F = spark_imports.F
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
 
         # Add Bronze step first
         builder.with_bronze_rules(
@@ -150,9 +137,10 @@ class TestBronzeNoDatetime:
         assert silver_step.table_name == "high_value_events"
         assert callable(silver_step.transform)
 
-    def test_gold_step_creation(self, spark_session, sample_data_no_datetime):
+    def test_gold_step_creation(self, spark, spark_imports, sample_data_no_datetime):
         """Test Gold step creation."""
-        builder = PipelineBuilder(spark=spark_session, schema="test_schema")
+        F = spark_imports.F
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
 
         # Add Bronze step first
         builder.with_bronze_rules(
@@ -207,9 +195,10 @@ class TestBronzeNoDatetime:
         assert gold_step.table_name == "action_summary"
         assert callable(gold_step.transform)
 
-    def test_pipeline_validation(self, spark_session, sample_data_no_datetime):
+    def test_pipeline_validation(self, spark, spark_imports, sample_data_no_datetime):
         """Test pipeline validation."""
-        builder = PipelineBuilder(spark=spark_session, schema="test_schema")
+        F = spark_imports.F
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
 
         # Add Bronze step
         builder.with_bronze_rules(
@@ -261,9 +250,10 @@ class TestBronzeNoDatetime:
         errors = builder.validate_pipeline()
         assert len(errors) == 0
 
-    def test_pipeline_creation(self, spark_session, sample_data_no_datetime):
+    def test_pipeline_creation(self, spark, spark_imports, sample_data_no_datetime):
         """Test pipeline creation."""
-        builder = PipelineBuilder(spark=spark_session, schema="test_schema")
+        F = spark_imports.F
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
 
         # Add Bronze step
         builder.with_bronze_rules(
@@ -317,8 +307,9 @@ class TestBronzeNoDatetime:
         assert hasattr(pipeline, "run_initial_load")
         assert hasattr(pipeline, "run_pipeline")
 
-    def test_dataframe_operations(self, spark_session, sample_data_no_datetime):
+    def test_dataframe_operations(self, spark_imports, sample_data_no_datetime):
         """Test DataFrame operations with data without datetime columns."""
+        F = spark_imports.F
         # Test basic operations
         assert sample_data_no_datetime.count() == 5
         assert len(sample_data_no_datetime.columns) == 3
@@ -340,20 +331,21 @@ class TestBronzeNoDatetime:
         agg_df = sample_data_no_datetime.groupBy("action").count()
         assert agg_df.count() == 3
 
-    def test_execution_engine_initialization(self, spark_session):
+    def test_execution_engine_initialization(self, spark):
         """Test execution engine initialization."""
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
 
-        engine = ExecutionEngine(spark=spark_session, config=config)
-        assert engine.spark == spark_session
+        engine = ExecutionEngine(spark=spark, config=config)
+        assert engine.spark == spark
         assert engine.config == config
         assert engine.logger is not None
 
-    def test_step_type_detection(self, spark_session):
+    def test_step_type_detection(self, spark_imports):
         """Test step type detection."""
+        F = spark_imports.F
         # Test BronzeStep
         bronze_step = BronzeStep(
             name="test_bronze",
@@ -391,7 +383,7 @@ class TestBronzeNoDatetime:
         )
         assert isinstance(gold_step, GoldStep)
 
-    def test_pipeline_configuration(self, spark_session):
+    def test_pipeline_configuration(self):
         """Test pipeline configuration."""
         config = PipelineConfig(
             schema="test_schema",

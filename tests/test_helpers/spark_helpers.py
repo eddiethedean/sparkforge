@@ -30,17 +30,17 @@ def create_test_spark_session(
     Returns:
         Configured SparkSession
     """
-    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+    spark_mode = os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower()
 
-    if spark_mode == "mock":
-        from sparkless import SparkSession as MockSparkSession  # type: ignore[import]
+    if spark_mode == "sparkless":
+        from sparkless import SparkSession as SparklessSession  # type: ignore[import]
 
         if app_name is None:
             app_name = f"SparkForgeTest-{os.getpid()}"
 
-        return MockSparkSession(app_name)
+        return SparklessSession(app_name)
     else:
-        # Real Spark session
+        # Real PySpark session
         from pyspark.sql import SparkSession as PySparkSparkSession
 
         if app_name is None:

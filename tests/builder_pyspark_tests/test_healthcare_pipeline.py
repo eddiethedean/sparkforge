@@ -10,11 +10,6 @@ import os
 
 import pytest
 
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql import functions as F
-else:
-    from sparkless.sql import functions as F  # type: ignore[import]
-
 from pipeline_builder.pipeline import PipelineBuilder
 import sys
 
@@ -27,28 +22,29 @@ class TestHealthcarePipeline:
 
     @pytest.mark.sequential
     def test_complete_healthcare_pipeline_execution(
-        self, spark_session, data_generator, test_assertions
+        self, spark, spark_imports, data_generator, test_assertions
     ):
         """Test complete healthcare pipeline: patients → medical records → health insights."""
+        F = spark_imports.F
 
         # Create realistic healthcare data
         patients_df = data_generator.create_healthcare_patients(
-            spark_session, num_patients=40
+            spark, num_patients=40
         )
-        labs_df = data_generator.create_healthcare_labs(spark_session, num_results=150)
+        labs_df = data_generator.create_healthcare_labs(spark, num_results=150)
         diagnoses_df = data_generator.create_healthcare_diagnoses(
-            spark_session, num_diagnoses=120
+            spark, num_diagnoses=120
         )
         medications_df = data_generator.create_healthcare_medications(
-            spark_session, num_prescriptions=160
+            spark, num_prescriptions=160
         )
         # Use get_unique_schema for proper concurrent testing isolation (includes worker ID)
         unique_schema = get_unique_schema("bronze")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema=unique_schema,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
@@ -498,29 +494,31 @@ class TestHealthcarePipeline:
             sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             from test_helpers.isolation import cleanup_test_tables
 
-            cleanup_test_tables(spark_session, unique_schema)
+            cleanup_test_tables(spark, unique_schema)
         except Exception:
             pass  # Ignore cleanup errors
 
     def test_incremental_healthcare_processing(
-        self, spark_session, data_generator, test_assertions
+        self, spark, spark_imports, data_generator, test_assertions
     ):
         """Test incremental processing of new healthcare data."""
+        F = spark_imports.F
+
         # Create initial data
         patients_df = data_generator.create_healthcare_patients(
-            spark_session, num_patients=20
+            spark, num_patients=20
         )
         labs_initial = data_generator.create_healthcare_labs(
-            spark_session, num_results=50
+            spark, num_results=50
         )
 
         # Create pipeline builder
         # Use get_unique_schema for proper concurrent testing isolation (includes worker ID)
         unique_schema = get_unique_schema("bronze")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
 
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema=unique_schema,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
@@ -572,7 +570,7 @@ class TestHealthcarePipeline:
 
         # Incremental load with new lab results
         labs_incremental = data_generator.create_healthcare_labs(
-            spark_session, num_results=30
+            spark, num_results=30
         )
 
         result2 = pipeline.run_incremental(
@@ -588,27 +586,29 @@ class TestHealthcarePipeline:
     @pytest.mark.pyspark
     @pytest.mark.sequential
     def test_healthcare_logging(
-        self, spark_session, data_generator, log_writer_config, test_assertions
+        self, spark, spark_imports, spark_mode, data_generator, log_writer_config, test_assertions
     ):
         """Test comprehensive logging for healthcare pipeline."""
+        F = spark_imports.F
+
         # Skip if in mock mode (requires real PySpark with Delta Lake)
-        if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+        if spark_mode == "mock":
             pytest.skip("Requires real PySpark with Delta Lake")
         from pipeline_builder.writer import LogWriter
 
         # Create test data
         patients_df = data_generator.create_healthcare_patients(
-            spark_session, num_patients=15
+            spark, num_patients=15
         )
-        labs_df = data_generator.create_healthcare_labs(spark_session, num_results=50)
+        labs_df = data_generator.create_healthcare_labs(spark, num_results=50)
 
         # Create unique schema for this test
         analytics_schema = get_unique_schema("analytics")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {analytics_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {analytics_schema}")
 
         # Create LogWriter
         log_writer = LogWriter(
-            spark=spark_session,
+            spark=spark,
             schema=analytics_schema,
             table_name="healthcare_logs",
         )
@@ -616,10 +616,10 @@ class TestHealthcarePipeline:
         # Create pipeline
         # Use get_unique_schema for proper concurrent testing isolation (includes worker ID)
         unique_schema = get_unique_schema("bronze")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
 
         builder = PipelineBuilder(
-            spark=spark_session, schema=unique_schema, verbose=False
+            spark=spark, schema=unique_schema, verbose=False
         )
 
         builder.with_bronze_rules(
@@ -673,6 +673,6 @@ class TestHealthcarePipeline:
             sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             from test_helpers.isolation import cleanup_test_tables
 
-            cleanup_test_tables(spark_session, analytics_schema)
+            cleanup_test_tables(spark, analytics_schema)
         except Exception:
             pass  # Ignore cleanup errors

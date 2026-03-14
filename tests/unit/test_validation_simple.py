@@ -34,7 +34,7 @@ from pipeline_builder.validation.utils import get_dataframe_info, safe_divide
 
 
 @pytest.fixture(scope="function", autouse=True)
-def reset_test_environment(spark_session):
+def reset_test_environment(spark):
     """Reset test environment before each test in this file."""
     import gc
 
@@ -64,17 +64,17 @@ def reset_test_environment(spark_session):
 class TestValidationUtils:
     """Tests for validation utility functions."""
 
-    def test_safe_divide_normal(self, mock_spark_session):
+    def test_safe_divide_normal(self, spark):
         """Test safe_divide with normal values."""
         result = safe_divide(10, 2)
         assert result == 5.0
 
-    def test_safe_divide_by_zero(self, mock_spark_session):
+    def test_safe_divide_by_zero(self, spark):
         """Test safe_divide with zero divisor."""
         result = safe_divide(10, 0)
         assert result == 0.0
 
-    def test_safe_divide_none_values(self, mock_spark_session):
+    def test_safe_divide_none_values(self, spark):
         """Test safe_divide with None values."""
         # Test with None numerator - should return default (0.0)
         result = safe_divide(None, 2)
@@ -88,7 +88,7 @@ class TestValidationUtils:
         result = safe_divide(None, 2, default=99.0)
         assert result == 99.0
 
-    def test_safe_divide_edge_cases(self, mock_spark_session):
+    def test_safe_divide_edge_cases(self, spark):
         """Test safe_divide with edge cases."""
         # Test with very small numbers
         result = safe_divide(0.0001, 0.0001)
@@ -102,7 +102,7 @@ class TestValidationUtils:
         result = safe_divide(10, 0, default=99.0)
         assert result == 99.0
 
-    def test_get_dataframe_info(self, mock_spark_session):
+    def test_get_dataframe_info(self, spark):
         """Test get_dataframe_info function."""
         schema = StructType(
             [
@@ -111,7 +111,7 @@ class TestValidationUtils:
             ]
         )
         data = [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
-        df = mock_spark_session.createDataFrame(data, schema)
+        df = spark.createDataFrame(data, schema)
 
         info = get_dataframe_info(df)
 
@@ -125,18 +125,18 @@ class TestValidationUtils:
         assert info["column_count"] == 2
         assert info["is_empty"] is False
 
-    def test_get_dataframe_info_empty(self, mock_spark_session):
+    def test_get_dataframe_info_empty(self, spark):
         """Test get_dataframe_info with empty DataFrame."""
         schema = StructType([StructField("id", IntegerType(), False)])
         data = []
-        df = mock_spark_session.createDataFrame(data, schema)
+        df = spark.createDataFrame(data, schema)
 
         info = get_dataframe_info(df)
 
         assert info["row_count"] == 0
         assert info["is_empty"] is True
 
-    def test_get_dataframe_info_error_handling(self, mock_spark_session):
+    def test_get_dataframe_info_error_handling(self, spark):
         """Test get_dataframe_info error handling."""
         # Test with invalid DataFrame
         try:
@@ -152,7 +152,7 @@ class TestValidationUtils:
 class TestPipelineValidation:
     """Tests for pipeline validation functions."""
 
-    def test_validation_result_creation(self, mock_spark_session):
+    def test_validation_result_creation(self, spark):
         """Test ValidationResult creation."""
         result = ValidationResult(
             is_valid=True,
@@ -167,7 +167,7 @@ class TestPipelineValidation:
         assert result.recommendations == ["Consider optimization"]
         assert bool(result) is True
 
-    def test_validation_result_false(self, mock_spark_session):
+    def test_validation_result_false(self, spark):
         """Test ValidationResult with validation failure."""
         result = ValidationResult(
             is_valid=False, errors=["Critical error"], warnings=[], recommendations=[]
@@ -177,7 +177,7 @@ class TestPipelineValidation:
         assert result.errors == ["Critical error"]
         assert bool(result) is False
 
-    def test_unified_validator_initialization(self, mock_spark_session):
+    def test_unified_validator_initialization(self, spark):
         """Test UnifiedValidator initialization."""
         validator = UnifiedValidator()
         assert validator is not None
@@ -186,7 +186,7 @@ class TestPipelineValidation:
         validator_with_logger = UnifiedValidator(logger)
         assert validator_with_logger is not None
 
-    def test_unified_validator_add_validator(self, mock_spark_session):
+    def test_unified_validator_add_validator(self, spark):
         """Test adding custom validators."""
         validator = UnifiedValidator()
 
@@ -200,7 +200,7 @@ class TestPipelineValidation:
         # Test that validator was added
         assert len(validator.custom_validators) == 1
 
-    def test_unified_validator_pipeline_validation(self, mock_spark_session):
+    def test_unified_validator_pipeline_validation(self, spark):
         """Test unified validator pipeline validation."""
         validator = UnifiedValidator()
 
@@ -241,7 +241,7 @@ class TestPipelineValidation:
         assert isinstance(result, ValidationResult)
         assert isinstance(result.is_valid, bool)
 
-    def test_unified_validator_step_validation(self, mock_spark_session):
+    def test_unified_validator_step_validation(self, spark):
         """Test unified validator step validation."""
         validator = UnifiedValidator()
 
@@ -257,7 +257,7 @@ class TestPipelineValidation:
         assert isinstance(result, ValidationResult)
         assert isinstance(result.is_valid, bool)
 
-    def test_unified_validator_custom_validators(self, mock_spark_session):
+    def test_unified_validator_custom_validators(self, spark):
         """Test unified validator with custom validators."""
         validator = UnifiedValidator()
 
@@ -288,7 +288,7 @@ class TestPipelineValidation:
         assert result.is_valid is False
         assert "Step name is invalid" in result.errors
 
-    def test_unified_validator_empty_pipeline(self, mock_spark_session):
+    def test_unified_validator_empty_pipeline(self, spark):
         """Test unified validator with empty pipeline."""
         validator = UnifiedValidator()
 
@@ -303,7 +303,7 @@ class TestPipelineValidation:
         assert isinstance(result, ValidationResult)
         assert isinstance(result.is_valid, bool)
 
-    def test_unified_validator_invalid_config(self, mock_spark_session):
+    def test_unified_validator_invalid_config(self, spark):
         """Test unified validator with invalid configuration."""
         validator = UnifiedValidator()
 
@@ -324,19 +324,19 @@ class TestPipelineValidation:
 class TestValidationErrorHandling:
     """Test validation error handling and edge cases."""
 
-    def test_validation_error_creation(self, mock_spark_session):
+    def test_validation_error_creation(self, spark):
         """Test ValidationError creation."""
         error = ValidationError("Test validation error")
         assert str(error) == "Test validation error"
 
-    def test_validation_error_with_context(self, mock_spark_session):
+    def test_validation_error_with_context(self, spark):
         """Test ValidationError with context."""
         error = ValidationError(
             "Test validation error", context={"column": "test_col", "value": "invalid"}
         )
         assert "Test validation error" in str(error)
 
-    def test_validation_error_attributes(self, mock_spark_session):
+    def test_validation_error_attributes(self, spark):
         """Test ValidationError attributes."""
         error = ValidationError(
             "Test validation error", context={"column": "test_col", "value": "invalid"}
@@ -349,7 +349,7 @@ class TestValidationErrorHandling:
 class TestValidationIntegration:
     """Integration tests for validation modules."""
 
-    def test_validation_workflow_with_mock_data(self, mock_spark_session):
+    def test_validation_workflow_with_mock_data(self, spark):
         """Test validation workflow with mock data."""
         # Create test data
         schema = StructType(
@@ -364,7 +364,7 @@ class TestValidationIntegration:
             {"id": 2, "name": "Bob", "age": 30},
             {"id": 3, "name": None, "age": 35},
         ]
-        df = mock_spark_session.createDataFrame(data, schema)
+        df = spark.createDataFrame(data, schema)
 
         # Test DataFrame info
         info = get_dataframe_info(df)
@@ -372,7 +372,7 @@ class TestValidationIntegration:
         assert info["column_count"] == 3
         assert info["is_empty"] is False
 
-    def test_validation_with_pipeline_config(self, mock_spark_session):
+    def test_validation_with_pipeline_config(self, spark):
         """Test validation with pipeline configuration."""
         # Create pipeline config
         config = PipelineConfig(
@@ -397,7 +397,7 @@ class TestValidationIntegration:
         step_result = validator.validate_step(bronze_step, "bronze", context)
         assert isinstance(step_result, ValidationResult)
 
-    def test_validation_with_complex_pipeline(self, mock_spark_session):
+    def test_validation_with_complex_pipeline(self, spark):
         """Test validation with complex pipeline structure."""
         validator = UnifiedValidator()
 
@@ -448,7 +448,7 @@ class TestValidationIntegration:
         assert isinstance(result, ValidationResult)
         assert isinstance(result.is_valid, bool)
 
-    def test_validation_error_scenarios(self, mock_spark_session):
+    def test_validation_error_scenarios(self, spark):
         """Test various validation error scenarios."""
         validator = UnifiedValidator()
 

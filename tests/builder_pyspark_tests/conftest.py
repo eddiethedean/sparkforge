@@ -1,16 +1,12 @@
 """
-Shared fixtures and utilities for builder system tests.
+Shared fixtures and utilities for builder pyspark tests.
 
 This module provides common fixtures, data generators, and utility functions
 for testing realistic bronze-silver-gold pipeline scenarios.
 
-Runs in both mock and real mode: when SPARK_MODE=mock uses root base_spark_session
-(sparkless); when SPARK_MODE=real creates a real PySpark session with Delta.
+Uses sparkless.testing plugin from main conftest.py for Spark session management.
 """
 
-import os
-import shutil
-import sys
 from datetime import datetime, timedelta
 from typing import Any, List
 
@@ -29,187 +25,32 @@ from pipeline_builder.models import PipelineConfig, ValidationThresholds
 from pipeline_builder.writer import WriteMode, WriterConfig
 from pipeline_builder.writer.models import LogLevel
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from test_helpers.isolation import get_unique_warehouse_dir
 
-
-def _create_real_pyspark_session(request):
-    """Create a real PySpark session with Delta (used when SPARK_MODE=real)."""
-    from pyspark.sql import SparkSession
-    import uuid
-
-    warehouse_dir = get_unique_warehouse_dir()
-    os.makedirs(warehouse_dir, exist_ok=True)
-
-    try:
-        existing_spark = SparkSession.getActiveSession()
-        if existing_spark is not None:
-            try:
-                existing_spark.catalog.clearCache()
-                existing_spark.stop()
-            except Exception:
-                pass
-    except Exception:
-        pass
-
-    test_name = request.node.name if hasattr(request, "node") else "unknown_test"
-    test_id = uuid.uuid4().hex[:8]
-    unique_app_name = f"builder_pyspark_tests_{test_name}_{test_id}"
-
-    spark = None
-    try:
-        from delta import configure_spark_with_delta_pip
-
-        builder = (
-            SparkSession.builder.appName(unique_app_name)
-            .master("local[1]")
-            .config("spark.sql.warehouse.dir", warehouse_dir)
-            .config("spark.ui.enabled", "false")
-            .config("spark.sql.shuffle.partitions", "1")
-            .config("spark.default.parallelism", "1")
-            .config("spark.driver.memory", "2g")
-            .config("spark.driver.bindAddress", "127.0.0.1")
-            .config("spark.driver.host", "127.0.0.1")
-            .config("spark.sql.adaptive.enabled", "false")
-            .config("spark.sql.adaptive.coalescePartitions.enabled", "false")
-            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-            .config(
-                "spark.sql.catalog.spark_catalog",
-                "org.apache.spark.sql.delta.catalog.DeltaCatalog",
-            )
-        )
-
-        spark = configure_spark_with_delta_pip(builder).getOrCreate()
-
-        actual_app_name = spark.sparkContext.getConf().get("spark.app.name", "")
-        if actual_app_name != unique_app_name:
-            try:
-                spark.stop()
-                spark = configure_spark_with_delta_pip(builder).getOrCreate()
-            except Exception:
-                pass
-
-        try:
-            spark.catalog.clearCache()
-        except Exception:
-            pass
-    except Exception as e:
-        print(f"⚠️ Delta Lake configuration failed: {e}")
-        spark = (
-            SparkSession.builder.appName(unique_app_name)
-            .master("local[1]")
-            .config("spark.sql.warehouse.dir", warehouse_dir)
-            .config("spark.ui.enabled", "false")
-            .config("spark.sql.shuffle.partitions", "1")
-            .config("spark.default.parallelism", "1")
-            .config("spark.driver.memory", "2g")
-            .config("spark.driver.bindAddress", "127.0.0.1")
-            .config("spark.driver.host", "127.0.0.1")
-            .config("spark.sql.adaptive.enabled", "false")
-            .config("spark.sql.adaptive.coalescePartitions.enabled", "false")
-            .getOrCreate()
-        )
-
-        actual_app_name = spark.sparkContext.getConf().get("spark.app.name", "")
-        if actual_app_name != unique_app_name:
-            try:
-                spark.stop()
-                spark = (
-                    SparkSession.builder.appName(unique_app_name)
-                    .master("local[1]")
-                    .config("spark.sql.warehouse.dir", warehouse_dir)
-                    .config("spark.ui.enabled", "false")
-                    .config("spark.sql.shuffle.partitions", "1")
-                    .config("spark.default.parallelism", "1")
-                    .config("spark.driver.memory", "2g")
-                    .config("spark.driver.bindAddress", "127.0.0.1")
-                    .config("spark.driver.host", "127.0.0.1")
-                    .config("spark.sql.adaptive.enabled", "false")
-                    .config("spark.sql.adaptive.coalescePartitions.enabled", "false")
-                    .getOrCreate()
-                )
-            except Exception:
-                pass
-
-    spark._warehouse_dir = warehouse_dir  # type: ignore[attr-defined]
-
-    from pipeline_builder.engine_config import configure_engine
-    from pyspark.sql import functions as pyspark_functions
-    from pyspark.sql import types as pyspark_types
-    from pyspark.sql.functions import desc as pyspark_desc
-    from pyspark.sql.utils import AnalysisException as PySparkAnalysisException
-    from pyspark.sql.window import Window as PySparkWindow
-    from pyspark.sql import DataFrame as PySparkDataFrame
-    from pyspark.sql import SparkSession as PySparkSparkSession
-    from pyspark.sql import Column as PySparkColumn
-
-    configure_engine(
-        functions=pyspark_functions,
-        types=pyspark_types,
-        analysis_exception=PySparkAnalysisException,
-        window=PySparkWindow,
-        desc=pyspark_desc,
-        engine_name="pyspark",
-        dataframe_cls=PySparkDataFrame,
-        spark_session_cls=PySparkSparkSession,
-        column_cls=PySparkColumn,
-    )
-
-    return spark, warehouse_dir
-
-
+# Backward compatibility alias - use `spark` fixture from main conftest
 @pytest.fixture(scope="function")
-def spark_session(request):
-    """
-    Spark session for testing: mock (sparkless) or real PySpark with Delta.
-
-    When SPARK_MODE=mock, uses the root base_spark_session. When SPARK_MODE=real,
-    uses the root _shared_real_spark_session (one per JVM) to avoid SPARK-2243.
-    """
-    spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-    if spark_mode != "real":
-        session = request.getfixturevalue("base_spark_session")
-        yield session
-        return
-
-    spark = request.getfixturevalue("_shared_real_spark_session")
-    if spark is None:
-        raise RuntimeError("_shared_real_spark_session was None in real mode")
-    try:
-        spark.catalog.clearCache()
-    except Exception:
-        pass
-    yield spark
+def spark_session(spark):
+    """Backward compatibility alias: use `spark` fixture instead."""
+    return spark
 
 
 @pytest.fixture(autouse=True)
-def cleanup_tables(spark_session):
-    """
-    Clean up tables after each test to avoid conflicts.
-
-    Note: Tests should clean up their own tables using unique schema names.
-    This fixture clears the catalog cache and temp views to help with cleanup.
-    """
-    yield  # Run the test first
-    # Cleanup after each test - clear catalog cache and temp views
-    # Individual tests should clean up their own tables in their unique schemas
+def cleanup_tables(spark):
+    """Clean up tables after each test."""
+    yield
     try:
-        # Clear all cached tables
-        spark_session.catalog.clearCache()
-
-        # Clear all temporary views
+        spark.catalog.clearCache()
         try:
-            views = spark_session.catalog.listTables()
+            views = spark.catalog.listTables()
             for view in views:
                 if hasattr(view, "isTemporary") and view.isTemporary:
                     try:
-                        spark_session.catalog.dropTempView(view.name)
+                        spark.catalog.dropTempView(view.name)
                     except Exception:
                         pass
         except Exception:
             pass
     except Exception:
-        pass  # Ignore cleanup errors
+        pass
 
 
 @pytest.fixture

@@ -27,7 +27,7 @@ StructType = types.StructType
 
 
 @pytest.fixture(scope="function", autouse=True)
-def reset_test_environment(spark_session):
+def reset_test_environment(spark):
     """Reset test environment before each test in this file."""
     import gc
 
@@ -55,7 +55,7 @@ def reset_test_environment(spark_session):
 
 
 @pytest.fixture(scope="function")
-def sample_dataframe(spark_session):
+def sample_dataframe(spark):
     """Create sample DataFrame for testing - validation test specific (4 rows, no category)."""
     DoubleType = types.DoubleType
     IntegerType = types.IntegerType
@@ -75,7 +75,7 @@ def sample_dataframe(spark_session):
         {"user_id": "user3", "age": None, "score": 78.5},
         {"user_id": "user4", "age": 35, "score": None},
     ]
-    df = spark_session.createDataFrame(data, schema)
+    df = spark.createDataFrame(data, schema)
     # Verify we have exactly 4 rows
     assert df.count() == 4, f"Expected 4 rows, got {df.count()}"
     return df
@@ -89,20 +89,20 @@ class TestAndAllRules:
         result = and_all_rules({})
         assert result is not None  # Should return F.lit(True)
 
-    def test_single_rule(self, spark_session):
+    def test_single_rule(self, spark):
         """Test with single rule."""
-        # Use string rules and pass functions from spark_session
+        # Use string rules and pass functions from spark
         rules = {"user_id": ["not_null"]}
         # Get functions from compat layer - get from session to match engine
         from pipeline_builder.compat import get_functions_from_session
 
-        functions = get_functions_from_session(spark_session)
+        functions = get_functions_from_session(spark)
         result = and_all_rules(rules, functions=functions)
         assert result is not None
 
-    def test_multiple_rules(self, spark_session):
+    def test_multiple_rules(self, spark):
         """Test with multiple rules."""
-        # Use string rules and pass functions from spark_session
+        # Use string rules and pass functions from spark
         rules = {
             "user_id": ["not_null"],
             "age": ["not_null", "positive"],
@@ -110,7 +110,7 @@ class TestAndAllRules:
         # Get functions from compat layer - get from session to match engine
         from pipeline_builder.compat import get_functions_from_session
 
-        functions = get_functions_from_session(spark_session)
+        functions = get_functions_from_session(spark)
         result = and_all_rules(rules, functions=functions)
         assert result is not None
 
@@ -155,23 +155,23 @@ class TestGetDataframeInfo:
         assert info["is_empty"] is False
         assert "schema" in info
 
-    def test_empty_dataframe(self, spark_session):
+    def test_empty_dataframe(self, spark):
         """Test with empty DataFrame."""
         schema = StructType([StructField("col1", StringType(), True)])
-        empty_df = spark_session.createDataFrame([], schema)
+        empty_df = spark.createDataFrame([], schema)
         info = get_dataframe_info(empty_df)
 
         assert info["row_count"] == 0
         assert info["column_count"] == 1
         assert info["is_empty"] is True
 
-    def test_error_handling(self, spark_session):
+    def test_error_handling(self, spark):
         """Test error handling in get_dataframe_info."""
         # Create a DataFrame that might cause issues
         try:
             # This should work fine
             schema = StructType([StructField("col1", StringType(), True)])
-            df = spark_session.createDataFrame([("test",)], schema)
+            df = spark.createDataFrame([("test",)], schema)
             info = get_dataframe_info(df)
             assert info["row_count"] == 1
         except Exception:
@@ -182,12 +182,12 @@ class TestGetDataframeInfo:
 class TestApplyColumnRules:
     """Test apply_column_rules function."""
 
-    def test_basic_validation(self, sample_dataframe, spark_session):
+    def test_basic_validation(self, sample_dataframe, spark):
         """Test basic column validation."""
         # Use functions from compat layer - get from session to match engine
         from pipeline_builder.compat import get_functions_from_session
 
-        functions = get_functions_from_session(spark_session)
+        functions = get_functions_from_session(spark)
         # Use string rules to avoid SparkContext dependency
         rules = {
             "user_id": ["not_null"],
@@ -241,12 +241,12 @@ class TestApplyColumnRules:
         assert stats.invalid_rows == 0
         assert stats.validation_rate == 100.0
 
-    def test_complex_rules(self, sample_dataframe, spark_session):
+    def test_complex_rules(self, sample_dataframe, spark):
         """Test with complex validation rules."""
         # Use functions from compat layer - get from session to match engine
         from pipeline_builder.compat import get_functions_from_session
 
-        functions = get_functions_from_session(spark_session)
+        functions = get_functions_from_session(spark)
         # Use string rules to avoid SparkContext dependency
         rules = {
             "user_id": ["not_null"],
@@ -309,50 +309,50 @@ class TestSafeDivide:
 class TestConvertRuleToExpression:
     """Test _convert_rule_to_expression function."""
 
-    def test_not_null_rule(self, spark_session):
+    def test_not_null_rule(self, spark):
         """Test not_null rule conversion."""
         # Get functions from session to match engine
         from pipeline_builder.compat import get_functions_from_session
 
-        functions = get_functions_from_session(spark_session)
+        functions = get_functions_from_session(spark)
         result = _convert_rule_to_expression("not_null", "test_column", functions)
         # This should return a Column expression
         assert hasattr(result, "isNotNull")
 
-    def test_positive_rule(self, spark_session):
+    def test_positive_rule(self, spark):
         """Test positive rule conversion."""
-        # Use functions from spark_session to ensure SparkContext is active
+        # Use functions from spark to ensure SparkContext is active
         # Use functions from compat layer - get from session to match engine
         from pipeline_builder.compat import get_functions_from_session
 
-        functions = get_functions_from_session(spark_session)
+        functions = get_functions_from_session(spark)
         result = _convert_rule_to_expression("positive", "test_column", functions)
         assert hasattr(result, "__gt__")
 
-    def test_non_negative_rule(self, spark_session):
+    def test_non_negative_rule(self, spark):
         """Test non_negative rule conversion."""
         # Use functions from compat layer - get from session to match engine
         from pipeline_builder.compat import get_functions_from_session
 
-        functions = get_functions_from_session(spark_session)
+        functions = get_functions_from_session(spark)
         result = _convert_rule_to_expression("non_negative", "test_column", functions)
         assert hasattr(result, "__ge__")
 
-    def test_non_zero_rule(self, spark_session):
+    def test_non_zero_rule(self, spark):
         """Test non_zero rule conversion."""
         # Use functions from compat layer - get from session to match engine
         from pipeline_builder.compat import get_functions_from_session
 
-        functions = get_functions_from_session(spark_session)
+        functions = get_functions_from_session(spark)
         result = _convert_rule_to_expression("non_zero", "test_column", functions)
         assert hasattr(result, "__ne__")
 
-    def test_custom_expression_rule(self, spark_session):
+    def test_custom_expression_rule(self, spark):
         """Test custom expression rule conversion."""
         # Use functions from compat layer - get from session to match engine
         from pipeline_builder.compat import get_functions_from_session
 
-        functions = get_functions_from_session(spark_session)
+        functions = get_functions_from_session(spark)
         result = _convert_rule_to_expression(
             "col('test_column') > 10", "test_column", functions
         )
@@ -362,12 +362,12 @@ class TestConvertRuleToExpression:
 class TestConvertRulesToExpressions:
     """Test _convert_rules_to_expressions function."""
 
-    def test_string_rules_conversion(self, spark_session):
+    def test_string_rules_conversion(self, spark):
         """Test conversion of string rules."""
         # Use functions from compat layer - get from session to match engine
         from pipeline_builder.compat import get_functions_from_session
 
-        functions = get_functions_from_session(spark_session)
+        functions = get_functions_from_session(spark)
         rules = {"col1": ["not_null", "positive"], "col2": ["non_negative"]}
         result = _convert_rules_to_expressions(rules, functions)
 
@@ -376,12 +376,12 @@ class TestConvertRulesToExpressions:
         assert len(result["col1"]) == 2
         assert len(result["col2"]) == 1
 
-    def test_mixed_rules_conversion(self, spark_session):
+    def test_mixed_rules_conversion(self, spark):
         """Test conversion of mixed string and Column rules."""
         # Use functions from compat layer - get from session to match engine
         from pipeline_builder.compat import get_functions_from_session
 
-        functions = get_functions_from_session(spark_session)
+        functions = get_functions_from_session(spark)
         # Use string rules to avoid SparkContext dependency
         rules = {
             "col1": ["not_null", "positive"],
@@ -408,12 +408,12 @@ class TestAssessDataQuality:
         assert "invalid_rows" in result
         assert "quality_rate" in result
 
-    def test_data_quality_with_rules(self, sample_dataframe, spark_session):
+    def test_data_quality_with_rules(self, sample_dataframe, spark):
         """Test data quality assessment with validation rules."""
         # Use functions from compat layer - get from session to match engine
         from pipeline_builder.compat import get_functions_from_session
 
-        functions = get_functions_from_session(spark_session)
+        functions = get_functions_from_session(spark)
         rules = {
             "user_id": ["not_null"],
             "age": ["positive"],
@@ -431,12 +431,12 @@ class TestAssessDataQuality:
 class TestApplyValidationRules:
     """Test apply_column_rules function."""
 
-    def test_apply_column_rules_basic(self, sample_dataframe, spark_session):
+    def test_apply_column_rules_basic(self, sample_dataframe, spark):
         """Test applying basic validation rules."""
         # Use functions from compat layer - get from session to match engine
         from pipeline_builder.compat import get_functions_from_session
 
-        functions = get_functions_from_session(spark_session)
+        functions = get_functions_from_session(spark)
         rules = {
             "user_id": ["not_null"],
             "age": ["positive"],

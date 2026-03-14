@@ -11,13 +11,13 @@ from pipeline_builder_base.errors import ExecutionError
 
 from pipeline_builder.compat import F
 
-# Run in both mock and real mode (F and mock_spark_session are mode-aware).
+# Run in both mock and real mode (F and spark are mode-aware).
 
 
 class TestWithBronzeSqlSource:
-    def test_adds_bronze_step_with_sql_source(self, mock_spark_session):
+    def test_adds_bronze_step_with_sql_source(self, spark):
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="analytics", functions=F
+            spark=spark, schema="analytics", functions=F
         )
         source = JdbcSource(
             url="jdbc:postgresql://host/db",
@@ -36,17 +36,17 @@ class TestWithBronzeSqlSource:
         assert step.name == "orders"
         assert step.incremental_col == "updated_at"
 
-    def test_rejects_empty_rules(self, mock_spark_session):
+    def test_rejects_empty_rules(self, spark):
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="analytics", functions=F
+            spark=spark, schema="analytics", functions=F
         )
         source = JdbcSource(url="jdbc:postgresql://h/db", table="t", properties={})
         with pytest.raises(ExecutionError):
             builder.with_bronze_sql_source(name="x", sql_source=source, rules={})
 
-    def test_accepts_sqlalchemy_source(self, mock_spark_session):
+    def test_accepts_sqlalchemy_source(self, spark):
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="analytics", functions=F
+            spark=spark, schema="analytics", functions=F
         )
         source = SqlAlchemySource(url="sqlite:///x.db", table="t")
         builder.with_bronze_sql_source(
@@ -58,9 +58,9 @@ class TestWithBronzeSqlSource:
 
 
 class TestWithSilverSqlSource:
-    def test_adds_silver_step_with_sql_source(self, mock_spark_session):
+    def test_adds_silver_step_with_sql_source(self, spark):
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="analytics", functions=F
+            spark=spark, schema="analytics", functions=F
         )
         source = JdbcSource(url="jdbc:postgresql://h/db", table="inv", properties={})
         builder.with_silver_sql_source(
@@ -78,9 +78,9 @@ class TestWithSilverSqlSource:
 
 
 class TestWithGoldSqlSource:
-    def test_adds_gold_step_with_sql_source(self, mock_spark_session):
+    def test_adds_gold_step_with_sql_source(self, spark):
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="analytics", functions=F
+            spark=spark, schema="analytics", functions=F
         )
         source = JdbcSource(
             url="jdbc:postgresql://h/db", query="(SELECT 1) AS q", properties={}
@@ -103,10 +103,10 @@ class TestSqlSourceBuilderValidation:
     """Validation and error paths for SQL source builder methods."""
 
     def test_with_bronze_sql_source_rejects_invalid_source_type(
-        self, mock_spark_session
+        self, spark
     ):
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="analytics", functions=F
+            spark=spark, schema="analytics", functions=F
         )
         with pytest.raises(Exception) as exc_info:
             builder.with_bronze_sql_source(
@@ -118,9 +118,9 @@ class TestSqlSourceBuilderValidation:
             exc_info.value
         )
 
-    def test_with_bronze_sql_source_duplicate_name_raises(self, mock_spark_session):
+    def test_with_bronze_sql_source_duplicate_name_raises(self, spark):
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="analytics", functions=F
+            spark=spark, schema="analytics", functions=F
         )
         source = JdbcSource(
             url="jdbc:postgresql://h/db",
@@ -142,9 +142,9 @@ class TestSqlSourceBuilderValidation:
             "orders" in str(exc_info.value) or "already" in str(exc_info.value).lower()
         )
 
-    def test_with_bronze_sql_source_accepts_schema_parameter(self, mock_spark_session):
+    def test_with_bronze_sql_source_accepts_schema_parameter(self, spark):
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="analytics", functions=F
+            spark=spark, schema="analytics", functions=F
         )
         source = JdbcSource(
             url="jdbc:postgresql://h/db",
@@ -161,10 +161,10 @@ class TestSqlSourceBuilderValidation:
         assert builder.bronze_steps["orders"].schema == "custom_bronze_schema"
 
     def test_with_silver_sql_source_rejects_invalid_source_type(
-        self, mock_spark_session
+        self, spark
     ):
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="analytics", functions=F
+            spark=spark, schema="analytics", functions=F
         )
         with pytest.raises(Exception) as exc_info:
             builder.with_silver_sql_source(
@@ -177,9 +177,9 @@ class TestSqlSourceBuilderValidation:
             exc_info.value
         )
 
-    def test_with_gold_sql_source_rejects_invalid_source_type(self, mock_spark_session):
+    def test_with_gold_sql_source_rejects_invalid_source_type(self, spark):
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="analytics", functions=F
+            spark=spark, schema="analytics", functions=F
         )
         with pytest.raises(Exception) as exc_info:
             builder.with_gold_sql_source(
@@ -192,9 +192,9 @@ class TestSqlSourceBuilderValidation:
             exc_info.value
         )
 
-    def test_with_silver_sql_source_accepts_schema_parameter(self, mock_spark_session):
+    def test_with_silver_sql_source_accepts_schema_parameter(self, spark):
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="analytics", functions=F
+            spark=spark, schema="analytics", functions=F
         )
         source = JdbcSource(
             url="jdbc:postgresql://h/db",
@@ -211,9 +211,9 @@ class TestSqlSourceBuilderValidation:
             )
         assert builder.silver_steps["inventory"].schema == "custom_schema"
 
-    def test_with_gold_sql_source_accepts_schema_parameter(self, mock_spark_session):
+    def test_with_gold_sql_source_accepts_schema_parameter(self, spark):
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="analytics", functions=F
+            spark=spark, schema="analytics", functions=F
         )
         source = JdbcSource(
             url="jdbc:postgresql://h/db",

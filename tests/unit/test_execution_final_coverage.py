@@ -4,15 +4,10 @@ Final tests to achieve 100% coverage for execution.py.
 This module covers the remaining uncovered lines.
 """
 
-import os
 from datetime import datetime
 from unittest.mock import patch
 
-# Import types based on SPARK_MODE
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql.types import IntegerType, StringType, StructField, StructType
-else:
-    from sparkless.spark_types import IntegerType, StructField, StructType, StringType  # type: ignore[import]
+import pytest
 
 from pipeline_builder.execution import (
     ExecutionEngine,
@@ -33,13 +28,13 @@ from pipeline_builder.models import (
 class TestExecutionFinalCoverage:
     """Test remaining uncovered lines in execution.py."""
 
-    def test_execute_pipeline_with_none_steps_result(self, spark_session):
+    def test_execute_pipeline_with_none_steps_result(self, spark):
         """Test pipeline execution when result.steps is None."""
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark, config=config)
 
         # Test that execute_pipeline handles None steps properly
         # Create a bronze step
@@ -57,13 +52,18 @@ class TestExecutionFinalCoverage:
             # This test was checking result structure, which is implementation-specific
             pass
 
-    def test_execute_pipeline_silver_step_no_schema_logging(self, spark_session):
+    def test_execute_pipeline_silver_step_no_schema_logging(self, spark, spark_imports):
         """Test pipeline execution with silver step that has no schema (error logging)."""
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
+        StringType = spark_imports.StringType
+
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark, config=config)
 
         # Create test data
         schema = StructType(
@@ -73,7 +73,7 @@ class TestExecutionFinalCoverage:
             ]
         )
         test_data = [{"id": 1, "name": "test1"}]
-        test_df = spark_session.createDataFrame(test_data, schema)
+        test_df = spark.createDataFrame(test_data, schema)
 
         # Create silver step without schema
         def silver_transform(spark, bronze_df, silvers):
@@ -109,13 +109,18 @@ class TestExecutionFinalCoverage:
             # Verify the result
             assert result.status == "completed"
 
-    def test_execute_pipeline_gold_step_no_schema_logging(self, spark_session):
+    def test_execute_pipeline_gold_step_no_schema_logging(self, spark, spark_imports):
         """Test pipeline execution with gold step that has no schema (error logging)."""
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
+        StringType = spark_imports.StringType
+
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark, config=config)
 
         # Create test data
         schema = StructType(
@@ -125,7 +130,7 @@ class TestExecutionFinalCoverage:
             ]
         )
         test_data = [{"id": 1, "name": "test1"}]
-        test_df = spark_session.createDataFrame(test_data, schema)
+        test_df = spark.createDataFrame(test_data, schema)
 
         # Create gold step without schema
         def gold_transform(spark, silvers):

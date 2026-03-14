@@ -24,20 +24,20 @@ class TestIotPipeline:
     """Test IoT sensor data processing pipeline with bronze-silver-gold architecture."""
 
     def test_complete_iot_sensor_pipeline_execution(
-        self, spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test complete IoT pipeline: sensor readings → anomaly detection → device health analytics."""
 
         # Create realistic sensor data
         sensor_data = data_generator.create_iot_sensor_data(
-            spark_session, num_readings=100
+            spark, num_readings=100
         )
 
         # Create pipeline builder
         unique_schema = get_unique_schema("bronze")
 
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema=unique_schema,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
@@ -231,19 +231,19 @@ class TestIotPipeline:
         print("✅ IoT pipeline test completed successfully")
 
     def test_incremental_sensor_processing(
-        self, spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test incremental processing of new sensor readings."""
 
         # Create initial sensor data
         initial_data = data_generator.create_iot_sensor_data(
-            spark_session, num_readings=50
+            spark, num_readings=50
         )
 
         # Create pipeline
         unique_schema = get_unique_schema("bronze")
 
-        builder = PipelineBuilder(spark=spark_session, schema=unique_schema)
+        builder = PipelineBuilder(spark=spark, schema=unique_schema)
 
         # Bronze layer
         builder.with_bronze_rules(
@@ -283,7 +283,7 @@ class TestIotPipeline:
         test_assertions.assert_pipeline_success(initial_result)
 
         # Create incremental data (new readings)
-        new_data = data_generator.create_iot_sensor_data(spark_session, num_readings=25)
+        new_data = data_generator.create_iot_sensor_data(spark, num_readings=25)
 
         # Incremental processing
         incremental_result = pipeline.run_incremental(
@@ -294,17 +294,17 @@ class TestIotPipeline:
         print("✅ Incremental sensor processing test completed successfully")
 
     def test_anomaly_detection_pipeline(
-        self, spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test anomaly detection in sensor data."""
 
         # Create sensor data with some anomalies
         normal_data = data_generator.create_iot_sensor_data(
-            spark_session, num_readings=80
+            spark, num_readings=80
         )
 
         # Add some anomalous readings
-        anomaly_data = spark_session.createDataFrame(
+        anomaly_data = spark.createDataFrame(
             [
                 (
                     "SENSOR-99",
@@ -351,7 +351,7 @@ class TestIotPipeline:
         # Create pipeline with anomaly detection
         unique_schema = get_unique_schema("bronze")
 
-        builder = PipelineBuilder(spark=spark_session, schema=unique_schema)
+        builder = PipelineBuilder(spark=spark, schema=unique_schema)
 
         builder.with_bronze_rules(
             name="sensor_readings",
@@ -427,28 +427,28 @@ class TestIotPipeline:
 
     @pytest.mark.sequential
     def test_performance_monitoring(
-        self, spark_session, data_generator, log_writer_config, test_assertions
+        self, spark, data_generator, log_writer_config, test_assertions
     ):
         """Test performance monitoring and logging for IoT pipeline."""
 
         # Create large sensor dataset
         sensor_data = data_generator.create_iot_sensor_data(
-            spark_session, num_readings=200
+            spark, num_readings=200
         )
 
         # Create unique schema for this test
         analytics_schema = get_unique_schema("analytics")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {analytics_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {analytics_schema}")
 
         # Create LogWriter for performance monitoring
         LogWriter(
-            spark=spark_session, schema=analytics_schema, table_name="iot_pipeline_logs"
+            spark=spark, schema=analytics_schema, table_name="iot_pipeline_logs"
         )
 
         # Create pipeline
         unique_schema = get_unique_schema("bronze")
 
-        builder = PipelineBuilder(spark=spark_session, schema=unique_schema)
+        builder = PipelineBuilder(spark=spark, schema=unique_schema)
 
         builder.with_bronze_rules(
             name="sensor_readings", rules={"sensor_id": ["not_null"]}
@@ -501,7 +501,7 @@ class TestIotPipeline:
             sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             from test_helpers.isolation import cleanup_test_tables
 
-            cleanup_test_tables(spark_session, analytics_schema)
+            cleanup_test_tables(spark, analytics_schema)
         except Exception:
             pass  # Ignore cleanup errors
 

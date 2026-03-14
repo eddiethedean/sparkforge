@@ -12,15 +12,6 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from uuid import uuid4
 
-import os
-
-
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-else:
-    from pyspark.sql import functions as F  # type: ignore
-
 from pipeline_builder import PipelineBuilder
 from pipeline_builder.writer.core import LogWriter
 
@@ -120,10 +111,19 @@ def get_log_entries_by_run(log_df, run_id: str) -> List[Dict]:
     return [row.asDict() for row in log_df.filter(log_df.run_id == run_id).collect()]
 
 
+import pytest
+
+
 class TestFullPipelineWithLogging:
     """Test full pipeline execution with LogWriter integration."""
 
-    def test_full_pipeline_with_logging(self, mock_spark_session):
+    @pytest.fixture(autouse=True)
+    def setup_imports(self, spark, spark_imports):
+        """Set up Spark imports for all tests."""
+        self.spark = spark
+        self.F = spark_imports.F
+
+    def test_full_pipeline_with_logging(self):
         """Test complete pipeline with 2 bronze, 2 silver, 1 gold steps and logging."""
         # Use unique schema per test to avoid conflicts in parallel execution
         schema = f"test_schema_{uuid4().hex[:8]}"
@@ -131,13 +131,13 @@ class TestFullPipelineWithLogging:
 
         # Create schema in Spark session using SQL (works for both mock-spark and PySpark)
         try:
-            mock_spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
         except Exception:
             pass  # Schema might already exist or be created automatically
 
         # Create LogWriter with unique schema
         log_writer = LogWriter(
-            mock_spark_session, schema=schema, table_name="pipeline_logs"
+            self.spark, schema=schema, table_name="pipeline_logs"
         )
 
         # Define unique table names for each silver step to avoid conflicts
@@ -146,26 +146,26 @@ class TestFullPipelineWithLogging:
 
         # Create initial test data
         initial_data_source1 = create_test_data_initial(
-            mock_spark_session, num_records=100
+            self.spark, num_records=100
         )
         initial_data_source2 = create_test_data_initial(
-            mock_spark_session, num_records=100
+            self.spark, num_records=100
         )
 
-        initial_df1 = mock_spark_session.createDataFrame(
+        initial_df1 = self.spark.createDataFrame(
             initial_data_source1, ["user_id", "action", "timestamp", "value"]
         )
-        initial_df2 = mock_spark_session.createDataFrame(
+        initial_df2 = self.spark.createDataFrame(
             initial_data_source2, ["user_id", "action", "timestamp", "value"]
         )
 
         # Create pipeline builder
-        builder = PipelineBuilder(spark=mock_spark_session, schema=schema)
+        builder = PipelineBuilder(spark=self.spark, schema=schema)
 
         # Define common validation rules
         common_bronze_rules = {
-            "user_id": [F.col("user_id").isNotNull()],
-            "timestamp": [F.col("timestamp").isNotNull()],
+            "user_id": [self.F.col("user_id").isNotNull()],
+            "timestamp": [self.F.col("timestamp").isNotNull()],
         }
 
         # Add 2 bronze steps targeting the same bronze table with same rules
@@ -189,20 +189,20 @@ class TestFullPipelineWithLogging:
 
             # Convert timestamp to string first (handles both string and datetime)
             bronze_df = bronze_df.withColumn(
-                "timestamp_str", F.col("timestamp").cast("string")
+                "timestamp_str", self.F.col("timestamp").cast("string")
             )
 
             # Extract date from timestamp string
             result_df = bronze_df.withColumn(
                 "event_date",
-                F.to_date(
-                    F.to_timestamp(F.col("timestamp_str"), "yyyy-MM-dd HH:mm:ss")
+                self.F.to_date(
+                    self.F.to_timestamp(self.F.col("timestamp_str"), "yyyy-MM-dd HH:mm:ss")
                 ),
             )
 
             # Filter and select columns - ensure all columns exist
             return (
-                result_df.filter(F.col("user_id").isNotNull())
+                result_df.filter(self.F.col("user_id").isNotNull())
                 .select("user_id", "action", "event_date", "value", "timestamp_str")
                 .withColumnRenamed("timestamp_str", "timestamp")
             )
@@ -211,8 +211,8 @@ class TestFullPipelineWithLogging:
         # Validate columns that exist in both input and output
         # We'll add event_date validation after confirming the transform works
         common_silver_rules = {
-            "user_id": [F.col("user_id").isNotNull()],
-            "value": [F.col("value").isNotNull()],
+            "user_id": [self.F.col("user_id").isNotNull()],
+            "value": [self.F.col("value").isNotNull()],
         }
 
         # Add 2 silver steps with same transformation function and rules
@@ -244,21 +244,21 @@ class TestFullPipelineWithLogging:
                 combined = silver1.union(silver2)
                 # Aggregate by user_id
                 return combined.groupBy("user_id").agg(
-                    F.count("*").alias("event_count"),
-                    F.sum("value").alias("total_value"),
-                    F.avg("value").alias("avg_value"),
+                    self.F.count("*").alias("event_count"),
+                    self.F.sum("value").alias("total_value"),
+                    self.F.avg("value").alias("avg_value"),
                 )
             elif silver1 is not None:
                 return silver1.groupBy("user_id").agg(
-                    F.count("*").alias("event_count"),
-                    F.sum("value").alias("total_value"),
-                    F.avg("value").alias("avg_value"),
+                    self.F.count("*").alias("event_count"),
+                    self.F.sum("value").alias("total_value"),
+                    self.F.avg("value").alias("avg_value"),
                 )
             elif silver2 is not None:
                 return silver2.groupBy("user_id").agg(
-                    F.count("*").alias("event_count"),
-                    F.sum("value").alias("total_value"),
-                    F.avg("value").alias("avg_value"),
+                    self.F.count("*").alias("event_count"),
+                    self.F.sum("value").alias("total_value"),
+                    self.F.avg("value").alias("avg_value"),
                 )
             else:
                 return spark.createDataFrame(
@@ -269,8 +269,8 @@ class TestFullPipelineWithLogging:
             name="event_summary",
             transform=gold_transform,
             rules={
-                "user_id": [F.col("user_id").isNotNull()],
-                "event_count": [F.col("event_count") > 0],
+                "user_id": [self.F.col("user_id").isNotNull()],
+                "event_count": [self.F.col("event_count") > 0],
             },
             table_name="event_summary",
             source_silvers=["processed_events_1", "processed_events_2"],
@@ -341,8 +341,8 @@ class TestFullPipelineWithLogging:
 
         # Verify both silver tables exist and have correct schema
         # Each silver step writes to its own unique table to avoid conflicts
-        silver_df_1 = mock_spark_session.table(f"{schema}.{silver_table_1}")
-        silver_df_2 = mock_spark_session.table(f"{schema}.{silver_table_2}")
+        silver_df_1 = self.spark.table(f"{schema}.{silver_table_1}")
+        silver_df_2 = self.spark.table(f"{schema}.{silver_table_2}")
 
         silver_count_1 = silver_df_1.count()
         silver_count_2 = silver_df_2.count()
@@ -373,7 +373,7 @@ class TestFullPipelineWithLogging:
         assert gold_step["rows_written"] > 0, "Gold step should write rows"
 
         # Verify gold table exists
-        gold_table = mock_spark_session.table(f"{schema}.event_summary")
+        gold_table = self.spark.table(f"{schema}.event_summary")
         gold_count = gold_table.count()
         assert gold_count > 0, "Gold table should have aggregated rows"
 
@@ -396,7 +396,7 @@ class TestFullPipelineWithLogging:
         )
 
         # Verify logs written
-        log_df = mock_spark_session.table(f"{schema}.pipeline_logs")
+        log_df = self.spark.table(f"{schema}.pipeline_logs")
         initial_log_count = log_df.count()
         assert initial_log_count == 6, f"Expected 6 log rows, got {initial_log_count}"
 
@@ -499,16 +499,16 @@ class TestFullPipelineWithLogging:
 
         # Create incremental test data with later timestamps
         incremental_data_source1 = create_test_data_incremental(
-            mock_spark_session, num_records=50
+            self.spark, num_records=50
         )
         incremental_data_source2 = create_test_data_incremental(
-            mock_spark_session, num_records=50
+            self.spark, num_records=50
         )
 
-        incremental_df1 = mock_spark_session.createDataFrame(
+        incremental_df1 = self.spark.createDataFrame(
             incremental_data_source1, ["user_id", "action", "timestamp", "value"]
         )
-        incremental_df2 = mock_spark_session.createDataFrame(
+        incremental_df2 = self.spark.createDataFrame(
             incremental_data_source2, ["user_id", "action", "timestamp", "value"]
         )
 
@@ -547,8 +547,8 @@ class TestFullPipelineWithLogging:
 
         # Note: Bronze steps don't write tables, but silver steps do
         # Verify both silver tables have incremental data added (each writes to its own table)
-        silver_table_1_after = mock_spark_session.table(f"{schema}.{silver_table_1}")
-        silver_table_2_after = mock_spark_session.table(f"{schema}.{silver_table_2}")
+        silver_table_1_after = self.spark.table(f"{schema}.{silver_table_1}")
+        silver_table_2_after = self.spark.table(f"{schema}.{silver_table_2}")
 
         silver_count_1_after = silver_table_1_after.count()
         silver_count_2_after = silver_table_2_after.count()
@@ -589,7 +589,7 @@ class TestFullPipelineWithLogging:
         )
 
         # Verify logs appended (not overwritten)
-        log_df_after = mock_spark_session.table(f"{schema}.pipeline_logs")
+        log_df_after = self.spark.table(f"{schema}.pipeline_logs")
         total_log_count = log_df_after.count()
         assert total_log_count == 12, (
             f"Expected 12 total log rows (6 initial + 6 incremental), got {total_log_count}"
@@ -671,8 +671,8 @@ class TestFullPipelineWithLogging:
 
         # Verify cumulative data in tables
         # Both silver tables should have data from incremental runs (overwrite mode replaces initial data)
-        final_silver_table_1 = mock_spark_session.table(f"{schema}.{silver_table_1}")
-        final_silver_table_2 = mock_spark_session.table(f"{schema}.{silver_table_2}")
+        final_silver_table_1 = self.spark.table(f"{schema}.{silver_table_1}")
+        final_silver_table_2 = self.spark.table(f"{schema}.{silver_table_2}")
 
         final_silver_count_1 = final_silver_table_1.count()
         final_silver_count_2 = final_silver_table_2.count()
@@ -687,7 +687,7 @@ class TestFullPipelineWithLogging:
         )
 
         # Gold table should have aggregated data from all runs
-        final_gold_table = mock_spark_session.table(f"{schema}.event_summary")
+        final_gold_table = self.spark.table(f"{schema}.event_summary")
         final_gold_count = final_gold_table.count()
         assert final_gold_count > 0, (
             "Gold table should have aggregated rows after incremental run"

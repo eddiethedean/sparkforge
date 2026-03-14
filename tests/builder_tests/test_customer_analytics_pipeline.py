@@ -16,20 +16,20 @@ class TestCustomerAnalyticsPipeline:
     """Test customer analytics pipeline with bronze-silver-gold architecture."""
 
     def test_complete_customer_360_pipeline_execution(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test complete customer 360 pipeline: interactions → behavior patterns → customer insights."""
 
         # Create realistic customer data
         customers_df = data_generator.create_customer_data(
-            mock_spark_session, num_customers=30
+            spark, num_customers=30
         )
         orders_df = data_generator.create_ecommerce_orders(
-            mock_spark_session, num_orders=100
+            spark, num_orders=100
         )
 
         # Create additional customer interaction data
-        interactions_data = mock_spark_session.createDataFrame(
+        interactions_data = spark.createDataFrame(
             [
                 ("CUST-001", "website_visit", "2024-01-01T10:00:00", "homepage", 300),
                 ("CUST-001", "product_view", "2024-01-01T10:05:00", "product_123", 120),
@@ -54,13 +54,13 @@ class TestCustomerAnalyticsPipeline:
         )
 
         # Setup schemas
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=mock_spark_session,
+            spark=spark,
             schema="bronze",
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
@@ -399,17 +399,17 @@ class TestCustomerAnalyticsPipeline:
         print("✅ Test completed successfully")
 
     def test_customer_churn_prediction(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test customer churn prediction pipeline."""
 
         # Create customer data with churn indicators
         customers_df = data_generator.create_customer_data(
-            mock_spark_session, num_customers=20
+            spark, num_customers=20
         )
 
         # Create interaction data with churn patterns
-        churn_interactions = mock_spark_session.createDataFrame(
+        churn_interactions = spark.createDataFrame(
             [
                 (
                     "CUST-001",
@@ -434,13 +434,13 @@ class TestCustomerAnalyticsPipeline:
         )
 
         # Setup schemas
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="bronze", functions=F
+            spark=spark, schema="bronze", functions=F
         )
 
         builder.with_bronze_rules(name="customers", rules={"customer_id": ["not_null"]})
@@ -556,26 +556,26 @@ class TestCustomerAnalyticsPipeline:
         # Pipeline execution verified above - storage verification not needed for unit tests
 
     def test_customer_lifetime_value_analysis(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test customer lifetime value analysis pipeline."""
 
         # Create customer and order data
         customers_df = data_generator.create_customer_data(
-            mock_spark_session, num_customers=15
+            spark, num_customers=15
         )
         orders_df = data_generator.create_ecommerce_orders(
-            mock_spark_session, num_orders=75
+            spark, num_orders=75
         )
 
         # Setup schemas
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="bronze", functions=F
+            spark=spark, schema="bronze", functions=F
         )
 
         builder.with_bronze_rules(name="customers", rules={"customer_id": ["not_null"]})
@@ -703,15 +703,15 @@ class TestCustomerAnalyticsPipeline:
         # Pipeline execution verified above - storage verification not needed for unit tests
 
     def test_customer_analytics_logging(
-        self, mock_spark_session, data_generator, log_writer_config, test_assertions
+        self, spark, data_generator, log_writer_config, test_assertions
     ):
         """Test comprehensive logging for customer analytics pipeline."""
 
         # Create test data
         customers_df = data_generator.create_customer_data(
-            mock_spark_session, num_customers=10
+            spark, num_customers=10
         )
-        interactions_data = mock_spark_session.createDataFrame(
+        interactions_data = spark.createDataFrame(
             [
                 ("CUST-001", "website_visit", "2024-01-01T10:00:00", 300),
             ],
@@ -719,21 +719,21 @@ class TestCustomerAnalyticsPipeline:
         )
 
         # Setup schemas
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS analytics")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS analytics")
 
         # Create LogWriter
         log_writer = LogWriter(
-            spark=mock_spark_session,
+            spark=spark,
             schema="analytics",
             table_name="customer_analytics_logs",
         )
 
         # Create pipeline
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="bronze", functions=F
+            spark=spark, schema="bronze", functions=F
         )
 
         builder.with_bronze_rules(name="customers", rules={"customer_id": ["not_null"]})
@@ -779,7 +779,7 @@ class TestCustomerAnalyticsPipeline:
 
         # Verify log table was created
         # Verify log table exists by accessing it
-        log_df = mock_spark_session.table("analytics.customer_analytics_logs")
+        log_df = spark.table("analytics.customer_analytics_logs")
         assert log_df is not None
 
         # Verify log data

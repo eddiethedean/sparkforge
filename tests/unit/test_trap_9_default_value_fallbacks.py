@@ -81,7 +81,7 @@ class TestTrap9DefaultValueFallbacks:
         )
         assert result == "test_table"
 
-    def test_execution_engine_context_validation(self, spark_session):
+    def test_execution_engine_context_validation(self, spark):
         """Test that ExecutionEngine properly validates context parameter."""
         # Test the context validation logic directly
         from pipeline_builder.models.pipeline import ValidationThresholds
@@ -93,7 +93,7 @@ class TestTrap9DefaultValueFallbacks:
                 bronze={"min_rows": 1}, silver={"min_rows": 1}, gold={"min_rows": 1}
             ),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark, config=config)
 
         # Test that None context is converted to empty dict
         # We'll test the context validation by calling execute_pipeline with None
@@ -108,7 +108,7 @@ class TestTrap9DefaultValueFallbacks:
         result = engine.execute_pipeline([step], context=None)
         assert result is not None
 
-    def test_execution_engine_context_type_validation(self, spark_session):
+    def test_execution_engine_context_type_validation(self, spark):
         """Test that ExecutionEngine validates context type."""
         from pipeline_builder.models.pipeline import ValidationThresholds
 
@@ -119,7 +119,7 @@ class TestTrap9DefaultValueFallbacks:
                 bronze={"min_rows": 1}, silver={"min_rows": 1}, gold={"min_rows": 1}
             ),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark, config=config)
 
         from pipeline_builder.errors import ExecutionError
         from pipeline_builder.models.steps import BronzeStep
@@ -135,9 +135,9 @@ class TestTrap9DefaultValueFallbacks:
         ):
             engine.execute_pipeline([step], context="invalid_context")
 
-    def test_log_writer_run_id_handling(self, spark_session):
+    def test_log_writer_run_id_handling(self, spark):
         """Test that LogWriter properly handles None run_id."""
-        writer = LogWriter(spark=spark_session, schema="test_schema", table_name="test_table")
+        writer = LogWriter(spark=spark, schema="test_schema", table_name="test_table")
 
         # Should generate new run_id when None is provided
         from datetime import datetime
@@ -170,9 +170,9 @@ class TestTrap9DefaultValueFallbacks:
             # We expect some errors due to missing table, but not due to run_id handling
             assert "run_id" not in str(e).lower()
 
-    def test_log_writer_batch_run_ids_handling(self, spark_session):
+    def test_log_writer_batch_run_ids_handling(self, spark):
         """Test that LogWriter properly handles None run_ids in batch operations."""
-        writer = LogWriter(spark=spark_session, schema="test_schema", table_name="test_table")
+        writer = LogWriter(spark=spark, schema="test_schema", table_name="test_table")
 
         from datetime import datetime
 
@@ -204,9 +204,9 @@ class TestTrap9DefaultValueFallbacks:
             # We expect some errors due to missing table, but not due to run_ids handling
             assert "run_ids" not in str(e).lower()
 
-    def test_log_writer_display_limit_handling(self, spark_session):
+    def test_log_writer_display_limit_handling(self, spark):
         """Test that LogWriter properly handles None limit parameter."""
-        writer = LogWriter(spark=spark_session, schema="test_schema", table_name="test_table")
+        writer = LogWriter(spark=spark, schema="test_schema", table_name="test_table")
 
         # This should work without raising an error
         # The limit will default to 20 if None is provided
@@ -216,24 +216,24 @@ class TestTrap9DefaultValueFallbacks:
             # We expect some errors due to missing table, but not due to limit handling
             assert "limit" not in str(e).lower()
 
-    def test_logger_initialization_explicit_none(self, spark_session):
+    def test_logger_initialization_explicit_none(self, spark):
         """Test that logger initialization properly handles explicit None."""
         from pipeline_builder.logging import PipelineLogger
         from pipeline_builder.writer.monitoring import PerformanceMonitor
 
         # Should create new logger when None is explicitly passed
-        monitor = PerformanceMonitor(spark=spark_session, logger=None)
+        monitor = PerformanceMonitor(spark=spark, logger=None)
         assert isinstance(monitor.logger, PipelineLogger)
         assert monitor.logger.name == "PerformanceMonitor"
 
-    def test_logger_initialization_with_logger(self, spark_session):
+    def test_logger_initialization_with_logger(self, spark):
         """Test that logger initialization preserves provided logger."""
         from pipeline_builder.logging import PipelineLogger
         from pipeline_builder.writer.monitoring import PerformanceMonitor
 
         # Should use provided logger
         custom_logger = PipelineLogger("CustomLogger")
-        monitor = PerformanceMonitor(spark=spark_session, logger=custom_logger)
+        monitor = PerformanceMonitor(spark=spark, logger=custom_logger)
         assert monitor.logger is custom_logger
         assert monitor.logger.name == "CustomLogger"
 

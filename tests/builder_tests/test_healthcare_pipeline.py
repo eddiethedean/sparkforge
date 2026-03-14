@@ -6,15 +6,7 @@ Bronze → Silver → Gold medallion architecture with patient data, lab results
 diagnoses, medications, and population health insights.
 """
 
-import os
-
-
-# Import functions based on SPARK_MODE
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql import functions as F
-else:
-    from sparkless.sql import functions as F  # type: ignore[import]
-
+from pipeline_builder.compat import F
 from pipeline_builder.pipeline import PipelineBuilder
 from pipeline_builder.writer import LogWriter
 
@@ -28,30 +20,30 @@ class TestHealthcarePipeline:
     """Test healthcare analytics pipeline with bronze-silver-gold architecture."""
 
     def test_complete_healthcare_pipeline_execution(
-        self, spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test complete healthcare pipeline: patients → medical records → health insights."""
 
         # Setup schemas
-        create_schema_if_not_exists(spark_session, "bronze")
-        create_schema_if_not_exists(spark_session, "silver")
-        create_schema_if_not_exists(spark_session, "gold")
+        create_schema_if_not_exists(spark, "bronze")
+        create_schema_if_not_exists(spark, "silver")
+        create_schema_if_not_exists(spark, "gold")
 
         # Create realistic healthcare data
         patients_df = data_generator.create_healthcare_patients(
-            spark_session, num_patients=40
+            spark, num_patients=40
         )
-        labs_df = data_generator.create_healthcare_labs(spark_session, num_results=150)
+        labs_df = data_generator.create_healthcare_labs(spark, num_results=150)
         diagnoses_df = data_generator.create_healthcare_diagnoses(
-            spark_session, num_diagnoses=120
+            spark, num_diagnoses=120
         )
         medications_df = data_generator.create_healthcare_medications(
-            spark_session, num_prescriptions=160
+            spark, num_prescriptions=160
         )
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             functions=F,
             schema="bronze",
             min_bronze_rate=95.0,
@@ -506,24 +498,24 @@ class TestHealthcarePipeline:
         assert population_metrics_result.get("rows_processed", 0) > 0
 
     def test_incremental_healthcare_processing(
-        self, spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test incremental processing of new healthcare data."""
         # Setup schemas
-        create_schema_if_not_exists(spark_session, "bronze")
-        create_schema_if_not_exists(spark_session, "silver")
+        create_schema_if_not_exists(spark, "bronze")
+        create_schema_if_not_exists(spark, "silver")
 
         # Create initial data
         patients_df = data_generator.create_healthcare_patients(
-            spark_session, num_patients=20
+            spark, num_patients=20
         )
         labs_initial = data_generator.create_healthcare_labs(
-            spark_session, num_results=50
+            spark, num_results=50
         )
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema="bronze",
             functions=F,
             min_bronze_rate=95.0,
@@ -583,7 +575,7 @@ class TestHealthcarePipeline:
 
         # Incremental load with new lab results
         labs_incremental = data_generator.create_healthcare_labs(
-            spark_session, num_results=30
+            spark, num_results=30
         )
 
         result2 = pipeline.run_incremental(
@@ -597,29 +589,29 @@ class TestHealthcarePipeline:
         assert result2.mode.value == "incremental"
 
     def test_healthcare_logging(
-        self, spark_session, data_generator, log_writer_config, test_assertions
+        self, spark, data_generator, log_writer_config, test_assertions
     ):
         """Test comprehensive logging for healthcare pipeline."""
         # Create test data
         patients_df = data_generator.create_healthcare_patients(
-            spark_session, num_patients=15
+            spark, num_patients=15
         )
-        labs_df = data_generator.create_healthcare_labs(spark_session, num_results=50)
+        labs_df = data_generator.create_healthcare_labs(spark, num_results=50)
 
         # Setup schemas
-        create_schema_if_not_exists(spark_session, "bronze")
-        create_schema_if_not_exists(spark_session, "analytics")
+        create_schema_if_not_exists(spark, "bronze")
+        create_schema_if_not_exists(spark, "analytics")
 
         # Create LogWriter
         log_writer = LogWriter(
-            spark=spark_session,
+            spark=spark,
             schema="analytics",
             table_name="healthcare_logs",
         )
 
         # Create pipeline
         builder = PipelineBuilder(
-            spark=spark_session, schema="bronze", functions=F, verbose=False
+            spark=spark, schema="bronze", functions=F, verbose=False
         )
 
         builder.with_bronze_rules(

@@ -14,13 +14,7 @@ from datetime import datetime, timedelta
 from typing import List
 from uuid import uuid4
 
-import os
-
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-else:
-    from pyspark.sql import functions as F  # type: ignore
+import pytest
 
 from pipeline_builder import PipelineBuilder
 from pipeline_builder.execution import ExecutionEngine
@@ -70,7 +64,12 @@ def create_incremental_data(
 class TestRobustFullPipelineFlows:
     """Test robust full pipeline flows with multiple initial runs."""
 
-    def test_multiple_initial_runs_overwrite_tables(self, mock_spark_session):
+    @pytest.fixture
+    def F(self, spark_imports):
+        """Get F functions from spark_imports."""
+        return spark_imports.F
+
+    def test_multiple_initial_runs_overwrite_tables(self, spark, spark_imports):
         """
         Test that multiple initial runs properly overwrite tables.
 
@@ -80,22 +79,23 @@ class TestRobustFullPipelineFlows:
         3. LogWriter correctly tracks each run
         4. Metrics are accurate for each run
         """
+        F = spark_imports.F
         # Use unique schema per test
         schema = f"test_schema_{uuid4().hex[:8]}"
 
         # Create schema
         try:
-            mock_spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+            spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
         except Exception:
             pass
 
         # Create LogWriter
         log_writer = LogWriter(
-            mock_spark_session, schema=schema, table_name="pipeline_logs"
+            spark, schema=schema, table_name="pipeline_logs"
         )
 
         # Create pipeline builder
-        builder = PipelineBuilder(spark=mock_spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
 
         # Define bronze validation rules
         bronze_rules = {
@@ -197,13 +197,13 @@ class TestRobustFullPipelineFlows:
             # Create test data with different sizes for each run
             num_records = 100 + (run_num * 50)  # 100, 150, 200 records
             test_data = create_test_data(
-                mock_spark_session,
+                spark,
                 num_records=num_records,
                 base_date=datetime(2024, 1, 1 + run_num, 0, 0, 0),
             )
 
             # Create source DataFrame
-            source_df = mock_spark_session.createDataFrame(
+            source_df = spark.createDataFrame(
                 test_data, ["user_id", "action", "timestamp", "value"]
             )
 
@@ -248,7 +248,7 @@ class TestRobustFullPipelineFlows:
             # (not accumulated from previous runs)
             # Note: Bronze steps don't write to tables, only silver and gold do
             try:
-                silver_table = mock_spark_session.table(
+                silver_table = spark.table(
                     f"{schema}.silver_processed_events"
                 )
                 silver_count = silver_table.count()
@@ -257,7 +257,7 @@ class TestRobustFullPipelineFlows:
                     f"got {silver_count} (possible append instead of overwrite)"
                 )
 
-                gold_table = mock_spark_session.table(
+                gold_table = spark.table(
                     f"{schema}.gold_user_daily_metrics"
                 )
                 gold_count = gold_table.count()
@@ -299,7 +299,7 @@ class TestRobustFullPipelineFlows:
 
         # Verify log table has entries for all runs
         try:
-            log_df = mock_spark_session.table(f"{schema}.pipeline_logs")
+            log_df = spark.table(f"{schema}.pipeline_logs")
             log_count = log_df.count()
             # Should have at least one log entry per step per run
             # (bronze + silver + gold = 3 steps, 3 runs = 9 minimum entries)
@@ -320,7 +320,7 @@ class TestRobustFullPipelineFlows:
 
         # Final verification: After 3 initial runs, tables should have data from the last run only
         # Note: Bronze steps don't write to tables, only silver and gold do
-        silver_table = mock_spark_session.table(f"{schema}.silver_processed_events")
+        silver_table = spark.table(f"{schema}.silver_processed_events")
         final_silver_count = silver_table.count()
         expected_final_count = (
             200  # Last run had 200 records (silver may have fewer after filtering)
@@ -330,7 +330,7 @@ class TestRobustFullPipelineFlows:
             f"(from last run), got {final_silver_count} (possible accumulation issue)"
         )
 
-    def test_initial_then_incremental_flow(self, mock_spark_session):
+    def test_initial_then_incremental_flow(self, spark, spark_imports):
         """
         Test initial run followed by incremental runs.
 
@@ -340,18 +340,19 @@ class TestRobustFullPipelineFlows:
         3. LogWriter tracks both initial and incremental runs
         4. Data consistency across runs
         """
+        F = spark_imports.F
         schema = f"test_schema_{uuid4().hex[:8]}"
 
         try:
-            mock_spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+            spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
         except Exception:
             pass
 
         log_writer = LogWriter(
-            mock_spark_session, schema=schema, table_name="pipeline_logs"
+            spark, schema=schema, table_name="pipeline_logs"
         )
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
 
         bronze_rules = {
             "user_id": [F.col("user_id").isNotNull()],
@@ -429,13 +430,13 @@ class TestRobustFullPipelineFlows:
             verbose=True,
         )
         # Engine created but not used directly - pipeline uses it internally
-        _engine = ExecutionEngine(spark=mock_spark_session, config=config)
+        _engine = ExecutionEngine(spark=spark, config=config)
 
         # Run 1: Initial load
         initial_data = create_test_data(
-            mock_spark_session, num_records=100, base_date=datetime(2024, 1, 1, 0, 0, 0)
+            spark, num_records=100, base_date=datetime(2024, 1, 1, 0, 0, 0)
         )
-        initial_df = mock_spark_session.createDataFrame(
+        initial_df = spark.createDataFrame(
             initial_data, ["user_id", "action", "timestamp", "value"]
         )
 
@@ -454,14 +455,14 @@ class TestRobustFullPipelineFlows:
 
         # Verify initial table state
         # Note: Bronze steps don't write to tables, only silver and gold do
-        silver_table = mock_spark_session.table(f"{schema}.silver_processed_events")
+        silver_table = spark.table(f"{schema}.silver_processed_events")
         assert silver_table.count() == 100, "Initial silver table should have 100 rows"
 
         # Run 2: Incremental load
         incremental_data = create_incremental_data(
-            mock_spark_session, num_records=50, base_date=datetime(2024, 1, 2, 0, 0, 0)
+            spark, num_records=50, base_date=datetime(2024, 1, 2, 0, 0, 0)
         )
-        incremental_df = mock_spark_session.createDataFrame(
+        incremental_df = spark.createDataFrame(
             incremental_data, ["user_id", "action", "timestamp", "value"]
         )
 
@@ -475,7 +476,7 @@ class TestRobustFullPipelineFlows:
 
         # Verify incremental append: Silver should now have more rows (100 initial + 50 incremental)
         # Note: Bronze steps don't write to tables, only silver and gold do
-        silver_table = mock_spark_session.table(f"{schema}.silver_processed_events")
+        silver_table = spark.table(f"{schema}.silver_processed_events")
         assert silver_table.count() >= 100, (
             "After incremental run, silver table should have at least 100 rows, "
             f"got {silver_table.count()}"
@@ -483,9 +484,9 @@ class TestRobustFullPipelineFlows:
 
         # Run 3: Another incremental load
         incremental_data2 = create_incremental_data(
-            mock_spark_session, num_records=30, base_date=datetime(2024, 1, 3, 0, 0, 0)
+            spark, num_records=30, base_date=datetime(2024, 1, 3, 0, 0, 0)
         )
-        incremental_df2 = mock_spark_session.createDataFrame(
+        incremental_df2 = spark.createDataFrame(
             incremental_data2, ["user_id", "action", "timestamp", "value"]
         )
 
@@ -499,7 +500,7 @@ class TestRobustFullPipelineFlows:
 
         # Verify final state: Silver should have accumulated rows from all runs
         # Note: Bronze steps don't write to tables, only silver and gold do
-        silver_table = mock_spark_session.table(f"{schema}.silver_processed_events")
+        silver_table = spark.table(f"{schema}.silver_processed_events")
         assert silver_table.count() >= 100, (
             "After second incremental run, silver table should have at least 100 rows, "
             f"got {silver_table.count()}"
@@ -520,7 +521,7 @@ class TestRobustFullPipelineFlows:
             )
             assert write_result["success"], f"Failed to write logs for run {i}"
 
-    def test_writer_metrics_accuracy(self, mock_spark_session):
+    def test_writer_metrics_accuracy(self, spark, spark_imports):
         """
         Test that LogWriter metrics are accurate across multiple runs.
 
@@ -529,18 +530,19 @@ class TestRobustFullPipelineFlows:
         2. Metrics match execution results
         3. Multiple writes don't corrupt metrics
         """
+        F = spark_imports.F
         schema = f"test_schema_{uuid4().hex[:8]}"
 
         try:
-            mock_spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+            spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
         except Exception:
             pass
 
         log_writer = LogWriter(
-            mock_spark_session, schema=schema, table_name="pipeline_logs"
+            spark, schema=schema, table_name="pipeline_logs"
         )
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
 
         builder.with_bronze_rules(
             name="raw_events",
@@ -589,17 +591,17 @@ class TestRobustFullPipelineFlows:
             verbose=True,
         )
         # Engine created but not used directly - pipeline uses it internally
-        _engine = ExecutionEngine(spark=mock_spark_session, config=config)
+        _engine = ExecutionEngine(spark=spark, config=config)
 
         # Run pipeline multiple times and verify metrics
         for run_num in range(3):
             num_records = 50 + (run_num * 25)  # 50, 75, 100
             test_data = create_test_data(
-                mock_spark_session,
+                spark,
                 num_records=num_records,
                 base_date=datetime(2024, 1, 1 + run_num, 0, 0, 0),
             )
-            source_df = mock_spark_session.createDataFrame(
+            source_df = spark.createDataFrame(
                 test_data, ["user_id", "action", "timestamp", "value"]
             )
 

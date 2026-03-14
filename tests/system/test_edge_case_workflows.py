@@ -19,14 +19,6 @@ from datetime import datetime, timedelta
 from typing import List
 from uuid import uuid4
 
-import os
-
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-else:
-    from pyspark.sql import functions as F  # type: ignore
-
 from pipeline_builder import PipelineBuilder
 from pipeline_builder.writer.core import LogWriter
 
@@ -64,15 +56,25 @@ def create_test_data(
     return data
 
 
+import pytest
+
+
 class TestEdgeCaseWorkflows:
     """Test edge cases and error scenarios in pipeline workflows."""
 
-    def test_empty_dataframe_handling(self, mock_spark_session):
+    @pytest.fixture(autouse=True)
+    def setup_imports(self, spark, spark_imports):
+        """Set up Spark imports for all tests."""
+        self.spark = spark
+        self.F = spark_imports.F
+        self.spark_imports = spark_imports
+
+    def test_empty_dataframe_handling(self):
         """Test pipeline handles empty DataFrames gracefully."""
         schema = f"test_schema_{uuid4().hex[:8]}"
 
         try:
-            mock_spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
         except Exception:
             pass
 
@@ -81,13 +83,13 @@ class TestEdgeCaseWorkflows:
         identifier = get_test_identifier()
         log_table = f"pipeline_logs_{identifier}"
         # Create LogWriter (may be used later)
-        _log_writer = LogWriter(mock_spark_session, schema=schema, table_name=log_table)
+        _log_writer = LogWriter(self.spark, schema=schema, table_name=log_table)
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema=schema)
+        builder = PipelineBuilder(spark=self.spark, schema=schema)
 
         bronze_rules = {
-            "user_id": [F.col("user_id").isNotNull()],
-            "timestamp": [F.col("timestamp").isNotNull()],
+            "user_id": [self.F.col("user_id").isNotNull()],
+            "timestamp": [self.F.col("timestamp").isNotNull()],
         }
 
         builder.with_bronze_rules(
@@ -98,12 +100,12 @@ class TestEdgeCaseWorkflows:
 
         def silver_transform(spark, bronze_df, silvers):
             bronze_df = bronze_df.withColumn(
-                "timestamp_str", F.col("timestamp").cast("string")
+                "timestamp_str", self.F.col("timestamp").cast("string")
             )
             result_df = bronze_df.withColumn(
                 "event_date",
-                F.to_date(
-                    F.to_timestamp(F.col("timestamp_str"), "yyyy-MM-dd HH:mm:ss")
+                self.F.to_date(
+                    self.F.to_timestamp(self.F.col("timestamp_str"), "yyyy-MM-dd HH:mm:ss")
                 ),
             )
             return result_df.select(
@@ -115,11 +117,11 @@ class TestEdgeCaseWorkflows:
             source_bronze="raw_events",
             transform=silver_transform,
             rules={
-                "user_id": [F.col("user_id").isNotNull()],
-                "value": [F.col("value").isNotNull()],
-                "event_date": [F.col("event_date").isNotNull()],
-                "action": [F.col("action").isNotNull()],
-                "timestamp": [F.col("timestamp").isNotNull()],
+                "user_id": [self.F.col("user_id").isNotNull()],
+                "value": [self.F.col("value").isNotNull()],
+                "event_date": [self.F.col("event_date").isNotNull()],
+                "action": [self.F.col("action").isNotNull()],
+                "timestamp": [self.F.col("timestamp").isNotNull()],
             },
             table_name=f"silver_processed_events_{uuid4().hex[:8]}",
         )
@@ -128,9 +130,9 @@ class TestEdgeCaseWorkflows:
             silver = silvers.get("processed_events")
             if silver is not None:
                 return silver.groupBy("user_id").agg(
-                    F.count("*").alias("event_count"),
-                    F.sum("value").alias("total_value"),
-                    F.avg("value").alias("avg_value"),
+                    self.F.count("*").alias("event_count"),
+                    self.F.sum("value").alias("total_value"),
+                    self.F.avg("value").alias("avg_value"),
                 )
             return spark.createDataFrame(
                 [], ["user_id", "event_count", "total_value", "avg_value"]
@@ -142,8 +144,8 @@ class TestEdgeCaseWorkflows:
             source_silvers=["processed_events"],
             transform=gold_transform,
             rules={
-                "user_id": [F.col("user_id").isNotNull()],
-                "event_count": [F.col("event_count") > 0],
+                "user_id": [self.F.col("user_id").isNotNull()],
+                "event_count": [self.F.col("event_count") > 0],
             },
             table_name=gold_table,
         )
@@ -156,44 +158,20 @@ class TestEdgeCaseWorkflows:
         pipeline = builder.to_pipeline()
 
         # Create empty DataFrame with explicit schema
-        import os
+        StructType = self.spark_imports.StructType
+        StructField = self.spark_imports.StructField
+        StringType = self.spark_imports.StringType
+        DoubleType = self.spark_imports.DoubleType
 
-        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-        if spark_mode == "real":
-            from pyspark.sql.types import (
-                StructType,
-                StructField,
-                StringType,
-                DoubleType,
-            )
-
-            schema = StructType(
-                [
-                    StructField("user_id", StringType(), True),
-                    StructField("action", StringType(), True),
-                    StructField("timestamp", StringType(), True),
-                    StructField("value", DoubleType(), True),
-                ]
-            )
-            empty_df = mock_spark_session.createDataFrame([], schema)
-        else:
-            # Mock mode requires schema for empty DataFrames
-            from sparkless.spark_types import (  # type: ignore[import]
-                DoubleType,
-                StringType,
-                StructField,
-                StructType,
-            )
-
-            schema = StructType(
-                [
-                    StructField("user_id", StringType(), True),
-                    StructField("action", StringType(), True),
-                    StructField("timestamp", StringType(), True),
-                    StructField("value", DoubleType(), True),
-                ]
-            )
-            empty_df = mock_spark_session.createDataFrame([], schema)
+        schema = StructType(
+            [
+                StructField("user_id", StringType(), True),
+                StructField("action", StringType(), True),
+                StructField("timestamp", StringType(), True),
+                StructField("value", DoubleType(), True),
+            ]
+        )
+        empty_df = self.spark.createDataFrame([], schema)
 
         # Execute with empty DataFrame
         result = pipeline.run_initial_load(bronze_sources={"raw_events": empty_df})
@@ -212,7 +190,7 @@ class TestEdgeCaseWorkflows:
         # Gold should handle empty input gracefully
         assert result.gold_results["user_metrics"]["rows_written"] == 0
 
-    def test_null_values_in_critical_columns(self, mock_spark_session):
+    def test_null_values_in_critical_columns(self):
         """Test pipeline handles null values in critical columns."""
         from tests.test_helpers.isolation import get_test_identifier
 
@@ -220,17 +198,17 @@ class TestEdgeCaseWorkflows:
         schema = f"test_schema_{identifier}"
 
         try:
-            mock_spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
         except Exception:
             pass
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema=schema)
+        builder = PipelineBuilder(spark=self.spark, schema=schema)
 
         # Strict validation rules that reject nulls
         bronze_rules = {
-            "user_id": [F.col("user_id").isNotNull()],
-            "timestamp": [F.col("timestamp").isNotNull()],
-            "value": [F.col("value").isNotNull()],
+            "user_id": [self.F.col("user_id").isNotNull()],
+            "timestamp": [self.F.col("timestamp").isNotNull()],
+            "value": [self.F.col("value").isNotNull()],
         }
 
         builder.with_bronze_rules(
@@ -241,12 +219,12 @@ class TestEdgeCaseWorkflows:
 
         def silver_transform(spark, bronze_df, silvers):
             bronze_df = bronze_df.withColumn(
-                "timestamp_str", F.col("timestamp").cast("string")
+                "timestamp_str", self.F.col("timestamp").cast("string")
             )
             result_df = bronze_df.withColumn(
                 "event_date",
-                F.to_date(
-                    F.to_timestamp(F.col("timestamp_str"), "yyyy-MM-dd HH:mm:ss")
+                self.F.to_date(
+                    self.F.to_timestamp(self.F.col("timestamp_str"), "yyyy-MM-dd HH:mm:ss")
                 ),
             )
             return result_df.select(
@@ -258,11 +236,11 @@ class TestEdgeCaseWorkflows:
             source_bronze="raw_events",
             transform=silver_transform,
             rules={
-                "user_id": [F.col("user_id").isNotNull()],
-                "value": [F.col("value").isNotNull()],
-                "event_date": [F.col("event_date").isNotNull()],
-                "action": [F.col("action").isNotNull()],
-                "timestamp": [F.col("timestamp").isNotNull()],
+                "user_id": [self.F.col("user_id").isNotNull()],
+                "value": [self.F.col("value").isNotNull()],
+                "event_date": [self.F.col("event_date").isNotNull()],
+                "action": [self.F.col("action").isNotNull()],
+                "timestamp": [self.F.col("timestamp").isNotNull()],
             },
             table_name=f"silver_processed_events_{uuid4().hex[:8]}",
         )
@@ -274,9 +252,9 @@ class TestEdgeCaseWorkflows:
 
         # Create data with nulls in critical columns
         test_data = create_test_data(
-            mock_spark_session, num_records=50, include_nulls=True
+            self.spark, num_records=50, include_nulls=True
         )
-        source_df = mock_spark_session.createDataFrame(
+        source_df = self.spark.createDataFrame(
             test_data, ["user_id", "action", "timestamp", "value"]
         )
 
@@ -305,7 +283,7 @@ class TestEdgeCaseWorkflows:
             f"got {silver_result['rows_written']}"
         )
 
-    def test_missing_columns_after_transform(self, mock_spark_session):
+    def test_missing_columns_after_transform(self):
         """Test pipeline handles transforms that drop columns referenced in validation."""
         from tests.test_helpers.isolation import get_test_identifier
 
@@ -313,15 +291,15 @@ class TestEdgeCaseWorkflows:
         schema = f"test_schema_{identifier}"
 
         try:
-            mock_spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
         except Exception:
             pass
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema=schema)
+        builder = PipelineBuilder(spark=self.spark, schema=schema)
 
         builder.with_bronze_rules(
             name="raw_events",
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             incremental_col="timestamp",
         )
 
@@ -336,11 +314,11 @@ class TestEdgeCaseWorkflows:
             source_bronze="raw_events",
             transform=silver_transform_drops_columns,
             rules={
-                "user_id": [F.col("user_id").isNotNull()],
-                "value": [F.col("value").isNotNull()],
+                "user_id": [self.F.col("user_id").isNotNull()],
+                "value": [self.F.col("value").isNotNull()],
                 # These columns will be missing after transform
-                "action": [F.col("action").isNotNull()],
-                "timestamp": [F.col("timestamp").isNotNull()],
+                "action": [self.F.col("action").isNotNull()],
+                "timestamp": [self.F.col("timestamp").isNotNull()],
             },
             table_name=f"silver_processed_events_{uuid4().hex[:8]}",
         )
@@ -350,8 +328,8 @@ class TestEdgeCaseWorkflows:
 
         pipeline = builder.to_pipeline()
 
-        test_data = create_test_data(mock_spark_session, num_records=50)
-        source_df = mock_spark_session.createDataFrame(
+        test_data = create_test_data(self.spark, num_records=50)
+        source_df = self.spark.createDataFrame(
             test_data, ["user_id", "action", "timestamp", "value"]
         )
 
@@ -365,7 +343,7 @@ class TestEdgeCaseWorkflows:
         silver_result = result.silver_results["processed_events"]
         assert silver_result["rows_written"] > 0
 
-    def test_validation_threshold_failure(self, mock_spark_session):
+    def test_validation_threshold_failure(self):
         """Test pipeline fails when validation thresholds are not met."""
         from tests.test_helpers.isolation import get_test_identifier
 
@@ -373,18 +351,18 @@ class TestEdgeCaseWorkflows:
         schema = f"test_schema_{identifier}"
 
         try:
-            mock_spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
         except Exception:
             pass
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema=schema)
+        builder = PipelineBuilder(spark=self.spark, schema=schema)
 
         # Very strict validation rules
         bronze_rules = {
-            "user_id": [F.col("user_id").isNotNull(), F.length(F.col("user_id")) > 5],
+            "user_id": [self.F.col("user_id").isNotNull(), self.F.length(self.F.col("user_id")) > 5],
             "value": [
-                F.col("value").isNotNull(),
-                F.col("value") > 1000,
+                self.F.col("value").isNotNull(),
+                self.F.col("value") > 1000,
             ],  # Most values will fail
         }
 
@@ -402,8 +380,8 @@ class TestEdgeCaseWorkflows:
             source_bronze="raw_events",
             transform=silver_transform,
             rules={
-                "user_id": [F.col("user_id").isNotNull()],
-                "value": [F.col("value").isNotNull()],
+                "user_id": [self.F.col("user_id").isNotNull()],
+                "value": [self.F.col("value").isNotNull()],
             },
             table_name=f"silver_processed_events_{uuid4().hex[:8]}",
         )
@@ -414,8 +392,8 @@ class TestEdgeCaseWorkflows:
         pipeline = builder.to_pipeline()
 
         # Create data that will fail validation
-        test_data = create_test_data(mock_spark_session, num_records=100)
-        source_df = mock_spark_session.createDataFrame(
+        test_data = create_test_data(self.spark, num_records=100)
+        source_df = self.spark.createDataFrame(
             test_data, ["user_id", "action", "timestamp", "value"]
         )
 
@@ -430,34 +408,34 @@ class TestEdgeCaseWorkflows:
             f"Expected low validation rate due to strict rules, got {bronze_result['validation_rate']}"
         )
 
-    def test_schema_mismatch_handling(self, mock_spark_session):
+    def test_schema_mismatch_handling(self):
         """Test pipeline handles schema mismatches gracefully."""
         schema = f"test_schema_{uuid4().hex[:8]}"
 
         try:
-            mock_spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
         except Exception:
             pass
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema=schema)
+        builder = PipelineBuilder(spark=self.spark, schema=schema)
 
         builder.with_bronze_rules(
             name="raw_events",
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             incremental_col="timestamp",
         )
 
         def silver_transform(spark, bronze_df, silvers):
             # Transform that changes column types
-            return bronze_df.withColumn("value", F.col("value").cast("string"))
+            return bronze_df.withColumn("value", self.F.col("value").cast("string"))
 
         builder.add_silver_transform(
             name="processed_events",
             source_bronze="raw_events",
             transform=silver_transform,
             rules={
-                "user_id": [F.col("user_id").isNotNull()],
-                "value": [F.col("value").isNotNull()],
+                "user_id": [self.F.col("user_id").isNotNull()],
+                "value": [self.F.col("value").isNotNull()],
             },
             table_name=f"silver_processed_events_{uuid4().hex[:8]}",
         )
@@ -467,8 +445,8 @@ class TestEdgeCaseWorkflows:
 
         pipeline = builder.to_pipeline()
 
-        test_data = create_test_data(mock_spark_session, num_records=50)
-        source_df = mock_spark_session.createDataFrame(
+        test_data = create_test_data(self.spark, num_records=50)
+        source_df = self.spark.createDataFrame(
             test_data, ["user_id", "action", "timestamp", "value"]
         )
 
@@ -481,12 +459,12 @@ class TestEdgeCaseWorkflows:
         result2 = pipeline.run_initial_load(bronze_sources={"raw_events": source_df})
         assert result2.status.value == "completed"
 
-    def test_writer_failure_recovery(self, mock_spark_session):
+    def test_writer_failure_recovery(self):
         """Test pipeline recovers from writer failures."""
         schema = f"test_schema_{uuid4().hex[:8]}"
 
         try:
-            mock_spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
         except Exception:
             pass
 
@@ -495,13 +473,13 @@ class TestEdgeCaseWorkflows:
 
         identifier = get_test_identifier()
         log_table = f"pipeline_logs_{identifier}"
-        log_writer = LogWriter(mock_spark_session, schema=schema, table_name=log_table)
+        log_writer = LogWriter(self.spark, schema=schema, table_name=log_table)
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema=schema)
+        builder = PipelineBuilder(spark=self.spark, schema=schema)
 
         builder.with_bronze_rules(
             name="raw_events",
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             incremental_col="timestamp",
         )
 
@@ -513,8 +491,8 @@ class TestEdgeCaseWorkflows:
             source_bronze="raw_events",
             transform=silver_transform,
             rules={
-                "user_id": [F.col("user_id").isNotNull()],
-                "value": [F.col("value").isNotNull()],
+                "user_id": [self.F.col("user_id").isNotNull()],
+                "value": [self.F.col("value").isNotNull()],
             },
             table_name=f"silver_processed_events_{uuid4().hex[:8]}",
         )
@@ -524,8 +502,8 @@ class TestEdgeCaseWorkflows:
 
         pipeline = builder.to_pipeline()
 
-        test_data = create_test_data(mock_spark_session, num_records=50)
-        source_df = mock_spark_session.createDataFrame(
+        test_data = create_test_data(self.spark, num_records=50)
+        source_df = self.spark.createDataFrame(
             test_data, ["user_id", "action", "timestamp", "value"]
         )
 
@@ -550,20 +528,20 @@ class TestEdgeCaseWorkflows:
             # The pipeline execution already succeeded
             assert result.status.value == "completed"
 
-    def test_large_dataset_handling(self, mock_spark_session):
+    def test_large_dataset_handling(self):
         """Test pipeline handles large datasets efficiently."""
         schema = f"test_schema_{uuid4().hex[:8]}"
 
         try:
-            mock_spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
         except Exception:
             pass
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema=schema)
+        builder = PipelineBuilder(spark=self.spark, schema=schema)
 
         builder.with_bronze_rules(
             name="raw_events",
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             incremental_col="timestamp",
         )
 
@@ -575,8 +553,8 @@ class TestEdgeCaseWorkflows:
             source_bronze="raw_events",
             transform=silver_transform,
             rules={
-                "user_id": [F.col("user_id").isNotNull()],
-                "value": [F.col("value").isNotNull()],
+                "user_id": [self.F.col("user_id").isNotNull()],
+                "value": [self.F.col("value").isNotNull()],
             },
             table_name=f"silver_processed_events_{uuid4().hex[:8]}",
         )
@@ -587,8 +565,8 @@ class TestEdgeCaseWorkflows:
         pipeline = builder.to_pipeline()
 
         # Create larger dataset (1000 records)
-        test_data = create_test_data(mock_spark_session, num_records=1000)
-        source_df = mock_spark_session.createDataFrame(
+        test_data = create_test_data(self.spark, num_records=1000)
+        source_df = self.spark.createDataFrame(
             test_data, ["user_id", "action", "timestamp", "value"]
         )
 
@@ -601,20 +579,20 @@ class TestEdgeCaseWorkflows:
         assert result.bronze_results["raw_events"]["rows_processed"] == 1000
         assert result.silver_results["processed_events"]["rows_written"] == 1000
 
-    def test_partial_failure_recovery(self, mock_spark_session):
+    def test_partial_failure_recovery(self):
         """Test pipeline handles partial step failures."""
         schema = f"test_schema_{uuid4().hex[:8]}"
 
         try:
-            mock_spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
         except Exception:
             pass
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema=schema)
+        builder = PipelineBuilder(spark=self.spark, schema=schema)
 
         builder.with_bronze_rules(
             name="raw_events",
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             incremental_col="timestamp",
         )
 
@@ -622,7 +600,7 @@ class TestEdgeCaseWorkflows:
         def silver_transform_with_risk(spark, bronze_df, silvers):
             # This could fail if value column has unexpected data
             return bronze_df.select("user_id", "action", "timestamp", "value").filter(
-                F.col("value").isNotNull()
+                self.F.col("value").isNotNull()
             )
 
         builder.add_silver_transform(
@@ -630,8 +608,8 @@ class TestEdgeCaseWorkflows:
             source_bronze="raw_events",
             transform=silver_transform_with_risk,
             rules={
-                "user_id": [F.col("user_id").isNotNull()],
-                "value": [F.col("value").isNotNull()],
+                "user_id": [self.F.col("user_id").isNotNull()],
+                "value": [self.F.col("value").isNotNull()],
             },
             table_name=f"silver_processed_events_{uuid4().hex[:8]}",
         )
@@ -643,9 +621,9 @@ class TestEdgeCaseWorkflows:
 
         # Create data with some problematic values
         test_data = create_test_data(
-            mock_spark_session, num_records=100, include_nulls=True
+            self.spark, num_records=100, include_nulls=True
         )
-        source_df = mock_spark_session.createDataFrame(
+        source_df = self.spark.createDataFrame(
             test_data, ["user_id", "action", "timestamp", "value"]
         )
 
@@ -672,20 +650,20 @@ class TestEdgeCaseWorkflows:
             f"Silver should filter out some rows with null values, got {silver_result['rows_written']} rows"
         )
 
-    def test_concurrent_initial_runs(self, mock_spark_session):
+    def test_concurrent_initial_runs(self):
         """Test multiple initial runs don't interfere with each other."""
         schema = f"test_schema_{uuid4().hex[:8]}"
 
         try:
-            mock_spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
         except Exception:
             pass
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema=schema)
+        builder = PipelineBuilder(spark=self.spark, schema=schema)
 
         builder.with_bronze_rules(
             name="raw_events",
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             incremental_col="timestamp",
         )
 
@@ -699,8 +677,8 @@ class TestEdgeCaseWorkflows:
             source_bronze="raw_events",
             transform=silver_transform,
             rules={
-                "user_id": [F.col("user_id").isNotNull()],
-                "value": [F.col("value").isNotNull()],
+                "user_id": [self.F.col("user_id").isNotNull()],
+                "value": [self.F.col("value").isNotNull()],
             },
             table_name=silver_table_name,
         )
@@ -714,11 +692,11 @@ class TestEdgeCaseWorkflows:
         results = []
         for run_num in range(3):
             test_data = create_test_data(
-                mock_spark_session,
+                self.spark,
                 num_records=50,
                 base_date=datetime(2024, 1, 1 + run_num, 0, 0, 0),
             )
-            source_df = mock_spark_session.createDataFrame(
+            source_df = self.spark.createDataFrame(
                 test_data, ["user_id", "action", "timestamp", "value"]
             )
 
@@ -731,26 +709,26 @@ class TestEdgeCaseWorkflows:
             )
 
         # Final table should have data from last run only (overwrite mode)
-        silver_table = mock_spark_session.table(f"{schema}.{silver_table_name}")
+        silver_table = self.spark.table(f"{schema}.{silver_table_name}")
         final_count = silver_table.count()
         assert final_count == 50, (
             f"After 3 initial runs, table should have 50 rows (from last run), got {final_count}"
         )
 
-    def test_invalid_data_types(self, mock_spark_session):
+    def test_invalid_data_types(self):
         """Test pipeline handles invalid data types gracefully."""
         schema = f"test_schema_{uuid4().hex[:8]}"
 
         try:
-            mock_spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+            self.spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
         except Exception:
             pass
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema=schema)
+        builder = PipelineBuilder(spark=self.spark, schema=schema)
 
         builder.with_bronze_rules(
             name="raw_events",
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             incremental_col="timestamp",
         )
 
@@ -760,7 +738,7 @@ class TestEdgeCaseWorkflows:
                 "user_id",
                 "action",
                 "timestamp",
-                F.col("value").cast("double").alias("value"),
+                self.F.col("value").cast("double").alias("value"),
             )
 
         builder.add_silver_transform(
@@ -768,8 +746,8 @@ class TestEdgeCaseWorkflows:
             source_bronze="raw_events",
             transform=silver_transform,
             rules={
-                "user_id": [F.col("user_id").isNotNull()],
-                "value": [F.col("value").isNotNull()],
+                "user_id": [self.F.col("user_id").isNotNull()],
+                "value": [self.F.col("value").isNotNull()],
             },
             table_name=f"silver_processed_events_{uuid4().hex[:8]}",
         )
@@ -780,8 +758,8 @@ class TestEdgeCaseWorkflows:
         pipeline = builder.to_pipeline()
 
         # Create data with float values
-        test_data = create_test_data(mock_spark_session, num_records=50)
-        source_df = mock_spark_session.createDataFrame(
+        test_data = create_test_data(self.spark, num_records=50)
+        source_df = self.spark.createDataFrame(
             test_data, ["user_id", "action", "timestamp", "value"]
         )
 

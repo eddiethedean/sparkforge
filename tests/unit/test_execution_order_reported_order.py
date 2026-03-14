@@ -20,7 +20,7 @@ class TestGetAllStepsOrder:
     """Test that _get_all_steps returns steps in execution_order when set."""
 
     def test_get_all_steps_returns_steps_in_execution_order_when_set(
-        self, spark_session
+        self, spark
     ):
         """When execution_order is set, _get_all_steps(None) returns steps in that order."""
         config = PipelineConfig.create_default(schema="test_schema")
@@ -42,7 +42,7 @@ class TestGetAllStepsOrder:
         execution_order = ["bronze_b", "bronze_a", "silver_a"]
 
         runner = SimplePipelineRunner(
-            spark=spark_session,
+            spark=spark,
             config=config,
             bronze_steps={"bronze_a": bronze_a, "bronze_b": bronze_b},
             silver_steps={"silver_a": silver_a},
@@ -54,7 +54,7 @@ class TestGetAllStepsOrder:
 
         assert [s.name for s in steps] == execution_order
 
-    def test_get_all_steps_fallback_when_execution_order_none(self, spark_session):
+    def test_get_all_steps_fallback_when_execution_order_none(self, spark):
         """When execution_order is None, _get_all_steps returns bronze then silver then gold."""
         config = PipelineConfig.create_default(schema="test_schema")
         bronze_a = BronzeStep(
@@ -70,7 +70,7 @@ class TestGetAllStepsOrder:
         )
 
         runner = SimplePipelineRunner(
-            spark=spark_session,
+            spark=spark,
             config=config,
             bronze_steps={"bronze_a": bronze_a},
             silver_steps={"silver_a": silver_a},
@@ -82,7 +82,7 @@ class TestGetAllStepsOrder:
 
         assert [s.name for s in steps] == ["bronze_a", "silver_a"]
 
-    def test_get_all_steps_fallback_when_execution_order_mismatch(self, spark_session):
+    def test_get_all_steps_fallback_when_execution_order_mismatch(self, spark):
         """When execution_order does not cover all steps, fall back to dict order."""
         config = PipelineConfig.create_default(schema="test_schema")
         bronze_a = BronzeStep(
@@ -100,7 +100,7 @@ class TestGetAllStepsOrder:
         execution_order = ["bronze_a"]
 
         runner = SimplePipelineRunner(
-            spark=spark_session,
+            spark=spark,
             config=config,
             bronze_steps={"bronze_a": bronze_a},
             silver_steps={"silver_a": silver_a},
@@ -113,10 +113,10 @@ class TestGetAllStepsOrder:
         # Fallback: bronze then silver (dict order)
         assert [s.name for s in steps] == ["bronze_a", "silver_a"]
 
-    def test_get_all_steps_with_provided_steps_returns_unchanged(self, spark_session):
+    def test_get_all_steps_with_provided_steps_returns_unchanged(self, spark):
         """When steps is provided, _get_all_steps returns it unchanged."""
         config = PipelineConfig.create_default(schema="test_schema")
-        runner = SimplePipelineRunner(spark=spark_session, config=config)
+        runner = SimplePipelineRunner(spark=spark, config=config)
         provided = [
             BronzeStep(name="b", rules={"x": ["not_null"]}, schema="s"),
             SilverStep(
@@ -138,7 +138,7 @@ class TestGetAllStepsOrder:
 class TestRunInitialLoadPassesStepsInExecutionOrder:
     """Test that run_initial_load passes steps in execution_order to the engine."""
 
-    def test_run_initial_load_passes_steps_in_execution_order(self, spark_session):
+    def test_run_initial_load_passes_steps_in_execution_order(self, spark):
         """run_initial_load(None) should call execute_pipeline with steps in execution_order."""
         config = PipelineConfig.create_default(schema="test_schema")
         bronze_a = BronzeStep(
@@ -158,7 +158,7 @@ class TestRunInitialLoadPassesStepsInExecutionOrder:
         execution_order = ["bronze_b", "bronze_a", "silver_a"]
 
         runner = SimplePipelineRunner(
-            spark=spark_session,
+            spark=spark,
             config=config,
             bronze_steps={"bronze_a": bronze_a, "bronze_b": bronze_b},
             silver_steps={"silver_a": silver_a},

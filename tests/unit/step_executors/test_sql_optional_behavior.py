@@ -16,9 +16,9 @@ from pipeline_builder_base.models import ExecutionMode
 
 class TestSilverSqlOptionalBehavior:
     def test_silver_sql_optional_true_returns_empty_dataframe(
-        self, mock_spark_session, monkeypatch
+        self, spark, monkeypatch
     ):
-        executor = SilverStepExecutor(spark=mock_spark_session)
+        executor = SilverStepExecutor(spark=spark)
 
         sql_source = JdbcSource(
             url="jdbc:postgresql://host/db",
@@ -57,9 +57,9 @@ class TestSilverSqlOptionalBehavior:
         assert result is sentinel_df
 
     def test_silver_sql_optional_false_raises_execution_error(
-        self, mock_spark_session, monkeypatch
+        self, spark, monkeypatch
     ):
-        executor = SilverStepExecutor(spark=mock_spark_session)
+        executor = SilverStepExecutor(spark=spark)
 
         sql_source = JdbcSource(
             url="jdbc:postgresql://host/db",
@@ -96,9 +96,9 @@ class TestSilverSqlOptionalBehavior:
 
 class TestGoldSqlOptionalBehavior:
     def test_gold_sql_optional_true_returns_empty_dataframe(
-        self, mock_spark_session, monkeypatch
+        self, spark, monkeypatch
     ):
-        executor = GoldStepExecutor(spark=mock_spark_session)
+        executor = GoldStepExecutor(spark=spark)
 
         sql_source = JdbcSource(
             url="jdbc:postgresql://host/db",
@@ -136,9 +136,9 @@ class TestGoldSqlOptionalBehavior:
         assert result is sentinel_df
 
     def test_gold_sql_optional_false_raises_execution_error(
-        self, mock_spark_session, monkeypatch
+        self, spark, monkeypatch
     ):
-        executor = GoldStepExecutor(spark=mock_spark_session)
+        executor = GoldStepExecutor(spark=spark)
 
         sql_source = JdbcSource(
             url="jdbc:postgresql://host/db",

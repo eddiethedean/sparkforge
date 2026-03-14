@@ -6,15 +6,7 @@ Bronze → Silver → Gold medallion architecture with ad impressions, clicks,
 conversions, and campaign performance metrics.
 """
 
-import os
-
-
-# Import functions based on SPARK_MODE
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql import functions as F
-else:
-    from sparkless.sql import functions as F  # type: ignore[import]
-
+from pipeline_builder.compat import F
 from pipeline_builder.pipeline import PipelineBuilder
 
 
@@ -22,7 +14,7 @@ class TestMarketingPipeline:
     """Test marketing analytics pipeline with bronze-silver-gold architecture."""
 
     def test_complete_marketing_pipeline_execution(
-        self, spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test complete marketing pipeline: impressions → clicks → conversions → campaign insights."""
 
@@ -32,22 +24,22 @@ class TestMarketingPipeline:
             spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
 
         # Setup schemas
-        create_schema_if_not_exists(spark_session, "bronze")
-        create_schema_if_not_exists(spark_session, "silver")
-        create_schema_if_not_exists(spark_session, "gold")
+        create_schema_if_not_exists(spark, "bronze")
+        create_schema_if_not_exists(spark, "silver")
+        create_schema_if_not_exists(spark, "gold")
 
         # Create realistic marketing data
         impressions_df = data_generator.create_marketing_impressions(
-            spark_session, num_impressions=150
+            spark, num_impressions=150
         )
-        clicks_df = data_generator.create_marketing_clicks(spark_session, num_clicks=60)
+        clicks_df = data_generator.create_marketing_clicks(spark, num_clicks=60)
         conversions_df = data_generator.create_marketing_conversions(
-            spark_session, num_conversions=40
+            spark, num_conversions=40
         )
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             functions=F,
             schema="bronze",
             min_bronze_rate=95.0,
@@ -538,21 +530,21 @@ class TestMarketingPipeline:
         assert journey_result.get("rows_processed", 0) >= 0
 
     def test_incremental_marketing_processing(
-        self, spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test incremental processing of new marketing data."""
         # Setup schemas using standard SQL that works for both mock-spark and real PySpark
-        spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
 
         # Create initial data
         impressions_initial = data_generator.create_marketing_impressions(
-            spark_session, num_impressions=50
+            spark, num_impressions=50
         )
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema="bronze",
             functions=F,
             min_bronze_rate=95.0,
@@ -604,7 +596,7 @@ class TestMarketingPipeline:
 
         # Incremental load with new impressions
         impressions_incremental = data_generator.create_marketing_impressions(
-            spark_session, num_impressions=30
+            spark, num_impressions=30
         )
 
         result2 = pipeline.run_incremental(

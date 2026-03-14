@@ -41,7 +41,7 @@ from pipeline_builder.pipeline.runner import SimplePipelineRunner
 from pipeline_builder.compat import F
 
 
-# Note: spark_session fixture is provided by conftest.py
+# Note: spark fixture is provided by conftest.py
 # It automatically handles both mock and real Spark modes
 
 
@@ -52,7 +52,7 @@ def config():
 
 
 @pytest.fixture
-def sample_bronze_df(spark_session):
+def sample_bronze_df(spark):
     """Create a sample bronze DataFrame."""
     data = [
         ("1", "event1", 10),
@@ -60,7 +60,7 @@ def sample_bronze_df(spark_session):
         ("3", "event3", 30),
         ("4", "event4", 40),
     ]
-    return spark_session.createDataFrame(data, ["id", "event", "value"])
+    return spark.createDataFrame(data, ["id", "event", "value"])
 
 
 @pytest.fixture
@@ -198,14 +198,14 @@ class TestStepParamsSupport:
 
     def test_silver_step_with_params(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_with_params,
         sample_bronze_df,
     ):
         """Test that silver step can receive params."""
-        engine = ExecutionEngine(spark_session, config)
+        engine = ExecutionEngine(spark, config)
         context = {"events": sample_bronze_df}
 
         # Execute with params
@@ -224,14 +224,14 @@ class TestStepParamsSupport:
 
     def test_silver_step_without_params_backward_compatible(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
         sample_bronze_df,
     ):
         """Test that silver step without params still works (backward compatibility)."""
-        engine = ExecutionEngine(spark_session, config)
+        engine = ExecutionEngine(spark, config)
         context = {"events": sample_bronze_df}
 
         # Execute without params (should work)
@@ -248,14 +248,14 @@ class TestStepParamsSupport:
 
     def test_gold_step_with_params(
         self,
-        spark_session,
+        spark,
         config,
         silver_step_with_params,
         gold_step_with_params,
         sample_bronze_df,
     ):
         """Test that gold step can receive params."""
-        engine = ExecutionEngine(spark_session, config)
+        engine = ExecutionEngine(spark, config)
         context = {"events": sample_bronze_df}
 
         # Execute silver step first
@@ -282,14 +282,14 @@ class TestStepwiseExecution:
 
     def test_stop_after_step(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
         sample_bronze_df,
     ):
         """Test that execution stops after a specific step."""
-        engine = ExecutionEngine(spark_session, config)
+        engine = ExecutionEngine(spark, config)
         context = {"events": sample_bronze_df}
         steps = [bronze_step, silver_step_without_params]
 
@@ -309,14 +309,14 @@ class TestStepwiseExecution:
 
     def test_start_at_step(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
         sample_bronze_df,
     ):
         """Test that execution can start at a specific step."""
-        engine = ExecutionEngine(spark_session, config)
+        engine = ExecutionEngine(spark, config)
         # Pre-populate context with bronze output (simulating already-executed step)
         context = {"events": sample_bronze_df}
         steps = [bronze_step, silver_step_without_params]
@@ -335,14 +335,14 @@ class TestStepwiseExecution:
 
     def test_write_outputs_false(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
         sample_bronze_df,
     ):
         """Test that write_outputs=False skips table writes."""
-        engine = ExecutionEngine(spark_session, config)
+        engine = ExecutionEngine(spark, config)
         context = {"events": sample_bronze_df}
         steps = [bronze_step, silver_step_without_params]
 
@@ -366,14 +366,14 @@ class TestRunnerStepwiseAPI:
 
     def test_run_until(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
         sample_bronze_df,
     ):
         """Test run_until method."""
-        runner = SimplePipelineRunner(spark_session, config)
+        runner = SimplePipelineRunner(spark, config)
         steps = [bronze_step, silver_step_without_params]
 
         report, context = runner.run_until(
@@ -389,14 +389,14 @@ class TestRunnerStepwiseAPI:
 
     def test_run_step(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
         sample_bronze_df,
     ):
         """Test run_step method."""
-        runner = SimplePipelineRunner(spark_session, config)
+        runner = SimplePipelineRunner(spark, config)
         steps = [bronze_step, silver_step_without_params]
         # Pre-populate context with bronze output
         context = {"events": sample_bronze_df}
@@ -415,14 +415,14 @@ class TestRunnerStepwiseAPI:
 
     def test_rerun_step_with_params(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_with_params,
         sample_bronze_df,
     ):
         """Test rerun_step with parameter overrides."""
-        runner = SimplePipelineRunner(spark_session, config)
+        runner = SimplePipelineRunner(spark, config)
         steps = [bronze_step, silver_step_with_params]
         context = {"events": sample_bronze_df}
 
@@ -450,14 +450,14 @@ class TestRunnerStepwiseAPI:
 
     def test_run_step_with_bronze_sources(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
         sample_bronze_df,
     ):
         """Test run_step with bronze_sources (no pre-populated context)."""
-        runner = SimplePipelineRunner(spark_session, config)
+        runner = SimplePipelineRunner(spark, config)
         steps = [bronze_step, silver_step_without_params]
 
         report, updated_context = runner.run_step(
@@ -475,14 +475,14 @@ class TestRunnerStepwiseAPI:
 
     def test_run_step_with_step_transform_override(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
         sample_bronze_df,
     ):
         """Test that run_step can override the step's transform via step_transform."""
-        runner = SimplePipelineRunner(spark_session, config)
+        runner = SimplePipelineRunner(spark, config)
         steps = [bronze_step, silver_step_without_params]
 
         # Baseline execution with original transform
@@ -514,14 +514,14 @@ class TestRunnerStepwiseAPI:
 
     def test_run_step_bronze_step_with_bronze_sources(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
         sample_bronze_df,
     ):
         """Test run_step for a bronze step using bronze_sources."""
-        runner = SimplePipelineRunner(spark_session, config)
+        runner = SimplePipelineRunner(spark, config)
         steps = [bronze_step, silver_step_without_params]
 
         report, updated_context = runner.run_step(
@@ -537,14 +537,14 @@ class TestRunnerStepwiseAPI:
 
     def test_rerun_step_with_step_transform_override(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
         sample_bronze_df,
     ):
         """Test that rerun_step can override the step's transform via step_transform."""
-        runner = SimplePipelineRunner(spark_session, config)
+        runner = SimplePipelineRunner(spark, config)
         steps = [bronze_step, silver_step_without_params]
         context = {"events": sample_bronze_df}
 
@@ -576,7 +576,7 @@ class TestRunnerStepwiseAPI:
 
     def test_run_step_with_step_rules_override(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         sample_bronze_df,
@@ -585,7 +585,7 @@ class TestRunnerStepwiseAPI:
         from pipeline_builder.models import SilverStep
         from pipeline_builder.compat import F
 
-        runner = SimplePipelineRunner(spark_session, config)
+        runner = SimplePipelineRunner(spark, config)
 
         # Silver step with a permissive default rule (all rows valid)
         silver_step = SilverStep(
@@ -630,11 +630,11 @@ class TestPipelineDebugSession:
     """Test PipelineDebugSession helper class."""
 
     def test_debug_session_initialization(
-        self, spark_session, config, bronze_step, silver_step_without_params
+        self, spark, config, bronze_step, silver_step_without_params
     ):
         """Test that debug session initializes correctly."""
         steps = [bronze_step, silver_step_without_params]
-        session = PipelineDebugSession(spark_session, config, steps)
+        session = PipelineDebugSession(spark, config, steps)
 
         assert session.steps == steps
         assert session.mode == PipelineMode.INITIAL
@@ -643,7 +643,7 @@ class TestPipelineDebugSession:
 
     def test_debug_session_run_until(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
@@ -652,7 +652,7 @@ class TestPipelineDebugSession:
         """Test debug session run_until."""
         steps = [bronze_step, silver_step_without_params]
         session = PipelineDebugSession(
-            spark_session, config, steps, bronze_sources={"events": sample_bronze_df}
+            spark, config, steps, bronze_sources={"events": sample_bronze_df}
         )
 
         report, context = session.run_until("clean_events")
@@ -663,7 +663,7 @@ class TestPipelineDebugSession:
 
     def test_debug_session_run_step(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
@@ -672,7 +672,7 @@ class TestPipelineDebugSession:
         """Test debug session run_step."""
         steps = [bronze_step, silver_step_without_params]
         session = PipelineDebugSession(
-            spark_session, config, steps, bronze_sources={"events": sample_bronze_df}
+            spark, config, steps, bronze_sources={"events": sample_bronze_df}
         )
 
         report, context = session.run_step("clean_events")
@@ -682,7 +682,7 @@ class TestPipelineDebugSession:
 
     def test_debug_session_run_step_with_step_rules_override(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         sample_bronze_df,
@@ -701,7 +701,7 @@ class TestPipelineDebugSession:
         )
         steps = [bronze_step, silver_step]
         session = PipelineDebugSession(
-            spark_session, config, steps, bronze_sources={"events": sample_bronze_df}
+            spark, config, steps, bronze_sources={"events": sample_bronze_df}
         )
 
         # Baseline run with default rules
@@ -720,7 +720,7 @@ class TestPipelineDebugSession:
 
     def test_debug_session_run_step_with_step_transform_override(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
@@ -729,7 +729,7 @@ class TestPipelineDebugSession:
         """Test that PipelineDebugSession.run_step accepts a step_transform override."""
         steps = [bronze_step, silver_step_without_params]
         session = PipelineDebugSession(
-            spark_session, config, steps, bronze_sources={"events": sample_bronze_df}
+            spark, config, steps, bronze_sources={"events": sample_bronze_df}
         )
 
         # Baseline run with original transform
@@ -752,7 +752,7 @@ class TestPipelineDebugSession:
 
     def test_debug_session_run_step_with_bronze_sources(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
@@ -760,7 +760,7 @@ class TestPipelineDebugSession:
     ):
         """Test debug session run_step with bronze_sources (session has no initial bronze)."""
         steps = [bronze_step, silver_step_without_params]
-        session = PipelineDebugSession(spark_session, config, steps)
+        session = PipelineDebugSession(spark, config, steps)
         assert len(session.context) == 0
 
         report, context = session.run_step(
@@ -774,7 +774,7 @@ class TestPipelineDebugSession:
 
     def test_debug_session_rerun_with_params(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_with_params,
@@ -783,7 +783,7 @@ class TestPipelineDebugSession:
         """Test debug session rerun with parameter overrides."""
         steps = [bronze_step, silver_step_with_params]
         session = PipelineDebugSession(
-            spark_session, config, steps, bronze_sources={"events": sample_bronze_df}
+            spark, config, steps, bronze_sources={"events": sample_bronze_df}
         )
 
         # First run
@@ -800,7 +800,7 @@ class TestPipelineDebugSession:
 
     def test_debug_session_rerun_step_with_step_transform_override(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_with_params,
@@ -809,7 +809,7 @@ class TestPipelineDebugSession:
         """Test that PipelineDebugSession.rerun_step accepts a step_transform override."""
         steps = [bronze_step, silver_step_with_params]
         session = PipelineDebugSession(
-            spark_session, config, steps, bronze_sources={"events": sample_bronze_df}
+            spark, config, steps, bronze_sources={"events": sample_bronze_df}
         )
 
         # Initial run using params-based transform
@@ -832,11 +832,11 @@ class TestPipelineDebugSession:
         assert new_count != base_count
 
     def test_debug_session_clear_params(
-        self, spark_session, config, bronze_step, silver_step_with_params
+        self, spark, config, bronze_step, silver_step_with_params
     ):
         """Test clearing step params."""
         steps = [bronze_step, silver_step_with_params]
-        session = PipelineDebugSession(spark_session, config, steps)
+        session = PipelineDebugSession(spark, config, steps)
 
         session.set_step_params("clean_events", {"threshold": 0.9})
         assert "clean_events" in session.step_params
@@ -854,14 +854,14 @@ class TestParameterPassingVariations:
 
     def test_silver_step_with_kwargs(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_with_kwargs,
         sample_bronze_df,
     ):
         """Test that silver step can receive params via **kwargs."""
-        engine = ExecutionEngine(spark_session, config)
+        engine = ExecutionEngine(spark, config)
         context = {"events": sample_bronze_df}
 
         step_params = {"threshold": 2, "min_value": 25}
@@ -880,14 +880,14 @@ class TestParameterPassingVariations:
 
     def test_gold_step_with_kwargs(
         self,
-        spark_session,
+        spark,
         config,
         silver_step_without_params,
         gold_step_with_kwargs,
         sample_bronze_df,
     ):
         """Test that gold step can receive params via **kwargs."""
-        engine = ExecutionEngine(spark_session, config)
+        engine = ExecutionEngine(spark, config)
         context = {"events": sample_bronze_df}
 
         # Execute silver step first
@@ -919,14 +919,14 @@ class TestContextManagement:
 
     def test_start_at_step_loads_from_table(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
         sample_bronze_df,
     ):
         """Test that start_at_step loads earlier outputs from tables."""
-        engine = ExecutionEngine(spark_session, config)
+        engine = ExecutionEngine(spark, config)
         context = {"events": sample_bronze_df}
         steps = [bronze_step, silver_step_without_params]
 
@@ -958,14 +958,14 @@ class TestContextManagement:
 
     def test_context_preserved_between_runs(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
         sample_bronze_df,
     ):
         """Test that context is preserved and can be reused between runs."""
-        runner = SimplePipelineRunner(spark_session, config)
+        runner = SimplePipelineRunner(spark, config)
         steps = [bronze_step, silver_step_without_params]
         context = {"events": sample_bronze_df}
 
@@ -984,7 +984,7 @@ class TestContextManagement:
 
     def test_invalidate_downstream_removes_outputs(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
@@ -992,7 +992,7 @@ class TestContextManagement:
         sample_bronze_df,
     ):
         """Test that invalidate_downstream removes downstream outputs from context."""
-        runner = SimplePipelineRunner(spark_session, config)
+        runner = SimplePipelineRunner(spark, config)
         steps = [bronze_step, silver_step_without_params, gold_step_with_params]
         context = {"events": sample_bronze_df}
 
@@ -1021,14 +1021,14 @@ class TestErrorHandling:
 
     def test_stop_after_invalid_step(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
         sample_bronze_df,
     ):
         """Test that stop_after_step with invalid step name completes but doesn't stop."""
-        engine = ExecutionEngine(spark_session, config)
+        engine = ExecutionEngine(spark, config)
         context = {"events": sample_bronze_df}
         steps = [bronze_step, silver_step_without_params]
 
@@ -1045,14 +1045,14 @@ class TestErrorHandling:
 
     def test_start_at_invalid_step(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
         sample_bronze_df,
     ):
         """Test that start_at_step with invalid step name raises error."""
-        engine = ExecutionEngine(spark_session, config)
+        engine = ExecutionEngine(spark, config)
         context = {"events": sample_bronze_df}
         steps = [bronze_step, silver_step_without_params]
 
@@ -1065,10 +1065,10 @@ class TestErrorHandling:
             )
 
     def test_run_step_without_dependencies(
-        self, spark_session, config, silver_step_without_params
+        self, spark, config, silver_step_without_params
     ):
         """Test that run_step fails gracefully when dependencies are missing."""
-        runner = SimplePipelineRunner(spark_session, config)
+        runner = SimplePipelineRunner(spark, config)
         steps = [silver_step_without_params]
         context = {}  # Empty context - no bronze source
 
@@ -1089,7 +1089,7 @@ class TestComplexScenarios:
 
     def test_multiple_silver_steps_with_dependencies(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
@@ -1097,7 +1097,7 @@ class TestComplexScenarios:
         sample_bronze_df,
     ):
         """Test multiple silver steps where one depends on another."""
-        engine = ExecutionEngine(spark_session, config)
+        engine = ExecutionEngine(spark, config)
         context = {"events": sample_bronze_df}
         steps = [
             bronze_step,
@@ -1129,7 +1129,7 @@ class TestComplexScenarios:
 
     def test_iterative_parameter_tuning(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_with_params,
@@ -1137,7 +1137,7 @@ class TestComplexScenarios:
     ):
         """Test iterative parameter tuning workflow."""
         session = PipelineDebugSession(
-            spark_session,
+            spark,
             config,
             [bronze_step, silver_step_with_params],
             bronze_sources={"events": sample_bronze_df},
@@ -1162,7 +1162,7 @@ class TestComplexScenarios:
 
     def test_full_pipeline_with_stepwise_debugging(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_with_params,
@@ -1170,7 +1170,7 @@ class TestComplexScenarios:
         sample_bronze_df,
     ):
         """Test a realistic debugging workflow."""
-        runner = SimplePipelineRunner(spark_session, config)
+        runner = SimplePipelineRunner(spark, config)
         steps = [bronze_step, silver_step_with_params, gold_step_with_params]
 
         # Step 1: Run until silver to check intermediate result
@@ -1216,14 +1216,14 @@ class TestWriteOutputsControl:
 
     def test_write_outputs_true_creates_table(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
         sample_bronze_df,
     ):
         """Test that write_outputs=True creates tables."""
-        engine = ExecutionEngine(spark_session, config)
+        engine = ExecutionEngine(spark, config)
         context = {"events": sample_bronze_df}
         steps = [bronze_step, silver_step_without_params]
 
@@ -1239,7 +1239,7 @@ class TestWriteOutputsControl:
 
         # Try to read from table (may work or fail depending on mode, but shouldn't error in execution)
         try:
-            table_df = spark_session.table("test_schema.clean_events")
+            table_df = spark.table("test_schema.clean_events")
             assert table_df is not None
         except Exception:
             # In some modes, table reading might not work, but execution should have succeeded
@@ -1247,14 +1247,14 @@ class TestWriteOutputsControl:
 
     def test_write_outputs_false_skips_table_but_keeps_context(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
         sample_bronze_df,
     ):
         """Test that write_outputs=False skips table writes but keeps DataFrame in context."""
-        engine = ExecutionEngine(spark_session, config)
+        engine = ExecutionEngine(spark, config)
         context = {"events": sample_bronze_df}
         steps = [bronze_step, silver_step_without_params]
 
@@ -1273,14 +1273,14 @@ class TestWriteOutputsControl:
 
     def test_write_outputs_false_faster_iteration(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_with_params,
         sample_bronze_df,
     ):
         """Test that write_outputs=False enables faster iteration."""
-        runner = SimplePipelineRunner(spark_session, config)
+        runner = SimplePipelineRunner(spark, config)
         steps = [bronze_step, silver_step_with_params]
         context = {"events": sample_bronze_df}
 
@@ -1303,14 +1303,14 @@ class TestEdgeCases:
 
     def test_empty_step_params_dict(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_with_params,
         sample_bronze_df,
     ):
         """Test that empty step_params dict doesn't cause errors."""
-        engine = ExecutionEngine(spark_session, config)
+        engine = ExecutionEngine(spark, config)
         context = {"events": sample_bronze_df}
 
         # Empty params should work (uses defaults)
@@ -1326,14 +1326,14 @@ class TestEdgeCases:
 
     def test_step_params_for_nonexistent_step(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
         sample_bronze_df,
     ):
         """Test that step_params for nonexistent step is ignored."""
-        runner = SimplePipelineRunner(spark_session, config)
+        runner = SimplePipelineRunner(spark, config)
         steps = [bronze_step, silver_step_without_params]
 
         # Params for step that doesn't exist should be ignored
@@ -1351,14 +1351,14 @@ class TestEdgeCases:
 
     def test_stop_after_first_step(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
         sample_bronze_df,
     ):
         """Test stopping after the first step."""
-        engine = ExecutionEngine(spark_session, config)
+        engine = ExecutionEngine(spark, config)
         context = {"events": sample_bronze_df}
         steps = [bronze_step, silver_step_without_params]
 
@@ -1375,14 +1375,14 @@ class TestEdgeCases:
 
     def test_start_at_first_step(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
         sample_bronze_df,
     ):
         """Test starting at the first step (should execute all)."""
-        engine = ExecutionEngine(spark_session, config)
+        engine = ExecutionEngine(spark, config)
         context = {"events": sample_bronze_df}
         steps = [bronze_step, silver_step_without_params]
 
@@ -1399,14 +1399,14 @@ class TestEdgeCases:
 
     def test_rerun_without_prior_execution(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_without_params,
         sample_bronze_df,
     ):
         """Test rerun_step when step hasn't been executed before."""
-        runner = SimplePipelineRunner(spark_session, config)
+        runner = SimplePipelineRunner(spark, config)
         steps = [bronze_step, silver_step_without_params]
         context = {"events": sample_bronze_df}
 
@@ -1422,7 +1422,7 @@ class TestEdgeCases:
 
     def test_multiple_parameter_changes(
         self,
-        spark_session,
+        spark,
         config,
         bronze_step,
         silver_step_with_params,
@@ -1430,7 +1430,7 @@ class TestEdgeCases:
     ):
         """Test multiple parameter changes in sequence."""
         session = PipelineDebugSession(
-            spark_session,
+            spark,
             config,
             [bronze_step, silver_step_with_params],
             bronze_sources={"events": sample_bronze_df},
@@ -1464,7 +1464,7 @@ class TestPriorGoldsAccess:
     """Tests for accessing prior_golds in transform functions."""
 
     def test_silver_transform_with_prior_golds(
-        self, spark_session, config, bronze_step, sample_bronze_df
+        self, spark, config, bronze_step, sample_bronze_df
     ):
         """Test that silver transform can access prior_golds when function accepts it."""
 
@@ -1490,7 +1490,7 @@ class TestPriorGoldsAccess:
 
         from pipeline_builder.step_executors.silver import SilverStepExecutor
 
-        executor = SilverStepExecutor(spark_session)
+        executor = SilverStepExecutor(spark)
         step_types = {"existing_gold": "gold"}
         context = {"events": sample_bronze_df}
 
@@ -1506,7 +1506,7 @@ class TestPriorGoldsAccess:
         assert len(has_golds) > 0
 
     def test_gold_transform_with_prior_golds(
-        self, spark_session, config, silver_step_without_params, sample_bronze_df
+        self, spark, config, silver_step_without_params, sample_bronze_df
     ):
         """Test that gold transform can access prior_golds when function accepts it."""
 
@@ -1530,7 +1530,7 @@ class TestPriorGoldsAccess:
 
         from pipeline_builder.step_executors.gold import GoldStepExecutor
 
-        executor = GoldStepExecutor(spark_session)
+        executor = GoldStepExecutor(spark)
         step_types = {"existing_gold": "gold", "clean_events": "silver"}
         # Add existing_gold to context (simulating it was read from table)
         context = {"clean_events": sample_bronze_df, "existing_gold": sample_bronze_df}
@@ -1544,7 +1544,7 @@ class TestPriorGoldsAccess:
         assert len(has_golds) > 0
 
     def test_silver_transform_backward_compatible_without_prior_golds(
-        self, spark_session, config, bronze_step, sample_bronze_df
+        self, spark, config, bronze_step, sample_bronze_df
     ):
         """Test that silver transforms without prior_golds parameter still work."""
 
@@ -1563,7 +1563,7 @@ class TestPriorGoldsAccess:
 
         from pipeline_builder.step_executors.silver import SilverStepExecutor
 
-        executor = SilverStepExecutor(spark_session)
+        executor = SilverStepExecutor(spark)
         context = {"events": sample_bronze_df}
         step_types = {}  # Empty step_types should still work
 
@@ -1574,7 +1574,7 @@ class TestPriorGoldsAccess:
         assert output_df.count() > 0
 
     def test_gold_transform_backward_compatible_without_prior_golds(
-        self, spark_session, config, silver_step_without_params, sample_bronze_df
+        self, spark, config, silver_step_without_params, sample_bronze_df
     ):
         """Test that gold transforms without prior_golds parameter still work."""
 
@@ -1593,7 +1593,7 @@ class TestPriorGoldsAccess:
 
         from pipeline_builder.step_executors.gold import GoldStepExecutor
 
-        executor = GoldStepExecutor(spark_session)
+        executor = GoldStepExecutor(spark)
         context = {"clean_events": sample_bronze_df}
         step_types = {}  # Empty step_types should still work
 
@@ -1606,15 +1606,16 @@ class TestValidationOnlySteps:
     """Tests for validation-only steps (with_silver_rules, with_gold_rules)."""
 
     def test_validation_only_silver_step_reads_from_table(
-        self, spark_session, config, sample_bronze_df
+        self, spark, config, sample_bronze_df, table_prefix
     ):
         """Test that validation-only silver step reads from existing table."""
         from pipeline_builder.step_executors.silver import SilverStepExecutor
         from pipeline_builder.table_operations import fqn
 
         # Create a table first
-        table_name = "existing_silver_table"
-        schema = "test_schema"
+        table_name = f"existing_silver_table_{table_prefix}"
+        schema = f"test_schema_{table_prefix}"
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
         table_fqn = fqn(schema, table_name)
 
         # Write sample data to table
@@ -1631,7 +1632,7 @@ class TestValidationOnlySteps:
             schema=schema,
         )
 
-        executor = SilverStepExecutor(spark_session)
+        executor = SilverStepExecutor(spark)
         context = {}  # Empty context - should read from table
 
         # Should read from table successfully
@@ -1640,10 +1641,13 @@ class TestValidationOnlySteps:
         assert "id" in output_df.columns
 
     def test_validation_only_silver_step_table_not_exists_error(
-        self, spark_session, config
+        self, spark, config, table_prefix
     ):
         """Test that validation-only silver step raises error when table doesn't exist."""
         from pipeline_builder.step_executors.silver import SilverStepExecutor
+
+        schema = f"test_schema_{table_prefix}"
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
 
         silver_step = SilverStep(
             name="existing_silver",
@@ -1652,22 +1656,22 @@ class TestValidationOnlySteps:
             rules={"id": [F.col("id").isNotNull()]},
             table_name="nonexistent_table",
             existing=True,
-            schema="test_schema",
+            schema=schema,
         )
 
-        executor = SilverStepExecutor(spark_session)
+        executor = SilverStepExecutor(spark)
         context = {}
 
         with pytest.raises(ExecutionError, match="table does not exist"):
             executor.execute(silver_step, context, ExecutionMode.INITIAL)
 
     def test_validation_only_silver_step_optional_table_missing_returns_empty(
-        self, spark_session, config
+        self, spark, config
     ):
         """Test that validation-only silver step with optional=True returns empty DataFrame when table doesn't exist."""
         from pipeline_builder.step_executors.silver import SilverStepExecutor
 
-        spark_session.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
+        spark.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
         silver_step = SilverStep(
             name="optional_silver",
             source_bronze="",
@@ -1679,14 +1683,14 @@ class TestValidationOnlySteps:
             schema="test_schema",
         )
 
-        executor = SilverStepExecutor(spark_session)
+        executor = SilverStepExecutor(spark)
         context = {}
 
         output_df = executor.execute(silver_step, context, ExecutionMode.INITIAL)
         assert output_df.count() == 0
         assert output_df is not None
 
-    def test_validation_only_silver_step_no_schema_error(self, spark_session, config):
+    def test_validation_only_silver_step_no_schema_error(self, spark, config):
         """Test that validation-only silver step raises error when schema is missing."""
         from pipeline_builder.step_executors.silver import SilverStepExecutor
 
@@ -1700,14 +1704,14 @@ class TestValidationOnlySteps:
             schema=None,  # No schema
         )
 
-        executor = SilverStepExecutor(spark_session)
+        executor = SilverStepExecutor(spark)
         context = {}
 
         with pytest.raises(ExecutionError, match="requires schema"):
             executor.execute(silver_step, context, ExecutionMode.INITIAL)
 
     def test_validation_only_silver_step_not_existing_error(
-        self, spark_session, config
+        self, spark, config
     ):
         """Test that silver step without transform and not marked existing raises error at model creation."""
         # This should fail at model creation, not execution
@@ -1726,15 +1730,16 @@ class TestValidationOnlySteps:
             )
 
     def test_validation_only_gold_step_reads_from_table(
-        self, spark_session, config, sample_bronze_df
+        self, spark, config, sample_bronze_df, table_prefix
     ):
         """Test that validation-only gold step reads from existing table."""
         from pipeline_builder.step_executors.gold import GoldStepExecutor
         from pipeline_builder.table_operations import fqn
 
         # Create a table first
-        table_name = "existing_gold_table"
-        schema = "test_schema"
+        table_name = f"existing_gold_table_{table_prefix}"
+        schema = f"test_schema_{table_prefix}"
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
         table_fqn = fqn(schema, table_name)
 
         # Write sample data to table
@@ -1750,7 +1755,7 @@ class TestValidationOnlySteps:
             schema=schema,
         )
 
-        executor = GoldStepExecutor(spark_session)
+        executor = GoldStepExecutor(spark)
         context = {}  # Empty context - should read from table
 
         # Should read from table successfully
@@ -1759,10 +1764,13 @@ class TestValidationOnlySteps:
         assert "id" in output_df.columns
 
     def test_validation_only_gold_step_table_not_exists_error(
-        self, spark_session, config
+        self, spark, config, table_prefix
     ):
         """Test that validation-only gold step raises error when table doesn't exist."""
         from pipeline_builder.step_executors.gold import GoldStepExecutor
+
+        schema = f"test_schema_{table_prefix}"
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
 
         gold_step = GoldStep(
             name="existing_gold",
@@ -1770,22 +1778,22 @@ class TestValidationOnlySteps:
             rules={"id": [F.col("id").isNotNull()]},
             table_name="nonexistent_table",
             existing=True,
-            schema="test_schema",
+            schema=schema,
         )
 
-        executor = GoldStepExecutor(spark_session)
+        executor = GoldStepExecutor(spark)
         context = {}
 
         with pytest.raises(ExecutionError, match="table does not exist"):
             executor.execute(gold_step, context, None)
 
     def test_validation_only_gold_step_optional_table_missing_returns_empty(
-        self, spark_session, config
+        self, spark, config
     ):
         """Test that validation-only gold step with optional=True returns empty DataFrame when table doesn't exist."""
         from pipeline_builder.step_executors.gold import GoldStepExecutor
 
-        spark_session.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
+        spark.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
         gold_step = GoldStep(
             name="optional_gold",
             transform=None,
@@ -1796,14 +1804,14 @@ class TestValidationOnlySteps:
             schema="test_schema",
         )
 
-        executor = GoldStepExecutor(spark_session)
+        executor = GoldStepExecutor(spark)
         context = {}
 
         output_df = executor.execute(gold_step, context, None)
         assert output_df.count() == 0
         assert output_df is not None
 
-    def test_validation_only_gold_step_no_schema_error(self, spark_session, config):
+    def test_validation_only_gold_step_no_schema_error(self, spark, config):
         """Test that validation-only gold step raises error when schema is missing."""
         from pipeline_builder.step_executors.gold import GoldStepExecutor
 
@@ -1816,14 +1824,14 @@ class TestValidationOnlySteps:
             schema=None,  # No schema
         )
 
-        executor = GoldStepExecutor(spark_session)
+        executor = GoldStepExecutor(spark)
         context = {}
 
         with pytest.raises(ExecutionError, match="requires schema"):
             executor.execute(gold_step, context, None)
 
     def test_validation_only_silver_step_nonexistent_schema_error(
-        self, spark_session, config
+        self, spark, config
     ):
         """Test that validation-only silver step raises error when schema doesn't exist."""
         from pipeline_builder.step_executors.silver import SilverStepExecutor
@@ -1842,7 +1850,7 @@ class TestValidationOnlySteps:
             schema=schema,
         )
 
-        executor = SilverStepExecutor(spark_session)
+        executor = SilverStepExecutor(spark)
         context = {}
 
         # Should raise error about schema not existing (before checking table)
@@ -1850,7 +1858,7 @@ class TestValidationOnlySteps:
             executor.execute(silver_step, context, ExecutionMode.INITIAL)
 
     def test_validation_only_gold_step_nonexistent_schema_error(
-        self, spark_session, config
+        self, spark, config
     ):
         """Test that validation-only gold step raises error when schema doesn't exist."""
         from pipeline_builder.step_executors.gold import GoldStepExecutor
@@ -1868,7 +1876,7 @@ class TestValidationOnlySteps:
             schema=schema,
         )
 
-        executor = GoldStepExecutor(spark_session)
+        executor = GoldStepExecutor(spark)
         context = {}
 
         # Should raise error about schema not existing (before checking table)
@@ -1876,7 +1884,7 @@ class TestValidationOnlySteps:
             executor.execute(gold_step, context, None)
 
     def test_validation_only_silver_step_schema_before_table_check(
-        self, spark_session, config
+        self, spark, config
     ):
         """Test that schema validation happens before table existence check."""
         from pipeline_builder.step_executors.silver import SilverStepExecutor
@@ -1895,7 +1903,7 @@ class TestValidationOnlySteps:
             schema=schema,
         )
 
-        executor = SilverStepExecutor(spark_session)
+        executor = SilverStepExecutor(spark)
         context = {}
 
         # Should raise error about schema, not table
@@ -1907,7 +1915,7 @@ class TestValidationOnlySteps:
         assert "does not exist" in str(exc_info.value).lower()
 
     def test_validation_only_gold_step_schema_before_table_check(
-        self, spark_session, config
+        self, spark, config
     ):
         """Test that schema validation happens before table existence check."""
         from pipeline_builder.step_executors.gold import GoldStepExecutor
@@ -1925,7 +1933,7 @@ class TestValidationOnlySteps:
             schema=schema,
         )
 
-        executor = GoldStepExecutor(spark_session)
+        executor = GoldStepExecutor(spark)
         context = {}
 
         # Should raise error about schema, not table
@@ -1941,7 +1949,7 @@ class TestPriorGoldsAdvanced:
     """Advanced tests for prior_golds functionality."""
 
     def test_silver_transform_with_multiple_prior_golds(
-        self, spark_session, config, bronze_step, sample_bronze_df
+        self, spark, config, bronze_step, sample_bronze_df
     ):
         """Test silver transform accessing multiple prior_golds."""
 
@@ -1971,7 +1979,7 @@ class TestPriorGoldsAdvanced:
 
         from pipeline_builder.step_executors.silver import SilverStepExecutor
 
-        executor = SilverStepExecutor(spark_session)
+        executor = SilverStepExecutor(spark)
         step_types = {"gold1": "gold", "gold2": "gold", "gold3": "gold"}
         context = {
             "events": sample_bronze_df,
@@ -2008,7 +2016,7 @@ class TestPriorGoldsAdvanced:
                 assert gold_count == 3, f"Expected gold_count=3, got {gold_count}"
 
     def test_gold_transform_with_multiple_prior_golds(
-        self, spark_session, config, sample_bronze_df
+        self, spark, config, sample_bronze_df
     ):
         """Test gold transform accessing multiple prior_golds."""
 
@@ -2036,7 +2044,7 @@ class TestPriorGoldsAdvanced:
 
         from pipeline_builder.step_executors.gold import GoldStepExecutor
 
-        executor = GoldStepExecutor(spark_session)
+        executor = GoldStepExecutor(spark)
         step_types = {
             "clean_events": "silver",
             "intermediate_gold1": "gold",
@@ -2080,7 +2088,7 @@ class TestPriorGoldsAdvanced:
                 assert "intermediate_gold2" in gold_names
 
     def test_silver_transform_with_prior_silvers_and_prior_golds(
-        self, spark_session, config, bronze_step, sample_bronze_df
+        self, spark, config, bronze_step, sample_bronze_df
     ):
         """Test silver transform accessing both prior_silvers and prior_golds."""
 
@@ -2105,7 +2113,7 @@ class TestPriorGoldsAdvanced:
 
         from pipeline_builder.step_executors.silver import SilverStepExecutor
 
-        executor = SilverStepExecutor(spark_session)
+        executor = SilverStepExecutor(spark)
         step_types = {
             "events": "bronze",
             "clean_events": "silver",
@@ -2150,7 +2158,7 @@ class TestPriorGoldsAdvanced:
                 assert gold_count == 1  # existing_gold
 
     def test_prior_golds_excludes_current_step(
-        self, spark_session, config, sample_bronze_df
+        self, spark, config, sample_bronze_df
     ):
         """Test that prior_golds excludes the current step being executed."""
 
@@ -2175,7 +2183,7 @@ class TestPriorGoldsAdvanced:
 
         from pipeline_builder.step_executors.gold import GoldStepExecutor
 
-        executor = GoldStepExecutor(spark_session)
+        executor = GoldStepExecutor(spark)
         step_types = {
             "clean_events": "silver",
             "final_metrics": "gold",  # Current step
@@ -2205,7 +2213,7 @@ class TestPriorGoldsAdvanced:
                 assert "final_metrics" not in gold_names
 
     def test_prior_golds_with_step_params(
-        self, spark_session, config, bronze_step, sample_bronze_df
+        self, spark, config, bronze_step, sample_bronze_df
     ):
         """Test that prior_golds works correctly with step_params."""
 
@@ -2230,7 +2238,7 @@ class TestPriorGoldsAdvanced:
 
         from pipeline_builder.step_executors.silver import SilverStepExecutor
 
-        executor = SilverStepExecutor(spark_session)
+        executor = SilverStepExecutor(spark)
         step_types = {"existing_gold": "gold"}
         context = {"events": sample_bronze_df, "existing_gold": sample_bronze_df}
         step_params = {"multiplier": 2}
@@ -2281,21 +2289,22 @@ class TestValidationOnlyStepsIntegration:
     """Integration tests for validation-only steps in full pipeline execution."""
 
     def test_pipeline_with_validation_only_silver_step(
-        self, spark_session, config, sample_bronze_df
+        self, spark, config, sample_bronze_df, table_prefix
     ):
         """Test full pipeline execution with validation-only silver step."""
         from pipeline_builder.table_operations import fqn
 
         # Create an existing silver table
-        table_name = "existing_silver_table"
-        schema = "test_schema"
+        table_name = f"existing_silver_table_{table_prefix}"
+        schema = f"test_schema_{table_prefix}"
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
         table_fqn = fqn(schema, table_name)
         sample_bronze_df.write.mode("overwrite").saveAsTable(table_fqn)
 
         # Test validation-only silver step execution directly
         from pipeline_builder.step_executors.silver import SilverStepExecutor
 
-        executor = SilverStepExecutor(spark_session)
+        executor = SilverStepExecutor(spark)
 
         silver_step = SilverStep(
             name="existing_silver",
@@ -2338,7 +2347,7 @@ class TestValidationOnlyStepsIntegration:
         assert "has_existing_silver" in clean_output_df.columns
 
     def test_pipeline_with_validation_only_gold_step(
-        self, spark_session, config, sample_bronze_df
+        self, spark, config, sample_bronze_df
     ):
         """Test full pipeline execution with validation-only gold step."""
         from pipeline_builder.pipeline.builder import PipelineBuilder
@@ -2351,7 +2360,7 @@ class TestValidationOnlyStepsIntegration:
         table_fqn = fqn(schema, table_name)
         sample_bronze_df.write.mode("overwrite").saveAsTable(table_fqn)
 
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
         builder.with_bronze_rules(
             name="events", rules={"id": [F.col("id").isNotNull()]}
         )
@@ -2384,7 +2393,7 @@ class TestValidationOnlyStepsIntegration:
         )
 
         pipeline = builder.to_pipeline()
-        runner = SimplePipelineRunner(spark_session, config)
+        runner = SimplePipelineRunner(spark, config)
 
         report = runner.run_pipeline(
             pipeline.steps, bronze_sources={"events": sample_bronze_df}
@@ -2393,7 +2402,7 @@ class TestValidationOnlyStepsIntegration:
         assert report.status == PipelineStatus.COMPLETED
         # Check that final_metrics has the column indicating it accessed prior_golds
         try:
-            final_metrics_df = spark_session.table(fqn(schema, "final_metrics"))
+            final_metrics_df = spark.table(fqn(schema, "final_metrics"))
             assert "has_existing_gold" in final_metrics_df.columns
         except Exception:
             # In mock mode, table might not be created - check context instead
@@ -2401,7 +2410,7 @@ class TestValidationOnlyStepsIntegration:
             pass
 
     def test_with_silver_rules_existing_table_used_in_prior_silvers(
-        self, spark_session, config, sample_bronze_df
+        self, spark, config, sample_bronze_df
     ):
         """Test with_silver_rules: existing table in a different schema is read and used via prior_silvers."""
         from pipeline_builder.pipeline.builder import PipelineBuilder
@@ -2410,11 +2419,11 @@ class TestValidationOnlyStepsIntegration:
         schema = "test_schema"
         prior_schema = "prior_silver_schema_ps"
         legacy_table = "legacy_silver_prior_silvers"
-        spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {prior_schema}")
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {prior_schema}")
         table_fqn = fqn(prior_schema, legacy_table)
         sample_bronze_df.write.mode("overwrite").saveAsTable(table_fqn)
 
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
         builder.with_bronze_rules(
             name="events", rules={"id": [F.col("id").isNotNull()]}
         )
@@ -2469,8 +2478,8 @@ class TestValidationOnlyStepsIntegration:
             assert report.successful_steps == report.metrics.total_steps
         # silver_main must have used prior_silvers["silver_old"] (legacy_row_count column)
         silver_fqn = fqn(schema, "silver_main_prior_silvers")
-        if table_exists(spark_session, silver_fqn):
-            silver_df = spark_session.table(silver_fqn)
+        if table_exists(spark, silver_fqn):
+            silver_df = spark.table(silver_fqn)
             if "legacy_row_count" in silver_df.columns:
                 assert "source" in silver_df.columns
                 rows = silver_df.select("legacy_row_count").distinct().collect()
@@ -2479,7 +2488,7 @@ class TestValidationOnlyStepsIntegration:
                 assert silver_df.count() == sample_bronze_df.count()
 
     def test_with_gold_rules_existing_table_used_in_prior_golds(
-        self, spark_session, config, sample_bronze_df
+        self, spark, config, sample_bronze_df
     ):
         """Test with_gold_rules: existing table in a different schema is read and used via prior_golds."""
         from pipeline_builder.pipeline.builder import PipelineBuilder
@@ -2488,11 +2497,11 @@ class TestValidationOnlyStepsIntegration:
         schema = "test_schema"
         prior_schema = "prior_gold_schema_pg"
         legacy_gold_table = "legacy_gold_prior_golds"
-        spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {prior_schema}")
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {prior_schema}")
         table_fqn = fqn(prior_schema, legacy_gold_table)
         sample_bronze_df.write.mode("overwrite").saveAsTable(table_fqn)
 
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
         builder.with_bronze_rules(
             name="events", rules={"id": [F.col("id").isNotNull()]}
         )
@@ -2546,8 +2555,8 @@ class TestValidationOnlyStepsIntegration:
         if report.metrics.total_steps > 0:
             assert report.successful_steps == report.metrics.total_steps
         gold_fqn = fqn(schema, "gold_final_prior_golds")
-        if table_exists(spark_session, gold_fqn):
-            gold_df = spark_session.table(gold_fqn)
+        if table_exists(spark, gold_fqn):
+            gold_df = spark.table(gold_fqn)
             if "legacy_gold_row_count" in gold_df.columns:
                 rows = gold_df.select("legacy_gold_row_count").distinct().collect()
                 assert len(rows) >= 1
@@ -2555,18 +2564,18 @@ class TestValidationOnlyStepsIntegration:
                 assert gold_df.count() == sample_bronze_df.count()
 
     def test_with_silver_rules_prior_table_missing_fails(
-        self, spark_session, config, sample_bronze_df
+        self, spark, config, sample_bronze_df
     ):
         """Test that to_pipeline() fails when validation-only silver step target table does not exist (optional=False)."""
         from pipeline_builder.pipeline.builder import PipelineBuilder
 
         schema = "test_schema"
         prior_schema = "prior_silver_schema_missing"
-        spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {prior_schema}")
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {prior_schema}")
         # Do NOT create the table - use a table name that does not exist
         legacy_table = "nonexistent_legacy_silver_missing"
 
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
         builder.with_bronze_rules(
             name="events", rules={"id": [F.col("id").isNotNull()]}
         )
@@ -2595,7 +2604,7 @@ class TestValidationOnlyStepsIntegration:
         )
 
     def test_with_silver_rules_and_gold_rules_both_prior_tables_used(
-        self, spark_session, config, sample_bronze_df
+        self, spark, config, sample_bronze_df
     ):
         """Test pipeline using both with_silver_rules and with_gold_rules; gold uses both prior_silvers and prior_golds."""
         from pipeline_builder.pipeline.builder import PipelineBuilder
@@ -2604,8 +2613,8 @@ class TestValidationOnlyStepsIntegration:
         schema = "test_schema"
         prior_silver_schema = "prior_silver_combined_both"
         prior_gold_schema = "prior_gold_combined_both"
-        spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {prior_silver_schema}")
-        spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {prior_gold_schema}")
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {prior_silver_schema}")
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {prior_gold_schema}")
         sample_bronze_df.write.mode("overwrite").saveAsTable(
             fqn(prior_silver_schema, "legacy_silver_both")
         )
@@ -2613,7 +2622,7 @@ class TestValidationOnlyStepsIntegration:
             fqn(prior_gold_schema, "legacy_gold_both")
         )
 
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
         builder.with_bronze_rules(
             name="events", rules={"id": [F.col("id").isNotNull()]}
         )
@@ -2672,8 +2681,8 @@ class TestValidationOnlyStepsIntegration:
         assert report.failed_steps == 0
         assert report.success
         gold_fqn = fqn(schema, "gold_final_combined_both")
-        if table_exists(spark_session, gold_fqn):
-            gold_df = spark_session.table(gold_fqn)
+        if table_exists(spark, gold_fqn):
+            gold_df = spark.table(gold_fqn)
             if (
                 "prior_silver_count" in gold_df.columns
                 and "prior_gold_count" in gold_df.columns
@@ -2686,7 +2695,7 @@ class TestValidationOnlyStepsIntegration:
                     assert gc["prior_gold_count"] == sample_bronze_df.count()
 
     def test_with_silver_rules_prior_silvers_join_data_correctness(
-        self, spark_session, config, sample_bronze_df
+        self, spark, config, sample_bronze_df
     ):
         """Test that prior_silvers DataFrame can be used (join or count); data correctness."""
         from pipeline_builder.pipeline.builder import PipelineBuilder
@@ -2695,12 +2704,12 @@ class TestValidationOnlyStepsIntegration:
         schema = "test_schema"
         prior_schema = "prior_silver_join_correctness"
         legacy_table_join = "legacy_silver_join_correctness"
-        spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {prior_schema}")
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {prior_schema}")
         sample_bronze_df.write.mode("overwrite").saveAsTable(
             fqn(prior_schema, legacy_table_join)
         )
 
-        builder = PipelineBuilder(spark=spark_session, schema=schema)
+        builder = PipelineBuilder(spark=spark, schema=schema)
         builder.with_bronze_rules(
             name="events", rules={"id": [F.col("id").isNotNull()]}
         )
@@ -2735,8 +2744,8 @@ class TestValidationOnlyStepsIntegration:
         assert report.failed_steps == 0
         assert report.success
         silver_fqn = fqn(schema, "silver_main_join_correctness")
-        if table_exists(spark_session, silver_fqn):
-            silver_df = spark_session.table(silver_fqn)
+        if table_exists(spark, silver_fqn):
+            silver_df = spark.table(silver_fqn)
             if "from_legacy_count" in silver_df.columns:
                 assert (
                     silver_df.select("from_legacy_count").first()["from_legacy_count"]
@@ -2748,7 +2757,7 @@ class TestExecutionOrderReportedOrder:
     """Tests that execution order matches reported order / step list order."""
 
     def test_engine_fallback_uses_step_list_order_for_independent_bronze_steps(
-        self, spark_session, config, sample_bronze_df
+        self, spark, config, sample_bronze_df
     ):
         """When execution_order is None, engine uses step list order (creation_order) for tie-breaking.
 
@@ -2778,7 +2787,7 @@ class TestExecutionOrderReportedOrder:
             "bronze_3": sample_bronze_df,
         }
 
-        engine = ExecutionEngine(spark_session, config)
+        engine = ExecutionEngine(spark, config)
         result = engine.execute_pipeline(
             steps,
             ExecutionMode.INITIAL,

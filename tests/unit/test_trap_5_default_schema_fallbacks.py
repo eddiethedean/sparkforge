@@ -12,40 +12,25 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-# Import types based on engine
-# Check SPARK_MODE first (used by tests), then SPARKFORGE_ENGINE
-_SPARK_MODE = os.environ.get("SPARK_MODE", "mock").lower()
-_ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
-if _SPARK_MODE == "real" or _ENGINE in ("pyspark", "spark", "real"):
-    try:
-        from pyspark.sql.types import StringType, StructField, StructType
-    except ImportError:
-        from sparkless.spark_types import StringType, StructField, StructType  # type: ignore[import]
-else:
-    from sparkless.spark_types import StringType, StructField, StructType  # type: ignore[import]
-
 # Add the project root to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
-# NOTE: mock-spark patches removed - now using mock-spark 1.3.0 which doesn't need patches
-# The apply_mock_spark_patches() call was causing test pollution
 
 from pipeline_builder.errors import ExecutionError
 from pipeline_builder.execution import ExecutionEngine, ExecutionMode
 from pipeline_builder.models.steps import GoldStep, SilverStep
 
 
-# Run in both mock and real mode (types and spark_session are mode-aware).
-
-
 class TestTrap5DefaultSchemaFallbacks:
     """Test that schema validation prevents silent fallback to 'default'."""
 
-    def test_silver_step_without_schema_raises_error(self, spark_session):
+    def test_silver_step_without_schema_raises_error(self, spark, spark_imports):
         """Test that SilverStep without schema raises ExecutionError."""
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        StringType = spark_imports.StringType
 
         # Create a SilverStep without schema
-        def dummy_transform(spark, bronze_df, prior_silvers):
+        def dummy_transform(spark_session, bronze_df, prior_silvers):
             return bronze_df
 
         silver_step = SilverStep(
@@ -59,7 +44,7 @@ class TestTrap5DefaultSchemaFallbacks:
 
         # Create ExecutionEngine
         engine = ExecutionEngine(
-            spark=spark_session,
+            spark=spark,
             config=Mock(),
             logger=Mock(),
         )
@@ -67,7 +52,7 @@ class TestTrap5DefaultSchemaFallbacks:
         # Create test data
         schema = StructType([StructField("id", StringType(), True)])
         # Use dict format for mock-spark compatibility
-        test_df = spark_session.createDataFrame([{"id": "1"}], schema)
+        test_df = spark.createDataFrame([{"id": "1"}], schema)
         context = {"test_bronze": test_df}
 
         # Should raise ExecutionError, not silently use "default" schema
@@ -83,15 +68,18 @@ class TestTrap5DefaultSchemaFallbacks:
             or "tuple indices must be integers or slices, not str" in error_msg
         )
 
-    def test_gold_step_without_schema_raises_error(self, spark_session):
+    def test_gold_step_without_schema_raises_error(self, spark, spark_imports):
         """Test that GoldStep without schema raises ExecutionError."""
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        StringType = spark_imports.StringType
 
         # Create a GoldStep without schema
-        def dummy_gold_transform(spark, silver_dfs):
+        def dummy_gold_transform(spark_session, silver_dfs):
             return (
                 list(silver_dfs.values())[0]
                 if silver_dfs
-                else spark.createDataFrame([], "id STRING")
+                else spark_session.createDataFrame([], "id STRING")
             )
 
         gold_step = GoldStep(
@@ -104,14 +92,14 @@ class TestTrap5DefaultSchemaFallbacks:
 
         # Create ExecutionEngine
         engine = ExecutionEngine(
-            spark=spark_session,
+            spark=spark,
             config=Mock(),
             logger=Mock(),
         )
 
         # Create test data
         schema = StructType([StructField("id", StringType(), True)])
-        test_df = spark_session.createDataFrame([("1",)], schema)
+        test_df = spark.createDataFrame([("1",)], schema)
         context = {"test_silver": test_df}  # GoldStep needs source_silvers in context
 
         # Should raise ExecutionError, not silently use "default" schema
@@ -128,11 +116,14 @@ class TestTrap5DefaultSchemaFallbacks:
             or "spark_ddl_parser" in error_msg
         )
 
-    def test_silver_step_with_schema_works_correctly(self, spark_session):
+    def test_silver_step_with_schema_works_correctly(self, spark, spark_imports):
         """Test that SilverStep with schema works correctly."""
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        StringType = spark_imports.StringType
 
         # Create a SilverStep with schema
-        def dummy_transform(spark, bronze_df, prior_silvers):
+        def dummy_transform(spark_session, bronze_df, prior_silvers):
             return bronze_df
 
         silver_step = SilverStep(
@@ -146,7 +137,7 @@ class TestTrap5DefaultSchemaFallbacks:
 
         # Create ExecutionEngine
         engine = ExecutionEngine(
-            spark=spark_session,
+            spark=spark,
             config=Mock(),
             logger=Mock(),
         )
@@ -154,41 +145,26 @@ class TestTrap5DefaultSchemaFallbacks:
         # Create test data
         schema = StructType([StructField("id", StringType(), True)])
         # Use dict format for mock-spark compatibility
-        test_df = spark_session.createDataFrame([{"id": "1"}], schema)
+        test_df = spark.createDataFrame([{"id": "1"}], schema)
         context = {"test_bronze": test_df}
 
         # Should work without error
         result = engine.execute_step(silver_step, context, ExecutionMode.INITIAL)
         assert result.status.value == "completed"
 
-    def test_gold_step_with_schema_works_correctly(self, spark_session):
+    def test_gold_step_with_schema_works_correctly(self, spark, spark_imports):
         """Test that GoldStep with schema works correctly."""
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        StringType = spark_imports.StringType
 
         # Create a GoldStep with schema
-        def dummy_gold_transform(spark, silver_dfs):
-            # Import types based on engine
-            import os
-
-            # Check SPARK_MODE first (used by tests), then SPARKFORGE_ENGINE
-            _SPARK_MODE = os.environ.get("SPARK_MODE", "mock").lower()
-            _ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
-            if _SPARK_MODE == "real" or _ENGINE in ("pyspark", "spark", "real"):
-                try:
-                    from pyspark.sql.types import StringType, StructField, StructType
-                except ImportError:
-                    from sparkless.spark_types import (  # type: ignore[import]
-                        StringType,
-                        StructField,
-                        StructType,
-                    )
-            else:
-                from sparkless.spark_types import StringType, StructField, StructType  # type: ignore[import]
-
+        def dummy_gold_transform(spark_session, silver_dfs):
             schema = StructType([StructField("id", StringType(), True)])
             return (
                 list(silver_dfs.values())[0]
                 if silver_dfs
-                else spark.createDataFrame([], schema)
+                else spark_session.createDataFrame([], schema)
             )
 
         gold_step = GoldStep(
@@ -201,25 +177,28 @@ class TestTrap5DefaultSchemaFallbacks:
 
         # Create ExecutionEngine
         engine = ExecutionEngine(
-            spark=spark_session,
+            spark=spark,
             config=Mock(),
             logger=Mock(),
         )
 
         # Create test data
         schema = StructType([StructField("id", StringType(), True)])
-        test_df = spark_session.createDataFrame([("1",)], schema)
+        test_df = spark.createDataFrame([("1",)], schema)
         context = {"test_silver": test_df}  # GoldStep needs source_silvers in context
 
         # Should work without error
         result = engine.execute_step(gold_step, context, ExecutionMode.INITIAL)
         assert result.status.value == "completed"
 
-    def test_pipeline_execution_logs_missing_schema_warnings(self, spark_session):
+    def test_pipeline_execution_logs_missing_schema_warnings(self, spark, spark_imports):
         """Test that pipeline execution logs warnings for steps without schema."""
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        StringType = spark_imports.StringType
 
         # Create steps without schema
-        def dummy_transform(spark, bronze_df, prior_silvers):
+        def dummy_transform(spark_session, bronze_df, prior_silvers):
             return bronze_df
 
         silver_step = SilverStep(
@@ -233,7 +212,7 @@ class TestTrap5DefaultSchemaFallbacks:
 
         # Create ExecutionEngine
         engine = ExecutionEngine(
-            spark=spark_session,
+            spark=spark,
             config=Mock(),
             logger=Mock(),
         )
@@ -244,7 +223,7 @@ class TestTrap5DefaultSchemaFallbacks:
         logger = PipelineLogger()
 
         engine = ExecutionEngine(
-            spark=spark_session,
+            spark=spark,
             config=Mock(),
             logger=logger,
         )
@@ -254,7 +233,7 @@ class TestTrap5DefaultSchemaFallbacks:
             # Create test data
             schema = StructType([StructField("id", StringType(), True)])
             # Use dict format for mock-spark compatibility
-            test_df = spark_session.createDataFrame([{"id": "1"}], schema)
+            test_df = spark.createDataFrame([{"id": "1"}], schema)
             context = {"test_bronze": test_df}
 
             # Execute step (this will fail due to missing schema)
@@ -272,11 +251,14 @@ class TestTrap5DefaultSchemaFallbacks:
                 for call in log_calls
             )
 
-    def test_no_silent_fallback_to_default_schema(self, spark_session):
+    def test_no_silent_fallback_to_default_schema(self, spark, spark_imports):
         """Test that no silent fallback to 'default' schema occurs."""
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        StringType = spark_imports.StringType
 
         # Create a SilverStep without schema
-        def dummy_transform(spark, bronze_df, prior_silvers):
+        def dummy_transform(spark_session, bronze_df, prior_silvers):
             return bronze_df
 
         silver_step = SilverStep(
@@ -290,14 +272,14 @@ class TestTrap5DefaultSchemaFallbacks:
 
         # Create ExecutionEngine
         engine = ExecutionEngine(
-            spark=spark_session,
+            spark=spark,
             config=Mock(),
             logger=Mock(),
         )
 
         # Create test data
         schema = StructType([StructField("id", StringType(), True)])
-        test_df = spark_session.createDataFrame([("1",)], schema)
+        test_df = spark.createDataFrame([("1",)], schema)
         context = {"test_bronze": test_df}
 
         # Mock fqn to detect if "default" schema is used
@@ -311,11 +293,14 @@ class TestTrap5DefaultSchemaFallbacks:
             # Verify fqn was not called with "default" schema
             mock_fqn.assert_not_called()
 
-    def test_validation_mode_skips_schema_validation(self, spark_session):
+    def test_validation_mode_skips_schema_validation(self, spark, spark_imports):
         """Test that validation mode skips schema validation for table operations."""
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        StringType = spark_imports.StringType
 
         # Create a SilverStep without schema
-        def dummy_transform(spark, bronze_df, prior_silvers):
+        def dummy_transform(spark_session, bronze_df, prior_silvers):
             return bronze_df
 
         silver_step = SilverStep(
@@ -329,7 +314,7 @@ class TestTrap5DefaultSchemaFallbacks:
 
         # Create ExecutionEngine
         engine = ExecutionEngine(
-            spark=spark_session,
+            spark=spark,
             config=Mock(),
             logger=Mock(),
         )
@@ -337,7 +322,7 @@ class TestTrap5DefaultSchemaFallbacks:
         # Create test data
         schema = StructType([StructField("id", StringType(), True)])
         # Use dict format for mock-spark compatibility
-        test_df = spark_session.createDataFrame([{"id": "1"}], schema)
+        test_df = spark.createDataFrame([{"id": "1"}], schema)
         context = {"test_bronze": test_df}
 
         # Should work in validation mode (no table operations)

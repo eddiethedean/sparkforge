@@ -302,10 +302,10 @@ class TestDropTable:
     def test_drop_table_success(self):
         """Test successful table drop."""
         mock_spark = MagicMock()
-        mock_jspark_session = MagicMock()
+        mock_jspark = MagicMock()
         mock_external_catalog = MagicMock()
-        mock_spark._jsparkSession = mock_jspark_session
-        mock_jspark_session.sharedState.return_value.externalCatalog.return_value = (
+        mock_spark._jsparkSession = mock_jspark
+        mock_jspark.sharedState.return_value.externalCatalog.return_value = (
             mock_external_catalog
         )
 
@@ -321,10 +321,10 @@ class TestDropTable:
     def test_drop_table_with_default_schema(self):
         """Test table drop with default schema (no dot in FQN)."""
         mock_spark = MagicMock()
-        mock_jspark_session = MagicMock()
+        mock_jspark = MagicMock()
         mock_external_catalog = MagicMock()
-        mock_spark._jsparkSession = mock_jspark_session
-        mock_jspark_session.sharedState.return_value.externalCatalog.return_value = (
+        mock_spark._jsparkSession = mock_jspark
+        mock_jspark.sharedState.return_value.externalCatalog.return_value = (
             mock_external_catalog
         )
 
@@ -351,10 +351,10 @@ class TestDropTable:
     def test_drop_table_failure(self):
         """Test table drop failure."""
         mock_spark = MagicMock()
-        mock_jspark_session = MagicMock()
+        mock_jspark = MagicMock()
         mock_external_catalog = MagicMock()
-        mock_spark._jsparkSession = mock_jspark_session
-        mock_jspark_session.sharedState.return_value.externalCatalog.return_value = (
+        mock_spark._jsparkSession = mock_jspark
+        mock_jspark.sharedState.return_value.externalCatalog.return_value = (
             mock_external_catalog
         )
         mock_external_catalog.dropTable.side_effect = Exception("Drop failed")
@@ -440,10 +440,10 @@ class TestTableOperationsIntegration:
         mock_writer.option.return_value = mock_writer
 
         mock_spark = MagicMock()
-        mock_jspark_session = MagicMock()
+        mock_jspark = MagicMock()
         mock_external_catalog = MagicMock()
-        mock_spark._jsparkSession = mock_jspark_session
-        mock_jspark_session.sharedState.return_value.externalCatalog.return_value = (
+        mock_spark._jsparkSession = mock_jspark
+        mock_jspark.sharedState.return_value.externalCatalog.return_value = (
             mock_external_catalog
         )
 

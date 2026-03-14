@@ -6,16 +6,9 @@ This module tests the new feature that allows add_silver_transform to
 automatically infer the source_bronze from the most recent with_bronze_rules call.
 """
 
-import os
 from unittest.mock import patch
 
 import pytest
-
-# Use engine-specific functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-else:
-    from pyspark.sql import functions as F
 
 from pipeline_builder import PipelineBuilder
 from pipeline_builder.errors import StepError
@@ -25,12 +18,14 @@ class TestAutoInferSourceBronze:
     """Test auto-inference of source_bronze parameter."""
 
     @pytest.fixture(autouse=True)
-    def setup_test(self, spark_session):
+    def setup_test(self, spark, spark_imports):
         """Set up test fixtures."""
-        self.builder = PipelineBuilder(spark=spark_session, schema="test_schema")
+        self.builder = PipelineBuilder(spark=spark, schema="test_schema")
+        self.F = spark_imports.F
 
     def test_auto_infer_single_bronze_step(self):
         """Test auto-inference with a single bronze step."""
+        F = self.F
         # Add bronze step
         self.builder.with_bronze_rules(
             name="events", rules={"user_id": [F.col("user_id").isNotNull()]}
@@ -57,6 +52,7 @@ class TestAutoInferSourceBronze:
 
     def test_auto_infer_multiple_bronze_steps(self):
         """Test auto-inference uses the most recent bronze step."""
+        F = self.F
         # Add multiple bronze steps
         self.builder.with_bronze_rules(
             name="events", rules={"user_id": [F.col("user_id").isNotNull()]}
@@ -83,6 +79,7 @@ class TestAutoInferSourceBronze:
 
     def test_explicit_source_bronze_still_works(self):
         """Test that explicit source_bronze still works."""
+        F = self.F
         # Add multiple bronze steps
         self.builder.with_bronze_rules(
             name="events", rules={"user_id": [F.col("user_id").isNotNull()]}
@@ -110,6 +107,7 @@ class TestAutoInferSourceBronze:
 
     def test_no_bronze_steps_raises_error(self):
         """Test that error is raised when no bronze steps exist."""
+        F = self.F
 
         def silver_transform(spark, bronze_df, prior_silvers):
             return bronze_df
@@ -129,6 +127,7 @@ class TestAutoInferSourceBronze:
 
     def test_invalid_source_bronze_raises_error(self):
         """Test that error is raised when source_bronze doesn't exist."""
+        F = self.F
         # Add bronze step
         self.builder.with_bronze_rules(
             name="events", rules={"user_id": [F.col("user_id").isNotNull()]}
@@ -153,6 +152,7 @@ class TestAutoInferSourceBronze:
 
     def test_logging_auto_inference(self):
         """Test that auto-inference is logged."""
+        F = self.F
         # Add bronze step
         self.builder.with_bronze_rules(
             name="events", rules={"user_id": [F.col("user_id").isNotNull()]}
@@ -175,6 +175,7 @@ class TestAutoInferSourceBronze:
 
     def test_chaining_works_with_auto_inference(self):
         """Test that method chaining works with auto-inference."""
+        F = self.F
         # Add bronze step
         self.builder.with_bronze_rules(
             name="events", rules={"user_id": [F.col("user_id").isNotNull()]}

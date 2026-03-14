@@ -3,35 +3,31 @@ Real Spark regression test to ensure overwrite to Delta tables does not use
 truncate-in-batch (which Delta V2 disallows) and pipeline completes.
 """
 
-import os
-
 import pytest
 
+from sparkless.testing import Mode
 from pipeline_builder import PipelineBuilder
 
-# Run only in real Spark mode
-pytestmark = pytest.mark.skipif(
-    os.environ.get("SPARK_MODE", "mock").lower() != "real",
-    reason="Requires real PySpark + Delta",
-)
 
-
-def test_initial_load_overwrite_delta(spark_session, unique_schema, unique_table_name):
+def test_initial_load_overwrite_delta(spark, spark_imports, spark_mode, unique_schema, unique_table_name):
     """Initial load should succeed writing Silver/Gold tables in Delta."""
-    from pyspark.sql import functions as F
+    # Run only in pyspark mode
+    if spark_mode == Mode.SPARKLESS:
+        pytest.skip("Requires real PySpark + Delta")
 
+    F = spark_imports.F
     schema = unique_schema
-    spark_session.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+    spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
 
     data = [
         ("u1", "click", "2024-01-01 10:00:00", 1.0),
         ("u2", "view", "2024-01-01 11:00:00", 2.0),
     ]
-    df = spark_session.createDataFrame(
+    df = spark.createDataFrame(
         data, ["user_id", "action", "timestamp", "value"]
     )
 
-    builder = PipelineBuilder(spark=spark_session, schema=schema)
+    builder = PipelineBuilder(spark=spark, schema=schema)
 
     builder.with_bronze_rules(
         name="events",
@@ -74,9 +70,9 @@ def test_initial_load_overwrite_delta(spark_session, unique_schema, unique_table
 
     assert result.status.value == "completed"
     # Basic sanity: tables exist
-    assert spark_session.catalog.tableExists(
+    assert spark.catalog.tableExists(
         f"{schema}.{builder.silver_steps['processed'].table_name}"
     )
-    assert spark_session.catalog.tableExists(
+    assert spark.catalog.tableExists(
         f"{schema}.{builder.gold_steps['summary'].table_name}"
     )

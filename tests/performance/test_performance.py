@@ -108,15 +108,15 @@ class TestValidationPerformance:
         assert result.execution_time < 0.5
         assert result.avg_time_per_iteration < 1.0
 
-    def test_assess_data_quality_performance(self, spark_session) -> None:
+    def test_assess_data_quality_performance(self, spark) -> None:
         """Test performance of assess_data_quality function."""
         # Test with sparkless DataFrame to verify it works
         # This will help identify any sparkless-specific issues
         from pipeline_builder.validation import assess_data_quality
 
-        # Create test DataFrame using the spark_session fixture
+        # Create test DataFrame using the spark fixture
         data = [(1, "Alice", 25), (2, "Bob", 30), (3, "Charlie", None)]
-        df = spark_session.createDataFrame(data, ["id", "name", "age"])
+        df = spark.createDataFrame(data, ["id", "name", "age"])
 
         # Test assess_data_quality with sparkless DataFrame
         result = assess_data_quality(

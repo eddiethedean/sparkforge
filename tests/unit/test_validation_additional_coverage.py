@@ -6,7 +6,6 @@ This module focuses on covering missing lines and edge cases that are not
 currently covered by the existing test suite.
 """
 
-import os
 from unittest.mock import Mock
 
 import pytest
@@ -27,11 +26,11 @@ from pipeline_builder.validation import (
 class TestValidationEdgeCases:
     """Test validation function edge cases and missing coverage."""
 
-    def test_convert_rule_to_expression_string_handling(self, spark_session) -> None:
+    def test_convert_rule_to_expression_string_handling(self, spark) -> None:
         """Test _convert_rule_to_expression with string rules (behavior: filter works)."""
         result = _convert_rule_to_expression("col1 > 0", "col1", F)
         # Assert behavior: expression can be used in filter and yields expected rows
-        df = spark_session.createDataFrame([(1,), (0,), (-1,)], ["col1"])
+        df = spark.createDataFrame([(1,), (0,), (-1,)], ["col1"])
         filtered = df.filter(result)
         rows = [r.col1 for r in filtered.collect()]
         assert rows == [1], "only row with col1 > 0 should remain"
@@ -67,7 +66,7 @@ class TestValidationEdgeCases:
         assert result is not None
         mock_df.limit.assert_called_once_with(0)
 
-    def test_apply_column_rules_with_rules(self, spark_session) -> None:
+    def test_apply_column_rules_with_rules(self, spark) -> None:
         """Test apply_column_rules with actual rules."""
         # mock-spark 3.11.0+ requires active SparkSession for function calls (like PySpark)
         # Create mock DataFrame
@@ -152,7 +151,7 @@ class TestValidationEdgeCases:
         result = apply_column_rules(mock_df, {}, "test_stage", "test_step", functions=F)
         assert result is not None
 
-    def test_convert_rules_to_expressions_complex_cases(self, spark_session) -> None:
+    def test_convert_rules_to_expressions_complex_cases(self, spark) -> None:
         """Test _convert_rules_to_expressions with complex cases."""
         # mock-spark 3.11.0+ requires active SparkSession for function calls (like PySpark)
         # Test with mixed rule types
@@ -173,7 +172,7 @@ class TestConvertRulesToExpressionsColumnBoolFix:
     which would trigger Column.__bool__ and raise ValueError in PySpark.
     """
 
-    def test_rules_with_column_only_does_not_raise(self, spark_session) -> None:
+    def test_rules_with_column_only_does_not_raise(self, spark) -> None:
         """Rule list with only Column expression must not raise ValueError."""
         # When rule is a Column, code must not do (rule == "in") in an if
         rules = {"x": [F.col("x") > 0]}
@@ -183,7 +182,7 @@ class TestConvertRulesToExpressionsColumnBoolFix:
         assert hasattr(result["x"][0], "__and__")
 
     def test_rules_with_column_and_string_mixed_does_not_raise(
-        self, spark_session
+        self, spark
     ) -> None:
         """Rule list with Column first then string rules must not raise."""
         rules = {"id": [F.col("id") > 0, "not_null"], "name": ["not_null"]}
@@ -193,7 +192,7 @@ class TestConvertRulesToExpressionsColumnBoolFix:
         assert "name" in result
         assert len(result["name"]) == 1
 
-    def test_rules_string_in_two_element_still_works(self, spark_session) -> None:
+    def test_rules_string_in_two_element_still_works(self, spark) -> None:
         """Doc-style \"in\" rule [\"in\", [\"a\", \"b\"]] must still be coalesced."""
         rules = {"status": ["in", ["active", "inactive"]]}
         result = _convert_rules_to_expressions(rules, F)
@@ -201,7 +200,7 @@ class TestConvertRulesToExpressionsColumnBoolFix:
         assert len(result["status"]) == 1
         assert hasattr(result["status"][0], "__and__")
 
-    def test_rules_column_then_in_literal_not_coalesced(self, spark_session) -> None:
+    def test_rules_column_then_in_literal_not_coalesced(self, spark) -> None:
         """Column followed by \"in\" and list: Column is kept, \"in\" handled as two-element."""
         # List is [Column, "in", ["a","b"]] - first element is Column so we must not
         # compare it to "in"; second element is "in" so we coalesce "in" + ["a","b"]
@@ -215,19 +214,19 @@ class TestConvertRulesToExpressionsColumnBoolFix:
 class TestValidationEdgeCasesContinued:
     """Remaining validation edge case tests (split for clarity)."""
 
-    def test_convert_rule_to_expression_edge_cases(self, spark_session) -> None:
+    def test_convert_rule_to_expression_edge_cases(self, spark) -> None:
         """Test _convert_rule_to_expression with edge cases using DataFrame behavior."""
         # Build a small DataFrame and apply the expression to verify behavior
-        df = spark_session.createDataFrame([(1,), (0,)], ["col1"])
+        df = spark.createDataFrame([(1,), (0,)], ["col1"])
         expr = _convert_rule_to_expression("col1 > 0", "col1", F)
         filtered = df.filter(expr)
         rows = [r.col1 for r in filtered.collect()]
         assert rows == [1]
 
-    def test_and_all_rules_single_expression(self, spark_session) -> None:
+    def test_and_all_rules_single_expression(self, spark) -> None:
         """Test and_all_rules with single expression (Column so filter works in all engines)."""
         rules = {"col1": [F.col("col1") > 0]}
-        df = spark_session.createDataFrame([(1,), (0,)], ["col1"])
+        df = spark.createDataFrame([(1,), (0,)], ["col1"])
         expr = and_all_rules(rules, F)
         if expr is True:
             pytest.skip("and_all_rules returned True (no column expressions in this engine)")
@@ -235,13 +234,13 @@ class TestValidationEdgeCasesContinued:
         rows = [r.col1 for r in filtered.collect()]
         assert rows == [1]
 
-    def test_and_all_rules_multiple_expressions(self, spark_session) -> None:
+    def test_and_all_rules_multiple_expressions(self, spark) -> None:
         """Test and_all_rules with multiple expressions (Column so filter works in all engines)."""
         rules = {
             "col1": [F.col("col1") > 0],
             "col2": [F.col("col2").isNotNull()],
         }
-        df = spark_session.createDataFrame([(1, "x"), (0, None)], ["col1", "col2"])
+        df = spark.createDataFrame([(1, "x"), (0, None)], ["col1", "col2"])
         expr = and_all_rules(rules, F)
         if expr is True:
             pytest.skip("and_all_rules returned True (no column expressions in this engine)")
@@ -249,14 +248,8 @@ class TestValidationEdgeCasesContinued:
         rows = [(r.col1, r.col2) for r in filtered.collect()]
         assert rows == [(1, "x")]
 
-    def test_string_rule_conversion_edge_cases(self, spark_session) -> None:
+    def test_string_rule_conversion_edge_cases(self, spark, spark_mode) -> None:
         """Test string rule conversion edge cases."""
-        # mock-spark 3.12.0+ requires active SparkSession for function calls (like PySpark)
-        # Test various string rule formats
-        import os
-
-        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-
         test_cases = [
             "col1 > 0",
             "col1 IS NOT NULL",
@@ -269,7 +262,7 @@ class TestValidationEdgeCasesContinued:
             test_cases.append("col1 IN ('a', 'b', 'c')")
 
         for rule in test_cases:
-            df = spark_session.createDataFrame([(1,), (0,)], ["col1"])
+            df = spark.createDataFrame([(1,), (0,)], ["col1"])
             if "LENGTH" in rule:
                 # LENGTH is not supported in sparkless; skip this case there
                 if spark_mode != "real":

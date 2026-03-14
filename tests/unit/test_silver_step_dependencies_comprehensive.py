@@ -19,9 +19,9 @@ class TestSilverStepDependencyOrdering:
     """Test that silver steps execute in correct order based on dependencies."""
 
     @pytest.fixture
-    def session_scoped_f(self, mock_spark_session):
+    def session_scoped_f(self, spark):
         """Provide F bound to active session so F.col() works (PySpark/sparkless)."""
-        configure_engine(spark=mock_spark_session)
+        configure_engine(spark=spark)
         return get_default_functions()
 
     @pytest.fixture

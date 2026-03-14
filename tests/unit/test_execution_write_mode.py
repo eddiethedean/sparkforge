@@ -6,7 +6,6 @@ This module tests that the ExecutionEngine correctly sets write_mode based on
 execution mode to prevent data overwriting issues in incremental pipelines.
 """
 
-import os
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -20,17 +19,6 @@ from pipeline_builder.models import (
     SilverStep,
     ValidationThresholds,
 )
-
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-    from sparkless.spark_types import IntegerType, StringType, StructField, StructType  # type: ignore[import]
-else:
-    from pyspark.sql import functions as F
-    from pyspark.sql.types import IntegerType, StringType, StructField, StructType
-
-
-# Run in both mock and real mode (F and types are set conditionally above).
 
 
 class TestExecutionEngineWriteMode:
@@ -50,15 +38,16 @@ class TestExecutionEngineWriteMode:
         return PipelineLogger("test")
 
     @pytest.fixture
-    def execution_engine(self, spark_session, config, logger):
+    def execution_engine(self, spark, config, logger):
         """Create an execution engine for testing."""
-        return ExecutionEngine(spark_session, config, logger)
+        return ExecutionEngine(spark, config, logger)
 
     @pytest.fixture
-    def silver_step(self):
+    def silver_step(self, spark_imports):
         """Create a test silver step."""
+        F = spark_imports.F
 
-        def simple_transform(spark, bronze_df, prior_silvers):
+        def simple_transform(spark_session, bronze_df, prior_silvers):
             return bronze_df
 
         return SilverStep(
@@ -71,10 +60,11 @@ class TestExecutionEngineWriteMode:
         )
 
     @pytest.fixture
-    def gold_step(self):
+    def gold_step(self, spark_imports):
         """Create a test gold step."""
+        F = spark_imports.F
 
-        def simple_transform(spark, silvers):
+        def simple_transform(spark_session, silvers):
             return silvers["test_silver"]
 
         return GoldStep(
@@ -87,16 +77,20 @@ class TestExecutionEngineWriteMode:
         )
 
     @pytest.fixture
-    def context(self, spark_session):
+    def context(self, spark, spark_imports):
         """Create test execution context."""
-        # Use StructType schema for mock-spark compatibility
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
+        StringType = spark_imports.StringType
+
         schema = StructType(
             [
                 StructField("id", IntegerType(), True),
                 StructField("name", StringType(), True),
             ]
         )
-        test_df = spark_session.createDataFrame([{"id": 1, "name": "test"}], schema)
+        test_df = spark.createDataFrame([{"id": 1, "name": "test"}], schema)
         return {
             "test_bronze": test_df,
             "test_silver": test_df,  # For gold step tests
@@ -357,9 +351,11 @@ class TestExecutionEngineWriteMode:
                 f"got {gold_result.write_mode}"
             )
 
-    def test_bronze_step_has_no_write_mode(self, execution_engine, context):
+    def test_bronze_step_has_no_write_mode(self, execution_engine, context, spark_imports):
         """Test that Bronze steps have no write_mode (they don't write to tables)."""
         from pipeline_builder.models import BronzeStep
+
+        F = spark_imports.F
 
         # Create a bronze step
         bronze_step = BronzeStep(
@@ -379,7 +375,7 @@ class TestExecutionEngineWriteMode:
 class TestWriteModeRegression:
     """Test cases to prevent regression of the write_mode bug."""
 
-    def test_incremental_mode_uses_append_for_silver_steps(self, spark_session):
+    def test_incremental_mode_uses_append_for_silver_steps(self, spark, spark_imports):
         """Incremental silver writes must append to prevent data loss."""
         from pipeline_builder.models import (
             PipelineConfig,
@@ -387,16 +383,18 @@ class TestWriteModeRegression:
             ValidationThresholds,
         )
 
-        spark_session.sql("DROP TABLE IF EXISTS test_schema.test_silver_table")
+        F = spark_imports.F
+
+        spark.sql("DROP TABLE IF EXISTS test_schema.test_silver_table")
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
 
         logger = PipelineLogger("test")
-        execution_engine = ExecutionEngine(spark_session, config, logger)
+        execution_engine = ExecutionEngine(spark, config, logger)
 
-        def simple_transform(spark, bronze_df, prior_silvers):
+        def simple_transform(spark_session, bronze_df, prior_silvers):
             return bronze_df
 
         silver_step = SilverStep(
@@ -409,7 +407,7 @@ class TestWriteModeRegression:
         )
 
         context = {
-            "test_bronze": spark_session.createDataFrame([(1, "test")], ["id", "name"])
+            "test_bronze": spark.createDataFrame([(1, "test")], ["id", "name"])
         }
 
         result = execution_engine.execute_step(
@@ -420,15 +418,17 @@ class TestWriteModeRegression:
             "Incremental mode must use append write_mode to preserve existing data"
         )
 
-    def test_gold_incremental_mode_uses_overwrite(self, spark_session):
+    def test_gold_incremental_mode_uses_overwrite(self, spark, spark_imports):
         """Regression test ensuring gold steps keep overwrite semantics."""
-        spark_session.sql("DROP TABLE IF EXISTS test_schema.test_gold_table")
+        F = spark_imports.F
+
+        spark.sql("DROP TABLE IF EXISTS test_schema.test_gold_table")
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
         logger = PipelineLogger("test")
-        execution_engine = ExecutionEngine(spark_session, config, logger)
+        execution_engine = ExecutionEngine(spark, config, logger)
 
         def simple_transform(_spark, silvers):
             return silvers["test_silver"]
@@ -443,7 +443,7 @@ class TestWriteModeRegression:
         )
 
         context = {
-            "test_silver": spark_session.createDataFrame([(1, "test")], ["id", "name"])
+            "test_silver": spark.createDataFrame([(1, "test")], ["id", "name"])
         }
 
         result = execution_engine.execute_step(

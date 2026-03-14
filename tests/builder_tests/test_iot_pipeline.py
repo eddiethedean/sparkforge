@@ -15,23 +15,23 @@ class TestIotPipeline:
     """Test IoT sensor data processing pipeline with bronze-silver-gold architecture."""
 
     def test_complete_iot_sensor_pipeline_execution(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test complete IoT pipeline: sensor readings → anomaly detection → device health analytics."""
 
         # Create realistic sensor data
         sensor_data = data_generator.create_iot_sensor_data(
-            mock_spark_session, num_readings=100
+            spark, num_readings=100
         )
 
         # Setup schemas
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=mock_spark_session,
+            spark=spark,
             schema="bronze",
             functions=F,
             min_bronze_rate=95.0,
@@ -226,23 +226,23 @@ class TestIotPipeline:
         print("✅ IoT pipeline test completed successfully")
 
     def test_incremental_sensor_processing(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test incremental processing of new sensor readings."""
 
         # Create initial sensor data
         initial_data = data_generator.create_iot_sensor_data(
-            mock_spark_session, num_readings=50
+            spark, num_readings=50
         )
 
         # Setup schemas
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="bronze", functions=F
+            spark=spark, schema="bronze", functions=F
         )
 
         # Bronze layer
@@ -284,7 +284,7 @@ class TestIotPipeline:
 
         # Create incremental data (new readings)
         new_data = data_generator.create_iot_sensor_data(
-            mock_spark_session, num_readings=25
+            spark, num_readings=25
         )
 
         # Incremental processing
@@ -297,20 +297,20 @@ class TestIotPipeline:
         print("✅ Incremental sensor processing test completed successfully")
 
     def test_anomaly_detection_pipeline(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test anomaly detection in sensor data."""
 
         # Create sensor data with some anomalies
         normal_data = data_generator.create_iot_sensor_data(
-            mock_spark_session, num_readings=80
+            spark, num_readings=80
         )
 
         # Get the schema from normal_data to ensure compatibility
         normal_schema = normal_data.schema
 
         # Add some anomalous readings with the same schema as normal_data
-        anomaly_data = mock_spark_session.createDataFrame(
+        anomaly_data = spark.createDataFrame(
             [
                 {
                     "sensor_id": "SENSOR-99",
@@ -347,13 +347,13 @@ class TestIotPipeline:
         all_data = normal_data.union(anomaly_data)
 
         # Setup schemas
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline with anomaly detection
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="bronze", functions=F
+            spark=spark, schema="bronze", functions=F
         )
 
         builder.with_bronze_rules(
@@ -430,7 +430,7 @@ class TestIotPipeline:
         print("✅ Anomaly detection pipeline test completed successfully")
 
     def test_performance_monitoring(
-        self, mock_spark_session, data_generator, log_writer_config, test_assertions
+        self, spark, data_generator, log_writer_config, test_assertions
     ):
         """Test performance monitoring and logging for IoT pipeline."""
 
@@ -438,9 +438,9 @@ class TestIotPipeline:
         try:
             from tests.conftest import _log_session_configs
 
-            if hasattr(mock_spark_session, "_jsparkSession"):
+            if hasattr(spark, "_jsparkSession"):
                 _log_session_configs(
-                    mock_spark_session, "test_performance_monitoring (test start)"
+                    spark, "test_performance_monitoring (test start)"
                 )
         except (ImportError, Exception):
             # _log_session_configs is optional, continue without it
@@ -448,23 +448,23 @@ class TestIotPipeline:
 
         # Create large sensor dataset
         sensor_data = data_generator.create_iot_sensor_data(
-            mock_spark_session, num_readings=200
+            spark, num_readings=200
         )
 
         # Setup schemas
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS analytics")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS analytics")
 
         # Create LogWriter for performance monitoring
         log_writer = LogWriter(
-            spark=mock_spark_session, schema="analytics", table_name="iot_pipeline_logs"
+            spark=spark, schema="analytics", table_name="iot_pipeline_logs"
         )
 
         # Create pipeline
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="bronze", functions=F
+            spark=spark, schema="bronze", functions=F
         )
 
         builder.with_bronze_rules(
@@ -507,7 +507,7 @@ class TestIotPipeline:
 
         # Verify log table was created
         # Verify log table exists by accessing it
-        log_df = mock_spark_session.table("analytics.iot_pipeline_logs")
+        log_df = spark.table("analytics.iot_pipeline_logs")
         assert log_df is not None
 
         # Verify log data contains performance metrics

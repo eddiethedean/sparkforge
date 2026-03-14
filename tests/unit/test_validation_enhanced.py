@@ -32,7 +32,7 @@ StructType = types.StructType
 
 
 @pytest.fixture(scope="function", autouse=True)
-def reset_test_environment(spark_session):
+def reset_test_environment(spark):
     """Reset test environment before each test in this file."""
     import gc
 
@@ -63,9 +63,9 @@ class TestValidationWithFunctions:
     """Test validation functions using injectable mock functions."""
 
     @pytest.fixture(autouse=True)
-    def setup_fixtures(self, spark_session):
+    def setup_fixtures(self, spark):
         """Set up test fixtures automatically for all tests."""
-        self.mock_spark = spark_session
+        self.mock_spark = spark
         self.mock_functions = F
 
         # Create sample data
@@ -284,9 +284,9 @@ class TestPipelineBuilderWithFunctions:
     """Test PipelineBuilder with injectable mock functions."""
 
     @pytest.fixture(autouse=True)
-    def setup_fixtures(self, spark_session):
+    def setup_fixtures(self, spark):
         """Set up test fixtures automatically for all tests."""
-        self.mock_spark = spark_session
+        self.mock_spark = spark
         self.mock_functions = F
 
     def test_pipeline_builder_with_mock_functions(self):
@@ -373,9 +373,9 @@ class TestFunctionsIntegration:
     """Test integration between Functions and SparkForge validation."""
 
     @pytest.fixture(autouse=True)
-    def setup_fixtures(self, spark_session):
+    def setup_fixtures(self, spark):
         """Set up test fixtures automatically for all tests."""
-        self.mock_spark = spark_session
+        self.mock_spark = spark
         self.mock_functions = F
 
     def test_mock_functions_behavior(self):
@@ -431,12 +431,11 @@ class TestFunctionsIntegration:
         assert "invalid_rows" in result
         assert "quality_rate" in result
 
-    @pytest.mark.skipif(
-        os.environ.get("SPARK_MODE", "mock").lower() == "real",
-        reason="Tests mock-spark specific functions performance",
-    )
-    def test_mock_functions_performance(self):
+    def test_mock_functions_performance(self, spark_mode):
         """Test Functions performance characteristics."""
+        if spark_mode == "real":
+            pytest.skip("Tests mock-spark specific functions performance")
+        
         import time
 
         # Test function call performance
@@ -449,42 +448,23 @@ class TestFunctionsIntegration:
 
         end_time = time.time()
 
-        # Should be very fast
-        # PySpark is slower due to JVM overhead, so use different threshold
-        import os
+        # Mock-spark: allow 2s so test doesn't flake under parallel load or busy CI
+        assert (
+            end_time - start_time
+        ) < 2.0  # Less than 2s for 1000 calls with mock-spark
 
-        if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-            assert (
-                end_time - start_time
-            ) < 2.0  # Less than 2s for 1000 calls with PySpark
-        else:
-            # Mock-spark: allow 2s so test doesn't flake under parallel load or busy CI
-            assert (
-                end_time - start_time
-            ) < 2.0  # Less than 2s for 1000 calls with mock-spark
-
-    @pytest.mark.skipif(
-        os.environ.get("SPARK_MODE", "mock").lower() == "real",
-        reason="Tests mock-spark specific functions error handling",
-    )
-    def test_mock_functions_error_handling(self):
+    def test_mock_functions_error_handling(self, spark_mode):
         """Test Functions error handling."""
-        # Test with invalid inputs
-        import os
-        from py4j.protocol import Py4JJavaError
+        if spark_mode == "real":
+            pytest.skip("Tests mock-spark specific functions error handling")
 
         try:
             self.mock_functions.col(None)
             # Functions should handle this gracefully
         except Exception as e:
             # If it raises an exception, that's also acceptable
-            # PySpark throws Py4JJavaError, mock-spark throws Python exceptions
-            if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-                assert isinstance(
-                    e, (TypeError, ValueError, AttributeError, Py4JJavaError)
-                )
-            else:
-                assert isinstance(e, (TypeError, ValueError, AttributeError))
+            # mock-spark throws Python exceptions
+            assert isinstance(e, (TypeError, ValueError, AttributeError))
 
     def test_functions_protocol_type_checking(self):
         """Test that Functions properly implements FunctionsProtocol."""

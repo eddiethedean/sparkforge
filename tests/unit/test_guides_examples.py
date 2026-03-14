@@ -4,20 +4,17 @@ Tests that run the exact example code from docs/guides (GETTING_STARTED, USE_CAS
 Ensures guide examples are valid and executable with both mock Spark and real PySpark.
 """
 
-import os
-
-spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+import pytest
 
 
 class TestGettingStartedGuideFirstPipeline:
     """Run the 'Your First Pipeline' example from GETTING_STARTED_GUIDE.md."""
 
-    def test_first_pipeline_builds_and_runs(self, mock_spark_session, isolate_engine_config):
+    def test_first_pipeline_builds_and_runs(self, spark, isolate_engine_config):
         from pipeline_builder import PipelineBuilder
         from pipeline_builder.engine_config import configure_engine
         from pipeline_builder.functions import get_default_functions
 
-        spark = mock_spark_session
         with isolate_engine_config():
             # Use explicit sparkless bindings rather than attributes on the session
             from sparkless.sql import functions as mock_functions  # type: ignore[import]
@@ -108,12 +105,11 @@ class TestGettingStartedGuideFirstPipeline:
 class TestUseCaseBIGuide:
     """Run the BI use-case pipeline from USE_CASE_BI_GUIDE.md."""
 
-    def test_bi_pipeline_builds_and_runs(self, mock_spark_session, isolate_engine_config):
+    def test_bi_pipeline_builds_and_runs(self, spark, isolate_engine_config, spark_mode):
         from pipeline_builder import PipelineBuilder
         from pipeline_builder.engine_config import configure_engine
         from pipeline_builder.functions import get_default_functions
 
-        spark = mock_spark_session
         with isolate_engine_config():
             from sparkless.sql import functions as mock_functions  # type: ignore[import]
             from sparkless import spark_types as mock_types  # type: ignore[import]
@@ -187,11 +183,13 @@ class TestUseCaseBIGuide:
             incremental_col="transaction_date",
         )
 
-        def enhance_sales(spark, bronze_df, prior_silvers):
+        _spark_mode = spark_mode  # capture fixture for closure
+        
+        def enhance_sales(spark_session, bronze_df, prior_silvers):
             # date_trunc supported in PySpark; use col in mock (sparkless has no date_trunc at runtime)
             month_col = (
                 F_local.date_trunc("month", F_local.col("transaction_date"))
-                if spark_mode == "real"
+                if _spark_mode == "real"
                 else F_local.col("transaction_date")
             )
             return (
@@ -216,7 +214,7 @@ class TestUseCaseBIGuide:
             table_name="enhanced_sales",
         )
 
-        def sales_performance(spark, silvers):
+        def sales_performance(spark_session, silvers):
             return (
                 silvers["enhanced_sales"]
                 .groupBy("region", "transaction_month")
@@ -253,12 +251,11 @@ class TestUseCaseBIGuide:
 class TestUseCaseEcommerceGuide:
     """Run the E-commerce use-case pipeline from USE_CASE_ECOMMERCE_GUIDE.md."""
 
-    def test_ecommerce_pipeline_builds_and_runs(self, mock_spark_session, isolate_engine_config):
+    def test_ecommerce_pipeline_builds_and_runs(self, spark, isolate_engine_config, spark_mode):
         from pipeline_builder import PipelineBuilder
         from pipeline_builder.engine_config import configure_engine
         from pipeline_builder.functions import get_default_functions
 
-        spark = mock_spark_session
         with isolate_engine_config():
             from sparkless.sql import functions as mock_functions  # type: ignore[import]
             from sparkless import spark_types as mock_types  # type: ignore[import]
@@ -335,11 +332,13 @@ class TestUseCaseEcommerceGuide:
             incremental_col="order_date",
         )
 
-        def enrich_orders(spark, bronze_df, prior_silvers):
+        _spark_mode = spark_mode  # capture fixture for closure
+        
+        def enrich_orders(spark_session, bronze_df, prior_silvers):
             # date_trunc supported in PySpark; use col in mock (sparkless has no date_trunc at runtime)
             order_month_col = (
                 F_local.date_trunc("month", F_local.col("order_date"))
-                if spark_mode == "real"
+                if _spark_mode == "real"
                 else F_local.col("order_date")
             )
             return (
@@ -369,7 +368,7 @@ class TestUseCaseEcommerceGuide:
             table_name="enriched_orders",
         )
 
-        def daily_sales(spark, silvers):
+        def daily_sales(spark_session, silvers):
             return (
                 silvers["enriched_orders"]
                 .groupBy("order_date", "region")
@@ -406,12 +405,11 @@ class TestUseCaseEcommerceGuide:
 class TestUseCaseIoTGuide:
     """Run the IoT use-case pipeline from USE_CASE_IOT_GUIDE.md."""
 
-    def test_iot_pipeline_builds_and_runs(self, mock_spark_session, isolate_engine_config):
+    def test_iot_pipeline_builds_and_runs(self, spark, isolate_engine_config):
         from pipeline_builder import PipelineBuilder
         from pipeline_builder.engine_config import configure_engine
         from pipeline_builder.functions import get_default_functions
 
-        spark = mock_spark_session
         with isolate_engine_config():
             from sparkless.sql import functions as mock_functions  # type: ignore[import]
             from sparkless import spark_types as mock_types  # type: ignore[import]

@@ -6,26 +6,7 @@ with "column not found" errors when columns referenced in rules don't exist
 in the DataFrame.
 """
 
-import os
-
 import pytest
-
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.spark_types import (  # type: ignore[import]
-        IntegerType,
-        StringType,
-        StructField,
-        StructType,
-    )
-    from sparkless.sql import functions as F  # type: ignore[import]
-
-    MockF = F
-else:
-    from pyspark.sql import functions as F
-    from pyspark.sql.types import IntegerType, StringType, StructField, StructType
-
-    MockF = None
 
 from pipeline_builder import PipelineBuilder
 from pipeline_builder.errors import ValidationError
@@ -45,10 +26,12 @@ def reset_test_environment():
 class TestBronzeRulesColumnValidation:
     """Test cases for bronze rules column validation."""
 
-    def test_missing_columns_validation_error(self, spark_session):
+    def test_missing_columns_validation_error(self, spark, spark_imports):
         """Test that ValidationError is raised when ALL columns don't exist."""
+        F = spark_imports.F
+        
         # Create DataFrame with limited columns
-        df = spark_session.createDataFrame(
+        df = spark.createDataFrame(
             [("user1", "click"), ("user2", "view")], ["user_id", "action"]
         )
 
@@ -73,8 +56,14 @@ class TestBronzeRulesColumnValidation:
         assert "Stage: bronze" in error_msg
         assert "Step: test_step" in error_msg
 
-    def test_existing_columns_validation_success(self, spark_session):
+    def test_existing_columns_validation_success(self, spark, spark_imports):
         """Test that validation succeeds when all columns exist."""
+        F = spark_imports.F
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        StringType = spark_imports.StringType
+        IntegerType = spark_imports.IntegerType
+        
         # Create DataFrame with all required columns and explicit schema
         schema = StructType(
             [
@@ -92,7 +81,7 @@ class TestBronzeRulesColumnValidation:
                 "timestamp": "2024-01-01 10:00:00",
             }
         ]
-        df = spark_session.createDataFrame(data, schema)
+        df = spark.createDataFrame(data, schema)
 
         # Apply rules for columns that exist
         rules = {
@@ -114,9 +103,9 @@ class TestBronzeRulesColumnValidation:
         assert stats.valid_rows == 1
         assert stats.invalid_rows == 0
 
-    def test_empty_rules_validation_success(self, spark_session):
+    def test_empty_rules_validation_success(self, spark):
         """Test that empty rules don't cause column validation errors."""
-        df = spark_session.createDataFrame([("user1", "click")], ["user_id", "action"])
+        df = spark.createDataFrame([("user1", "click")], ["user_id", "action"])
 
         # Empty rules should not cause validation errors
         rules = {}
@@ -132,10 +121,16 @@ class TestBronzeRulesColumnValidation:
         assert stats.valid_rows == 1
         assert stats.invalid_rows == 0
 
-    def test_bronze_step_with_provided_data(self, spark_session):
+    def test_bronze_step_with_provided_data(self, spark, spark_imports):
         """Test that bronze step works correctly with provided data."""
         from pipeline_builder.execution import ExecutionEngine
         from pipeline_builder.models import BronzeStep, PipelineConfig
+
+        F = spark_imports.F
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        StringType = spark_imports.StringType
+        IntegerType = spark_imports.IntegerType
 
         # Create sample data with the expected columns
         schema = StructType(
@@ -149,7 +144,7 @@ class TestBronzeRulesColumnValidation:
             {"user_id": "user1", "value": 100, "timestamp": "2024-01-01 10:00:00"},
             {"user_id": "user2", "value": 200, "timestamp": "2024-01-01 11:00:00"},
         ]
-        df = spark_session.createDataFrame(sample_data, schema)
+        df = spark.createDataFrame(sample_data, schema)
 
         # Create a bronze step with rules for specific columns
         bronze_step = BronzeStep(
@@ -164,7 +159,7 @@ class TestBronzeRulesColumnValidation:
 
         # Create execution engine with required config
         config = PipelineConfig.create_default("test_schema")
-        engine = ExecutionEngine(spark_session, config)
+        engine = ExecutionEngine(spark, config)
 
         # Execute bronze step with provided data in context
         context = {"test_bronze": df}
@@ -192,17 +187,19 @@ class TestBronzeRulesColumnValidation:
         assert stats.valid_rows == 2
         assert stats.invalid_rows == 0
 
-    def test_pipeline_builder_with_missing_columns(self, spark_session):
+    def test_pipeline_builder_with_missing_columns(self, spark, spark_imports, spark_mode):
         """Test that PipelineBuilder handles missing columns gracefully."""
+        F = spark_imports.F
+        
         # Create sample data with limited columns
         sample_data = [("user1", "click"), ("user2", "view")]
-        df = spark_session.createDataFrame(sample_data, ["user_id", "action"])
+        df = spark.createDataFrame(sample_data, ["user_id", "action"])
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema="test_schema",
-            functions=MockF if MockF else None,
+            functions=F if spark_mode == "mock" else None,
         )
 
         # Add bronze rules that reference missing columns
@@ -233,11 +230,13 @@ class TestBronzeRulesColumnValidation:
             assert "value" in error_msg
             assert "timestamp" in error_msg
 
-    def test_bronze_step_missing_data_error(self, spark_session):
+    def test_bronze_step_missing_data_error(self, spark, spark_imports):
         """Test that bronze step raises clear error when no data is provided."""
         from pipeline_builder.errors import ExecutionError
         from pipeline_builder.execution import ExecutionEngine
         from pipeline_builder.models import BronzeStep, PipelineConfig
+
+        F = spark_imports.F
 
         # Create bronze step with various column types
         bronze_step = BronzeStep(
@@ -250,7 +249,7 @@ class TestBronzeRulesColumnValidation:
         )
 
         config = PipelineConfig.create_default("test_schema")
-        engine = ExecutionEngine(spark_session, config)
+        engine = ExecutionEngine(spark, config)
 
         # Execute bronze step without providing data in context
         # This should raise a clear error

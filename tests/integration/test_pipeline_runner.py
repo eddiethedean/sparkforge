@@ -47,7 +47,7 @@ class TestSimplePipelineRunner:
         return logger
 
     @pytest.fixture
-    def sample_bronze_step(self, spark_session):
+    def sample_bronze_step(self, spark):
         """Create a sample BronzeStep."""
         # Use string rules to avoid SparkContext dependency in fixture
         return BronzeStep(
@@ -57,7 +57,7 @@ class TestSimplePipelineRunner:
         )
 
     @pytest.fixture
-    def sample_silver_step(self, spark_session):
+    def sample_silver_step(self, spark):
         """Create a sample SilverStep."""
         # Use string rules to avoid SparkContext dependency in fixture
         return SilverStep(
@@ -70,7 +70,7 @@ class TestSimplePipelineRunner:
         )
 
     @pytest.fixture
-    def sample_gold_step(self, spark_session):
+    def sample_gold_step(self, spark):
         """Create a sample GoldStep."""
         # Use string rules to avoid SparkContext dependency in fixture
         return GoldStep(

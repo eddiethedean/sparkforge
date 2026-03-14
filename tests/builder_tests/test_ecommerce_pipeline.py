@@ -17,26 +17,26 @@ class TestEcommercePipeline:
     """Test e-commerce order processing pipeline with bronze-silver-gold architecture."""
 
     def test_complete_ecommerce_pipeline_execution(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test complete e-commerce pipeline: orders → customer profiles → sales analytics."""
 
         # Create realistic test data
         orders_df = data_generator.create_ecommerce_orders(
-            mock_spark_session, num_orders=50
+            spark, num_orders=50
         )
         customers_df = data_generator.create_customer_data(
-            mock_spark_session, num_customers=25
+            spark, num_customers=25
         )
 
         # Setup schemas
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=mock_spark_session,
+            spark=spark,
             schema="bronze",
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
@@ -242,24 +242,24 @@ class TestEcommercePipeline:
         print("✅ E-commerce pipeline test completed successfully")
 
     def test_incremental_order_processing(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test incremental processing of new orders."""
 
         # Create initial data
         initial_orders = data_generator.create_ecommerce_orders(
-            mock_spark_session, num_orders=20
+            spark, num_orders=20
         )
-        data_generator.create_customer_data(mock_spark_session, num_customers=10)
+        data_generator.create_customer_data(spark, num_customers=10)
 
         # Setup schemas
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="bronze", functions=F
+            spark=spark, schema="bronze", functions=F
         )
 
         # Bronze layer
@@ -301,7 +301,7 @@ class TestEcommercePipeline:
 
         # Create incremental data (new orders)
         new_orders = data_generator.create_ecommerce_orders(
-            mock_spark_session, num_orders=10
+            spark, num_orders=10
         )
 
         # Incremental processing
@@ -313,11 +313,11 @@ class TestEcommercePipeline:
         # Pipeline execution verified above - storage verification not needed for unit tests
         print("✅ Incremental processing test completed successfully")
 
-    def test_validation_failures(self, mock_spark_session, test_assertions):
+    def test_validation_failures(self, spark, test_assertions):
         """Test pipeline behavior with validation failures."""
 
         # Create data with quality issues
-        bad_orders = mock_spark_session.createDataFrame(
+        bad_orders = spark.createDataFrame(
             [
                 (
                     "ORD-001",
@@ -359,13 +359,13 @@ class TestEcommercePipeline:
         )
 
         # Setup schemas
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline with strict validation
         builder = PipelineBuilder(
-            spark=mock_spark_session,
+            spark=spark,
             schema="bronze",
             min_bronze_rate=100.0,  # Very strict validation
             verbose=True,
@@ -398,29 +398,29 @@ class TestEcommercePipeline:
         test_assertions.assert_pipeline_success(result)
 
     def test_logging_and_monitoring(
-        self, mock_spark_session, data_generator, log_writer_config, test_assertions
+        self, spark, data_generator, log_writer_config, test_assertions
     ):
         """Test comprehensive logging and monitoring with LogWriter."""
 
         # Create test data
         orders_df = data_generator.create_ecommerce_orders(
-            mock_spark_session, num_orders=30
+            spark, num_orders=30
         )
 
         # Setup schemas
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS analytics")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS analytics")
 
         # Create LogWriter
         log_writer = LogWriter(
-            spark=mock_spark_session, schema="analytics", table_name="pipeline_logs"
+            spark=spark, schema="analytics", table_name="pipeline_logs"
         )
 
         # Create pipeline
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="bronze", functions=F
+            spark=spark, schema="bronze", functions=F
         )
 
         builder.with_bronze_rules(name="orders", rules={"order_id": ["not_null"]})
@@ -459,7 +459,7 @@ class TestEcommercePipeline:
 
         # Verify log table was created
         # Verify log table exists by accessing it
-        log_df = mock_spark_session.table("analytics.pipeline_logs")
+        log_df = spark.table("analytics.pipeline_logs")
         assert log_df is not None
 
         # Verify log data

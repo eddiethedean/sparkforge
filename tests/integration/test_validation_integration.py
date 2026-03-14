@@ -42,7 +42,7 @@ from pipeline_builder.validation import (
 
 
 @pytest.fixture(scope="function", autouse=True)
-def reset_test_environment(spark_session):
+def reset_test_environment(spark):
     """Reset test environment before each test in this file."""
     import gc
 
@@ -72,34 +72,34 @@ def reset_test_environment(spark_session):
 class TestConvertRuleToExpression:
     """Test cases for _convert_rule_to_expression function."""
 
-    def test_not_null_rule(self, spark_session):
+    def test_not_null_rule(self, spark):
         """Test not_null rule conversion."""
         # PySpark requires active SparkContext for F.col() calls in _convert_rule_to_expression
         result = _convert_rule_to_expression("not_null", "test_column", F)
         # This should return a PySpark Column expression
         assert result is not None
 
-    def test_positive_rule(self, spark_session):
+    def test_positive_rule(self, spark):
         """Test positive rule conversion."""
         # PySpark requires active SparkContext for F.col() calls in _convert_rule_to_expression
         result = _convert_rule_to_expression("positive", "test_column", F)
         assert result is not None
 
-    def test_non_negative_rule(self, spark_session):
+    def test_non_negative_rule(self, spark):
         """Test non_negative rule conversion."""
         # PySpark requires active SparkContext for F.col() calls in _convert_rule_to_expression
         result = _convert_rule_to_expression("non_negative", "test_column", F)
         assert result is not None
 
-    def test_non_zero_rule(self, spark_session):
+    def test_non_zero_rule(self, spark):
         """Test non_zero rule conversion."""
         # PySpark requires active SparkContext for F.col() calls in _convert_rule_to_expression
         result = _convert_rule_to_expression("non_zero", "test_column", F)
         assert result is not None
 
-    def test_unknown_rule(self, spark_session):
+    def test_unknown_rule(self, spark):
         """Test unknown rule converts to F.expr and behaves correctly on DataFrame."""
-        df = spark_session.createDataFrame(
+        df = spark.createDataFrame(
             [("keep",), ("drop",)], ["test_column"]
         )
         expr = _convert_rule_to_expression(
@@ -113,7 +113,7 @@ class TestConvertRuleToExpression:
 class TestConvertRulesToExpressions:
     """Test cases for _convert_rules_to_expressions function."""
 
-    def test_string_rules_conversion(self, spark_session):
+    def test_string_rules_conversion(self, spark):
         """Test conversion of string rules to expressions."""
         # PySpark requires active SparkContext for F.col() calls in _convert_rules_to_expressions
         rules = {
@@ -131,7 +131,7 @@ class TestConvertRulesToExpressions:
         assert len(result["name"]) == 1
         assert len(result["age"]) == 1
 
-    def test_mixed_rules_conversion(self, spark_session):
+    def test_mixed_rules_conversion(self, spark):
         """Test conversion of mixed string and expression rules."""
         # PySpark requires active SparkContext for F.col() calls
         rules = {"id": ["not_null", F.col("id") > 0], "name": ["not_null"]}
@@ -157,28 +157,28 @@ class TestAndAllRules:
         result = and_all_rules({})
         assert result is True
 
-    def test_single_column_single_rule(self, spark_session):
+    def test_single_column_single_rule(self, spark):
         """Test and_all_rules with single column and single rule."""
         # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()]}
         result = and_all_rules(rules)
         assert result is not None
 
-    def test_single_column_multiple_rules(self, spark_session):
+    def test_single_column_multiple_rules(self, spark):
         """Test and_all_rules with single column and multiple rules."""
         # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull(), F.col("id") > 0]}
         result = and_all_rules(rules)
         assert result is not None
 
-    def test_multiple_columns(self, spark_session):
+    def test_multiple_columns(self, spark):
         """Test and_all_rules with multiple columns."""
         # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()], "name": [F.col("name").isNotNull()]}
         result = and_all_rules(rules)
         assert result is not None
 
-    def test_complex_rules(self, spark_session):
+    def test_complex_rules(self, spark):
         """Test and_all_rules with complex rule combinations."""
         # PySpark requires active SparkContext for F.col() calls
         rules = {
@@ -212,27 +212,27 @@ class TestAndAllRules:
 class TestValidateDataframeSchema:
     """Test cases for validate_dataframe_schema function."""
 
-    def test_valid_schema(self, spark_session):
+    def test_valid_schema(self, spark):
         """Test validation with valid schema."""
-        df = spark_session.createDataFrame(
+        df = spark.createDataFrame(
             [("1", "Alice", 25), ("2", "Bob", 30)], ["id", "name", "age"]
         )
 
         result = validate_dataframe_schema(df, ["id", "name", "age"])
         assert result is True
 
-    def test_missing_columns(self, spark_session):
+    def test_missing_columns(self, spark):
         """Test validation with missing columns."""
-        df = spark_session.createDataFrame(
+        df = spark.createDataFrame(
             [("1", "Alice"), ("2", "Bob")], ["id", "name"]
         )
 
         result = validate_dataframe_schema(df, ["id", "name", "age"])
         assert result is False
 
-    def test_extra_columns(self, spark_session):
+    def test_extra_columns(self, spark):
         """Test validation with extra columns (should pass as function only checks missing columns)."""
-        df = spark_session.createDataFrame(
+        df = spark.createDataFrame(
             [("1", "Alice", 25, "extra"), ("2", "Bob", 30, "extra")],
             ["id", "name", "age", "extra_col"],
         )
@@ -242,16 +242,16 @@ class TestValidateDataframeSchema:
             result is True
         )  # Function only checks for missing columns, not extra ones
 
-    def test_empty_expected_columns(self, spark_session):
+    def test_empty_expected_columns(self, spark):
         """Test validation with empty expected columns."""
-        df = spark_session.createDataFrame(
+        df = spark.createDataFrame(
             [("1", "Alice"), ("2", "Bob")], ["id", "name"]
         )
 
         result = validate_dataframe_schema(df, [])
         assert result is True
 
-    def test_empty_dataframe(self, spark_session):
+    def test_empty_dataframe(self, spark):
         """Test validation with empty DataFrame."""
         schema = StructType(
             [
@@ -259,7 +259,7 @@ class TestValidateDataframeSchema:
                 StructField("name", StringType(), True),
             ]
         )
-        df = spark_session.createDataFrame([], schema)
+        df = spark.createDataFrame([], schema)
 
         result = validate_dataframe_schema(df, ["id", "name"])
         assert result is True
@@ -302,9 +302,9 @@ class TestSafeDivide:
 class TestGetDataframeInfo:
     """Test cases for get_dataframe_info function."""
 
-    def test_basic_info(self, spark_session):
+    def test_basic_info(self, spark):
         """Test basic DataFrame info extraction."""
-        df = spark_session.createDataFrame(
+        df = spark.createDataFrame(
             [("1", "Alice", 25), ("2", "Bob", 30)], ["id", "name", "age"]
         )
 
@@ -319,7 +319,7 @@ class TestGetDataframeInfo:
         assert "name" in info["columns"]
         assert "age" in info["columns"]
 
-    def test_empty_dataframe(self, spark_session):
+    def test_empty_dataframe(self, spark):
         """Test info extraction from empty DataFrame."""
         schema = StructType(
             [
@@ -327,19 +327,19 @@ class TestGetDataframeInfo:
                 StructField("name", StringType(), True),
             ]
         )
-        df = spark_session.createDataFrame([], schema)
+        df = spark.createDataFrame([], schema)
 
         info = get_dataframe_info(df)
 
         assert info["row_count"] == 0
         assert info["column_count"] == 2
 
-    def test_error_handling(self, spark_session, monkeypatch):
+    def test_error_handling(self, spark, monkeypatch):
         """Test error handling in get_dataframe_info without patching DataFrame methods."""
         import sys
 
         schema = StructType([StructField("id", StringType(), True)])
-        df = spark_session.createDataFrame([], schema)
+        df = spark.createDataFrame([], schema)
 
         def failing_get_dataframe_info(inner_df):
             raise Exception("Count failed")
@@ -360,7 +360,7 @@ class TestGetDataframeInfo:
 class TestAssessDataQuality:
     """Test cases for assess_data_quality function."""
 
-    def test_empty_dataframe(self, spark_session):
+    def test_empty_dataframe(self, spark):
         """Test quality assessment of empty DataFrame."""
         schema = StructType(
             [
@@ -368,7 +368,7 @@ class TestAssessDataQuality:
                 StructField("name", StringType(), True),
             ]
         )
-        df = spark_session.createDataFrame([], schema)
+        df = spark.createDataFrame([], schema)
 
         result = assess_data_quality(df)
 
@@ -378,9 +378,9 @@ class TestAssessDataQuality:
         assert result["quality_rate"] == 100.0
         assert result["is_empty"] is True
 
-    def test_dataframe_without_rules(self, spark_session):
+    def test_dataframe_without_rules(self, spark):
         """Test quality assessment without validation rules."""
-        df = spark_session.createDataFrame(
+        df = spark.createDataFrame(
             [("1", "Alice"), ("2", "Bob")], ["id", "name"]
         )
 
@@ -392,9 +392,9 @@ class TestAssessDataQuality:
         assert result["quality_rate"] == 100.0
         assert result["is_empty"] is False
 
-    def test_dataframe_with_rules(self, spark_session):
+    def test_dataframe_with_rules(self, spark):
         """Test quality assessment with validation rules."""
-        df = spark_session.createDataFrame(
+        df = spark.createDataFrame(
             [("1", "Alice"), ("2", "Bob")], ["id", "name"]
         )
 
@@ -408,12 +408,12 @@ class TestAssessDataQuality:
         assert "quality_rate" in result
         assert "is_empty" in result
 
-    def test_error_handling(self, spark_session, monkeypatch):
+    def test_error_handling(self, spark, monkeypatch):
         """Test error handling in assess_data_quality without patching DataFrame methods."""
         from pipeline_builder.errors import ValidationError
 
         # Use a DataFrame with rows and rules so apply_column_rules is called (path we can patch)
-        df = spark_session.createDataFrame(
+        df = spark.createDataFrame(
             [("1", "a"), ("2", "b")], ["id", "name"]
         )
         rules = {"id": [F.col("id").isNotNull()]}
@@ -550,7 +550,7 @@ class TestUnifiedValidator:
         assert result.is_valid is True
         assert result.errors == []
 
-    def test_validate_bronze_steps(self, spark_session):
+    def test_validate_bronze_steps(self, spark):
         """Test bronze steps validation."""
         validator = UnifiedValidator()
 
@@ -565,7 +565,7 @@ class TestUnifiedValidator:
         assert len(errors) == 0
         assert len(warnings) == 0
 
-    def test_validate_silver_steps(self, spark_session):
+    def test_validate_silver_steps(self, spark):
         """Test silver steps validation."""
         validator = UnifiedValidator()
 
@@ -590,7 +590,7 @@ class TestUnifiedValidator:
         assert len(errors) == 0
         assert len(warnings) == 0
 
-    def test_validate_gold_steps(self, spark_session):
+    def test_validate_gold_steps(self, spark):
         """Test gold steps validation."""
         validator = UnifiedValidator()
 
@@ -624,7 +624,7 @@ class TestUnifiedValidator:
         assert len(errors) == 0
         assert len(warnings) == 0
 
-    def test_validate_silver_steps_validation_only(self, spark_session):
+    def test_validate_silver_steps_validation_only(self, spark):
         """Test silver steps validation with validation-only steps."""
         validator = UnifiedValidator()
 
@@ -651,7 +651,7 @@ class TestUnifiedValidator:
         assert len(errors) == 0
         assert len(warnings) == 0
 
-    def test_validate_gold_steps_validation_only(self, spark_session):
+    def test_validate_gold_steps_validation_only(self, spark):
         """Test gold steps validation with validation-only steps."""
         validator = UnifiedValidator()
 
@@ -678,7 +678,7 @@ class TestUnifiedValidator:
         assert len(errors) == 0
         assert len(warnings) == 0
 
-    def test_validate_silver_steps_mixed(self, spark_session):
+    def test_validate_silver_steps_mixed(self, spark):
         """Test silver steps validation with both validation-only and regular steps."""
         validator = UnifiedValidator()
 
@@ -711,7 +711,7 @@ class TestUnifiedValidator:
         assert len(errors) == 0
         assert len(warnings) == 0
 
-    def test_validate_gold_steps_mixed(self, spark_session):
+    def test_validate_gold_steps_mixed(self, spark):
         """Test gold steps validation with both validation-only and regular steps."""
         validator = UnifiedValidator()
 
@@ -752,7 +752,7 @@ class TestUnifiedValidator:
         assert len(errors) == 0
         assert len(warnings) == 0
 
-    def test_validate_dependencies(self, spark_session):
+    def test_validate_dependencies(self, spark):
         """Test dependency validation."""
         validator = UnifiedValidator()
 
@@ -783,4 +783,4 @@ class TestApplyValidationRules:
             apply_column_rules()
 
 
-# Fixtures - using the shared spark_session from conftest.py
+# Fixtures - using the shared spark from conftest.py

@@ -65,28 +65,28 @@ MockF = F  # alias for tests that pass functions explicitly
 class TestSparkForgeWorking:
     """Working SparkForge coverage tests using actual APIs."""
 
-    def test_pipeline_builder_working(self, mock_spark_session):
+    def test_pipeline_builder_working(self, spark):
         """Test PipelineBuilder using actual API."""
         # Test basic initialization
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="test_schema", functions=MockF
+            spark=spark, schema="test_schema", functions=MockF
         )
-        assert builder.spark == mock_spark_session
+        assert builder.spark == spark
         assert builder.schema == "test_schema"
 
         # Test schema validation
         # Use SQL to create schema (works for both mock-spark and PySpark)
-        mock_spark_session.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
+        spark.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
         builder._validate_schema("test_schema")  # Should not raise
 
         # Test schema creation
         builder._create_schema_if_not_exists("new_schema")
         # Verify schema was created by listing databases (works in mock-spark 1.4.0+)
-        dbs = mock_spark_session.catalog.listDatabases()
+        dbs = spark.catalog.listDatabases()
         db_names = [db.name for db in dbs]
         assert "new_schema" in db_names
 
-    def test_execution_engine_working(self, mock_spark_session):
+    def test_execution_engine_working(self, spark):
         """Test ExecutionEngine using actual API."""
         # Create config using actual API
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
@@ -97,8 +97,8 @@ class TestSparkForgeWorking:
         )
 
         # Test execution engine initialization
-        engine = ExecutionEngine(spark=mock_spark_session, config=config)
-        assert engine.spark == mock_spark_session
+        engine = ExecutionEngine(spark=spark, config=config)
+        assert engine.spark == spark
         assert engine.config == config
 
         # Test execution context creation
@@ -128,7 +128,7 @@ class TestSparkForgeWorking:
         assert step_result.success is True
         assert step_result.rows_processed == 100
 
-    def test_validation_system_working(self, mock_spark_session):
+    def test_validation_system_working(self, spark):
         """Test validation system using actual API."""
         # Test UnifiedValidator
         validator = UnifiedValidator()
@@ -159,7 +159,7 @@ class TestSparkForgeWorking:
         assert len(result.recommendations) == 1
 
     @pytest.mark.filterwarnings("ignore::DeprecationWarning")
-    def test_writer_system_working(self, mock_spark_session):
+    def test_writer_system_working(self, spark):
         """Test writer system using actual API."""
         # Test WriterConfig
         config = WriterConfig(
@@ -181,8 +181,8 @@ class TestSparkForgeWorking:
         assert config.batch_size == 1000
 
         # Test LogWriter
-        writer = LogWriter(spark=mock_spark_session, config=config)
-        assert writer.spark == mock_spark_session
+        writer = LogWriter(spark=spark, config=config)
+        assert writer.spark == spark
         assert writer.config == config
 
         # Test LogRow (it's a TypedDict, so test as dict)
@@ -206,7 +206,7 @@ class TestSparkForgeWorking:
 
         # Test table_exists function with correct signature
         # Use SQL to create schema (works for both mock-spark and PySpark)
-        mock_spark_session.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
+        spark.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
         schema = StructType(
             [
                 StructField("id", IntegerType()),
@@ -214,18 +214,18 @@ class TestSparkForgeWorking:
             ]
         )
         # Create table using DataFrame (works for both mock-spark and PySpark)
-        empty_df = mock_spark_session.createDataFrame([], schema)
+        empty_df = spark.createDataFrame([], schema)
         empty_df.write.mode("overwrite").saveAsTable("test_schema.test_table")
 
         # Use correct function signature
         assert pipeline_builder_table_exists(
-            mock_spark_session, "test_schema.test_table"
+            spark, "test_schema.test_table"
         )
         assert not pipeline_builder_table_exists(
-            mock_spark_session, "test_schema.nonexistent_table"
+            spark, "test_schema.nonexistent_table"
         )
 
-    def test_models_working(self, mock_spark_session):
+    def test_models_working(self, spark):
         """Test model classes using actual API."""
         # Test ValidationThresholds
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
@@ -267,7 +267,7 @@ class TestSparkForgeWorking:
         assert stage_stats.error_rate == 5.0
         assert stage_stats.throughput_rows_per_sec > 0
 
-    def test_logging_system_working(self, mock_spark_session):
+    def test_logging_system_working(self, spark):
         """Test logging system using actual API."""
         # Test PipelineLogger
         logger = PipelineLogger()
@@ -278,7 +278,7 @@ class TestSparkForgeWorking:
         assert logger_custom.name == "custom_logger"
         assert logger_custom.level == "INFO"
 
-    def test_performance_system_working(self, mock_spark_session):
+    def test_performance_system_working(self, spark):
         """Test performance system using actual API."""
         # Test performance utility functions
         current_time = now_dt()
@@ -289,10 +289,10 @@ class TestSparkForgeWorking:
         assert formatted_duration is not None
         assert "1.5" in formatted_duration or "1" in formatted_duration
 
-    def test_table_operations_working(self, mock_spark_session):
+    def test_table_operations_working(self, spark):
         """Test table operations using actual API."""
         # Create test schema and table using SQL (works for both mock-spark and PySpark)
-        mock_spark_session.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
+        spark.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
 
         # Create table with proper schema using DataFrame
         schema = StructType(
@@ -301,22 +301,22 @@ class TestSparkForgeWorking:
                 StructField("name", StringType()),
             ]
         )
-        empty_df = mock_spark_session.createDataFrame([], schema)
+        empty_df = spark.createDataFrame([], schema)
         empty_df.write.mode("overwrite").saveAsTable("test_schema.test_table")
 
         # Test table_exists with correct signature
         assert pipeline_builder_table_exists(
-            mock_spark_session, "test_schema.test_table"
+            spark, "test_schema.test_table"
         )
         assert not pipeline_builder_table_exists(
-            mock_spark_session, "test_schema.nonexistent_table"
+            spark, "test_schema.nonexistent_table"
         )
 
         # Test drop_table
-        drop_table(mock_spark_session, "test_schema.test_table")
+        drop_table(spark, "test_schema.test_table")
         # Table should be dropped (implementation dependent)
 
-    def test_error_handling_working(self, mock_spark_session):
+    def test_error_handling_working(self, spark):
         """Test error handling using actual API."""
         # Test ConfigurationError
         with pytest.raises(ConfigurationError):
@@ -346,7 +346,7 @@ class TestSparkForgeWorking:
         with pytest.raises(ResourceError):
             raise ResourceError("Test resource error")
 
-    def test_validation_utils_working(self, mock_spark_session):
+    def test_validation_utils_working(self, spark):
         """Test validation utilities using actual API."""
         # Test safe_divide function
         result = safe_divide(10, 2)
@@ -367,7 +367,7 @@ class TestSparkForgeWorking:
         )
 
         data = [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
-        df = mock_spark_session.createDataFrame(data, schema)
+        df = spark.createDataFrame(data, schema)
 
         info = get_dataframe_info(df)
         # The function might return 0 for row_count due to mock implementation
@@ -376,7 +376,7 @@ class TestSparkForgeWorking:
         assert "id" in info["columns"]
         assert "name" in info["columns"]
 
-    def test_pipeline_validation_working(self, mock_spark_session):
+    def test_pipeline_validation_working(self, spark):
         """Test pipeline validation using actual API."""
         # Test UnifiedValidator with custom validators
         validator = UnifiedValidator()
@@ -392,11 +392,11 @@ class TestSparkForgeWorking:
         validator.add_validator(test_validator)
         assert len(validator.custom_validators) == 1
 
-    def test_edge_cases_working(self, mock_spark_session):
+    def test_edge_cases_working(self, spark):
         """Test edge cases using actual API."""
         # Test with empty DataFrame using explicit schema and no rows
         empty_schema = StructType([])
-        empty_df = mock_spark_session.createDataFrame([], empty_schema)
+        empty_df = spark.createDataFrame([], empty_schema)
         assert empty_df.count() == 0
         assert len(empty_df.columns) == 0
 
@@ -414,7 +414,7 @@ class TestSparkForgeWorking:
             ]
         )
 
-        df = mock_spark_session.createDataFrame(data_with_nulls, schema)
+        df = spark.createDataFrame(data_with_nulls, schema)
         assert df.count() == 3
 
         # Test with large dataset
@@ -430,7 +430,7 @@ class TestSparkForgeWorking:
             ]
         )
 
-        large_df = mock_spark_session.createDataFrame(large_data, large_schema)
+        large_df = spark.createDataFrame(large_data, large_schema)
         assert large_df.count() == 1000
 
         # Test boundary values
@@ -446,10 +446,10 @@ class TestSparkForgeWorking:
             ]
         )
 
-        boundary_df = mock_spark_session.createDataFrame(boundary_data, boundary_schema)
+        boundary_df = spark.createDataFrame(boundary_data, boundary_schema)
         assert boundary_df.count() == 2
 
-    def test_step_result_validation_working(self, mock_spark_session):
+    def test_step_result_validation_working(self, spark):
         """Test StepResult validation using actual API."""
         # Test valid StepResult
         step_result = StepResult(
@@ -485,7 +485,7 @@ class TestSparkForgeWorking:
         with pytest.raises(ValueError):
             invalid_step_result.validate()
 
-    def test_stage_stats_validation_working(self, mock_spark_session):
+    def test_stage_stats_validation_working(self, spark):
         """Test StageStats validation using actual API."""
         # Test valid StageStats
         stage_stats = StageStats(
@@ -520,13 +520,13 @@ class TestSparkForgeWorking:
             invalid_stage_stats.validate()
 
     @pytest.mark.filterwarnings("ignore::DeprecationWarning")
-    def test_comprehensive_coverage_working(self, mock_spark_session):
+    def test_comprehensive_coverage_working(self, spark):
         """Test comprehensive coverage using actual APIs."""
         # Test all major components together
 
         # 1. Pipeline Builder
-        builder = PipelineBuilder(spark=mock_spark_session, schema="test_schema")
-        assert builder.spark == mock_spark_session
+        builder = PipelineBuilder(spark=spark, schema="test_schema")
+        assert builder.spark == spark
 
         # 2. Configuration
         thresholds = ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0)
@@ -537,8 +537,8 @@ class TestSparkForgeWorking:
         )
 
         # 3. Execution Engine
-        engine = ExecutionEngine(spark=mock_spark_session, config=config)
-        assert engine.spark == mock_spark_session
+        engine = ExecutionEngine(spark=spark, config=config)
+        assert engine.spark == spark
 
         # 4. Validation System
         validator = UnifiedValidator()
@@ -552,8 +552,8 @@ class TestSparkForgeWorking:
             log_level=LogLevel.INFO,
             batch_size=1000,
         )
-        writer = LogWriter(spark=mock_spark_session, config=writer_config)
-        assert writer.spark == mock_spark_session
+        writer = LogWriter(spark=spark, config=writer_config)
+        assert writer.spark == spark
 
         # 6. Performance System
         current_time = now_dt()
@@ -565,7 +565,7 @@ class TestSparkForgeWorking:
 
         # 8. Table Operations
         # Use SQL to create schema (works for both mock-spark and PySpark)
-        mock_spark_session.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
+        spark.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
         schema = StructType(
             [
                 StructField("id", IntegerType()),
@@ -573,10 +573,10 @@ class TestSparkForgeWorking:
             ]
         )
         # Create table using DataFrame (works for both mock-spark and PySpark)
-        empty_df = mock_spark_session.createDataFrame([], schema)
+        empty_df = spark.createDataFrame([], schema)
         empty_df.write.mode("overwrite").saveAsTable("test_schema.test_table")
         assert pipeline_builder_table_exists(
-            mock_spark_session, "test_schema.test_table"
+            spark, "test_schema.test_table"
         )
 
         # 9. Validation Utils
@@ -585,6 +585,6 @@ class TestSparkForgeWorking:
 
         # 10. Edge Cases
         empty_schema = StructType([])
-        empty_df = mock_spark_session.createDataFrame([], empty_schema)
+        empty_df = spark.createDataFrame([], empty_schema)
         assert empty_df.count() == 0
         assert len(empty_df.columns) == 0

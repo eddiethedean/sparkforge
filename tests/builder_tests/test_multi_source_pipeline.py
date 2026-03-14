@@ -16,12 +16,12 @@ class TestMultiSourcePipeline:
     """Test multi-source data integration pipeline with bronze-silver-gold architecture."""
 
     def test_complete_multi_source_integration_pipeline_execution(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test complete multi-source pipeline: CRM + ERP + Web Analytics → unified data → cross-system analytics."""
 
         # Create CRM data (customer management)
-        crm_data = mock_spark_session.createDataFrame(
+        crm_data = spark.createDataFrame(
             [
                 (
                     "CUST-001",
@@ -63,7 +63,7 @@ class TestMultiSourcePipeline:
         )
 
         # Create ERP data (enterprise resource planning)
-        erp_data = mock_spark_session.createDataFrame(
+        erp_data = spark.createDataFrame(
             [
                 (
                     "CUST-001",
@@ -88,7 +88,7 @@ class TestMultiSourcePipeline:
         )
 
         # Create Web Analytics data
-        web_analytics_data = mock_spark_session.createDataFrame(
+        web_analytics_data = spark.createDataFrame(
             [
                 (
                     "CUST-001",
@@ -143,13 +143,13 @@ class TestMultiSourcePipeline:
         )
 
         # Setup schemas
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=mock_spark_session,
+            spark=spark,
             schema="bronze",
             functions=F,
             min_bronze_rate=95.0,
@@ -515,11 +515,11 @@ class TestMultiSourcePipeline:
         # Skip table access for testing - focus on pipeline execution
         # Pipeline execution verified above - storage verification not needed for unit tests
 
-    def test_schema_evolution_handling(self, mock_spark_session, test_assertions):
+    def test_schema_evolution_handling(self, spark, test_assertions):
         """Test handling of schema evolution across multiple sources."""
 
         # Create data with evolving schemas
-        initial_data = mock_spark_session.createDataFrame(
+        initial_data = spark.createDataFrame(
             [
                 ("CUST-001", "John", "john@example.com", "premium"),
             ],
@@ -527,7 +527,7 @@ class TestMultiSourcePipeline:
         )
 
         # Data with new columns (schema evolution)
-        evolved_data = mock_spark_session.createDataFrame(
+        evolved_data = spark.createDataFrame(
             [
                 (
                     "CUST-002",
@@ -551,13 +551,13 @@ class TestMultiSourcePipeline:
         )
 
         # Setup schemas
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="bronze", functions=F
+            spark=spark, schema="bronze", functions=F
         )
 
         builder.with_bronze_rules(name="customers", rules={"customer_id": ["not_null"]})
@@ -616,20 +616,20 @@ class TestMultiSourcePipeline:
         # Pipeline execution verified above - storage verification not needed for unit tests
 
     def test_complex_dependency_handling(
-        self, mock_spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test handling of complex dependencies between multiple sources."""
 
         # Create interdependent data
         customers_df = data_generator.create_customer_data(
-            mock_spark_session, num_customers=10
+            spark, num_customers=10
         )
         orders_df = data_generator.create_ecommerce_orders(
-            mock_spark_session, num_orders=20
+            spark, num_orders=20
         )
 
         # Create product catalog data
-        products_data = mock_spark_session.createDataFrame(
+        products_data = spark.createDataFrame(
             [
                 ("PROD-001", "product_a", "electronics", 100.00),
                 ("PROD-002", "product_b", "clothing", 50.00),
@@ -639,13 +639,13 @@ class TestMultiSourcePipeline:
         )
 
         # Setup schemas
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
 
         # Create pipeline with complex dependencies
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="bronze", functions=F
+            spark=spark, schema="bronze", functions=F
         )
 
         # Multiple bronze sources
@@ -754,34 +754,34 @@ class TestMultiSourcePipeline:
         # Pipeline execution verified above - storage verification not needed for unit tests
 
     def test_multi_source_logging(
-        self, mock_spark_session, data_generator, log_writer_config, test_assertions
+        self, spark, data_generator, log_writer_config, test_assertions
     ):
         """Test comprehensive logging for multi-source pipeline."""
 
         # Create test data from multiple sources
         crm_data = data_generator.create_customer_data(
-            mock_spark_session, num_customers=5
+            spark, num_customers=5
         )
         erp_data = data_generator.create_ecommerce_orders(
-            mock_spark_session, num_orders=10
+            spark, num_orders=10
         )
 
         # Setup schemas
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS bronze")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS silver")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS gold")
-        mock_spark_session.sql("CREATE DATABASE IF NOT EXISTS integration")
+        spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
+        spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+        spark.sql("CREATE DATABASE IF NOT EXISTS gold")
+        spark.sql("CREATE DATABASE IF NOT EXISTS integration")
 
         # Create LogWriter for integration logging
         log_writer = LogWriter(
-            spark=mock_spark_session,
+            spark=spark,
             schema="integration",
             table_name="multi_source_logs",
         )
 
         # Create pipeline
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="bronze", functions=F
+            spark=spark, schema="bronze", functions=F
         )
 
         builder.with_bronze_rules(name="crm_data", rules={"customer_id": ["not_null"]})
@@ -821,7 +821,7 @@ class TestMultiSourcePipeline:
         assert log_result is not None
 
         # Verify log table was created by accessing it
-        log_df = mock_spark_session.table("integration.multi_source_logs")
+        log_df = spark.table("integration.multi_source_logs")
         assert log_df is not None
 
         # Verify log data

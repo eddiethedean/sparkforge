@@ -18,7 +18,7 @@ from pipeline_builder.validation.pipeline_validation import (
 class TestDataValidationSimple:
     """Test UnifiedValidator with Mock Spark - simplified tests."""
 
-    def test_unified_validator_initialization(self, mock_spark_session):
+    def test_unified_validator_initialization(self, spark):
         """Test unified validator initialization."""
         validator = UnifiedValidator()
         assert validator is not None
@@ -29,7 +29,7 @@ class TestDataValidationSimple:
         validator = UnifiedValidator()
         assert validator is not None
 
-    def test_unified_validator_get_spark(self, mock_spark_session):
+    def test_unified_validator_get_spark(self, spark):
         """Test getting spark session from unified validator."""
         validator = UnifiedValidator()
         # UnifiedValidator doesn't store spark session
@@ -68,7 +68,7 @@ class TestDataValidationSimple:
         assert ValidationResultEnum.WARNING.value == "warning"
 
     def test_unified_validator_with_sample_data(
-        self, mock_spark_session, sample_dataframe
+        self, spark, sample_dataframe
     ):
         """Test unified validator with sample data."""
         UnifiedValidator()
@@ -77,7 +77,7 @@ class TestDataValidationSimple:
         assert sample_dataframe.count() > 0
         assert len(sample_dataframe.columns) > 0
 
-    def test_unified_validator_error_handling(self, mock_spark_session):
+    def test_unified_validator_error_handling(self, spark):
         """Test unified validator error handling."""
         UnifiedValidator()
 
@@ -89,10 +89,10 @@ class TestDataValidationSimple:
         # In PySpark, this is pyspark.errors.exceptions.captured.AnalysisException.
         # The compat alias collapses both into a single type for testing.
         with pytest.raises(CompatAnalysisException):
-            mock_spark_session.table("nonexistent.table")
+            spark.table("nonexistent.table")
 
     def test_unified_validator_metrics_collection(
-        self, mock_spark_session, sample_dataframe
+        self, spark, sample_dataframe
     ):
         """Test unified validator metrics collection."""
         UnifiedValidator()

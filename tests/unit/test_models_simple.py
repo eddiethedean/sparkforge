@@ -212,7 +212,7 @@ class TestPipelineConfig:
 class TestBronzeStep:
     """Test cases for BronzeStep class."""
 
-    def test_bronze_step_creation(self, spark_session):
+    def test_bronze_step_creation(self, spark):
         """Test BronzeStep creation."""
         # PySpark requires active SparkContext for F.col() calls
         rules = {"id": [F.col("id").isNotNull()]}
@@ -222,13 +222,13 @@ class TestBronzeStep:
         assert step.incremental_col == "timestamp"
         assert step.rules is rules
 
-    def test_bronze_step_validation(self, spark_session):
+    def test_bronze_step_validation(self, spark):
         """Test BronzeStep validation."""
         # PySpark requires active SparkContext for F.col() calls
         step = BronzeStep(name="test_bronze", rules={"id": [F.col("id").isNotNull()]})
         step.validate()  # Should not raise
 
-    def test_bronze_step_invalid_name(self, spark_session):
+    def test_bronze_step_invalid_name(self, spark):
         """Test BronzeStep creation with invalid name should fail."""
         # PySpark requires active SparkContext for F.col() calls
         with pytest.raises(
@@ -247,7 +247,7 @@ class TestBronzeStep:
 class TestSilverStep:
     """Test cases for SilverStep class."""
 
-    def test_silver_step_creation(self, spark_session):
+    def test_silver_step_creation(self, spark):
         """Test SilverStep creation."""
 
         def transform_func(spark, df, silvers):
@@ -266,7 +266,7 @@ class TestSilverStep:
         assert step.source_bronze == "test_bronze"
         assert step.table_name == "test_silver_table"
 
-    def test_silver_step_validation(self, spark_session):
+    def test_silver_step_validation(self, spark):
         """Test SilverStep validation."""
 
         def transform_func(spark, df, silvers):
@@ -282,7 +282,7 @@ class TestSilverStep:
         )
         step.validate()  # Should not raise
 
-    def test_silver_step_invalid_source_bronze(self, spark_session):
+    def test_silver_step_invalid_source_bronze(self, spark):
         """Test SilverStep creation with invalid source_bronze should fail."""
 
         def transform_func(spark, df, silvers):
@@ -300,7 +300,7 @@ class TestSilverStep:
                 table_name="test_silver_table",
             )
 
-    def test_silver_step_invalid_transform(self, spark_session):
+    def test_silver_step_invalid_transform(self, spark):
         """Test SilverStep creation with invalid transform should fail."""
         # PySpark requires active SparkContext for F.col() calls
         with pytest.raises(
@@ -315,7 +315,7 @@ class TestSilverStep:
                 table_name="test_silver_table",
             )
 
-    def test_silver_step_invalid_table_name(self, spark_session):
+    def test_silver_step_invalid_table_name(self, spark):
         """Test SilverStep creation with invalid table_name should fail."""
 
         def transform_func(spark, df, silvers):
@@ -337,7 +337,7 @@ class TestSilverStep:
 class TestGoldStep:
     """Test cases for GoldStep class."""
 
-    def test_gold_step_creation(self, spark_session):
+    def test_gold_step_creation(self, spark):
         """Test GoldStep creation."""
 
         def transform_func(spark, silvers):
@@ -356,7 +356,7 @@ class TestGoldStep:
         assert step.table_name == "test_gold_table"
         assert step.source_silvers == ["test_silver"]
 
-    def test_gold_step_validation(self, spark_session):
+    def test_gold_step_validation(self, spark):
         """Test GoldStep validation."""
 
         def transform_func(spark, silvers):
@@ -372,7 +372,7 @@ class TestGoldStep:
         )
         step.validate()  # Should not raise
 
-    def test_gold_step_invalid_transform(self, spark_session):
+    def test_gold_step_invalid_transform(self, spark):
         """Test GoldStep creation with invalid transform should fail."""
         # PySpark requires active SparkContext for F.col() calls
         with pytest.raises(
@@ -387,7 +387,7 @@ class TestGoldStep:
                 source_silvers=["test_silver"],
             )
 
-    def test_gold_step_invalid_table_name(self, spark_session):
+    def test_gold_step_invalid_table_name(self, spark):
         """Test GoldStep creation with invalid table_name should fail."""
 
         def transform_func(spark, silvers):
@@ -405,7 +405,7 @@ class TestGoldStep:
                 source_silvers=["test_silver"],
             )
 
-    def test_gold_step_invalid_source_silvers(self, spark_session):
+    def test_gold_step_invalid_source_silvers(self, spark):
         """Test GoldStep creation with invalid source_silvers should fail."""
 
         def transform_func(spark, silvers):

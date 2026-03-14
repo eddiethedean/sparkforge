@@ -10,12 +10,6 @@ import os
 
 import pytest
 
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql import functions as F
-else:
-    from sparkless.sql import functions as F  # type: ignore[import]
-
-
 from pipeline_builder.pipeline import PipelineBuilder
 import sys
 
@@ -27,20 +21,21 @@ class TestCustomerAnalyticsPipeline:
     """Test customer analytics pipeline with bronze-silver-gold architecture."""
 
     def test_complete_customer_360_pipeline_execution(
-        self, spark_session, data_generator, test_assertions
+        self, spark, spark_imports, data_generator, test_assertions
     ):
         """Test complete customer 360 pipeline: interactions → behavior patterns → customer insights."""
+        F = spark_imports.F
 
         # Create realistic customer data
         customers_df = data_generator.create_customer_data(
-            spark_session, num_customers=30
+            spark, num_customers=30
         )
         orders_df = data_generator.create_ecommerce_orders(
-            spark_session, num_orders=100
+            spark, num_orders=100
         )
 
         # Create additional customer interaction data
-        interactions_data = spark_session.createDataFrame(
+        interactions_data = spark.createDataFrame(
             [
                 ("CUST-001", "website_visit", "2024-01-01T10:00:00", "homepage", 300),
                 ("CUST-001", "product_view", "2024-01-01T10:05:00", "product_123", 120),
@@ -72,12 +67,12 @@ class TestCustomerAnalyticsPipeline:
         )
         # Use get_unique_schema for proper concurrent testing isolation (includes worker ID)
         unique_schema = get_unique_schema("bronze")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
 
         # PySpark doesn't need explicit schema creation
 
         # Create pipeline builder
-        builder = PipelineBuilder(spark=spark_session, schema=unique_schema)
+        builder = PipelineBuilder(spark=spark, schema=unique_schema)
 
         # Bronze Layer: Raw customer data validation
         builder.with_bronze_rules(
@@ -414,17 +409,18 @@ class TestCustomerAnalyticsPipeline:
         # All schema verification removed for testing
 
     def test_customer_churn_prediction(
-        self, spark_session, data_generator, test_assertions
+        self, spark, spark_imports, data_generator, test_assertions
     ):
         """Test customer churn prediction pipeline."""
+        F = spark_imports.F
 
         # Create customer data with churn indicators
         customers_df = data_generator.create_customer_data(
-            spark_session, num_customers=20
+            spark, num_customers=20
         )
 
         # Create interaction data with churn patterns
-        churn_interactions = spark_session.createDataFrame(
+        churn_interactions = spark.createDataFrame(
             [
                 (
                     "CUST-001",
@@ -452,7 +448,7 @@ class TestCustomerAnalyticsPipeline:
 
         # Create pipeline
         unique_schema = get_unique_schema("bronze")
-        builder = PipelineBuilder(spark=spark_session, schema=unique_schema)
+        builder = PipelineBuilder(spark=spark, schema=unique_schema)
 
         builder.with_bronze_rules(name="customers", rules={"customer_id": ["not_null"]})
 
@@ -567,23 +563,24 @@ class TestCustomerAnalyticsPipeline:
         # Data quality assertions removed for testing
 
     def test_customer_lifetime_value_analysis(
-        self, spark_session, data_generator, test_assertions
+        self, spark, spark_imports, data_generator, test_assertions
     ):
         """Test customer lifetime value analysis pipeline."""
+        F = spark_imports.F
 
         # Create customer and order data
         customers_df = data_generator.create_customer_data(
-            spark_session, num_customers=15
+            spark, num_customers=15
         )
-        orders_df = data_generator.create_ecommerce_orders(spark_session, num_orders=75)
+        orders_df = data_generator.create_ecommerce_orders(spark, num_orders=75)
         # Use get_unique_schema for proper concurrent testing isolation (includes worker ID)
         unique_schema = get_unique_schema("bronze")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
 
         # PySpark doesn't need explicit schema creation
 
         # Create pipeline
-        builder = PipelineBuilder(spark=spark_session, schema=unique_schema)
+        builder = PipelineBuilder(spark=spark, schema=unique_schema)
 
         builder.with_bronze_rules(name="customers", rules={"customer_id": ["not_null"]})
 
@@ -711,15 +708,16 @@ class TestCustomerAnalyticsPipeline:
 
     @pytest.mark.sequential
     def test_customer_analytics_logging(
-        self, spark_session, data_generator, log_writer_config, test_assertions
+        self, spark, spark_imports, data_generator, log_writer_config, test_assertions
     ):
         """Test comprehensive logging for customer analytics pipeline."""
+        F = spark_imports.F
 
         # Create test data
         customers_df = data_generator.create_customer_data(
-            spark_session, num_customers=10
+            spark, num_customers=10
         )
-        interactions_data = spark_session.createDataFrame(
+        interactions_data = spark.createDataFrame(
             [
                 ("CUST-001", "website_visit", "2024-01-01T10:00:00", 300),
             ],
@@ -727,7 +725,7 @@ class TestCustomerAnalyticsPipeline:
         )
         # Use get_unique_schema for proper concurrent testing isolation (includes worker ID)
         unique_schema = get_unique_schema("bronze")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
 
         # PySpark doesn't need explicit schema creation
         # Storage schema creation removed for testing
@@ -736,7 +734,7 @@ class TestCustomerAnalyticsPipeline:
         # This test focuses on pipeline execution without logging
 
         # Create pipeline
-        builder = PipelineBuilder(spark=spark_session, schema=unique_schema)
+        builder = PipelineBuilder(spark=spark, schema=unique_schema)
 
         builder.with_bronze_rules(name="customers", rules={"customer_id": ["not_null"]})
 
@@ -795,6 +793,6 @@ class TestCustomerAnalyticsPipeline:
             sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             from test_helpers.isolation import cleanup_test_tables
 
-            cleanup_test_tables(spark_session, unique_schema)
+            cleanup_test_tables(spark, unique_schema)
         except Exception:
             pass  # Ignore cleanup errors

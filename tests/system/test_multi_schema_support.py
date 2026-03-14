@@ -7,17 +7,9 @@ in SparkForge pipelines, enabling cross-schema data flows.
 NOTE: Multi-schema tests have complex requirements. Skipping in mock mode for now.
 """
 
-import os
 from unittest.mock import patch
 
 import pytest
-
-# Use configured engine (same API for PySpark and sparkless)
-from pipeline_builder.compat import F, types
-
-StringType = types.StringType
-StructField = types.StructField
-StructType = types.StructType
 
 from pipeline_builder.errors import StepError
 from pipeline_builder.pipeline.builder import PipelineBuilder
@@ -27,10 +19,15 @@ class TestMultiSchemaSupport:
     """Test multi-schema support functionality."""
 
     @pytest.fixture(autouse=True)
-    def setup_test(self, spark_session):
+    def setup_test(self, spark, spark_imports):
         """Set up test fixtures."""
-        self.spark = spark_session
+        self.spark = spark
+        self.F = spark_imports.F
         self.builder = PipelineBuilder(spark=self.spark, schema="default_schema")
+
+        StringType = spark_imports.StringType
+        StructField = spark_imports.StructField
+        StructType = spark_imports.StructType
 
         # Create test data
         self.test_data = [
@@ -57,7 +54,7 @@ class TestMultiSchemaSupport:
         # Test with custom schema
         self.builder.with_bronze_rules(
             name="events",
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             incremental_col="timestamp",
             schema="raw_data",
         )
@@ -71,7 +68,7 @@ class TestMultiSchemaSupport:
         """Test with_bronze_rules without schema (uses default)."""
         self.builder.with_bronze_rules(
             name="events",
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             incremental_col="timestamp",
         )
 
@@ -86,7 +83,7 @@ class TestMultiSchemaSupport:
         self.builder.with_silver_rules(
             name="existing_clean_events",
             table_name="clean_events",
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             schema="staging",
         )
 
@@ -103,17 +100,17 @@ class TestMultiSchemaSupport:
         # Add bronze step first
         self.builder.with_bronze_rules(
             name="events",
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             incremental_col="timestamp",
         )
 
         def clean_events(spark, bronze_df, prior_silvers):
-            return bronze_df.filter(F.col("user_id").isNotNull())
+            return bronze_df.filter(self.F.col("user_id").isNotNull())
 
         self.builder.add_silver_transform(
             name="clean_events",
             transform=clean_events,
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             table_name="clean_events",
             watermark_col="timestamp",
             schema="processing",
@@ -132,17 +129,17 @@ class TestMultiSchemaSupport:
         # Add bronze and silver steps first
         self.builder.with_bronze_rules(
             name="events",
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             incremental_col="timestamp",
         )
 
         def clean_events(spark, bronze_df, prior_silvers):
-            return bronze_df.filter(F.col("user_id").isNotNull())
+            return bronze_df.filter(self.F.col("user_id").isNotNull())
 
         self.builder.add_silver_transform(
             name="clean_events",
             transform=clean_events,
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             table_name="clean_events",
             watermark_col="timestamp",
         )
@@ -153,7 +150,7 @@ class TestMultiSchemaSupport:
         self.builder.add_gold_transform(
             name="daily_metrics",
             transform=daily_metrics,
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             table_name="daily_metrics",
             schema="analytics",
         )
@@ -168,7 +165,7 @@ class TestMultiSchemaSupport:
         with patch.object(self.builder, "_validate_schema") as mock_validate:
             self.builder.with_bronze_rules(
                 name="events",
-                rules={"user_id": [F.col("user_id").isNotNull()]},
+                rules={"user_id": [self.F.col("user_id").isNotNull()]},
                 schema="valid_schema",
             )
             mock_validate.assert_called_once_with("valid_schema")
@@ -186,7 +183,7 @@ class TestMultiSchemaSupport:
             ):
                 self.builder.with_bronze_rules(
                     name="events",
-                    rules={"user_id": [F.col("user_id").isNotNull()]},
+                    rules={"user_id": [self.F.col("user_id").isNotNull()]},
                     schema="invalid_schema",
                 )
 
@@ -238,19 +235,19 @@ class TestMultiSchemaSupport:
         # Bronze: Read from raw_data schema
         self.builder.with_bronze_rules(
             name="raw_events",
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             incremental_col="timestamp",
             schema="raw_data",
         )
 
         # Silver: Write to processing schema
         def clean_events(spark, bronze_df, prior_silvers):
-            return bronze_df.filter(F.col("user_id").isNotNull())
+            return bronze_df.filter(self.F.col("user_id").isNotNull())
 
         self.builder.add_silver_transform(
             name="clean_events",
             transform=clean_events,
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             table_name="clean_events",
             watermark_col="timestamp",
             schema="processing",
@@ -263,7 +260,7 @@ class TestMultiSchemaSupport:
         self.builder.add_gold_transform(
             name="daily_metrics",
             transform=daily_metrics,
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             table_name="daily_metrics",
             schema="analytics",
         )
@@ -282,18 +279,18 @@ class TestMultiSchemaSupport:
         # Bronze: Use custom schema
         self.builder.with_bronze_rules(
             name="raw_events",
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             schema="raw_data",
         )
 
         # Silver: Use default schema (no schema parameter)
         def clean_events(spark, bronze_df, prior_silvers):
-            return bronze_df.filter(F.col("user_id").isNotNull())
+            return bronze_df.filter(self.F.col("user_id").isNotNull())
 
         self.builder.add_silver_transform(
             name="clean_events",
             transform=clean_events,
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             table_name="clean_events",
         )
 
@@ -304,7 +301,7 @@ class TestMultiSchemaSupport:
         self.builder.add_gold_transform(
             name="daily_metrics",
             transform=daily_metrics,
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             table_name="daily_metrics",
             schema="analytics",
         )
@@ -322,7 +319,7 @@ class TestMultiSchemaSupport:
             # Test bronze step
             self.builder.with_bronze_rules(
                 name="events",
-                rules={"user_id": [F.col("user_id").isNotNull()]},
+                rules={"user_id": [self.F.col("user_id").isNotNull()]},
                 schema="test_schema",
             )
             mock_validate.assert_called_with("test_schema")
@@ -331,7 +328,7 @@ class TestMultiSchemaSupport:
             self.builder.with_silver_rules(
                 name="existing_events",
                 table_name="events",
-                rules={"user_id": [F.col("user_id").isNotNull()]},
+                rules={"user_id": [self.F.col("user_id").isNotNull()]},
                 schema="test_schema2",
             )
             mock_validate.assert_called_with("test_schema2")
@@ -343,7 +340,7 @@ class TestMultiSchemaSupport:
             self.builder.add_silver_transform(
                 name="clean_events",
                 transform=clean_events,
-                rules={"user_id": [F.col("user_id").isNotNull()]},
+                rules={"user_id": [self.F.col("user_id").isNotNull()]},
                 table_name="clean_events",
                 schema="test_schema3",
             )
@@ -356,7 +353,7 @@ class TestMultiSchemaSupport:
             self.builder.add_gold_transform(
                 name="daily_metrics",
                 transform=daily_metrics,
-                rules={"user_id": [F.col("user_id").isNotNull()]},
+                rules={"user_id": [self.F.col("user_id").isNotNull()]},
                 table_name="daily_metrics",
                 schema="test_schema4",
             )
@@ -367,17 +364,17 @@ class TestMultiSchemaSupport:
         # This should work exactly as before
         self.builder.with_bronze_rules(
             name="events",
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             incremental_col="timestamp",
         )
 
         def clean_events(spark, bronze_df, prior_silvers):
-            return bronze_df.filter(F.col("user_id").isNotNull())
+            return bronze_df.filter(self.F.col("user_id").isNotNull())
 
         self.builder.add_silver_transform(
             name="clean_events",
             transform=clean_events,
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             table_name="clean_events",
         )
 
@@ -387,7 +384,7 @@ class TestMultiSchemaSupport:
         self.builder.add_gold_transform(
             name="daily_metrics",
             transform=daily_metrics,
-            rules={"user_id": [F.col("user_id").isNotNull()]},
+            rules={"user_id": [self.F.col("user_id").isNotNull()]},
             table_name="daily_metrics",
         )
 

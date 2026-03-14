@@ -133,7 +133,7 @@ class TestJdbcRead:
     """Test JDBC read operations against PostgreSQL."""
 
     def test_read_jdbc_full_table(
-        self, postgres_engine: Engine, spark_session
+        self, postgres_engine: Engine, spark
     ) -> None:
         """Test reading a full table via JDBC."""
         table_name = _get_unique_table_name()
@@ -147,7 +147,7 @@ class TestJdbcRead:
             driver="org.postgresql.Driver",
         )
 
-        df = read_sql_source(source, spark_session)
+        df = read_sql_source(source, spark)
 
         assert df.count() == 3
         cols = set(df.columns)
@@ -158,7 +158,7 @@ class TestJdbcRead:
         assert rows[2]["value"] == 20.0
 
     def test_read_jdbc_with_query(
-        self, postgres_engine: Engine, spark_session
+        self, postgres_engine: Engine, spark
     ) -> None:
         """Test reading with a custom query via JDBC."""
         table_name = _get_unique_table_name()
@@ -172,14 +172,14 @@ class TestJdbcRead:
             driver="org.postgresql.Driver",
         )
 
-        df = read_sql_source(source, spark_session)
+        df = read_sql_source(source, spark)
 
         assert df.count() == 2
         names = {r["name"] for r in df.collect()}
         assert names == {"beta", "gamma"}
 
     def test_read_jdbc_with_aggregation_query(
-        self, postgres_engine: Engine, spark_session
+        self, postgres_engine: Engine, spark
     ) -> None:
         """Test reading with an aggregation query."""
         table_name = _get_unique_table_name()
@@ -193,7 +193,7 @@ class TestJdbcRead:
             driver="org.postgresql.Driver",
         )
 
-        df = read_sql_source(source, spark_session)
+        df = read_sql_source(source, spark)
 
         row = df.collect()[0]
         assert row["cnt"] == 3
@@ -204,7 +204,7 @@ class TestJdbcWrite:
     """Test JDBC write operations against PostgreSQL."""
 
     def test_write_jdbc_new_table(
-        self, postgres_engine: Engine, spark_session
+        self, postgres_engine: Engine, spark
     ) -> None:
         """Test writing to a new table via JDBC."""
         from pyspark.sql.types import FloatType, IntegerType, StringType, StructField, StructType
@@ -227,7 +227,7 @@ class TestJdbcWrite:
             (3, "Widget C", 39.99),
         ]
 
-        df = spark_session.createDataFrame(data, schema)
+        df = spark.createDataFrame(data, schema)
 
         config = JdbcWriteConfig(
             url=jdbc_url,
@@ -248,7 +248,7 @@ class TestJdbcWrite:
             assert result == 3
 
     def test_write_jdbc_append_mode(
-        self, postgres_engine: Engine, spark_session
+        self, postgres_engine: Engine, spark
     ) -> None:
         """Test appending to an existing table via JDBC."""
         from pyspark.sql.types import FloatType, IntegerType, StringType, StructField, StructType
@@ -268,7 +268,7 @@ class TestJdbcWrite:
             (5, "epsilon", 50.5),
         ]
 
-        df = spark_session.createDataFrame(new_data, schema)
+        df = spark.createDataFrame(new_data, schema)
 
         config = JdbcWriteConfig(
             url=jdbc_url,
@@ -289,7 +289,7 @@ class TestJdbcWrite:
             assert result == 5
 
     def test_write_jdbc_overwrite_mode(
-        self, postgres_engine: Engine, spark_session
+        self, postgres_engine: Engine, spark
     ) -> None:
         """Test overwriting an existing table via JDBC."""
         from pyspark.sql.types import FloatType, IntegerType, StringType, StructField, StructType
@@ -315,7 +315,7 @@ class TestJdbcWrite:
             (200, "new_beta", 200.0),
         ]
 
-        df = spark_session.createDataFrame(new_data, schema)
+        df = spark.createDataFrame(new_data, schema)
 
         config = JdbcWriteConfig(
             url=jdbc_url,
@@ -340,7 +340,7 @@ class TestJdbcReadWriteRoundTrip:
     """Test complete read-write round-trip scenarios."""
 
     def test_read_transform_write_round_trip(
-        self, postgres_engine: Engine, spark_session
+        self, postgres_engine: Engine, spark
     ) -> None:
         """Test reading data, transforming it, and writing to a new table."""
         source_table = _get_unique_table_name()
@@ -358,7 +358,7 @@ class TestJdbcReadWriteRoundTrip:
             driver="org.postgresql.Driver",
         )
 
-        df = read_sql_source(source, spark_session)
+        df = read_sql_source(source, spark)
         assert df.count() == 3
 
         from pipeline_builder.compat import F
@@ -383,7 +383,7 @@ class TestJdbcReadWriteRoundTrip:
             driver="org.postgresql.Driver",
         )
 
-        result_df = read_sql_source(verify_source, spark_session)
+        result_df = read_sql_source(verify_source, spark)
         assert result_df.count() == 3
         assert "doubled_value" in result_df.columns
 
@@ -392,7 +392,7 @@ class TestJdbcReadWriteRoundTrip:
         assert rows[2]["doubled_value"] == 40.0
 
     def test_filter_and_write_subset(
-        self, postgres_engine: Engine, spark_session
+        self, postgres_engine: Engine, spark
     ) -> None:
         """Test reading, filtering, and writing a subset of data."""
         source_table = _get_unique_table_name()
@@ -410,7 +410,7 @@ class TestJdbcReadWriteRoundTrip:
             driver="org.postgresql.Driver",
         )
 
-        df = read_sql_source(source, spark_session)
+        df = read_sql_source(source, spark)
 
         from pipeline_builder.compat import F
 
@@ -436,7 +436,7 @@ class TestJdbcReadWriteRoundTrip:
             assert names == ["beta", "gamma"]
 
     def test_aggregate_and_write(
-        self, postgres_engine: Engine, spark_session
+        self, postgres_engine: Engine, spark
     ) -> None:
         """Test reading, aggregating, and writing aggregated results."""
         source_table = _get_unique_table_name()
@@ -454,7 +454,7 @@ class TestJdbcReadWriteRoundTrip:
             driver="org.postgresql.Driver",
         )
 
-        df = read_sql_source(source, spark_session)
+        df = read_sql_source(source, spark)
 
         from pipeline_builder.compat import F
 

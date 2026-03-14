@@ -6,15 +6,7 @@ Bronze → Silver → Gold medallion architecture with orders, shipments, invent
 and logistics performance metrics.
 """
 
-import os
-
-
-# Import functions based on SPARK_MODE
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql import functions as F
-else:
-    from sparkless.sql import functions as F  # type: ignore[import]
-
+from pipeline_builder.compat import F
 from pipeline_builder.pipeline import PipelineBuilder
 from pipeline_builder.writer import LogWriter
 
@@ -23,7 +15,7 @@ class TestSupplyChainPipeline:
     """Test supply chain and logistics pipeline with bronze-silver-gold architecture."""
 
     def test_complete_supply_chain_pipeline_execution(
-        self, spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test complete supply chain pipeline: orders → shipments → logistics insights."""
 
@@ -33,24 +25,24 @@ class TestSupplyChainPipeline:
             spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
 
         # Setup schemas
-        create_schema_if_not_exists(spark_session, "bronze")
-        create_schema_if_not_exists(spark_session, "silver")
-        create_schema_if_not_exists(spark_session, "gold")
+        create_schema_if_not_exists(spark, "bronze")
+        create_schema_if_not_exists(spark, "silver")
+        create_schema_if_not_exists(spark, "gold")
 
         # Create realistic supply chain data
         orders_df = data_generator.create_supply_chain_orders(
-            spark_session, num_orders=80
+            spark, num_orders=80
         )
         shipments_df = data_generator.create_supply_chain_shipments(
-            spark_session, num_shipments=100
+            spark, num_shipments=100
         )
         inventory_df = data_generator.create_supply_chain_inventory(
-            spark_session, num_items=150
+            spark, num_items=150
         )
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             functions=F,
             schema="bronze",
             min_bronze_rate=95.0,
@@ -453,21 +445,21 @@ class TestSupplyChainPipeline:
         assert turnover_result.get("rows_processed", 0) >= 0  # Can be 0 if no matches
 
     def test_incremental_supply_chain_processing(
-        self, spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test incremental processing of new supply chain data."""
         # Setup schemas using SQL (works for both mock-spark and PySpark)
-        spark_session.sql("CREATE SCHEMA IF NOT EXISTS bronze")
-        spark_session.sql("CREATE SCHEMA IF NOT EXISTS silver")
+        spark.sql("CREATE SCHEMA IF NOT EXISTS bronze")
+        spark.sql("CREATE SCHEMA IF NOT EXISTS silver")
 
         # Create initial data
         orders_initial = data_generator.create_supply_chain_orders(
-            spark_session, num_orders=30
+            spark, num_orders=30
         )
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema="bronze",
             functions=F,
             min_bronze_rate=95.0,
@@ -520,7 +512,7 @@ class TestSupplyChainPipeline:
 
         # Incremental load with new orders
         orders_incremental = data_generator.create_supply_chain_orders(
-            spark_session, num_orders=20
+            spark, num_orders=20
         )
 
         result2 = pipeline.run_incremental(
@@ -530,28 +522,28 @@ class TestSupplyChainPipeline:
         test_assertions.assert_pipeline_success(result2)
         assert result2.mode.value == "incremental"
 
-    def test_supply_chain_logging(self, spark_session, data_generator, test_assertions):
+    def test_supply_chain_logging(self, spark, data_generator, test_assertions):
         """Test comprehensive logging for supply chain pipeline."""
 
         # Create test data
         orders_df = data_generator.create_supply_chain_orders(
-            spark_session, num_orders=25
+            spark, num_orders=25
         )
 
         # Setup schemas using SQL (works for both mock-spark and PySpark)
-        spark_session.sql("CREATE SCHEMA IF NOT EXISTS bronze")
-        spark_session.sql("CREATE SCHEMA IF NOT EXISTS analytics")
+        spark.sql("CREATE SCHEMA IF NOT EXISTS bronze")
+        spark.sql("CREATE SCHEMA IF NOT EXISTS analytics")
 
         # Create LogWriter
         log_writer = LogWriter(
-            spark=spark_session,
+            spark=spark,
             schema="analytics",
             table_name="supply_chain_logs",
         )
 
         # Create pipeline
         builder = PipelineBuilder(
-            spark=spark_session, schema="bronze", functions=F, verbose=False
+            spark=spark, schema="bronze", functions=F, verbose=False
         )
 
         builder.with_bronze_rules(

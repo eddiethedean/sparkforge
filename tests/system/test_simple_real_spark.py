@@ -8,30 +8,7 @@ and operations instead of mocks.
 NOTE: These tests require real Spark and will be skipped in mock mode.
 """
 
-import os
-
 import pytest
-
-# Real Spark tests - simplified for sparkless/mock engine
-# These tests focus on pipeline_builder functionality, not pyspark internals
-
-# Use engine-specific functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-else:
-    from pyspark.sql import functions as F
-
-# Import types based on SPARK_MODE (preferred) or SPARKFORGE_ENGINE
-_SPARK_MODE = os.environ.get("SPARK_MODE", "mock").lower()
-_ENGINE = os.environ.get("SPARKFORGE_ENGINE", "auto").lower()
-if _SPARK_MODE == "real" or _ENGINE in ("pyspark", "spark", "real"):
-    from pyspark.sql.types import StringType, StructField, StructType
-else:
-    from sparkless.spark_types import (  # type ignore[import]
-        StringType,
-        StructField,
-        StructType,
-    )
 
 # Import the actual functions we're testing
 from pipeline_builder.validation import (
@@ -41,16 +18,18 @@ from pipeline_builder.validation import (
     validate_dataframe_schema,
 )
 
-# add_metadata_columns function removed - not needed for simplified system
-
 
 class TestRealSparkOperations:
     """Test core functionality with real Spark operations."""
 
     @pytest.fixture
-    def sample_dataframe(self, spark_session):
+    def sample_dataframe(self, spark, spark_imports):
         """Create a sample DataFrame for testing."""
         from pipeline_builder.compat_helpers import create_test_dataframe
+
+        StringType = spark_imports.StringType
+        StructField = spark_imports.StructField
+        StructType = spark_imports.StructType
 
         data = [
             {"user_id": "user1", "action": "click", "timestamp": "2024-01-01 10:00:00"},
@@ -70,11 +49,12 @@ class TestRealSparkOperations:
                 StructField("timestamp", StringType(), True),
             ]
         )
-        return create_test_dataframe(spark_session, data, schema)
+        return create_test_dataframe(spark, data, schema)
 
     @pytest.mark.spark
-    def test_real_spark_dataframe_operations(self, sample_dataframe):
+    def test_real_spark_dataframe_operations(self, sample_dataframe, spark_imports):
         """Test basic Spark DataFrame operations with real data."""
+        F = spark_imports.F
         # Test basic operations
         assert sample_dataframe.count() == 5
         assert len(sample_dataframe.columns) == 3
@@ -92,8 +72,9 @@ class TestRealSparkOperations:
         assert total_events == 5
 
     @pytest.mark.spark
-    def test_real_spark_transformations(self, sample_dataframe):
+    def test_real_spark_transformations(self, sample_dataframe, spark_imports):
         """Test Spark transformations with real data."""
+        F = spark_imports.F
         # Test adding columns
         df_with_date = sample_dataframe.withColumn(
             "event_date", F.substring("timestamp", 1, 10)
@@ -113,8 +94,9 @@ class TestRealSparkOperations:
         assert "event_count" in df_processed.columns
 
     @pytest.mark.spark
-    def test_real_spark_validation_rules(self, sample_dataframe):
+    def test_real_spark_validation_rules(self, sample_dataframe, spark_imports):
         """Test validation rules with real Spark operations."""
+        F = spark_imports.F
         # Test rule combination
         rules = {
             "user_id": [F.col("user_id").isNotNull()],
@@ -143,8 +125,9 @@ class TestRealSparkOperations:
         assert quality["quality_rate"] <= 100.0
 
     @pytest.mark.spark
-    def test_real_spark_metadata_operations(self, sample_dataframe):
+    def test_real_spark_metadata_operations(self, sample_dataframe, spark_imports):
         """Test metadata operations with real Spark operations."""
+        F = spark_imports.F
         # Test basic DataFrame operations (metadata functions removed in simplified system)
         result = sample_dataframe.withColumn("_test_column", F.lit("test_value"))
 
@@ -159,14 +142,15 @@ class TestRealSparkOperations:
         assert result.count() == 5
 
     @pytest.mark.spark
-    def test_real_spark_performance(self, spark_session):
+    def test_real_spark_performance(self, spark, spark_imports):
         """Test performance with larger datasets using real Spark operations."""
+        F = spark_imports.F
         # Create a larger dataset
         data = []
         for i in range(1000):
             data.append((f"user{i}", "click", f"2024-01-01 {10 + i % 14:02d}:00:00"))
 
-        df = spark_session.createDataFrame(data, ["user_id", "action", "timestamp"])
+        df = spark.createDataFrame(data, ["user_id", "action", "timestamp"])
 
         # Test performance with larger dataset
         assert df.count() == 1000
@@ -184,8 +168,9 @@ class TestRealSparkOperations:
         assert "event_count" in result.columns
 
     @pytest.mark.spark
-    def test_real_spark_error_handling(self, sample_dataframe):
+    def test_real_spark_error_handling(self, sample_dataframe, spark_imports):
         """Test error handling with real Spark operations."""
+        F = spark_imports.F
         # Test with invalid operations
         try:
             # This should work
@@ -218,27 +203,28 @@ class TestRealSparkOperations:
 
     @pytest.mark.spark
     @pytest.mark.pyspark
-    def test_real_spark_joins(self, spark_session):
+    def test_real_spark_joins(self, spark, spark_imports, spark_mode):
         """Test join operations with real Spark DataFrames."""
-        # Skip if in mock mode (requires real Spark)
-        import os
+        from sparkless.testing import Mode
 
-        if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+        # Skip if in mock mode (requires real Spark)
+        if spark_mode == Mode.SPARKLESS:
             pytest.skip("Requires real Spark environment")
+        F = spark_imports.F
         # Create two DataFrames
         users_data = [
             ("user1", "Alice"),
             ("user2", "Bob"),
             ("user3", "Charlie"),
         ]
-        users_df = spark_session.createDataFrame(users_data, ["user_id", "name"])
+        users_df = spark.createDataFrame(users_data, ["user_id", "name"])
 
         events_data = [
             ("user1", "click", "2024-01-01 10:00:00"),
             ("user2", "view", "2024-01-01 11:00:00"),
             ("user1", "purchase", "2024-01-01 12:00:00"),
         ]
-        events_df = spark_session.createDataFrame(
+        events_df = spark.createDataFrame(
             events_data, ["user_id", "action", "timestamp"]
         )
 

@@ -33,7 +33,7 @@ from pipeline_builder.validation import (
 
 
 @pytest.fixture(scope="function", autouse=True)
-def reset_test_environment(spark_session):
+def reset_test_environment(spark):
     """Reset test environment before each test in this file."""
     import gc
 
@@ -87,10 +87,10 @@ class TestSafeDivide:
 class TestGetDataframeInfo:
     """Test get_dataframe_info function."""
 
-    def test_basic_info(self, spark_session):
+    def test_basic_info(self, spark):
         """Test basic DataFrame info."""
-        # Use spark_session fixture for PySpark compatibility
-        mock_spark = spark_session
+        # Use spark fixture for PySpark compatibility
+        mock_spark = spark
         schema = StructType(
             [
                 StructField("user_id", StringType(), True),
@@ -112,10 +112,10 @@ class TestGetDataframeInfo:
         assert "columns" in info
         assert len(info["columns"]) == 3
 
-    def test_empty_dataframe(self, spark_session):
+    def test_empty_dataframe(self, spark):
         """Test empty DataFrame info."""
-        # Use spark_session fixture for PySpark compatibility
-        mock_spark = spark_session
+        # Use spark fixture for PySpark compatibility
+        mock_spark = spark
         schema = StructType([StructField("col1", StringType(), True)])
         empty_df = mock_spark.createDataFrame([], schema)
         info = get_dataframe_info(empty_df)
@@ -132,28 +132,28 @@ class TestGetDataframeInfo:
 class TestConvertRuleToExpression:
     """Test _convert_rule_to_expression function."""
 
-    def test_not_null_rule(self, spark_session):
+    def test_not_null_rule(self, spark):
         """Test not_null rule conversion."""
         expr = _convert_rule_to_expression("not_null", "user_id", F)
         assert expr is not None
         assert hasattr(expr, "isNotNull") or hasattr(expr, "operation")
 
-    def test_positive_rule(self, spark_session):
+    def test_positive_rule(self, spark):
         """Test positive rule conversion."""
         expr = _convert_rule_to_expression("positive", "age", F)
         assert expr is not None
 
-    def test_non_negative_rule(self, spark_session):
+    def test_non_negative_rule(self, spark):
         """Test non_negative rule conversion."""
         expr = _convert_rule_to_expression("non_negative", "score", F)
         assert expr is not None
 
-    def test_non_zero_rule(self, spark_session):
+    def test_non_zero_rule(self, spark):
         """Test non_zero rule conversion."""
         expr = _convert_rule_to_expression("non_zero", "age", F)
         assert expr is not None
 
-    def test_custom_expression(self, spark_session):
+    def test_custom_expression(self, spark):
         """Test custom expression rule (SQL expression)."""
         expr = _convert_rule_to_expression("user_id IS NOT NULL", "user_id", F)
         assert expr is not None
@@ -162,14 +162,14 @@ class TestConvertRuleToExpression:
 class TestConvertRulesToExpressions:
     """Test _convert_rules_to_expressions function."""
 
-    def test_single_rule(self, spark_session):
+    def test_single_rule(self, spark):
         """Test single rule conversion."""
         rules = {"user_id": ["not_null"]}
         expressions = _convert_rules_to_expressions(rules, F)
         assert len(expressions) == 1
         assert "user_id" in expressions
 
-    def test_multiple_rules(self, spark_session):
+    def test_multiple_rules(self, spark):
         """Test multiple rules conversion."""
         rules = {"user_id": ["not_null"], "age": ["positive", "non_zero"]}
         expressions = _convert_rules_to_expressions(rules, F)
@@ -177,7 +177,7 @@ class TestConvertRulesToExpressions:
         assert "user_id" in expressions
         assert "age" in expressions
 
-    def test_empty_rules(self, spark_session):
+    def test_empty_rules(self, spark):
         """Test empty rules."""
         expressions = _convert_rules_to_expressions({}, F)
         assert len(expressions) == 0
@@ -186,18 +186,18 @@ class TestConvertRulesToExpressions:
 class TestAndAllRules:
     """Test and_all_rules function."""
 
-    def test_empty_rules(self, spark_session):
+    def test_empty_rules(self, spark):
         """Test empty rules."""
         result = and_all_rules([], F)
         assert result is not None
 
-    def test_single_rule(self, spark_session):
+    def test_single_rule(self, spark):
         """Test single rule."""
         rules = {"user_id": ["not_null"]}
         result = and_all_rules(rules, F)
         assert result is not None
 
-    def test_multiple_rules(self, spark_session):
+    def test_multiple_rules(self, spark):
         """Test multiple rules."""
         rules = {"user_id": ["not_null"], "age": ["positive"]}
         result = and_all_rules(rules, F)
@@ -207,9 +207,9 @@ class TestAndAllRules:
 class TestApplyColumnRules:
     """Test apply_column_rules function."""
 
-    def test_basic_validation(self, spark_session):
+    def test_basic_validation(self, spark):
         """Test basic column validation."""
-        mock_spark = spark_session
+        mock_spark = spark
         schema = StructType(
             [
                 StructField("user_id", StringType(), True),
@@ -234,9 +234,9 @@ class TestApplyColumnRules:
         assert stats is not None
         assert stats.validation_rate == 100.0
 
-    def test_multiple_columns(self, spark_session):
+    def test_multiple_columns(self, spark):
         """Test multiple column validation."""
-        mock_spark = spark_session
+        mock_spark = spark
         schema = StructType(
             [
                 StructField("user_id", StringType(), True),
@@ -261,9 +261,9 @@ class TestApplyColumnRules:
         assert stats is not None
         assert stats.validation_rate == 100.0
 
-    def test_empty_rules(self, spark_session):
+    def test_empty_rules(self, spark):
         """Test empty rules."""
-        mock_spark = spark_session
+        mock_spark = spark
         schema = StructType(
             [
                 StructField("user_id", StringType(), True),
@@ -279,9 +279,9 @@ class TestApplyColumnRules:
 class TestAssessDataQuality:
     """Test assess_data_quality function."""
 
-    def test_basic_quality_assessment(self, spark_session):
+    def test_basic_quality_assessment(self, spark):
         """Test basic data quality assessment."""
-        mock_spark = spark_session
+        mock_spark = spark
         schema = StructType(
             [
                 StructField("user_id", StringType(), True),
@@ -304,9 +304,9 @@ class TestAssessDataQuality:
         assert "total_rows" in result
         assert "invalid_rows" in result
 
-    def test_multiple_quality_rules(self, spark_session):
+    def test_multiple_quality_rules(self, spark):
         """Test multiple quality rules."""
-        mock_spark = spark_session
+        mock_spark = spark
         schema = StructType(
             [
                 StructField("user_id", StringType(), True),
@@ -331,9 +331,9 @@ class TestAssessDataQuality:
         assert result is not None
         assert "quality_rate" in result
 
-    def test_empty_rules(self, spark_session):
+    def test_empty_rules(self, spark):
         """Test empty quality rules."""
-        mock_spark = spark_session
+        mock_spark = spark
         schema = StructType(
             [
                 StructField("user_id", StringType(), True),
@@ -349,10 +349,10 @@ class TestAssessDataQuality:
 class TestValidateDataframeSchema:
     """Test validate_dataframe_schema function."""
 
-    def test_valid_schema(self, spark_session):
+    def test_valid_schema(self, spark):
         """Test valid schema validation."""
-        # Use spark_session fixture for PySpark compatibility
-        mock_spark = spark_session
+        # Use spark fixture for PySpark compatibility
+        mock_spark = spark
 
         schema = StructType(
             [
@@ -371,10 +371,10 @@ class TestValidateDataframeSchema:
         result = validate_dataframe_schema(df, expected_columns)
         assert result is True
 
-    def test_missing_columns(self, spark_session):
+    def test_missing_columns(self, spark):
         """Test missing columns validation."""
-        # Use spark_session fixture for PySpark compatibility
-        mock_spark = spark_session
+        # Use spark fixture for PySpark compatibility
+        mock_spark = spark
 
         schema = StructType(
             [
@@ -390,10 +390,10 @@ class TestValidateDataframeSchema:
         result = validate_dataframe_schema(df, expected_columns)
         assert result is False
 
-    def test_extra_columns(self, spark_session):
+    def test_extra_columns(self, spark):
         """Test extra columns validation."""
-        # Use spark_session fixture for PySpark compatibility
-        mock_spark = spark_session
+        # Use spark fixture for PySpark compatibility
+        mock_spark = spark
 
         schema = StructType(
             [
@@ -409,10 +409,10 @@ class TestValidateDataframeSchema:
         result = validate_dataframe_schema(df, expected_columns)
         assert result is True  # Real Spark only checks for missing columns, not extra
 
-    def test_empty_expected_columns(self, spark_session):
+    def test_empty_expected_columns(self, spark):
         """Test empty expected columns."""
-        # Use spark_session fixture for PySpark compatibility
-        mock_spark = spark_session
+        # Use spark fixture for PySpark compatibility
+        mock_spark = spark
 
         schema = StructType(
             [
@@ -430,10 +430,10 @@ class TestValidateDataframeSchema:
         with pytest.raises((ValueError, TypeError, AttributeError)):
             validate_dataframe_schema(None, ["col1"])
 
-    def test_none_expected_columns(self, spark_session):
+    def test_none_expected_columns(self, spark):
         """Test None expected columns."""
-        # Use spark_session fixture for PySpark compatibility
-        mock_spark = spark_session
+        # Use spark fixture for PySpark compatibility
+        mock_spark = spark
 
         schema = StructType(
             [

@@ -24,17 +24,17 @@ class TestFinancialPipeline:
     """Test financial transaction processing pipeline with bronze-silver-gold architecture."""
 
     def test_complete_financial_transaction_pipeline_execution(
-        self, spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test complete financial pipeline: transactions → validation → fraud detection → compliance."""
 
         # Create realistic financial data
         transactions_df = data_generator.create_financial_transactions(
-            spark_session, num_transactions=100
+            spark, num_transactions=100
         )
 
         # Create account data
-        accounts_data = spark_session.createDataFrame(
+        accounts_data = spark.createDataFrame(
             [
                 ("ACC-0001", "checking", 1500.00, "active", "2023-01-01"),
                 ("ACC-0002", "savings", 5000.00, "active", "2023-01-15"),
@@ -47,11 +47,11 @@ class TestFinancialPipeline:
 
         # Create unique schema for this test
         bronze_schema = get_unique_schema("bronze")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema=bronze_schema,
             min_bronze_rate=99.0,  # Very strict validation for financial data
             min_silver_rate=99.5,
@@ -387,12 +387,12 @@ class TestFinancialPipeline:
         print("✅ Financial pipeline test completed successfully")
 
     def test_fraud_detection_scenarios(
-        self, spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test fraud detection with various suspicious patterns."""
 
         # Create transactions with fraud patterns
-        suspicious_transactions = spark_session.createDataFrame(
+        suspicious_transactions = spark.createDataFrame(
             [
                 (
                     "TXN-001",
@@ -448,7 +448,7 @@ class TestFinancialPipeline:
         )
 
         # Create account data
-        accounts_data = spark_session.createDataFrame(
+        accounts_data = spark.createDataFrame(
             [
                 ("ACC-001", "checking", 1000.00, "active", "2023-01-01"),
                 ("ACC-002", "checking", 5000.00, "active", "2023-01-01"),
@@ -461,10 +461,10 @@ class TestFinancialPipeline:
 
         # Create unique schema for this test
         bronze_schema = get_unique_schema("bronze")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
 
         # Create pipeline
-        builder = PipelineBuilder(spark=spark_session, schema=bronze_schema)
+        builder = PipelineBuilder(spark=spark, schema=bronze_schema)
 
         builder.with_bronze_rules(
             name="transactions", rules={"transaction_id": ["not_null"]}
@@ -548,12 +548,12 @@ class TestFinancialPipeline:
         print("✅ Fraud detection test completed successfully")
 
     def test_compliance_monitoring(
-        self, spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test compliance monitoring and reporting."""
 
         # Create transactions for compliance testing
-        compliance_transactions = spark_session.createDataFrame(
+        compliance_transactions = spark.createDataFrame(
             [
                 (
                     "TXN-001",
@@ -602,10 +602,10 @@ class TestFinancialPipeline:
 
         # Create unique schema for this test
         bronze_schema = get_unique_schema("bronze")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
 
         # Create pipeline
-        builder = PipelineBuilder(spark=spark_session, schema=bronze_schema)
+        builder = PipelineBuilder(spark=spark, schema=bronze_schema)
 
         builder.with_bronze_rules(
             name="transactions", rules={"transaction_id": ["not_null"]}
@@ -681,13 +681,13 @@ class TestFinancialPipeline:
 
     @pytest.mark.sequential
     def test_financial_audit_logging(
-        self, spark_session, data_generator, log_writer_config, test_assertions
+        self, spark, data_generator, log_writer_config, test_assertions
     ):
         """Test comprehensive audit logging for financial pipeline."""
 
         # Create test data
         transactions_df = data_generator.create_financial_transactions(
-            spark_session, num_transactions=50
+            spark, num_transactions=50
         )
 
         # PySpark doesn't need explicit schema creation
@@ -696,16 +696,16 @@ class TestFinancialPipeline:
         # Create unique schemas for this test
         bronze_schema = get_unique_schema("bronze")
         audit_schema = get_unique_schema("audit")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {audit_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {audit_schema}")
 
         # Create LogWriter for audit logging
         LogWriter(
-            spark=spark_session, schema=audit_schema, table_name="financial_audit_logs"
+            spark=spark, schema=audit_schema, table_name="financial_audit_logs"
         )
 
         # Create pipeline
-        builder = PipelineBuilder(spark=spark_session, schema=bronze_schema)
+        builder = PipelineBuilder(spark=spark, schema=bronze_schema)
 
         builder.with_bronze_rules(
             name="transactions", rules={"transaction_id": ["not_null"]}
@@ -759,8 +759,8 @@ class TestFinancialPipeline:
             sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             from test_helpers.isolation import cleanup_test_tables
 
-            cleanup_test_tables(spark_session, bronze_schema)
-            cleanup_test_tables(spark_session, audit_schema)
+            cleanup_test_tables(spark, bronze_schema)
+            cleanup_test_tables(spark, audit_schema)
         except Exception:
             pass  # Ignore cleanup errors
 

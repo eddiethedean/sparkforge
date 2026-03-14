@@ -172,7 +172,7 @@ class TestBaseModel:
 class TestBronzeStep:
     """Test BronzeStep class."""
 
-    def test_bronze_step_creation(self, spark_session):
+    def test_bronze_step_creation(self, spark):
         """Test BronzeStep creation with valid parameters."""
         # Use string rules to avoid SparkContext dependency
         rules = {"id": ["not_null"]}
@@ -188,7 +188,7 @@ class TestBronzeStep:
         assert step.schema == "test_schema"
         assert step.rules is rules  # Check reference equality instead of value equality
 
-    def test_bronze_step_creation_minimal(self, spark_session):
+    def test_bronze_step_creation_minimal(self, spark):
         """Test BronzeStep creation with minimal valid parameters."""
         # A BronzeStep must have non-empty rules - this is the core purpose
         # Use string rules to avoid SparkContext dependency

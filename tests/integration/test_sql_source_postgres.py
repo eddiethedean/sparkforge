@@ -9,7 +9,7 @@ Notes:
     - Requires the optional 'sql' extras (sqlalchemy, pandas) and a working
       PostgreSQL toolchain for testing.postgresql (initdb/postgres in PATH).
     - JdbcSource tests require the PostgreSQL JDBC driver on the Spark classpath;
-      use the spark_session_with_pg_jdbc fixture (driver is added via
+      use the spark_with_pg_jdbc fixture (driver is added via
       spark.jars.packages in conftest).
 """
 
@@ -129,7 +129,7 @@ class TestSqlAlchemySourcePostgres:
     """Exercise SqlAlchemySource + read_sql_source against real PostgreSQL."""
 
     def test_read_sqlalchemy_table_from_postgres(
-        self, postgres_engine: Engine, spark_session
+        self, postgres_engine: Engine, spark
     ) -> None:
         """SqlAlchemySource(table=...) reads all rows from PostgreSQL."""
         _create_orders_table(postgres_engine)
@@ -138,7 +138,7 @@ class TestSqlAlchemySourcePostgres:
         url = str(postgres_engine.url)
         source = SqlAlchemySource(url=url, table="orders", schema="public")
 
-        df = read_sql_source(source, spark_session)
+        df = read_sql_source(source, spark)
 
         # Expect 3 rows and required columns
         assert df.count() == 3
@@ -146,7 +146,7 @@ class TestSqlAlchemySourcePostgres:
         assert {"id", "customer", "amount"}.issubset(cols)
 
     def test_read_sqlalchemy_query_from_postgres(
-        self, postgres_engine: Engine, spark_session
+        self, postgres_engine: Engine, spark
     ) -> None:
         """SqlAlchemySource(query=...) executes a SELECT against PostgreSQL."""
         _create_orders_table(postgres_engine)
@@ -157,7 +157,7 @@ class TestSqlAlchemySourcePostgres:
             query="SELECT customer, SUM(amount) AS total FROM public.orders GROUP BY customer",
         )
 
-        df = read_sql_source(source, spark_session)
+        df = read_sql_source(source, spark)
 
         # Should aggregate to one row per customer
         rows = df.collect()
@@ -172,7 +172,7 @@ class TestSqlSourceStepsWithPostgres:
     """End-to-end pipeline using with_bronze_sql_source + PostgreSQL."""
 
     def test_bronze_sql_source_pipeline_reads_from_postgres(
-        self, postgres_engine: Engine, spark_session
+        self, postgres_engine: Engine, spark
     ) -> None:
         """with_bronze_sql_source uses PostgreSQL as the backing source."""
         from pipeline_builder import PipelineBuilder
@@ -183,12 +183,12 @@ class TestSqlSourceStepsWithPostgres:
         url = str(postgres_engine.url)
 
         # Ensure engine is configured for this Spark session
-        configure_engine(spark=spark_session)
+        configure_engine(spark=spark)
         F = get_default_functions()
 
         source = SqlAlchemySource(url=url, table="orders", schema="public")
 
-        builder = PipelineBuilder(spark=spark_session, schema="pg_sql_source")
+        builder = PipelineBuilder(spark=spark, schema="pg_sql_source")
         builder.with_bronze_sql_source(
             name="orders_bronze",
             sql_source=source,
@@ -215,7 +215,7 @@ class TestJdbcSourcePostgres:
     """
 
     def test_read_jdbc_table_from_postgres(
-        self, postgres_engine: Engine, spark_session
+        self, postgres_engine: Engine, spark
     ) -> None:
         """JdbcSource(table=...) reads all rows from PostgreSQL via spark.read.jdbc."""
         _create_orders_table(postgres_engine)
@@ -226,12 +226,12 @@ class TestJdbcSourcePostgres:
             properties=properties,
             driver="org.postgresql.Driver",
         )
-        df = read_sql_source(source, spark_session)
+        df = read_sql_source(source, spark)
         assert df.count() == 3
         assert {"id", "customer", "amount"}.issubset(set(df.columns))
 
     def test_read_jdbc_query_from_postgres(
-        self, postgres_engine: Engine, spark_session
+        self, postgres_engine: Engine, spark
     ) -> None:
         """JdbcSource(query=...) runs a subquery against PostgreSQL via JDBC."""
         _create_orders_table(postgres_engine)
@@ -242,7 +242,7 @@ class TestJdbcSourcePostgres:
             properties=properties,
             driver="org.postgresql.Driver",
         )
-        df = read_sql_source(source, spark_session)
+        df = read_sql_source(source, spark)
         rows = df.collect()
         totals_by_customer = {r["customer"]: r["total"] for r in rows}
         assert totals_by_customer["alice"] == 100
@@ -250,7 +250,7 @@ class TestJdbcSourcePostgres:
         assert totals_by_customer["carol"] == 50
 
     def test_bronze_sql_source_pipeline_with_jdbc(
-        self, postgres_engine: Engine, spark_session
+        self, postgres_engine: Engine, spark
     ) -> None:
         """with_bronze_sql_source with JdbcSource reads from PostgreSQL and runs pipeline."""
         from pipeline_builder import PipelineBuilder
@@ -259,7 +259,7 @@ class TestJdbcSourcePostgres:
 
         _create_orders_table(postgres_engine)
         jdbc_url, properties = _jdbc_url_and_properties(postgres_engine)
-        configure_engine(spark=spark_session)
+        configure_engine(spark=spark)
         F = get_default_functions()
         source = JdbcSource(
             url=jdbc_url,
@@ -267,7 +267,7 @@ class TestJdbcSourcePostgres:
             properties=properties,
             driver="org.postgresql.Driver",
         )
-        builder = PipelineBuilder(spark=spark_session, schema="pg_sql_source_jdbc")
+        builder = PipelineBuilder(spark=spark, schema="pg_sql_source_jdbc")
         builder.with_bronze_sql_source(
             name="orders_bronze",
             sql_source=source,

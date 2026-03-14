@@ -16,14 +16,13 @@ import sys
 from pathlib import Path
 from typing import Any, Dict
 
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-else:
-    from pyspark.sql import functions as F
+import pytest
 
 from pipeline_builder.errors import ValidationError
 from pipeline_builder.models import PipelineConfig, ValidationThresholds
+
+# Import F from compatibility layer
+from pipeline_builder.compat import F
 
 # Import SparkForge modules
 

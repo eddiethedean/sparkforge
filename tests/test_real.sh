@@ -1,5 +1,5 @@
 #!/bin/bash
-# Run tests with real Spark
-export SPARK_MODE=real
-echo "🔧 Running tests with REAL Spark"
+# Run tests with PySpark backend
+export SPARKLESS_TEST_MODE=pyspark
+echo "🔧 Running tests with PYSPARK backend"
 python -m pytest "$@"

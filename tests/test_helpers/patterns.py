@@ -45,48 +45,48 @@ def isolated_spark_test(spark: SparkSession, schema_name: Optional[str] = None):
 @contextmanager
 def mock_mode():
     """
-    Context manager to temporarily set SPARK_MODE to mock.
+    Context manager to temporarily set SPARKLESS_TEST_MODE to sparkless.
 
     Example:
         >>> with mock_mode():
-        ...     # Code that requires mock mode
+        ...     # Code that requires sparkless mode
         ...     pass
     """
-    original_mode = os.environ.get("SPARK_MODE")
-    os.environ["SPARK_MODE"] = "mock"
+    original_mode = os.environ.get("SPARKLESS_TEST_MODE")
+    os.environ["SPARKLESS_TEST_MODE"] = "sparkless"
     try:
         yield
     finally:
         if original_mode:
-            os.environ["SPARK_MODE"] = original_mode
-        elif "SPARK_MODE" in os.environ:
-            del os.environ["SPARK_MODE"]
+            os.environ["SPARKLESS_TEST_MODE"] = original_mode
+        elif "SPARKLESS_TEST_MODE" in os.environ:
+            del os.environ["SPARKLESS_TEST_MODE"]
 
 
 @contextmanager
 def real_mode():
     """
-    Context manager to temporarily set SPARK_MODE to real.
+    Context manager to temporarily set SPARKLESS_TEST_MODE to pyspark.
 
     Example:
         >>> with real_mode():
-        ...     # Code that requires real Spark
+        ...     # Code that requires real PySpark
         ...     pass
     """
-    original_mode = os.environ.get("SPARK_MODE")
-    os.environ["SPARK_MODE"] = "real"
+    original_mode = os.environ.get("SPARKLESS_TEST_MODE")
+    os.environ["SPARKLESS_TEST_MODE"] = "pyspark"
     try:
         yield
     finally:
         if original_mode:
-            os.environ["SPARK_MODE"] = original_mode
-        elif "SPARK_MODE" in os.environ:
-            del os.environ["SPARK_MODE"]
+            os.environ["SPARKLESS_TEST_MODE"] = original_mode
+        elif "SPARKLESS_TEST_MODE" in os.environ:
+            del os.environ["SPARKLESS_TEST_MODE"]
 
 
 def skip_if_mock(reason: str = "Test requires real Spark"):
     """
-    Decorator to skip test if running in mock mode.
+    Decorator to skip test if running in sparkless mode.
 
     Args:
         reason: Skip reason message
@@ -101,7 +101,7 @@ def skip_if_mock(reason: str = "Test requires real Spark"):
         import pytest
 
         def wrapper(*args, **kwargs):
-            if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+            if os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower() == "sparkless":
                 pytest.skip(reason)
             return func(*args, **kwargs)
 
@@ -110,16 +110,16 @@ def skip_if_mock(reason: str = "Test requires real Spark"):
     return decorator
 
 
-def skip_if_real(reason: str = "Test requires mock Spark"):
+def skip_if_real(reason: str = "Test requires sparkless mode"):
     """
-    Decorator to skip test if running in real mode.
+    Decorator to skip test if running in pyspark mode.
 
     Args:
         reason: Skip reason message
 
     Example:
-        >>> @skip_if_real("This test requires mock Spark")
-        ... def test_mock_spark_feature():
+        >>> @skip_if_real("This test requires sparkless mode")
+        ... def test_sparkless_feature():
         ...     pass
     """
 
@@ -127,7 +127,7 @@ def skip_if_real(reason: str = "Test requires mock Spark"):
         import pytest
 
         def wrapper(*args, **kwargs):
-            if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+            if os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower() == "pyspark":
                 pytest.skip(reason)
             return func(*args, **kwargs)
 
@@ -138,13 +138,13 @@ def skip_if_real(reason: str = "Test requires mock Spark"):
 
 def parametrize_spark_mode():
     """
-    Pytest parametrize decorator for running tests in both mock and real modes.
+    Pytest parametrize decorator for running tests in both sparkless and pyspark modes.
 
     Example:
         >>> @parametrize_spark_mode()
         ... def test_something(spark_mode):
-        ...     assert spark_mode in ["mock", "real"]
+        ...     assert spark_mode in ["sparkless", "pyspark"]
     """
     import pytest
 
-    return pytest.mark.parametrize("spark_mode", ["mock", "real"])
+    return pytest.mark.parametrize("spark_mode", ["sparkless", "pyspark"])

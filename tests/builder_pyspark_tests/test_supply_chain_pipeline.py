@@ -10,12 +10,6 @@ import os
 
 import pytest
 
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql import functions as F
-else:
-    from sparkless.sql import functions as F  # type: ignore[import]
-
-
 from pipeline_builder.pipeline import PipelineBuilder
 import sys
 
@@ -28,27 +22,28 @@ class TestSupplyChainPipeline:
 
     @pytest.mark.sequential
     def test_complete_supply_chain_pipeline_execution(
-        self, spark_session, data_generator, test_assertions
+        self, spark, spark_imports, data_generator, test_assertions
     ):
         """Test complete supply chain pipeline: orders → shipments → logistics insights."""
+        F = spark_imports.F
 
         # Create realistic supply chain data
         orders_df = data_generator.create_supply_chain_orders(
-            spark_session, num_orders=80
+            spark, num_orders=80
         )
         shipments_df = data_generator.create_supply_chain_shipments(
-            spark_session, num_shipments=100
+            spark, num_shipments=100
         )
         inventory_df = data_generator.create_supply_chain_inventory(
-            spark_session, num_items=150
+            spark, num_items=150
         )
         # Use get_unique_schema for proper concurrent testing isolation (includes worker ID)
         unique_schema = get_unique_schema("bronze")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema=unique_schema,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
@@ -445,25 +440,27 @@ class TestSupplyChainPipeline:
             sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             from test_helpers.isolation import cleanup_test_tables
 
-            cleanup_test_tables(spark_session, unique_schema)
+            cleanup_test_tables(spark, unique_schema)
         except Exception:
             pass  # Ignore cleanup errors
 
     def test_incremental_supply_chain_processing(
-        self, spark_session, data_generator, test_assertions
+        self, spark, spark_imports, data_generator, test_assertions
     ):
         """Test incremental processing of new supply chain data."""
+        F = spark_imports.F
+
         # Create initial data
         orders_initial = data_generator.create_supply_chain_orders(
-            spark_session, num_orders=30
+            spark, num_orders=30
         )
         # Use get_unique_schema for proper concurrent testing isolation (includes worker ID)
         unique_schema = get_unique_schema("bronze")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema=unique_schema,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
@@ -507,7 +504,7 @@ class TestSupplyChainPipeline:
 
         # Incremental load with new orders
         orders_incremental = data_generator.create_supply_chain_orders(
-            spark_session, num_orders=20
+            spark, num_orders=20
         )
 
         result2 = pipeline.run_incremental(
@@ -519,35 +516,37 @@ class TestSupplyChainPipeline:
 
     @pytest.mark.pyspark
     @pytest.mark.sequential
-    def test_supply_chain_logging(self, spark_session, data_generator, test_assertions):
+    def test_supply_chain_logging(self, spark, spark_imports, spark_mode, data_generator, test_assertions):
         """Test comprehensive logging for supply chain pipeline."""
+        F = spark_imports.F
+
         # Skip if in mock mode (requires real PySpark with Delta Lake)
-        if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
+        if spark_mode == "mock":
             pytest.skip("Requires real PySpark with Delta Lake")
         from pipeline_builder.writer import LogWriter
 
         # Create test data
         orders_df = data_generator.create_supply_chain_orders(
-            spark_session, num_orders=25
+            spark, num_orders=25
         )
         # Use get_unique_schema for proper concurrent testing isolation (includes worker ID)
         unique_schema = get_unique_schema("bronze")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {unique_schema}")
 
         # Create unique schema for this test
         analytics_schema = get_unique_schema("analytics")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {analytics_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {analytics_schema}")
 
         # Create LogWriter
         log_writer = LogWriter(
-            spark=spark_session,
+            spark=spark,
             schema=analytics_schema,
             table_name="supply_chain_logs",
         )
 
         # Create pipeline
         builder = PipelineBuilder(
-            spark=spark_session, schema=unique_schema, verbose=False
+            spark=spark, schema=unique_schema, verbose=False
         )
 
         builder.with_bronze_rules(
@@ -592,6 +591,6 @@ class TestSupplyChainPipeline:
             sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             from test_helpers.isolation import cleanup_test_tables
 
-            cleanup_test_tables(spark_session, analytics_schema)
+            cleanup_test_tables(spark, analytics_schema)
         except Exception:
             pass  # Ignore cleanup errors

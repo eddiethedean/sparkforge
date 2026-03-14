@@ -24,23 +24,23 @@ class TestEcommercePipeline:
     """Test e-commerce order processing pipeline with bronze-silver-gold architecture."""
 
     def test_complete_ecommerce_pipeline_execution(
-        self, spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test complete e-commerce pipeline: orders → customer profiles → sales analytics."""
 
         # Create unique schema for this test
         bronze_schema = get_unique_schema("bronze")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
 
         # Create realistic test data
-        orders_df = data_generator.create_ecommerce_orders(spark_session, num_orders=50)
+        orders_df = data_generator.create_ecommerce_orders(spark, num_orders=50)
         customers_df = data_generator.create_customer_data(
-            spark_session, num_customers=25
+            spark, num_customers=25
         )
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema=bronze_schema,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
@@ -245,22 +245,22 @@ class TestEcommercePipeline:
         print("✅ E-commerce pipeline test completed successfully")
 
     def test_incremental_order_processing(
-        self, spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test incremental processing of new orders."""
 
         # Create unique schema for this test
         bronze_schema = get_unique_schema("bronze")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
 
         # Create initial data
         initial_orders = data_generator.create_ecommerce_orders(
-            spark_session, num_orders=20
+            spark, num_orders=20
         )
-        data_generator.create_customer_data(spark_session, num_customers=10)
+        data_generator.create_customer_data(spark, num_customers=10)
 
         # Create pipeline
-        builder = PipelineBuilder(spark=spark_session, schema=bronze_schema)
+        builder = PipelineBuilder(spark=spark, schema=bronze_schema)
 
         # Bronze layer
         builder.with_bronze_rules(
@@ -301,7 +301,7 @@ class TestEcommercePipeline:
 
         # Create incremental data (new orders)
         new_orders = data_generator.create_ecommerce_orders(
-            spark_session, num_orders=10
+            spark, num_orders=10
         )
 
         # Incremental processing
@@ -312,11 +312,11 @@ class TestEcommercePipeline:
 
         print("✅ Incremental processing test completed successfully")
 
-    def test_validation_failures(self, spark_session, test_assertions):
+    def test_validation_failures(self, spark, test_assertions):
         """Test pipeline behavior with validation failures."""
 
         # Create data with quality issues
-        bad_orders = spark_session.createDataFrame(
+        bad_orders = spark.createDataFrame(
             [
                 (
                     "ORD-001",
@@ -359,11 +359,11 @@ class TestEcommercePipeline:
 
         # Create unique schema for this test
         bronze_schema = get_unique_schema("bronze")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
 
         # Create pipeline with strict validation
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema=bronze_schema,
             min_bronze_rate=100.0,  # Very strict validation
             verbose=True,
@@ -398,26 +398,26 @@ class TestEcommercePipeline:
 
     @pytest.mark.sequential
     def test_logging_and_monitoring(
-        self, spark_session, data_generator, log_writer_config, test_assertions
+        self, spark, data_generator, log_writer_config, test_assertions
     ):
         """Test comprehensive logging and monitoring with LogWriter."""
 
         # Create unique schemas for this test
         bronze_schema = get_unique_schema("bronze")
         analytics_schema = get_unique_schema("analytics")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {analytics_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {analytics_schema}")
 
         # Create test data
-        orders_df = data_generator.create_ecommerce_orders(spark_session, num_orders=30)
+        orders_df = data_generator.create_ecommerce_orders(spark, num_orders=30)
 
         # Create LogWriter
         LogWriter(
-            spark=spark_session, schema=analytics_schema, table_name="pipeline_logs"
+            spark=spark, schema=analytics_schema, table_name="pipeline_logs"
         )
 
         # Create pipeline
-        builder = PipelineBuilder(spark=spark_session, schema=bronze_schema)
+        builder = PipelineBuilder(spark=spark, schema=bronze_schema)
 
         builder.with_bronze_rules(name="orders", rules={"order_id": ["not_null"]})
 
@@ -466,8 +466,8 @@ class TestEcommercePipeline:
             sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             from test_helpers.isolation import cleanup_test_tables
 
-            cleanup_test_tables(spark_session, bronze_schema)
-            cleanup_test_tables(spark_session, analytics_schema)
+            cleanup_test_tables(spark, bronze_schema)
+            cleanup_test_tables(spark, analytics_schema)
         except Exception:
             pass  # Ignore cleanup errors
 

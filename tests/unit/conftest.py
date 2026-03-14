@@ -9,13 +9,12 @@ from unittest.mock import Mock
 
 import pytest
 
-# Use compatibility layer
-from pipeline_builder.compat import DataFrame, F, SparkSession
-
 
 @pytest.fixture
 def mock_spark():
     """Create a mock SparkSession for unit tests."""
+    from pipeline_builder.compat import DataFrame, SparkSession
+
     spark = Mock(spec=SparkSession)
     spark.createDataFrame.return_value = Mock(spec=DataFrame)
     spark.read.format.return_value.load.return_value = Mock(spec=DataFrame)
@@ -27,6 +26,8 @@ def mock_spark():
 @pytest.fixture
 def mock_dataframe():
     """Create a mock DataFrame for unit tests."""
+    from pipeline_builder.compat import DataFrame
+
     df = Mock(spec=DataFrame)
     df.count.return_value = 100
     df.columns = ["id", "name", "value"]
@@ -64,8 +65,9 @@ def mock_pipeline_config():
 
 
 @pytest.fixture
-def sample_validation_rules():
+def sample_validation_rules(spark_imports):
     """Create sample validation rules for unit tests."""
+    F = spark_imports.F
     return {
         "id": [F.col("id").isNotNull()],
         "name": [F.col("name").isNotNull()],

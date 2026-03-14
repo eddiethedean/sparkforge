@@ -19,26 +19,26 @@ class TestMarketingPipeline:
 
     @pytest.mark.sequential
     def test_complete_marketing_pipeline_execution(
-        self, spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test complete marketing pipeline: impressions → clicks → conversions → campaign insights."""
 
         # Create realistic marketing data
         impressions_df = data_generator.create_marketing_impressions(
-            spark_session, num_impressions=150
+            spark, num_impressions=150
         )
-        clicks_df = data_generator.create_marketing_clicks(spark_session, num_clicks=60)
+        clicks_df = data_generator.create_marketing_clicks(spark, num_clicks=60)
         conversions_df = data_generator.create_marketing_conversions(
-            spark_session, num_conversions=40
+            spark, num_conversions=40
         )
 
         # Create unique schema for this test
         bronze_schema = get_unique_schema("bronze")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema=bronze_schema,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
@@ -525,26 +525,26 @@ class TestMarketingPipeline:
             sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             from test_helpers.isolation import cleanup_test_tables
 
-            cleanup_test_tables(spark_session, bronze_schema)
+            cleanup_test_tables(spark, bronze_schema)
         except Exception:
             pass  # Ignore cleanup errors
 
     def test_incremental_marketing_processing(
-        self, spark_session, data_generator, test_assertions
+        self, spark, data_generator, test_assertions
     ):
         """Test incremental processing of new marketing data."""
         # Create initial data
         impressions_initial = data_generator.create_marketing_impressions(
-            spark_session, num_impressions=50
+            spark, num_impressions=50
         )
 
         # Create unique schema for this test
         bronze_schema = get_unique_schema("bronze")
-        spark_session.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
+        spark.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_schema}")
 
         # Create pipeline builder
         builder = PipelineBuilder(
-            spark=spark_session,
+            spark=spark,
             schema=bronze_schema,
             min_bronze_rate=95.0,
             min_silver_rate=98.0,
@@ -588,7 +588,7 @@ class TestMarketingPipeline:
 
         # Incremental load with new impressions
         impressions_incremental = data_generator.create_marketing_impressions(
-            spark_session, num_impressions=30
+            spark, num_impressions=30
         )
 
         result2 = pipeline.run_incremental(
@@ -606,6 +606,6 @@ class TestMarketingPipeline:
             sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             from test_helpers.isolation import cleanup_test_tables
 
-            cleanup_test_tables(spark_session, bronze_schema)
+            cleanup_test_tables(spark, bronze_schema)
         except Exception:
             pass  # Ignore cleanup errors

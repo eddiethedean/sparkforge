@@ -5,22 +5,10 @@ This module tests all execution engine functionality including step execution,
 pipeline execution, error handling, and various execution modes.
 """
 
-import os
 from datetime import datetime
 from unittest.mock import patch
 
 import pytest
-
-# Import types based on SPARK_MODE
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql.types import IntegerType, StringType, StructField, StructType
-else:
-    from sparkless.spark_types import (  # type: ignore[import]
-        IntegerType,
-        StructField,
-        StructType,
-        StringType,
-    )
 
 from pipeline_builder.errors import ExecutionError
 from pipeline_builder.execution import (
@@ -37,16 +25,6 @@ from pipeline_builder.models import (
     PipelineConfig,
     ValidationThresholds,
 )
-
-# Use mock functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless.sql import functions as F  # type: ignore[import]
-
-    MockF = F
-else:
-    from pyspark.sql import functions as F
-
-    MockF = None
 
 
 class TestExecutionMode:
@@ -235,21 +213,23 @@ class TestExecutionResult:
 class TestExecutionEngineInitialization:
     """Test ExecutionEngine initialization."""
 
-    def test_execution_engine_initialization(self, spark_session):
+    def test_execution_engine_initialization(self, spark, spark_imports):
         """Test basic ExecutionEngine initialization."""
+        F = spark_imports.F
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
 
-        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
+        engine = ExecutionEngine(spark=spark, config=config, functions=F)
 
-        assert engine.spark == spark_session
+        assert engine.spark == spark
         assert engine.config == config
         assert isinstance(engine.logger, PipelineLogger)
 
-    def test_execution_engine_with_custom_logger(self, spark_session):
+    def test_execution_engine_with_custom_logger(self, spark, spark_imports):
         """Test ExecutionEngine with custom logger."""
+        F = spark_imports.F
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
@@ -257,25 +237,26 @@ class TestExecutionEngineInitialization:
         custom_logger = PipelineLogger()
 
         engine = ExecutionEngine(
-            spark=spark_session, config=config, logger=custom_logger, functions=MockF
+            spark=spark, config=config, logger=custom_logger, functions=F
         )
 
-        assert engine.spark == spark_session
+        assert engine.spark == spark
         assert engine.config == config
         assert engine.logger == custom_logger
 
-    def test_execution_engine_with_none_logger(self, spark_session):
+    def test_execution_engine_with_none_logger(self, spark, spark_imports):
         """Test ExecutionEngine with None logger creates default."""
+        F = spark_imports.F
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
 
         engine = ExecutionEngine(
-            spark=spark_session, config=config, logger=None, functions=MockF
+            spark=spark, config=config, logger=None, functions=F
         )
 
-        assert engine.spark == spark_session
+        assert engine.spark == spark
         assert engine.config == config
         assert isinstance(engine.logger, PipelineLogger)
 
@@ -283,13 +264,19 @@ class TestExecutionEngineInitialization:
 class TestExecuteStep:
     """Test execute_step method."""
 
-    def test_execute_bronze_step_success(self, spark_session):
+    def test_execute_bronze_step_success(self, spark, spark_imports):
         """Test successful bronze step execution."""
+        F = spark_imports.F
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
+        StringType = spark_imports.StringType
+
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
+        engine = ExecutionEngine(spark=spark, config=config, functions=F)
 
         # Create test data
         schema = StructType(
@@ -299,7 +286,7 @@ class TestExecuteStep:
             ]
         )
         test_data = [{"id": 1, "name": "test1"}, {"id": 2, "name": "test2"}]
-        test_df = spark_session.createDataFrame(test_data, schema)
+        test_df = spark.createDataFrame(test_data, schema)
 
         # Create bronze step
         bronze_step = BronzeStep(name="test_bronze", rules={"id": ["not_null"]})
@@ -317,13 +304,14 @@ class TestExecuteStep:
         assert result.rows_processed == 2
         assert result.output_table is None  # Bronze steps don't write to tables
 
-    def test_execute_step_unknown_step_type(self, spark_session):
+    def test_execute_step_unknown_step_type(self, spark, spark_imports):
         """Test execute_step with unknown step type."""
+        F = spark_imports.F
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
+        engine = ExecutionEngine(spark=spark, config=config, functions=F)
 
         # Create mock step with unknown type
         class UnknownStep:
@@ -336,13 +324,14 @@ class TestExecuteStep:
         with pytest.raises(ValueError, match="Unknown step type"):
             engine.execute_step(unknown_step, context, ExecutionMode.INITIAL)
 
-    def test_execute_bronze_step_missing_context(self, spark_session):
+    def test_execute_bronze_step_missing_context(self, spark, spark_imports):
         """Test bronze step execution with missing context data."""
+        F = spark_imports.F
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
+        engine = ExecutionEngine(spark=spark, config=config, functions=F)
 
         bronze_step = BronzeStep(name="test_bronze", rules={"id": ["not_null"]})
         context = {}  # Empty context
@@ -356,13 +345,14 @@ class TestExecuteStep:
 class TestExecutePipeline:
     """Test execute_pipeline method."""
 
-    def test_execute_pipeline_with_none_context(self, spark_session):
+    def test_execute_pipeline_with_none_context(self, spark, spark_imports):
         """Test pipeline execution with None context."""
+        F = spark_imports.F
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
+        engine = ExecutionEngine(spark=spark, config=config, functions=F)
 
         bronze_step = BronzeStep(name="test_bronze", rules={"id": ["not_null"]})
 
@@ -377,13 +367,14 @@ class TestExecutePipeline:
         assert len(result.steps) == 1
         assert result.steps[0].status == StepStatus.FAILED
 
-    def test_execute_pipeline_invalid_context_type(self, spark_session):
+    def test_execute_pipeline_invalid_context_type(self, spark, spark_imports):
         """Test pipeline execution with invalid context type."""
+        F = spark_imports.F
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
+        engine = ExecutionEngine(spark=spark, config=config, functions=F)
 
         bronze_step = BronzeStep(name="test_bronze", rules={"id": ["not_null"]})
 
@@ -398,13 +389,14 @@ class TestExecutePipeline:
                 context="invalid_context",  # String instead of dict
             )
 
-    def test_execute_pipeline_empty_steps(self, spark_session):
+    def test_execute_pipeline_empty_steps(self, spark, spark_imports):
         """Test pipeline execution with empty steps list."""
+        F = spark_imports.F
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
+        engine = ExecutionEngine(spark=spark, config=config, functions=F)
 
         # Execute pipeline with empty steps
         result = engine.execute_pipeline(
@@ -418,13 +410,19 @@ class TestExecutePipeline:
 class TestPrivateMethods:
     """Test private execution methods."""
 
-    def test_execute_bronze_step_empty_dataframe(self, spark_session):
+    def test_execute_bronze_step_empty_dataframe(self, spark, spark_imports):
         """Test bronze step execution with empty DataFrame."""
+        F = spark_imports.F
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
+        StringType = spark_imports.StringType
+
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
+        engine = ExecutionEngine(spark=spark, config=config, functions=F)
 
         # Create empty DataFrame
         schema = StructType(
@@ -433,7 +431,7 @@ class TestPrivateMethods:
                 StructField("name", StringType()),
             ]
         )
-        empty_df = spark_session.createDataFrame([], schema)
+        empty_df = spark.createDataFrame([], schema)
 
         bronze_step = BronzeStep(name="test_bronze", rules={"id": ["not_null"]})
         context = {"test_bronze": empty_df}
@@ -464,13 +462,19 @@ class TestBackwardCompatibility:
 class TestExecutionIntegration:
     """Test execution engine integration scenarios."""
 
-    def test_different_execution_modes(self, spark_session):
+    def test_different_execution_modes(self, spark, spark_imports):
         """Test different execution modes."""
+        F = spark_imports.F
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
+        StringType = spark_imports.StringType
+
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
+        engine = ExecutionEngine(spark=spark, config=config, functions=F)
 
         # Create test data
         schema = StructType(
@@ -480,7 +484,7 @@ class TestExecutionIntegration:
             ]
         )
         test_data = [{"id": 1, "name": "test1"}]
-        test_df = spark_session.createDataFrame(test_data, schema)
+        test_df = spark.createDataFrame(test_data, schema)
 
         bronze_step = BronzeStep(name="test_bronze", rules={"id": ["not_null"]})
         context = {"test_bronze": test_df}
@@ -491,13 +495,19 @@ class TestExecutionIntegration:
             assert result.status == StepStatus.COMPLETED
             assert result.step_name == "test_bronze"
 
-    def test_logging_integration(self, spark_session):
+    def test_logging_integration(self, spark, spark_imports):
         """Test logging integration during execution."""
+        F = spark_imports.F
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
+        StringType = spark_imports.StringType
+
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
-        engine = ExecutionEngine(spark=spark_session, config=config, functions=MockF)
+        engine = ExecutionEngine(spark=spark, config=config, functions=F)
 
         # Create test data
         schema = StructType(
@@ -507,7 +517,7 @@ class TestExecutionIntegration:
             ]
         )
         test_data = [{"id": 1, "name": "test1"}]
-        test_df = spark_session.createDataFrame(test_data, schema)
+        test_df = spark.createDataFrame(test_data, schema)
 
         bronze_step = BronzeStep(name="test_bronze", rules={"id": ["not_null"]})
         context = {"test_bronze": test_df}

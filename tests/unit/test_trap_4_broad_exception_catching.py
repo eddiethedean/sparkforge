@@ -21,11 +21,11 @@ from pipeline_builder.writer.storage import StorageManager
 class TestTrap4BroadExceptionCatching:
     """Test that writer components raise specific exceptions instead of generic responses."""
 
-    def test_core_writer_raises_specific_exceptions(self, spark_session):
+    def test_core_writer_raises_specific_exceptions(self, spark):
         """Test that LogWriter raises WriterError instead of returning generic responses."""
         # Create LogWriter
         writer = LogWriter(
-            spark=spark_session,
+            spark=spark,
             schema="test_schema",
             table_name="test_logs",
         )
@@ -45,10 +45,10 @@ class TestTrap4BroadExceptionCatching:
             assert "Failed to get table info" in error_msg
             assert "Database connection failed" in error_msg
 
-    def test_core_writer_analytics_raises_specific_exceptions(self, spark_session):
+    def test_core_writer_analytics_raises_specific_exceptions(self, spark):
         """Test that analytics methods raise WriterError instead of returning generic responses."""
         writer = LogWriter(
-            spark=spark_session,
+            spark=spark,
             schema="test_schema",
             table_name="test_logs",
         )
@@ -67,14 +67,14 @@ class TestTrap4BroadExceptionCatching:
             assert "Failed to analyze quality trends" in error_msg
             assert "Query failed" in error_msg
 
-    def test_storage_manager_raises_specific_exceptions(self, spark_session):
+    def test_storage_manager_raises_specific_exceptions(self, spark):
         """Test that StorageManager raises WriterTableError (patch abstraction, not spark.sql)."""
         config = WriterConfig(
             table_schema="test_schema",
             table_name="test_logs",
         )
         storage = StorageManager(
-            spark=spark_session,
+            spark=spark,
             config=config,
         )
 
@@ -91,21 +91,18 @@ class TestTrap4BroadExceptionCatching:
             assert "Failed to get table info for test_schema.test_logs" in error_msg
             assert "Failed to get table info" in error_msg
 
-    def test_analytics_raises_specific_exceptions(self, spark_session):
+    def test_analytics_raises_specific_exceptions(self, spark, spark_imports):
         """Test that DataQualityAnalyzer raises WriterError (patch abstraction, not df.count)."""
-        import os
-
-        if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-            from sparkless.spark_types import StringType, StructField, StructType  # type: ignore[import]
-        else:
-            from pyspark.sql.types import StringType, StructField, StructType
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        StringType = spark_imports.StringType
 
         analyzer = DataQualityAnalyzer(
-            spark=spark_session,
+            spark=spark,
             logger=Mock(),
         )
         schema = StructType([StructField("test_col", StringType(), True)])
-        mock_df = spark_session.createDataFrame([], schema)
+        mock_df = spark.createDataFrame([], schema)
 
         # Patch the query builder so we don't patch read-only DataFrame.count
         with patch(
@@ -118,10 +115,10 @@ class TestTrap4BroadExceptionCatching:
             error_msg = str(excinfo.value)
             assert "Failed to analyze quality trends" in error_msg
 
-    def test_monitoring_raises_specific_exceptions(self, spark_session):
+    def test_monitoring_raises_specific_exceptions(self, spark):
         """Test that PerformanceMonitor raises WriterError instead of returning generic responses."""
         monitor = PerformanceMonitor(
-            spark=spark_session,
+            spark=spark,
             logger=Mock(),
         )
 
@@ -137,10 +134,10 @@ class TestTrap4BroadExceptionCatching:
             assert "Failed to get memory usage" in error_msg
             assert "Memory info unavailable" in error_msg
 
-    def test_exception_chaining_preserves_original_error(self, spark_session):
+    def test_exception_chaining_preserves_original_error(self, spark):
         """Test that exceptions are properly chained to preserve the original error."""
         writer = LogWriter(
-            spark=spark_session,
+            spark=spark,
             schema="test_schema",
             table_name="test_logs",
         )
@@ -157,10 +154,10 @@ class TestTrap4BroadExceptionCatching:
             assert excinfo.value.__cause__ is original_error
             assert "Original database error" in str(excinfo.value)
 
-    def test_no_generic_error_responses_returned(self, spark_session):
+    def test_no_generic_error_responses_returned(self, spark):
         """Test that no methods return generic error responses."""
         writer = LogWriter(
-            spark=spark_session,
+            spark=spark,
             schema="test_schema",
             table_name="test_logs",
         )
@@ -192,10 +189,10 @@ class TestTrap4BroadExceptionCatching:
                 with pytest.raises(WriterError):
                     writer.generate_performance_report()
 
-    def test_error_logging_before_raising(self, spark_session):
+    def test_error_logging_before_raising(self, spark):
         """Test that errors are logged before raising exceptions."""
         writer = LogWriter(
-            spark=spark_session,
+            spark=spark,
             schema="test_schema",
             table_name="test_logs",
         )

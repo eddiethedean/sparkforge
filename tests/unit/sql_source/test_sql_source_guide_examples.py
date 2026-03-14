@@ -5,17 +5,12 @@ These tests ensure all guide examples are valid and executable (with mock Spark
 and patched SQL reader where needed).
 """
 
-import os
 from unittest.mock import patch
+
+import pytest
 
 from pipeline_builder import PipelineBuilder
 from pipeline_builder.sql_source import JdbcSource, SqlAlchemySource
-
-spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-if spark_mode == "real":
-    from pyspark.sql import functions as F
-else:
-    from sparkless.sql import functions as F  # type: ignore[import]
 
 
 class TestGuideJdbcSourceExamples:
@@ -61,7 +56,7 @@ class TestGuideSqlAlchemySourceExamples:
 class TestGuideBuilderExamples:
     """Run builder examples from the guide (build only, no DB)."""
 
-    def test_complete_example_builds_pipeline(self, mock_spark_session):
+    def test_complete_example_builds_pipeline(self, spark):
         # Exact code from "Complete Example: JDBC Bronze, Silver, and Gold"
         # Engine is already configured by conftest in test env
         from pipeline_builder.functions import get_default_functions
@@ -74,7 +69,7 @@ class TestGuideBuilderExamples:
             properties={"user": "etl", "password": "secret"},
         )
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="analytics")
+        builder = PipelineBuilder(spark=spark, schema="analytics")
         builder.with_bronze_sql_source(
             name="orders",
             sql_source=orders_source,
@@ -119,10 +114,12 @@ class TestGuideBuilderExamples:
         assert runner is not None
         assert len(runner.execution_order) == 3
 
-    def test_silver_string_rules_example(self, mock_spark_session):
+    def test_silver_string_rules_example(self, spark, spark_imports):
         # From guide: String rules example
+        F = spark_imports.F
+        
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="analytics", functions=F
+            spark=spark, schema="analytics", functions=F
         )
         inventory_source = JdbcSource(
             url="jdbc:postgresql://dbhost:5432/warehouse",
@@ -140,10 +137,12 @@ class TestGuideBuilderExamples:
         )
         assert "inventory_snapshot" in builder.silver_steps
 
-    def test_use_case_1_build(self, mock_spark_session):
+    def test_use_case_1_build(self, spark, spark_imports):
         # Use Case 1: Bronze from DB + silver/gold transforms (build only)
+        F = spark_imports.F
+        
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="analytics", functions=F
+            spark=spark, schema="analytics", functions=F
         )
         orders_source = JdbcSource(
             url="jdbc:postgresql://dbhost:5432/warehouse",
@@ -160,7 +159,7 @@ class TestGuideBuilderExamples:
             incremental_col="updated_at",
         )
 
-        def clean_orders_transform(spark, bronze_df, prior_silvers):
+        def clean_orders_transform(spark_session, bronze_df, prior_silvers):
             return bronze_df.filter(F.col("amount") > 0)
 
         builder.add_silver_transform(
@@ -174,7 +173,7 @@ class TestGuideBuilderExamples:
             table_name="clean_orders",
         )
 
-        def revenue_transform(spark, silvers):
+        def revenue_transform(spark_session, silvers):
             return (
                 silvers["clean_orders"]
                 .groupBy("order_id")
@@ -195,8 +194,10 @@ class TestGuideBuilderExamples:
         runner = builder.to_pipeline()
         assert len(runner.execution_order) == 3
 
-    def test_use_case_3_mixed_build(self, mock_spark_session):
+    def test_use_case_3_mixed_build(self, spark, spark_imports):
         # Use Case 3: Mixed SQL and in-memory (build only)
+        F = spark_imports.F
+        
         orders_jdbc = JdbcSource(
             url="jdbc:postgresql://dbhost:5432/warehouse",
             table="orders",
@@ -209,7 +210,7 @@ class TestGuideBuilderExamples:
         )
 
         builder = PipelineBuilder(
-            spark=mock_spark_session, schema="analytics", functions=F
+            spark=spark, schema="analytics", functions=F
         )
         builder.with_bronze_sql_source(
             name="orders",
@@ -230,7 +231,7 @@ class TestGuideBuilderExamples:
         builder.add_silver_transform(
             name="clean_events",
             source_bronze="events",
-            transform=lambda spark, df, silvers: df,
+            transform=lambda spark_session, df, silvers: df,
             rules={"event_id": [F.col("event_id").isNotNull()]},
             table_name="clean_events",
         )
@@ -242,7 +243,7 @@ class TestGuideBuilderExamples:
 class TestGuideCompleteExampleRun:
     """Run the complete example through run_initial_load with mocked reader."""
 
-    def test_complete_example_run_initial_load(self, mock_spark_session):
+    def test_complete_example_run_initial_load(self, spark):
         # Build and run the complete example; reader is patched to return mock DataFrames
         # Engine is already configured by conftest in test env
         from pipeline_builder.functions import get_default_functions
@@ -250,13 +251,13 @@ class TestGuideCompleteExampleRun:
         F_local = get_default_functions()
 
         # Create mock DataFrames that match the expected schemas
-        orders_df = mock_spark_session.createDataFrame(
+        orders_df = spark.createDataFrame(
             [(1, 100.0), (2, 200.0)], ["order_id", "amount"]
         )
-        inventory_df = mock_spark_session.createDataFrame(
+        inventory_df = spark.createDataFrame(
             [("SKU1", 10), ("SKU2", 20)], ["sku", "qty"]
         )
-        revenue_df = mock_spark_session.createDataFrame(
+        revenue_df = spark.createDataFrame(
             [("North", 500.0), ("South", 300.0)], ["region", "revenue"]
         )
 
@@ -288,7 +289,7 @@ class TestGuideCompleteExampleRun:
             properties={"user": "etl", "password": "secret"},
         )
 
-        builder = PipelineBuilder(spark=mock_spark_session, schema="analytics")
+        builder = PipelineBuilder(spark=spark, schema="analytics")
         builder.with_bronze_sql_source(
             name="orders",
             sql_source=orders_source,

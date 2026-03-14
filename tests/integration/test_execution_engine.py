@@ -26,7 +26,7 @@ from pipeline_builder.models import BronzeStep, GoldStep, PipelineConfig, Silver
 
 
 @pytest.fixture(scope="function", autouse=True)
-def reset_test_environment(spark_session):
+def reset_test_environment(spark):
     """Reset test environment before each test in this file."""
     import gc
 
@@ -289,7 +289,7 @@ class TestExecutionEngine:
         test scenarios (e.g., mocking read.format().load()).
 
         For tests that want interchangeable behavior (works with both mock-spark
-        and PySpark), use the `spark_session` fixture instead.
+        and PySpark), use the `spark` fixture instead.
 
         This fixture is kept for backward compatibility with tests that need
         specific Mock behavior.
@@ -318,7 +318,7 @@ class TestExecutionEngine:
         return logger
 
     @pytest.fixture
-    def sample_bronze_step(self, spark_session):
+    def sample_bronze_step(self, spark):
         """Create a sample BronzeStep."""
         return BronzeStep(
             name="test_bronze",
@@ -328,7 +328,7 @@ class TestExecutionEngine:
         )
 
     @pytest.fixture
-    def sample_silver_step(self, spark_session):
+    def sample_silver_step(self, spark):
         """Create a sample SilverStep."""
         return SilverStep(
             name="test_silver",
@@ -340,7 +340,7 @@ class TestExecutionEngine:
         )
 
     @pytest.fixture
-    def sample_gold_step(self, spark_session):
+    def sample_gold_step(self, spark):
         """Create a sample GoldStep."""
         return GoldStep(
             name="test_gold",
@@ -541,7 +541,7 @@ class TestExecutionEngine:
         assert result_df == mock_df
 
     def test_execute_step_silver_without_dependencies(
-        self, mock_spark, mock_config, spark_session
+        self, mock_spark, mock_config, spark
     ):
         """Test silver step creation without valid dependencies should fail."""
         # A SilverStep without a valid source_bronze is logically invalid
@@ -571,7 +571,7 @@ class TestExecutionEngine:
             engine.execute_step(sample_silver_step, {}, ExecutionMode.INITIAL)
 
     def test_execute_step_silver_without_transform(
-        self, mock_spark, mock_config, spark_session
+        self, mock_spark, mock_config, spark
     ):
         """Test silver step creation without transform function should fail."""
         # A SilverStep without a transform function is logically invalid
@@ -591,7 +591,7 @@ class TestExecutionEngine:
             )
 
     def test_execute_step_gold_without_dependencies(
-        self, mock_spark, mock_config, spark_session
+        self, mock_spark, mock_config, spark
     ):
         """Test gold step creation without valid dependencies should fail."""
         # A GoldStep without valid source_silvers is logically invalid
@@ -622,7 +622,7 @@ class TestExecutionEngine:
             engine.execute_step(sample_gold_step, {}, ExecutionMode.INITIAL)
 
     def test_execute_step_gold_without_transform(
-        self, mock_spark, mock_config, spark_session
+        self, mock_spark, mock_config, spark
     ):
         """Test gold step creation without transform function should fail."""
         # A GoldStep without a transform function is logically invalid
@@ -732,12 +732,12 @@ class TestExecutionEngine:
             assert result.error is None
 
     def test_execute_pipeline_failure(
-        self, mock_spark, mock_config, sample_bronze_step, spark_session
+        self, mock_spark, mock_config, sample_bronze_step, spark, spark_imports
     ):
         """Test pipeline execution failure."""
-        # Always use spark_session (works with both mock-spark and PySpark)
+        # Always use spark (works with both mock-spark and PySpark)
         # mock_spark is a Mock object and doesn't work properly
-        engine = ExecutionEngine(spark_session, mock_config)
+        engine = ExecutionEngine(spark, mock_config)
 
         # Create a step that will fail by having invalid rules
         failing_step = BronzeStep(
@@ -748,30 +748,18 @@ class TestExecutionEngine:
         )
 
         # Provide data in context for bronze step
-        if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-            # Use real DataFrame for PySpark
-            from pyspark.sql.types import StructType, StructField, StringType
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        StringType = spark_imports.StringType
 
-            schema = StructType(
-                [
-                    StructField("id", StringType(), True),
-                    StructField("timestamp", StringType(), True),
-                ]
-            )
-            real_df = spark_session.createDataFrame([("1", "2024-01-01")], schema)
-            context = {"failing_step": real_df}
-        else:
-            # Use real sparkless DataFrame instead of Mock object
-            from sparkless.spark_types import StructType, StructField, StringType  # type: ignore[import]
-
-            schema = StructType(
-                [
-                    StructField("id", StringType(), True),
-                    StructField("timestamp", StringType(), True),
-                ]
-            )
-            mock_df = spark_session.createDataFrame([("1", "2024-01-01")], schema)
-            context = {"failing_step": mock_df}
+        schema = StructType(
+            [
+                StructField("id", StringType(), True),
+                StructField("timestamp", StringType(), True),
+            ]
+        )
+        df = spark.createDataFrame([("1", "2024-01-01")], schema)
+        context = {"failing_step": df}
 
         result = engine.execute_pipeline(
             [failing_step], ExecutionMode.INITIAL, context=context
@@ -792,7 +780,7 @@ class TestExecutionEngine:
         )
 
     def test_execute_pipeline_with_different_step_types(
-        self, mock_spark, mock_config, spark_session
+        self, mock_spark, mock_config, spark
     ):
         """Test pipeline execution with different step types."""
         # Create steps of different types

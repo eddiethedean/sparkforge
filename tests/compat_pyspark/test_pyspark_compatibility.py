@@ -16,10 +16,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from tests.test_helpers.isolation import get_unique_schema
 
 
-@pytest.fixture(scope="module")
-def pyspark_available():
-    """Check if PySpark is available when SPARK_MODE=real; no-op in mock mode."""
-    if os.environ.get("SPARK_MODE", "mock").lower() != "real":
+@pytest.fixture(scope="function")
+def pyspark_available(spark_mode):
+    """Check if PySpark is available when SPARKLESS_TEST_MODE=pyspark; no-op in sparkless mode."""
+    from sparkless.testing import Mode
+    if spark_mode != Mode.PYSPARK:
         return True
     try:
         import importlib.util
@@ -36,9 +37,10 @@ def pyspark_available():
 
 
 @pytest.fixture(scope="function")
-def setup_pyspark_engine():
-    """Set up PySpark as the engine when SPARK_MODE=real; no-op in mock mode."""
-    if os.environ.get("SPARK_MODE", "mock").lower() != "real":
+def setup_pyspark_engine(spark_mode):
+    """Set up PySpark as the engine when SPARKLESS_TEST_MODE=pyspark; no-op in sparkless mode."""
+    from sparkless.testing import Mode
+    if spark_mode != Mode.PYSPARK:
         yield
         return
     from pipeline_builder.engine_config import configure_engine, get_engine
@@ -96,11 +98,10 @@ class TestPySparkCompatibility:
     """Test suite for PySpark compatibility."""
 
     @pytest.mark.sequential
-    def test_pyspark_engine_detection(self, pyspark_available, setup_pyspark_engine):
+    def test_pyspark_engine_detection(self, pyspark_available, setup_pyspark_engine, spark_mode):
         """Test that engine matches SPARK_MODE (pyspark or mock/unknown)."""
         from pipeline_builder.compat import compat_name, is_mock_spark
 
-        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             assert compat_name() == "pyspark"
             assert not is_mock_spark()
@@ -109,12 +110,11 @@ class TestPySparkCompatibility:
             if compat_name() == "mock":
                 assert is_mock_spark()
 
-    @pytest.mark.skipif(
-        os.environ.get("SPARK_MODE", "mock").lower() != "real",
-        reason="Requires real PySpark session",
-    )
-    def test_pyspark_imports(self, pyspark_available, setup_pyspark_engine):
+    @pytest.mark.real_spark
+    def test_pyspark_imports(self, pyspark_available, setup_pyspark_engine, spark_mode):
         """Test that PySpark imports work through compat layer."""
+        if spark_mode != "real":
+            pytest.skip("Requires real PySpark session")
         from pipeline_builder.compat import Column, DataFrame, SparkSession
 
         # Verify these are PySpark types
@@ -122,14 +122,13 @@ class TestPySparkCompatibility:
         assert "pyspark" in str(SparkSession)
         assert "pyspark" in str(Column)
 
-    @pytest.mark.skipif(
-        os.environ.get("SPARK_MODE", "mock").lower() != "real",
-        reason="Requires real PySpark session",
-    )
+    @pytest.mark.real_spark
     def test_pyspark_dataframe_operations(
-        self, pyspark_available, setup_pyspark_engine
+        self, pyspark_available, setup_pyspark_engine, spark_mode
     ):
         """Test basic DataFrame operations with PySpark."""
+        if spark_mode != "real":
+            pytest.skip("Requires real PySpark session")
         from pyspark.sql import SparkSession
 
         from pipeline_builder.compat import F
@@ -156,12 +155,11 @@ class TestPySparkCompatibility:
 
         spark.stop()
 
-    @pytest.mark.skipif(
-        os.environ.get("SPARK_MODE", "mock").lower() != "real",
-        reason="Requires real PySpark session",
-    )
-    def test_pyspark_pipeline_building(self, pyspark_available, setup_pyspark_engine):
+    @pytest.mark.real_spark
+    def test_pyspark_pipeline_building(self, pyspark_available, setup_pyspark_engine, spark_mode):
         """Test that PipelineBuilder works with PySpark."""
+        if spark_mode != "real":
+            pytest.skip("Requires real PySpark session")
         from pyspark.sql import SparkSession
 
         from pipeline_builder import PipelineBuilder
@@ -189,12 +187,11 @@ class TestPySparkCompatibility:
 
         spark.stop()
 
-    @pytest.mark.skipif(
-        os.environ.get("SPARK_MODE", "mock").lower() != "real",
-        reason="Requires real PySpark session",
-    )
-    def test_pyspark_validation(self, pyspark_available, setup_pyspark_engine):
+    @pytest.mark.real_spark
+    def test_pyspark_validation(self, pyspark_available, setup_pyspark_engine, spark_mode):
         """Test validation with PySpark."""
+        if spark_mode != "real":
+            pytest.skip("Requires real PySpark session")
         from pyspark.sql import SparkSession
 
         from pipeline_builder.compat import types
@@ -224,14 +221,13 @@ class TestPySparkCompatibility:
 
         spark.stop()
 
-    @pytest.mark.skipif(
-        os.environ.get("SPARK_MODE", "mock").lower() != "real",
-        reason="Requires real PySpark session",
-    )
+    @pytest.mark.real_spark
     def test_pyspark_delta_lake_operations(
-        self, pyspark_available, setup_pyspark_engine
+        self, pyspark_available, setup_pyspark_engine, spark_mode
     ):
         """Test Delta Lake operations with PySpark (if available)."""
+        if spark_mode != "real":
+            pytest.skip("Requires real PySpark session")
         import importlib.util
 
         try:
@@ -288,12 +284,11 @@ class TestPySparkCompatibility:
         spark.sql(f"DROP TABLE IF EXISTS {table_name}")
         spark.stop()
 
-    @pytest.mark.skipif(
-        os.environ.get("SPARK_MODE", "mock").lower() != "real",
-        reason="Requires real PySpark session",
-    )
-    def test_pyspark_error_handling(self, pyspark_available, setup_pyspark_engine):
+    @pytest.mark.real_spark
+    def test_pyspark_error_handling(self, pyspark_available, setup_pyspark_engine, spark_mode):
         """Test error handling with PySpark."""
+        if spark_mode != "real":
+            pytest.skip("Requires real PySpark session")
         from pyspark.sql import SparkSession
 
         spark = (
@@ -328,14 +323,13 @@ class TestPySparkCompatibility:
 
         spark.stop()
 
-    @pytest.mark.skipif(
-        os.environ.get("SPARK_MODE", "mock").lower() != "real",
-        reason="Requires real PySpark session",
-    )
+    @pytest.mark.real_spark
     def test_pyspark_performance_monitoring(
-        self, pyspark_available, setup_pyspark_engine
+        self, pyspark_available, setup_pyspark_engine, spark_mode
     ):
         """Test performance monitoring with PySpark."""
+        if spark_mode != "real":
+            pytest.skip("Requires real PySpark session")
         from pyspark.sql import SparkSession
 
         from pipeline_builder.performance import time_operation
@@ -359,12 +353,11 @@ class TestPySparkCompatibility:
 
         spark.stop()
 
-    @pytest.mark.skipif(
-        os.environ.get("SPARK_MODE", "mock").lower() != "real",
-        reason="Requires real PySpark session",
-    )
-    def test_pyspark_table_operations(self, pyspark_available, setup_pyspark_engine):
+    @pytest.mark.real_spark
+    def test_pyspark_table_operations(self, pyspark_available, setup_pyspark_engine, spark_mode):
         """Test table operations with PySpark."""
+        if spark_mode != "real":
+            pytest.skip("Requires real PySpark session")
         import importlib.util
 
         # Check if Delta Lake is available
@@ -451,11 +444,10 @@ class TestPySparkEngineSwitching:
     """Test engine switching functionality."""
 
     @pytest.mark.sequential
-    def test_switch_to_pyspark(self, pyspark_available, setup_pyspark_engine):
+    def test_switch_to_pyspark(self, pyspark_available, setup_pyspark_engine, spark_mode):
         """Test engine matches SPARK_MODE: pyspark in real, mock/unknown in mock."""
         from pipeline_builder.compat import compat_name, is_mock_spark
 
-        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             assert compat_name() == "pyspark"
             assert not is_mock_spark()
@@ -464,22 +456,21 @@ class TestPySparkEngineSwitching:
             if compat_name() == "mock":
                 assert is_mock_spark()
 
-    def test_switch_to_mock(self, pyspark_available):
+    def test_switch_to_mock(self, pyspark_available, spark_mode):
         """In mock mode we are already on mock; in real mode this would switch."""
         from pipeline_builder.compat import compat_name
 
         # In mock mode, compat is mock or unknown (engine not yet configured)
-        if os.environ.get("SPARK_MODE", "mock").lower() != "real":
+        if spark_mode != "real":
             assert compat_name() in ("mock", "unknown")
         else:
             pytest.skip("Switch-to-mock exercise skipped in real mode")
 
     @pytest.mark.sequential
-    def test_auto_detection(self, pyspark_available, setup_pyspark_engine):
+    def test_auto_detection(self, pyspark_available, setup_pyspark_engine, spark_mode):
         """Test compat_name() matches current mode."""
         from pipeline_builder.compat import compat_name
 
-        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
         if spark_mode == "real":
             assert compat_name() == "pyspark"
         else:

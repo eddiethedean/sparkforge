@@ -43,12 +43,15 @@ def setup_environment(mode: str) -> dict:
     """Set up environment variables for test execution."""
     env = os.environ.copy()
 
-    # Set Spark mode
-    env["SPARK_MODE"] = mode
-    env["SPARKFORGE_ENGINE"] = mode
+    # Map old mode names to new sparkless.testing names
+    mode_map = {"mock": "sparkless", "real": "pyspark", "sparkless": "sparkless", "pyspark": "pyspark"}
+    sparkless_mode = mode_map.get(mode, mode)
 
-    # Set Java environment if needed for real mode
-    if mode == "real":
+    # Set sparkless.testing mode (new)
+    env["SPARKLESS_TEST_MODE"] = sparkless_mode
+
+    # Set Java environment if needed for pyspark mode
+    if sparkless_mode == "pyspark":
         java_home = os.environ.get("JAVA_HOME")
         if not java_home or not os.path.exists(java_home):
             # Try to find Java
@@ -144,13 +147,13 @@ def build_pytest_command(
 
     # Add marker filter
     if marker:
-        # If in real mode, also exclude batch_mode tests
-        if mode == "real":
+        # If in pyspark mode, also exclude batch_mode tests
+        if mode in ("real", "pyspark"):
             cmd.extend(["-m", f"{marker} and not batch_mode"])
         else:
             cmd.extend(["-m", marker])
-    elif mode == "real":
-        # Skip batch mode tests in real mode (Delta Lake doesn't support batch mode operations)
+    elif mode in ("real", "pyspark"):
+        # Skip batch mode tests in pyspark mode (Delta Lake doesn't support batch mode operations)
         cmd.extend(["-m", "not batch_mode"])
 
     # Add verbosity
@@ -238,9 +241,9 @@ def main():
     # Mode selection
     parser.add_argument(
         "--mode",
-        choices=["mock", "real", "both"],
-        default="mock",
-        help="Spark mode: mock (default), real, or both (runs in both modes)",
+        choices=["mock", "real", "sparkless", "pyspark", "both"],
+        default="sparkless",
+        help="Spark mode: sparkless (default), pyspark, or both (runs in both modes). 'mock' and 'real' are legacy aliases.",
     )
 
     # Layer selection
@@ -309,12 +312,12 @@ def main():
         # Run in both modes
         print("🔄 Running tests in both modes...\n")
 
-        # Run mock mode
+        # Run sparkless mode
         print("=" * 70)
-        print("MODE 1: MOCK SPARK")
+        print("MODE 1: SPARKLESS")
         print("=" * 70)
         mock_success, mock_duration = run_tests(
-            "mock",
+            "sparkless",
             args.layer,
             args.parallel,
             args.workers,
@@ -326,10 +329,10 @@ def main():
         )
 
         print("\n" + "=" * 70)
-        print("MODE 2: REAL SPARK")
+        print("MODE 2: PYSPARK")
         print("=" * 70)
         real_success, real_duration = run_tests(
-            "real",
+            "pyspark",
             args.layer,
             args.parallel,
             args.workers,
@@ -345,10 +348,10 @@ def main():
         print("📊 SUMMARY")
         print("=" * 70)
         print(
-            f"Mock mode: {'✅ PASSED' if mock_success else '❌ FAILED'} ({mock_duration:.1f}s)"
+            f"Sparkless mode: {'✅ PASSED' if mock_success else '❌ FAILED'} ({mock_duration:.1f}s)"
         )
         print(
-            f"Real mode: {'✅ PASSED' if real_success else '❌ FAILED'} ({real_duration:.1f}s)"
+            f"PySpark mode: {'✅ PASSED' if real_success else '❌ FAILED'} ({real_duration:.1f}s)"
         )
         print(f"Total time: {mock_duration + real_duration:.1f}s")
 

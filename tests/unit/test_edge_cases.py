@@ -2,54 +2,7 @@
 Edge case tests for Mock Spark components.
 """
 
-import os
-
 import pytest
-
-# Import types and errors based on SPARK_MODE
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
-    from pyspark.sql.types import (
-        ArrayType,
-        BooleanType,
-        DoubleType,
-        IntegerType,
-        MapType,
-        StringType,
-        StructField,
-        StructType,
-    )
-    from pyspark.sql import SparkSession, functions as F
-    from pyspark.sql.utils import AnalysisException
-
-    # PySpark doesn't have PySparkValueError - use standard ValueError
-    PySparkValueError = ValueError
-    # PySpark function imports - these are accessed differently
-    from pyspark.sql.functions import Column, lit as Literal, window as WindowFunction
-
-    # AggregateFunction is a class, not a function import
-else:
-    from sparkless import (  # type: ignore[import]
-        ArrayType,
-        BooleanType,
-        DoubleType,
-        IntegerType,
-        MapType,
-        SparkSession,
-        StructField,
-        StructType,
-        StringType,
-    )
-    from sparkless.errors import (  # type: ignore[import]
-        AnalysisException,
-        PySparkValueError,
-    )
-    from sparkless import Column  # type: ignore[import]
-    from sparkless.sql import functions as _F  # type: ignore[import]
-    Literal = _F.lit
-    WindowFunction = _F.window
-
-    # Use compat layer's F to get wrapped aggregate functions that return Column
-    from pipeline_builder.compat import F
 
 from pipeline_builder.execution import ExecutionEngine
 from pipeline_builder.models import PipelineConfig, ValidationThresholds
@@ -63,8 +16,14 @@ from pipeline_builder.validation.pipeline_validation import (
 class TestEdgeCases:
     """Edge case tests for Mock Spark components."""
 
-    def test_empty_dataframe_operations(self, mock_spark_session):
+    def test_empty_dataframe_operations(self, spark, spark_imports):
         """Test operations on empty DataFrames."""
+        F = spark_imports.F
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
+        StringType = spark_imports.StringType
+
         # Create empty DataFrame
         schema = StructType(
             [
@@ -73,7 +32,7 @@ class TestEdgeCases:
             ]
         )
 
-        empty_df = mock_spark_session.createDataFrame([], schema)
+        empty_df = spark.createDataFrame([], schema)
 
         # Test basic operations on empty DataFrame
         assert empty_df.count() == 0
@@ -89,8 +48,14 @@ class TestEdgeCases:
         assert selected_df.count() == 0
         assert len(selected_df.columns) == 1
 
-    def test_null_value_handling(self, mock_spark_session):
+    def test_null_value_handling(self, spark, spark_imports):
         """Test handling of null values in DataFrames."""
+        F = spark_imports.F
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
+        StringType = spark_imports.StringType
+
         # Create DataFrame with null values
         data_with_nulls = [
             {"id": 1, "name": "Alice", "age": 25},
@@ -107,7 +72,7 @@ class TestEdgeCases:
             ]
         )
 
-        df = mock_spark_session.createDataFrame(data_with_nulls, schema)
+        df = spark.createDataFrame(data_with_nulls, schema)
 
         # Test filtering with null values
         non_null_df = df.filter(F.col("name").isNotNull())
@@ -116,8 +81,15 @@ class TestEdgeCases:
         null_df = df.filter(F.col("name").isNull())
         assert null_df.count() == 1
 
-    def test_large_dataset_operations(self, mock_spark_session):
+    def test_large_dataset_operations(self, spark, spark_imports):
         """Test operations on large datasets."""
+        F = spark_imports.F
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
+        StringType = spark_imports.StringType
+        DoubleType = spark_imports.DoubleType
+
         # Create large dataset inline
         large_dataset = [
             {
@@ -141,7 +113,7 @@ class TestEdgeCases:
             ]
         )
 
-        df = mock_spark_session.createDataFrame(large_dataset, schema)
+        df = spark.createDataFrame(large_dataset, schema)
 
         # Test operations on large dataset
         assert df.count() == len(large_dataset)
@@ -154,8 +126,16 @@ class TestEdgeCases:
         grouped_df = df.groupBy("department").count()
         assert grouped_df.count() >= 0  # Should not crash
 
-    def test_complex_schema_operations(self, mock_spark_session):
+    def test_complex_schema_operations(self, spark, spark_imports):
         """Test operations with complex schemas."""
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
+        StringType = spark_imports.StringType
+        ArrayType = spark_imports.ArrayType
+        MapType = spark_imports.MapType
+        BooleanType = spark_imports.BooleanType
+
         # Create complex schema with arrays and maps
         array_schema = StructType(
             [
@@ -181,7 +161,7 @@ class TestEdgeCases:
             },
         ]
 
-        df = mock_spark_session.createDataFrame(complex_data, array_schema)
+        df = spark.createDataFrame(complex_data, array_schema)
 
         # Test operations on complex schema
         assert df.count() == 2
@@ -192,35 +172,41 @@ class TestEdgeCases:
         assert selected_df.count() == 2
         assert len(selected_df.columns) == 2
 
-    def test_error_conditions(self, mock_spark_session):
+    def test_error_conditions(self, spark, spark_imports, spark_mode):
         """Test various error conditions."""
-        # Test invalid data types
-        with pytest.raises(
-            (PySparkValueError, Exception)
-        ):  # Accept mock-spark 0.3.1 exceptions
-            mock_spark_session.createDataFrame("invalid_data", "invalid_schema")
+        from pipeline_builder.compat import AnalysisException
 
-        # Test invalid schema - mock-spark 0.3.1 accepts most schemas, test with invalid data instead
-        with pytest.raises((PySparkValueError, Exception)):
-            mock_spark_session.createDataFrame(None, "id INT")  # None data should fail
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
+
+        # Test invalid data types
+        with pytest.raises(Exception):
+            spark.createDataFrame("invalid_data", "invalid_schema")
+
+        # Test invalid schema - test with invalid data instead
+        with pytest.raises(Exception):
+            spark.createDataFrame(None, "id INT")
 
         # Test table not found
-        with pytest.raises(
-            (AnalysisException, Exception)
-        ):  # Accept mock-spark 0.3.1 exceptions
-            mock_spark_session.table("nonexistent.table")
+        with pytest.raises((AnalysisException, Exception)):
+            spark.table("nonexistent.table")
 
         # Test invalid column references
         schema = StructType([StructField("id", IntegerType())])
-        df = mock_spark_session.createDataFrame([{"id": 1}], schema)
+        df = spark.createDataFrame([{"id": 1}], schema)
 
-        with pytest.raises(
-            (AnalysisException, Exception)
-        ):  # Accept mock-spark 0.3.1 exceptions
+        with pytest.raises((AnalysisException, Exception)):
             df.select("nonexistent_column")
 
-    def test_boundary_values(self, mock_spark_session):
+    def test_boundary_values(self, spark, spark_imports):
         """Test boundary values and edge cases."""
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
+        StringType = spark_imports.StringType
+        DoubleType = spark_imports.DoubleType
+
         # Test with very large numbers
         large_data = [
             {"id": 2147483647, "value": 1.7976931348623157e308},  # Max int and double
@@ -234,7 +220,7 @@ class TestEdgeCases:
             ]
         )
 
-        df = mock_spark_session.createDataFrame(large_data, schema)
+        df = spark.createDataFrame(large_data, schema)
         assert df.count() == 2
 
         # Test with empty strings
@@ -251,17 +237,22 @@ class TestEdgeCases:
             ]
         )
 
-        df = mock_spark_session.createDataFrame(empty_string_data, string_schema)
+        df = spark.createDataFrame(empty_string_data, string_schema)
         assert df.count() == 3
 
-    def test_concurrent_operations(self, mock_spark_session):
+    def test_concurrent_operations(self, spark, spark_imports):
         """Test concurrent-like operations."""
+        F = spark_imports.F
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
+
         # Create multiple DataFrames simultaneously
         schema = StructType([StructField("id", IntegerType())])
 
-        df1 = mock_spark_session.createDataFrame([{"id": 1}], schema)
-        df2 = mock_spark_session.createDataFrame([{"id": 2}], schema)
-        df3 = mock_spark_session.createDataFrame([{"id": 3}], schema)
+        df1 = spark.createDataFrame([{"id": 1}], schema)
+        df2 = spark.createDataFrame([{"id": 2}], schema)
+        df3 = spark.createDataFrame([{"id": 3}], schema)
 
         # Test operations on multiple DataFrames
         assert df1.count() == 1
@@ -277,8 +268,15 @@ class TestEdgeCases:
         assert filtered2.count() == 1
         assert filtered3.count() == 1
 
-    def test_memory_management(self, mock_spark_session):
+    def test_memory_management(self, spark, spark_imports):
         """Test memory management with large datasets."""
+        F = spark_imports.F
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
+        StringType = spark_imports.StringType
+        DoubleType = spark_imports.DoubleType
+
         # Create large dataset
         large_data = []
         for i in range(10000):
@@ -300,7 +298,7 @@ class TestEdgeCases:
             ]
         )
 
-        df = mock_spark_session.createDataFrame(large_data, schema)
+        df = spark.createDataFrame(large_data, schema)
 
         # Test operations on large dataset
         assert df.count() == 10000
@@ -314,8 +312,13 @@ class TestEdgeCases:
         assert selected_df.count() == 10000
         assert len(selected_df.columns) == 2
 
-    def test_schema_evolution(self, mock_spark_session):
+    def test_schema_evolution(self, spark, spark_imports):
         """Test schema evolution scenarios."""
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
+        StringType = spark_imports.StringType
+
         # Create initial schema
         initial_schema = StructType(
             [
@@ -325,7 +328,7 @@ class TestEdgeCases:
         )
 
         initial_data = [{"id": 1, "name": "Alice"}]
-        df1 = mock_spark_session.createDataFrame(initial_data, initial_schema)
+        df1 = spark.createDataFrame(initial_data, initial_schema)
 
         # Create evolved schema with additional column
         evolved_schema = StructType(
@@ -337,7 +340,7 @@ class TestEdgeCases:
         )
 
         evolved_data = [{"id": 2, "name": "Bob", "age": 30}]
-        df2 = mock_spark_session.createDataFrame(evolved_data, evolved_schema)
+        df2 = spark.createDataFrame(evolved_data, evolved_schema)
 
         # Test both schemas work
         assert df1.count() == 1
@@ -345,13 +348,13 @@ class TestEdgeCases:
         assert len(df1.columns) == 2
         assert len(df2.columns) == 3
 
-    def test_pipeline_builder_edge_cases(self, mock_spark_session):
+    def test_pipeline_builder_edge_cases(self, spark):
         """Test PipelineBuilder edge cases."""
         from pipeline_builder.errors import ConfigurationError
 
         # Test with invalid schema name
         with pytest.raises(ConfigurationError):
-            PipelineBuilder(spark=mock_spark_session, schema="")
+            PipelineBuilder(spark=spark, schema="")
 
         # Test with None spark session
         with pytest.raises(ConfigurationError):
@@ -359,13 +362,13 @@ class TestEdgeCases:
 
         # Test with very long schema name
         long_schema_name = "a" * 1000
-        builder = PipelineBuilder(spark=mock_spark_session, schema=long_schema_name)
+        builder = PipelineBuilder(spark=spark, schema=long_schema_name)
         assert builder.schema == long_schema_name
 
-    def test_execution_engine_edge_cases(self, mock_spark_session):
+    def test_execution_engine_edge_cases(self, spark):
         """Test ExecutionEngine edge cases."""
         # Test with None config - ExecutionEngine now accepts None config
-        engine = ExecutionEngine(spark=mock_spark_session, config=None)
+        engine = ExecutionEngine(spark=spark, config=None)
         assert engine.config is None
 
         # Test with minimal config
@@ -376,11 +379,11 @@ class TestEdgeCases:
             verbose=False,
         )
 
-        engine = ExecutionEngine(spark=mock_spark_session, config=config)
+        engine = ExecutionEngine(spark=spark, config=config)
         assert engine.config == config
         assert engine.config.thresholds.bronze == 0.0
 
-    def test_validation_edge_cases(self, mock_spark_session):
+    def test_validation_edge_cases(self, spark):
         """Test validation edge cases."""
         UnifiedValidator()
 
@@ -403,8 +406,12 @@ class TestEdgeCases:
         assert result_with_errors.is_valid is False
         assert len(result_with_errors.errors) == 100
 
-    def test_function_edge_cases(self, mock_spark_session):
+    def test_function_edge_cases(self, spark, spark_imports, spark_mode):
         """Test function edge cases."""
+        from pipeline_builder.compat import Column
+
+        F = spark_imports.F
+
         # Test complex column expressions
         col1 = F.col("id")
         col2 = F.col("name")
@@ -429,11 +436,9 @@ class TestEdgeCases:
 
         # Test window functions - mock-spark 0.3.1 requires window_spec argument
         # In PySpark, window functions return Column objects
-        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
-        if spark_mode == "real":
-            # In PySpark, we need to use Window functions properly
-            from pyspark.sql.window import Window
-
+        from sparkless.testing import Mode
+        from pipeline_builder.compat import Window
+        if spark_mode == Mode.PYSPARK:
             window_func = F.row_number().over(Window.partitionBy())
             assert isinstance(window_func, Column)
         else:
@@ -444,11 +449,16 @@ class TestEdgeCases:
                 # Sparkless may require a proper WindowSpec; skip window check
                 pass
 
-    def test_dataframe_edge_cases(self, mock_spark_session):
+    def test_dataframe_edge_cases(self, spark, spark_imports):
         """Test DataFrame edge cases."""
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
+        StringType = spark_imports.StringType
+
         # Test DataFrame with no columns ([] not [{}] for sparkless/PySpark)
         empty_schema = StructType([])
-        empty_df = mock_spark_session.createDataFrame([], empty_schema)
+        empty_df = spark.createDataFrame([], empty_schema)
 
         assert empty_df.count() == 0
         assert len(empty_df.columns) == 0
@@ -461,67 +471,64 @@ class TestEdgeCases:
             ]
         )
         try:
-            duplicate_df = mock_spark_session.createDataFrame([{"id": 1}], duplicate_schema)
+            duplicate_df = spark.createDataFrame([{"id": 1}], duplicate_schema)
             assert duplicate_df.count() == 1
             assert len(duplicate_df.columns) == 2
         except Exception:
             # Sparkless raises on duplicate column names; skip this check
             pass
 
-    def test_session_edge_cases(self, mock_spark_session):
+    def test_session_edge_cases(self, spark, spark_imports, spark_mode):
         """Test SparkSession edge cases."""
-        spark_mode = os.environ.get("SPARK_MODE", "mock").lower()
+        from sparkless.testing import Mode
+        from pipeline_builder.compat import AnalysisException, SparkSession
+
+        StructType = spark_imports.StructType
+        StructField = spark_imports.StructField
+        IntegerType = spark_imports.IntegerType
 
         # Test creating additional sessions.
         #
         # In mock-spark, SparkSession can be constructed directly with an app name.
         # In real PySpark, SparkSession("TestApp2") is not a valid constructor and
         # sessions are created via builder pattern instead.
-        if spark_mode == "real":
-            from pyspark.sql import SparkSession as PySparkSession  # type: ignore[import]
-
-            # In real SparkForge tests, a shared SparkSession is typically reused
-            # and the appName may be controlled by the test harness. The main
-            # thing we care about here is that we can obtain a session object
-            # without errors, not the exact app name.
-            session2 = PySparkSession.builder.getOrCreate()
-            session3 = PySparkSession.builder.getOrCreate()
+        if spark_mode == Mode.PYSPARK:
+            session2 = SparkSession.builder.getOrCreate()
+            session3 = SparkSession.builder.getOrCreate()
             assert session2 is not None
             assert session3 is not None
         else:
             session2 = SparkSession("TestApp2")
             session3 = SparkSession("TestApp3")
-            # Sparkless 4 session may not have appName attribute
             if hasattr(session2, "appName"):
                 assert session2.appName == "TestApp2"
                 assert session3.appName == "TestApp3"
             assert session2 is not None
             assert session3 is not None
 
-            # Test session with different configurations (mock-spark specific)
             session4 = SparkSession("TestApp4")
             if hasattr(session4, "appName"):
                 assert session4.appName == "TestApp4"
             assert session4 is not None
 
         # Test catalog operations (works for both mock-spark and PySpark)
-        mock_spark_session.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
-        databases = mock_spark_session.catalog.listDatabases()
+        spark.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
+        databases = spark.catalog.listDatabases()
         assert len(databases) >= 1
 
         # Test table operations
         # Create a table using DataFrame write
         schema = StructType([StructField("id", IntegerType())])
-        df = mock_spark_session.createDataFrame([{"id": 1}], schema)
+        df = spark.createDataFrame([{"id": 1}], schema)
         df.write.mode("overwrite").saveAsTable("test_schema.test_table")
 
         # Verify table exists (sparkless may not expose saveAsTable the same way)
         try:
-            table_df = mock_spark_session.table("test_schema.test_table")
+            table_df = spark.table("test_schema.test_table")
             assert table_df.count() == 1
         except Exception:
             # Sparkless: table() may not find just-saved table; skip
             pass
         # Verify nonexistent table raises exception
         with pytest.raises(AnalysisException):
-            mock_spark_session.table("test_schema.nonexistent_table")
+            spark.table("test_schema.nonexistent_table")

@@ -5,18 +5,9 @@ This module tests the step-by-step execution functionality of the simplified
 SparkForge execution system.
 """
 
-import os
-
 import pytest
 
-# Use engine-specific functions when in mock mode
-if os.environ.get("SPARK_MODE", "mock").lower() == "mock":
-    from sparkless import DataFrame as DataFrame  # type: ignore[import]
-    from sparkless.sql import functions as F  # type: ignore[import]
-else:
-    from pyspark.sql import DataFrame
-    from pyspark.sql import functions as F
-
+from pipeline_builder.compat import DataFrame, F
 from pipeline_builder.errors import ValidationError
 from pipeline_builder.execution import (
     ExecutionEngine,
@@ -37,7 +28,7 @@ from pipeline_builder.models import (
 class TestExecutionEngine:
     """Test the simplified execution engine."""
 
-    def test_execution_engine_initialization(self, spark_session):
+    def test_execution_engine_initialization(self, spark):
         """Test that ExecutionEngine initializes correctly."""
         config = PipelineConfig(
             schema="test_schema",
@@ -45,34 +36,34 @@ class TestExecutionEngine:
         )
 
         engine = ExecutionEngine(
-            spark=spark_session, config=config, logger=PipelineLogger()
+            spark=spark, config=config, logger=PipelineLogger()
         )
 
-        assert engine.spark == spark_session
+        assert engine.spark == spark
         assert engine.config == config
         assert engine.logger is not None
 
-    def test_execution_engine_without_logger(self, spark_session):
+    def test_execution_engine_without_logger(self, spark):
         """Test that ExecutionEngine works without explicit logger."""
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
 
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark, config=config)
 
-        assert engine.spark == spark_session
+        assert engine.spark == spark
         assert engine.config == config
         assert engine.logger is not None  # Should create default logger
 
-    def test_step_type_detection(self, spark_session):
+    def test_step_type_detection(self, spark):
         """Test that step types are correctly detected."""
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
 
-        ExecutionEngine(spark=spark_session, config=config)
+        ExecutionEngine(spark=spark, config=config)
 
         # Test BronzeStep detection
         bronze_step = BronzeStep(
@@ -102,18 +93,18 @@ class TestExecutionEngine:
         assert isinstance(silver_step, SilverStep)
         assert isinstance(gold_step, GoldStep)
 
-    def test_execution_context_creation(self, spark_session):
+    def test_execution_context_creation(self, spark):
         """Test that execution context is created correctly."""
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
 
-        ExecutionEngine(spark=spark_session, config=config)
+        ExecutionEngine(spark=spark, config=config)
 
         # Create test data
         test_data = [(1, "test"), (2, "test2")]
-        test_df = spark_session.createDataFrame(test_data, ["id", "name"])
+        test_df = spark.createDataFrame(test_data, ["id", "name"])
 
         context = {"test_data": test_df}
 
@@ -122,7 +113,7 @@ class TestExecutionEngine:
         assert isinstance(context["test_data"], DataFrame)
         assert context["test_data"].count() == 2
 
-    def test_step_execution_result_creation(self, spark_session):
+    def test_step_execution_result_creation(self, spark):
         """Test that StepExecutionResult is created correctly."""
         from datetime import datetime
 
@@ -169,7 +160,7 @@ class TestExecutionEngine:
 class TestExecutionEngineIntegration:
     """Test execution engine integration with simplified models."""
 
-    def test_bronze_step_validation(self, spark_session):
+    def test_bronze_step_validation(self, spark):
         """Test that BronzeStep validation works correctly."""
         # Valid BronzeStep
         valid_bronze = BronzeStep(
@@ -185,7 +176,7 @@ class TestExecutionEngineIntegration:
         ):
             BronzeStep(name="", rules={"id": [F.col("id").isNotNull()]})
 
-    def test_silver_step_validation(self, spark_session):
+    def test_silver_step_validation(self, spark):
         """Test that SilverStep validation works correctly."""
         # Valid SilverStep
         valid_silver = SilverStep(
@@ -197,7 +188,7 @@ class TestExecutionEngineIntegration:
         )
         valid_silver.validate()  # Should not raise
 
-    def test_gold_step_validation(self, spark_session):
+    def test_gold_step_validation(self, spark):
         """Test that GoldStep validation works correctly."""
         # Valid GoldStep
         valid_gold = GoldStep(
@@ -208,7 +199,7 @@ class TestExecutionEngineIntegration:
         )
         valid_gold.validate()  # Should not raise
 
-    def test_pipeline_config_validation(self, spark_session):
+    def test_pipeline_config_validation(self, spark):
         """Test that PipelineConfig validation works correctly."""
         # Valid PipelineConfig
         valid_config = PipelineConfig(
@@ -219,14 +210,14 @@ class TestExecutionEngineIntegration:
         assert valid_config.schema == "test_schema"
         assert valid_config.thresholds.bronze == 95.0
 
-    def test_execution_engine_with_mock_steps(self, spark_session):
+    def test_execution_engine_with_mock_steps(self, spark):
         """Test execution engine with mock step execution."""
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
 
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark, config=config)
 
         # Create mock steps
         BronzeStep(name="mock_bronze", rules={"id": [F.col("id").isNotNull()]})
@@ -238,14 +229,14 @@ class TestExecutionEngineIntegration:
         assert hasattr(engine, "execute_step")
         assert hasattr(engine, "execute_pipeline")
 
-    def test_execution_engine_error_handling(self, spark_session):
+    def test_execution_engine_error_handling(self, spark):
         """Test that execution engine handles errors gracefully."""
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
 
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark, config=config)
 
         # Test with invalid step type
         class InvalidStep:
@@ -265,7 +256,7 @@ class TestExecutionEngineIntegration:
 class TestExecutionEnginePerformance:
     """Test execution engine performance characteristics."""
 
-    def test_execution_engine_memory_usage(self, spark_session):
+    def test_execution_engine_memory_usage(self, spark):
         """Test that execution engine doesn't have memory leaks."""
         config = PipelineConfig(
             schema="test_schema",
@@ -275,16 +266,16 @@ class TestExecutionEnginePerformance:
         # Create multiple engines to test for memory leaks
         engines = []
         for _i in range(10):
-            engine = ExecutionEngine(spark=spark_session, config=config)
+            engine = ExecutionEngine(spark=spark, config=config)
             engines.append(engine)
 
         # All engines should be created successfully
         assert len(engines) == 10
         for engine in engines:
-            assert engine.spark == spark_session
+            assert engine.spark == spark
             assert engine.config == config
 
-    def test_execution_engine_concurrent_creation(self, spark_session):
+    def test_execution_engine_concurrent_creation(self, spark):
         """Test that multiple execution engines can be created concurrently."""
         config = PipelineConfig(
             schema="test_schema",
@@ -294,13 +285,13 @@ class TestExecutionEnginePerformance:
         # Create engines in a loop to simulate concurrent creation
         engines = []
         for _i in range(5):
-            engine = ExecutionEngine(spark=spark_session, config=config)
+            engine = ExecutionEngine(spark=spark, config=config)
             engines.append(engine)
 
         # All engines should be independent
         assert len(engines) == 5
         for _i, engine in enumerate(engines):
-            assert engine.spark == spark_session
+            assert engine.spark == spark
             assert engine.config == config
             # Each engine should have its own logger instance
             assert engine.logger is not None
@@ -309,7 +300,7 @@ class TestExecutionEnginePerformance:
 class TestExecutionEngineLogging:
     """Test execution engine logging functionality."""
 
-    def test_execution_engine_logging_initialization(self, spark_session):
+    def test_execution_engine_logging_initialization(self, spark):
         """Test that execution engine initializes logging correctly."""
         config = PipelineConfig(
             schema="test_schema",
@@ -317,31 +308,31 @@ class TestExecutionEngineLogging:
         )
 
         logger = PipelineLogger()
-        engine = ExecutionEngine(spark=spark_session, config=config, logger=logger)
+        engine = ExecutionEngine(spark=spark, config=config, logger=logger)
 
         assert engine.logger == logger
         assert engine.logger is not None
 
-    def test_execution_engine_default_logging(self, spark_session):
+    def test_execution_engine_default_logging(self, spark):
         """Test that execution engine creates default logger when none provided."""
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
 
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark, config=config)
 
         assert engine.logger is not None
         assert isinstance(engine.logger, PipelineLogger)
 
-    def test_execution_engine_logging_methods(self, spark_session):
+    def test_execution_engine_logging_methods(self, spark):
         """Test that execution engine has required logging methods."""
         config = PipelineConfig(
             schema="test_schema",
             thresholds=ValidationThresholds(bronze=95.0, silver=98.0, gold=99.0),
         )
 
-        engine = ExecutionEngine(spark=spark_session, config=config)
+        engine = ExecutionEngine(spark=spark, config=config)
 
         # Test that logger has expected methods
         assert hasattr(engine.logger, "info")
