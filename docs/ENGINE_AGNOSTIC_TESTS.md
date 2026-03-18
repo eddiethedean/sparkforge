@@ -6,7 +6,7 @@ Sparkless is intended to provide the same methods, objects, and functions as PyS
 
 **Instead of:**
 ```python
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+if os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower() == "pyspark":
     from pyspark.sql import functions as F
     from pyspark.sql.types import StringType, StructField, StructType
 else:
@@ -21,7 +21,7 @@ from pipeline_builder.compat import F, types
 StringType = types.StringType
 StructField = types.StructField
 StructType = types.StructType
-# use F and types.* everywhere; same code runs in mock and real mode
+# use F and types.* everywhere; same code runs in sparkless and pyspark mode
 ```
 
 For functions-only:
@@ -30,7 +30,7 @@ from pipeline_builder.compat import F
 # or: from pipeline_builder.functions import get_default_functions; F = get_default_functions()
 ```
 
-Root `conftest.py` already calls `configure_engine(...)` at import time based on `SPARK_MODE`, so `F` and `types` from `pipeline_builder.compat` are always the right engine.
+Root `conftest.py` configures the engine at import time based on `SPARKLESS_TEST_MODE`, so `F` and `types` from `pipeline_builder.compat` are always the right engine.
 
 ## When to keep engine-specific logic
 

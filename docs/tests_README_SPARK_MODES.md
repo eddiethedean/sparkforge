@@ -1,22 +1,22 @@
 # Spark Mode Switching Guide
 
-This test suite supports both **mock Spark** and **real Spark** environments, allowing you to switch between them on the fly.
+This test suite supports two modes — **sparkless** and **pyspark** — allowing you to switch between them on the fly.
 
 ## 🚀 Quick Start
 
-### Default (Mock Spark)
+### Default (sparkless)
 ```bash
-# Run tests with mock Spark (default)
+# Run tests with sparkless (default)
 python -m pytest unit/test_validation_standalone.py
 
 # Or use the convenience script
 ./test_mock.sh unit/test_validation_standalone.py
 ```
 
-### Real Spark
+### PySpark
 ```bash
-# Run tests with real Spark
-SPARK_MODE=real python -m pytest unit/test_validation_standalone.py
+# Run tests with PySpark
+SPARKLESS_TEST_MODE=pyspark python -m pytest unit/test_validation_standalone.py
 
 # Or use the convenience script
 ./test_real.sh unit/test_validation_standalone.py
@@ -26,22 +26,22 @@ SPARK_MODE=real python -m pytest unit/test_validation_standalone.py
 
 ### 1. Environment Variable (Recommended)
 ```bash
-# Mock Spark (default)
-export SPARK_MODE=mock
+# sparkless (default)
+export SPARKLESS_TEST_MODE=sparkless
 python -m pytest
 
-# Real Spark
-export SPARK_MODE=real
+# PySpark
+export SPARKLESS_TEST_MODE=pyspark
 python -m pytest
 ```
 
 ### 2. Inline Environment Variable
 ```bash
-# Mock Spark
-SPARK_MODE=mock python -m pytest
+# sparkless
+SPARKLESS_TEST_MODE=sparkless python -m pytest
 
-# Real Spark
-SPARK_MODE=real python -m pytest
+# PySpark
+SPARKLESS_TEST_MODE=pyspark python -m pytest
 ```
 
 ### 3. Convenience Scripts
@@ -55,22 +55,19 @@ SPARK_MODE=real python -m pytest
 
 ### 4. Python Test Runner
 ```bash
-# Mock Spark (default)
+# sparkless (default)
 python run_tests.py unit/test_validation_standalone.py
 
-# Real Spark
-python run_tests.py --real unit/test_validation_standalone.py
-
-# Mock Spark (explicit)
-python run_tests.py --mock unit/test_validation_standalone.py
+# PySpark
+python run_tests.py --mode pyspark unit/test_validation_standalone.py
 ```
 
 ## 🔧 Configuration
 
-The `conftest.py` file automatically detects the `SPARK_MODE` environment variable:
+The `conftest.py` file automatically detects the `SPARKLESS_TEST_MODE` environment variable:
 
-- `SPARK_MODE=mock` (default): Uses mock_spark for fast, lightweight testing
-- `SPARK_MODE=real`: Uses real Spark with Delta Lake support
+- `SPARKLESS_TEST_MODE=sparkless` (default): Uses sparkless for fast, lightweight testing
+- `SPARKLESS_TEST_MODE=pyspark`: Uses PySpark with Delta Lake support
 
 ## 📊 Test Markers
 
@@ -79,26 +76,26 @@ You can mark tests to run only in specific modes:
 ```python
 import pytest
 
-@pytest.mark.mock_only
-def test_mock_specific():
-    """This test only runs with mock Spark"""
+@pytest.mark.sparkless_only
+def test_sparkless_specific():
+    """This test only runs with sparkless"""
     pass
 
-@pytest.mark.real_spark_only
-def test_real_spark_specific():
-    """This test only runs with real Spark"""
+@pytest.mark.pyspark_only
+def test_pyspark_specific():
+    """This test only runs with PySpark"""
     pass
 ```
 
 ## 🎯 Use Cases
 
-### Mock Spark (Default)
+### sparkless (Default)
 - **Fast execution** - No JVM startup time
 - **No dependencies** - No need for Java or Spark installation
 - **Isolated testing** - Perfect for unit tests
 - **CI/CD friendly** - Works in any environment
 
-### Real Spark
+### PySpark
 - **Full compatibility** - Tests actual Spark behavior
 - **Integration testing** - Tests real Spark features
 - **Performance testing** - Real performance characteristics
@@ -106,11 +103,11 @@ def test_real_spark_specific():
 
 ## 🚨 Requirements
 
-### Mock Spark
+### sparkless
 - No additional requirements
 - Works out of the box
 
-### Real Spark
+### PySpark
 - Java 8 or 11
 - PySpark installed
 - Delta Lake (optional, for full functionality)
@@ -118,8 +115,8 @@ def test_real_spark_specific():
 
 ## 🔍 Troubleshooting
 
-### Real Spark Issues
-If you encounter issues with real Spark:
+### PySpark Issues
+If you encounter issues with PySpark:
 
 1. **Delta Lake not found**:
    ```bash
@@ -136,16 +133,16 @@ If you encounter issues with real Spark:
 3. **Memory issues**:
    ```bash
    # Use basic Spark without Delta Lake
-   SPARKFORGE_BASIC_SPARK=1 SPARK_MODE=real python -m pytest
+   SPARKFORGE_BASIC_SPARK=1 SPARKLESS_TEST_MODE=pyspark python -m pytest
    ```
 
 4. **Skip Delta Lake entirely**:
    ```bash
-   SPARKFORGE_SKIP_DELTA=1 SPARK_MODE=real python -m pytest
+   SPARKFORGE_SKIP_DELTA=1 SPARKLESS_TEST_MODE=pyspark python -m pytest
    ```
 
-### Mock Spark Issues
-If you encounter issues with mock Spark:
+### sparkless Issues
+If you encounter issues with sparkless:
 
 1. **Import errors**: Ensure mock_spark is in your Python path
 2. **Test failures**: Check that tests are designed to work with mock objects
@@ -169,14 +166,14 @@ If you encounter issues with mock Spark:
 
 ```bash
 # Quick switch during development
-SPARK_MODE=mock python -m pytest unit/test_validation_standalone.py
-SPARK_MODE=real python -m pytest unit/test_validation_standalone.py
+SPARKLESS_TEST_MODE=sparkless python -m pytest unit/test_validation_standalone.py
+SPARKLESS_TEST_MODE=pyspark python -m pytest unit/test_validation_standalone.py
 
 # Run all tests in both modes
 ./test_mock.sh
 ./test_real.sh
 
 # Run specific test file in both modes
-python run_tests.py --mock unit/test_validation_standalone.py
-python run_tests.py --real unit/test_validation_standalone.py
+python run_tests.py --mode sparkless unit/test_validation_standalone.py
+python run_tests.py --mode pyspark unit/test_validation_standalone.py
 ```

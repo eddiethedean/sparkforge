@@ -2,7 +2,7 @@
 
 ## Overview
 
-The test suite now supports interchangeable Spark sessions that automatically adapt based on the `SPARK_MODE` environment variable. This allows tests to work seamlessly with both mock-spark and real PySpark without code changes.
+The test suite now supports interchangeable Spark sessions that automatically adapt based on the `SPARKLESS_TEST_MODE` environment variable. This allows tests to work seamlessly with both sparkless and PySpark without code changes.
 
 ## How It Works
 
@@ -10,8 +10,8 @@ The test suite now supports interchangeable Spark sessions that automatically ad
 
 The `spark_session` fixture is the primary way to get a Spark session in tests. It automatically provides:
 
-- **SPARK_MODE=mock** (default): Returns a mock-spark session
-- **SPARK_MODE=real**: Returns a real PySpark session with Delta Lake support
+- **SPARKLESS_TEST_MODE=sparkless** (default): Returns a sparkless session
+- **SPARKLESS_TEST_MODE=pyspark**: Returns a real PySpark session with Delta Lake support
 
 ```python
 def test_my_feature(spark_session):
@@ -28,7 +28,7 @@ The following fixtures are now interchangeable and all use the same underlying `
 2. **`mock_spark_session`** - Alias for `spark_session` (for clarity)
 3. **`mock_spark`** (in `test_execution_engine.py`) - Alias for `spark_session`
 
-All of these fixtures automatically provide the correct session type based on `SPARK_MODE`.
+All of these fixtures automatically provide the correct session type based on `SPARKLESS_TEST_MODE`.
 
 ## Usage Examples
 
@@ -61,18 +61,18 @@ def test_with_mock_spark(mock_spark):
 ### With Mock-Spark (Default)
 
 ```bash
-# Default - uses mock-spark
+# Default - uses sparkless
 pytest tests/
 
-# Explicitly set mock mode
-SPARK_MODE=mock pytest tests/
+# Explicitly set sparkless mode
+SPARKLESS_TEST_MODE=sparkless pytest tests/
 ```
 
-### With Real PySpark
+### With PySpark
 
 ```bash
 # Use real PySpark
-SPARK_MODE=real pytest tests/
+SPARKLESS_TEST_MODE=pyspark pytest tests/
 ```
 
 ## Benefits
@@ -91,7 +91,7 @@ def test_my_feature(mock_spark, spark_session):
     # Had to manually check mode
     spark = (
         spark_session
-        if os.environ.get("SPARK_MODE", "mock").lower() == "real"
+        if os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower() == "pyspark"
         else mock_spark
     )
     df = spark.createDataFrame([(1,)], ["id"])
@@ -128,7 +128,7 @@ However, in most cases, the interchangeable fixtures work without additional moc
 ### `spark_session` Fixture
 
 - **Scope**: `function` (new session for each test)
-- **Mode**: Automatically adapts to `SPARK_MODE`
+- **Mode**: Automatically adapts to `SPARKLESS_TEST_MODE`
 - **Cleanup**: Automatically handled (tables, schemas, session stop)
 
 ### `mock_spark_session` Fixture
@@ -149,5 +149,5 @@ However, in most cases, the interchangeable fixtures work without additional moc
 - All fixtures share the same cleanup logic
 - Sessions are isolated per test (function scope)
 - No manual cleanup needed - fixtures handle everything
-- Works with both mock-spark 3.12.0+ and PySpark
+- Works with both sparkless and PySpark
 

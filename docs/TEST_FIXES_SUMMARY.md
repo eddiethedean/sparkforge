@@ -1,8 +1,8 @@
-# Test Files Fixed for Mock-Spark vs Real PySpark Compatibility
+# Test Files Fixed for sparkless vs PySpark Compatibility
 
 ## Summary
 
-Fixed **15 test files** to work with both mock-spark and real PySpark by replacing hardcoded mock_spark imports with conditional imports based on `SPARK_MODE` environment variable.
+Fixed **15 test files** to work with both sparkless and PySpark by replacing hardcoded engine imports with conditional imports based on `SPARKLESS_TEST_MODE`.
 
 ## Fixed Files
 
@@ -29,8 +29,8 @@ All files now follow this pattern:
 ```python
 import os
 
-# Import types based on SPARK_MODE
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+# Import types based on SPARKLESS_TEST_MODE
+if os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower() == "pyspark":
     from pyspark.sql.types import StructType, StructField, StringType, ...
     from pyspark.sql.utils import AnalysisException
 else:
@@ -46,7 +46,7 @@ else:
 
 ## Files Already Compatible
 
-These files already had conditional imports based on SPARK_MODE:
+These files already had conditional imports based on SPARKLESS_TEST_MODE:
 - `test_execution_write_mode.py`
 - `test_pipeline_runner_write_mode.py`
 - `test_bronze_rules_column_validation.py`
@@ -60,13 +60,13 @@ These files already had conditional imports based on SPARK_MODE:
 ## Testing
 
 All fixed files should now work with:
-- `SPARK_MODE=mock` (mock-spark - default)
-- `SPARK_MODE=real` (real PySpark + Delta Lake)
+- `SPARKLESS_TEST_MODE=sparkless` (sparkless - default)
+- `SPARKLESS_TEST_MODE=pyspark` (PySpark + Delta Lake)
 
 ## Root Causes Identified
 
 ### 1. Hardcoded Type Imports
-**Problem:** Tests imported types from `mock_spark` without checking `SPARK_MODE`
+**Problem:** Tests imported types from `mock_spark` without checking `SPARKLESS_TEST_MODE`
 
 **Example:**
 ```python
@@ -78,7 +78,7 @@ from mock_spark import StructType, StructField, StringType
 ```python
 # ✅ Correct
 import os
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+if os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower() == "pyspark":
     from pyspark.sql.types import StructType, StructField, StringType
 else:
     from mock_spark import StructType, StructField, StringType
@@ -94,7 +94,7 @@ else:
 
 **Solution:**
 ```python
-if os.environ.get("SPARK_MODE", "mock").lower() == "real":
+if os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower() == "pyspark":
     from pyspark.sql.utils import AnalysisException
 else:
     from mock_spark.errors import AnalysisException
@@ -105,7 +105,7 @@ else:
 
 **Solution:** Use conditional logic:
 ```python
-if spark_mode == "real":
+if spark_mode == "pyspark":
     # Use PySpark SQL commands
     spark_session.sql("CREATE DATABASE IF NOT EXISTS test_schema")
 else:
@@ -115,7 +115,7 @@ else:
 
 ## Next Steps
 
-1. Run all tests with both `SPARK_MODE=mock` and `SPARK_MODE=real` to verify fixes
+1. Run all tests with both `SPARKLESS_TEST_MODE=sparkless` and `SPARKLESS_TEST_MODE=pyspark` to verify fixes
 2. Monitor for any remaining failures and fix them using the same patterns
 3. Update test documentation to reflect these patterns
 

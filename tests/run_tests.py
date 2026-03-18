@@ -6,11 +6,11 @@ This script provides a single, flexible interface for running tests with various
 configurations including mode selection, layer filtering, parallelization, and coverage.
 
 Usage:
-    # Run all unit tests in mock mode (default)
+    # Run all tests in sparkless mode (default)
     python run_tests.py
 
-    # Run all tests in real mode
-    python run_tests.py --mode real
+    # Run all tests in pyspark mode
+    python run_tests.py --mode pyspark
 
     # Run specific layer
     python run_tests.py --layer integration
@@ -28,7 +28,7 @@ Usage:
     python run_tests.py --marker slow
 
     # Combine options
-    python run_tests.py --mode real --layer system --parallel --workers 4 --coverage
+    python run_tests.py --mode pyspark --layer system --parallel --workers 4 --coverage
 """
 
 import argparse
@@ -43,9 +43,12 @@ def setup_environment(mode: str) -> dict:
     """Set up environment variables for test execution."""
     env = os.environ.copy()
 
-    # Map old mode names to new sparkless.testing names
-    mode_map = {"mock": "sparkless", "real": "pyspark", "sparkless": "sparkless", "pyspark": "pyspark"}
-    sparkless_mode = mode_map.get(mode, mode)
+    # Normalize mode values (two supported modes: sparkless, pyspark)
+    sparkless_mode = (mode or "sparkless").lower()
+    if sparkless_mode in ("mock",):
+        sparkless_mode = "sparkless"
+    if sparkless_mode in ("real",):
+        sparkless_mode = "pyspark"
 
     # Set sparkless.testing mode (new)
     env["SPARKLESS_TEST_MODE"] = sparkless_mode
@@ -148,11 +151,11 @@ def build_pytest_command(
     # Add marker filter
     if marker:
         # If in pyspark mode, also exclude batch_mode tests
-        if mode in ("real", "pyspark"):
+        if mode == "pyspark":
             cmd.extend(["-m", f"{marker} and not batch_mode"])
         else:
             cmd.extend(["-m", marker])
-    elif mode in ("real", "pyspark"):
+    elif mode == "pyspark":
         # Skip batch mode tests in pyspark mode (Delta Lake doesn't support batch mode operations)
         cmd.extend(["-m", "not batch_mode"])
 
@@ -241,9 +244,9 @@ def main():
     # Mode selection
     parser.add_argument(
         "--mode",
-        choices=["mock", "real", "sparkless", "pyspark", "both"],
+        choices=["sparkless", "pyspark", "both"],
         default="sparkless",
-        help="Spark mode: sparkless (default), pyspark, or both (runs in both modes). 'mock' and 'real' are legacy aliases.",
+        help="Spark mode: sparkless (default), pyspark, or both (runs in both modes).",
     )
 
     # Layer selection
