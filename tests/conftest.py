@@ -18,6 +18,7 @@ import os
 import shutil
 import sys
 import time
+import tempfile
 
 import pytest
 
@@ -56,10 +57,27 @@ def spark(request):
     if hasattr(request, "node") and hasattr(request.node, "name"):
         test_name = f"test_{request.node.name[:50]}"
     
-    # Enable Delta Lake only in PySpark mode
-    enable_delta = (mode == Mode.PYSPARK)
+    # For parity, enable Delta support in both modes.
+    # (In sparkless this is typically a no-op, but it keeps session setup aligned.)
+    enable_delta = True
     
     session = create_session(app_name=test_name, mode=mode, enable_delta=enable_delta)
+
+    # Align core Spark SQL settings across sparkless and pyspark.
+    # Many tests write Delta tables via saveAsTable(..., format="delta"), which requires
+    # spark.sql.warehouse.dir to be set (even in sparkless).
+    warehouse_dir = tempfile.mkdtemp(prefix=f"spark-warehouse-{os.getpid()}-")
+    try:
+        # Prefer SparkSession.conf API when present.
+        if hasattr(session, "conf") and hasattr(session.conf, "set"):
+            session.conf.set("spark.sql.warehouse.dir", warehouse_dir)
+        else:
+            # Fallback: some engines expose a SQL interface only.
+            if hasattr(session, "sql"):
+                session.sql(f"SET spark.sql.warehouse.dir={warehouse_dir}")
+    except Exception:
+        # If the underlying engine doesn't support setting conf, tests will surface it.
+        pass
     yield session
     
     # Cleanup - don't stop PySpark session (reused across tests)
@@ -68,6 +86,10 @@ def spark(request):
             session.stop()
         except Exception:
             pass
+    try:
+        shutil.rmtree(warehouse_dir, ignore_errors=True)
+    except Exception:
+        pass
 
 
 # Ensure project root and src directory are on sys.path

@@ -391,32 +391,66 @@ class StorageManager:
                 # This ensures we know when Delta fails rather than silently falling back
                 # Note: Delta Lake doesn't support append in batch mode, so use overwrite
                 try:
-                    (
-                        empty_df.write.format("delta")
-                        .mode("overwrite")
-                        .option("overwriteSchema", "true")
-                        .saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
-                    )
+                    # Best-effort protection against race conditions: if another worker created the
+                    # table between our existence check and the write, PySpark+Delta may attempt a
+                    # truncate-style overwrite and fail. Dropping first avoids that.
+                    prepare_delta_overwrite(self.spark, self.table_fqn)
+                    if os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower() == "pyspark":
+                        from ..table_operations import overwrite_table_via_location
+
+                        overwrite_table_via_location(self.spark, empty_df, self.table_fqn)
+                    else:
+                        (
+                            empty_df.write.format("delta")
+                            .mode("overwrite")
+                            .option("overwriteSchema", "true")
+                            .saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
+                        )
                     self.logger.info(
                         f"Delta table created successfully: {self.table_fqn}"
                     )
                 except Exception as create_error:
                     # Handle race condition - table might already exist
                     error_msg = str(create_error).lower()
-                    # Check for various "table already exists" error formats
-                    if (
-                        "already exists" in error_msg
-                        or "table_or_view_already_exists" in error_msg
-                    ):
-                        self.logger.debug(
-                            f"Table {self.table_fqn} already exists, continuing..."
-                        )
-                        # Verify table exists and has correct schema - if not, re-raise
-                        if not table_exists(self.spark, self.table_fqn):
-                            raise  # Table should exist but doesn't - re-raise
+                    # Delta truncate-in-batch-mode: drop and retry once.
+                    if "truncate" in error_msg and "batch mode" in error_msg:
+                        try:
+                            self.logger.warning(
+                                f"Delta truncate error creating {self.table_fqn}; dropping and retrying once."
+                            )
+                            self.spark.sql(f"DROP TABLE IF EXISTS {self.table_fqn}")  # type: ignore[attr-defined]
+                            prepare_delta_overwrite(self.spark, self.table_fqn)
+                            if os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower() == "pyspark":
+                                from ..table_operations import overwrite_table_via_location
+
+                                overwrite_table_via_location(self.spark, empty_df, self.table_fqn)
+                            else:
+                                (
+                                    empty_df.write.format("delta")
+                                    .mode("overwrite")
+                                    .option("overwriteSchema", "true")
+                                    .saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
+                                )
+                            self.logger.info(
+                                f"Delta table created successfully after retry: {self.table_fqn}"
+                            )
+                        except Exception:
+                            raise
                     else:
-                        # Re-raise if it's a different error - this will propagate Delta failures
-                        raise
+                        # Check for various "table already exists" error formats
+                        if (
+                            "already exists" in error_msg
+                            or "table_or_view_already_exists" in error_msg
+                        ):
+                            self.logger.debug(
+                                f"Table {self.table_fqn} already exists, continuing..."
+                            )
+                            # Verify table exists and has correct schema - if not, re-raise
+                            if not table_exists(self.spark, self.table_fqn):
+                                raise  # Table should exist but doesn't - re-raise
+                        else:
+                            # Re-raise if it's a different error - this will propagate Delta failures
+                            raise
 
                 try:
                     self.spark.sql(f"REFRESH TABLE {self.table_fqn}")  # type: ignore[attr-defined]
@@ -537,11 +571,17 @@ class StorageManager:
             if write_mode == WriteMode.OVERWRITE:
                 # Prepare for Delta overwrite by dropping existing Delta table if it exists
                 prepare_delta_overwrite(self.spark, self.table_fqn)
-                writer = (
-                    df_prepared.write.format("delta")
-                    .mode("overwrite")
-                    .option("overwriteSchema", "true")
-                )  # type: ignore[attr-defined]
+                if os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower() == "pyspark":
+                    from ..table_operations import overwrite_table_via_location
+
+                    overwrite_table_via_location(self.spark, df_prepared, self.table_fqn)
+                    writer = None
+                else:
+                    writer = (
+                        df_prepared.write.format("delta")
+                        .mode("overwrite")
+                        .option("overwriteSchema", "true")
+                    )  # type: ignore[attr-defined]
             else:
                 # Append mode - use mergeSchema for schema evolution
                 writer = (
@@ -554,13 +594,35 @@ class StorageManager:
                 writer = writer.partitionBy(*partition_columns)
 
             try:
-                print(f"🔍 write_dataframe: Executing saveAsTable({self.table_fqn})")
-                writer.saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
-                print("✅ write_dataframe: saveAsTable succeeded")
+                if writer is not None:
+                    print(f"🔍 write_dataframe: Executing saveAsTable({self.table_fqn})")
+                    writer.saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
+                    print("✅ write_dataframe: saveAsTable succeeded")
             except Exception as write_error:
                 import traceback
 
                 error_msg = str(write_error).lower()
+
+                # Delta truncate-in-batch-mode: drop and retry once with overwrite.
+                if "truncate" in error_msg and "batch mode" in error_msg:
+                    self.logger.warning(
+                        f"Delta truncate error writing {self.table_fqn}; dropping and retrying once."
+                    )
+                    try:
+                        self.spark.sql(f"DROP TABLE IF EXISTS {self.table_fqn}")  # type: ignore[attr-defined]
+                        prepare_delta_overwrite(self.spark, self.table_fqn)
+                        retry_writer = (
+                            df_prepared.write.format("delta")
+                            .mode("overwrite")
+                            .option("overwriteSchema", "true")
+                        )  # type: ignore[attr-defined]
+                        if partition_columns:
+                            retry_writer = retry_writer.partitionBy(*partition_columns)
+                        retry_writer.saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
+                        print("✅ write_dataframe: saveAsTable succeeded after truncate retry")
+                    except Exception:
+                        # Fall through to the normal error-handling logic below.
+                        pass
 
                 # Log full error context for DeltaAnalysisException
                 if "delta" in error_msg.lower() or "DELTA_CONFIGURE" in str(

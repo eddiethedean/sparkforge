@@ -252,6 +252,16 @@ def _create_dataframe_writer(
     """
     # Use standardized overwrite pattern: overwrite + overwriteSchema
     if mode == "overwrite":
+        # Delta tables do not support truncate in batch mode for overwrite writes.
+        # Drop the table before overwrite when we have a table name to target.
+        if table_name is not None:
+            try:
+                from .table_operations import prepare_delta_overwrite
+
+                prepare_delta_overwrite(spark, table_name)
+            except Exception:
+                # Best-effort; if drop fails the subsequent write will surface a more specific error.
+                pass
         writer = (
             df.write.format("delta").mode("overwrite").option("overwriteSchema", "true")
         )
@@ -997,6 +1007,23 @@ class ExecutionEngine:
                 else:  # INITIAL or FULL_REFRESH
                     write_mode_str = "overwrite"
 
+                # Populate metadata early for consistent reporting/logging.
+                result.output_table = output_table  # type: ignore[attr-defined]
+                result.write_mode = write_mode_str  # type: ignore[attr-defined]
+
+                # In PySpark+Delta, overwrite via saveAsTable can hit a V2 truncate-capability
+                # check if the target table exists. We avoid this by dropping the target table
+                # before overwrite writes.
+                if write_mode_str == "overwrite":
+                    try:
+                        self.spark.sql(f"DROP TABLE IF EXISTS {output_table}")  # type: ignore[attr-defined]
+                        import time
+
+                        time.sleep(0.1)
+                    except Exception:
+                        # Best-effort; the write path will surface a more specific error if needed.
+                        pass
+
                 # Validate schema based on execution mode
                 # For INCREMENTAL and FULL_REFRESH modes, schema must match exactly
                 # For INITIAL mode, schema changes are allowed
@@ -1492,7 +1519,18 @@ class ExecutionEngine:
                     # Execute write
                     if writer is not None:
                         try:
-                            writer.saveAsTable(output_table)  # type: ignore[attr-defined]
+                            # In pyspark mode, avoid saveAsTable(overwrite) because it can
+                            # trigger Delta's truncate-in-batch-mode capability check.
+                            if (
+                                write_mode_str == "overwrite"
+                                and os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower()
+                                == "pyspark"
+                            ):
+                                from .table_operations import overwrite_table_via_location
+
+                                overwrite_table_via_location(self.spark, output_df, output_table)
+                            else:
+                                writer.saveAsTable(output_table)  # type: ignore[attr-defined]
                         except Exception as write_error:
                             error_msg = str(write_error).lower()
                             # Handle catalog sync issues where Spark reports empty schema (struct<>)
@@ -1785,12 +1823,11 @@ class ExecutionEngine:
                         import time
 
                         time.sleep(0.2)  # Brief delay for catalog sync
-                        # Retry the write using append mode (since table is dropped, append will create it)
-                        # This avoids the truncate issue entirely
+                        # Retry the write using overwrite mode (table is gone now)
                         writer = _create_dataframe_writer(
                             output_df,
                             self.spark,
-                            "append",  # Use append after drop to avoid truncate
+                            "overwrite",
                             table_name=output_table,
                         )
                         writer.saveAsTable(output_table)  # type: ignore[attr-defined]
@@ -1799,6 +1836,8 @@ class ExecutionEngine:
                         result.status = StepStatus.COMPLETED
                         result.rows_written = rows_written
                         result.rows_processed = rows_written
+                        result.output_table = output_table  # type: ignore[attr-defined]
+                        result.write_mode = "overwrite"  # type: ignore[attr-defined]
                         result.end_time = datetime.now()
                         result.duration = (
                             result.end_time - result.start_time

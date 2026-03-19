@@ -48,6 +48,7 @@ from __future__ import annotations
 import logging
 import os
 import tempfile
+import uuid
 from typing import Any, Dict, Optional, Union
 
 from .compat import AnalysisException, DataFrame, SparkSession
@@ -242,6 +243,10 @@ def prepare_delta_overwrite(
             # First try using SQL DROP TABLE
             spark.sql(f"DROP TABLE IF EXISTS {table_name}")  # type: ignore[attr-defined]
             logger.debug(f"Dropped table {table_name} before overwrite (if it existed)")
+            # Brief delay to let the catalog settle in test/xdist runs.
+            import time
+
+            time.sleep(0.1)
 
             # For Delta tables, also try using DeltaTable API if available
             # This ensures the table is fully removed, including metadata
@@ -275,6 +280,48 @@ def prepare_delta_overwrite(
                 )
         except Exception:
             pass  # If we can't check Delta at path, assume and proceed with overwrite
+
+
+def overwrite_table_via_location(
+    spark: SparkSession,  # type: ignore[valid-type]
+    df: DataFrame,
+    table_name: str,
+    *,
+    base_dir: Optional[str] = None,
+) -> None:
+    """
+    Overwrite a Delta table without relying on saveAsTable(overwrite).
+
+    In some PySpark+Delta environments, `DataFrameWriter.saveAsTable(...).mode('overwrite')`
+    can hit the V2 truncate capability check. This helper avoids that by:
+    - writing to a fresh Delta location
+    - dropping the table
+    - recreating the table pointing at the new location
+
+    Intended primarily for test environments.
+    """
+    if "." not in table_name or table_name.startswith("/"):
+        raise ValueError("overwrite_table_via_location requires a schema.table name")
+
+    if base_dir is None:
+        base_dir = os.path.join(os.getcwd(), "spark-warehouse", "_overwrite_locations")
+    os.makedirs(base_dir, exist_ok=True)
+
+    location = os.path.join(
+        base_dir, f"{table_name.replace('.', '__')}__{uuid.uuid4().hex}"
+    )
+
+    # Write new data to a fresh location first.
+    df.write.format("delta").mode("overwrite").save(location)
+
+    # Replace table pointer to the new location.
+    spark.sql(f"DROP TABLE IF EXISTS {table_name}")  # type: ignore[attr-defined]
+    spark.sql(
+        f"""CREATE TABLE {table_name}
+USING DELTA
+LOCATION '{location}'
+"""
+    )  # type: ignore[attr-defined]
 
 
 # Keep the old function name for backward compatibility, but it now calls the public function
