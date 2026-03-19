@@ -1523,12 +1523,18 @@ class ExecutionEngine:
                             # trigger Delta's truncate-in-batch-mode capability check.
                             if (
                                 write_mode_str == "overwrite"
-                                and os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower()
+                                and os.environ.get(
+                                    "SPARKLESS_TEST_MODE", "sparkless"
+                                ).lower()
                                 == "pyspark"
                             ):
-                                from .table_operations import overwrite_table_via_location
+                                from .table_operations import (
+                                    overwrite_table_via_location,
+                                )
 
-                                overwrite_table_via_location(self.spark, output_df, output_table)
+                                overwrite_table_via_location(
+                                    self.spark, output_df, output_table
+                                )
                             else:
                                 writer.saveAsTable(output_table)  # type: ignore[attr-defined]
                         except Exception as write_error:

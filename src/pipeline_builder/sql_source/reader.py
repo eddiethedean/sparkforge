@@ -60,7 +60,7 @@ def _read_jdbc(source: JdbcSource, spark: Any) -> Any:
 
 def _read_sqlalchemy(source: SqlAlchemySource, spark: Any) -> Any:
     try:
-        import pandas as pd
+        import pandas as pd  # type: ignore[import-untyped]
     except ImportError as e:
         raise RuntimeError(
             "SqlAlchemySource requires pandas. Install with: pip install pipeline_builder[sql]"

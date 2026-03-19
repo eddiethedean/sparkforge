@@ -79,19 +79,19 @@ def _configure_engine_from_session(spark: Any) -> None:
             column_cls=PySparkColumn,
         )
     elif is_sparkless:
-        from sparkless.sql.utils import AnalysisException as MockAnalysisException
         from sparkless import Column as MockColumn
         from sparkless import DataFrame as MockDataFrame
         from sparkless import SparkSession as MockSparkSession
         from sparkless import Window as MockWindow
-        from sparkless.sql import functions as mock_functions
         from sparkless import spark_types as mock_types
+        from sparkless.sql import functions as mock_functions
+        from sparkless.sql.utils import AnalysisException as MockAnalysisException
 
         configure_engine(
             functions=cast(FunctionsProtocol, mock_functions),
             types=cast(TypesProtocol, mock_types),
             analysis_exception=MockAnalysisException,
-            window=MockWindow,
+            window=cast(WindowProtocol, MockWindow),
             desc=mock_functions.desc,
             engine_name="mock",
             dataframe_cls=MockDataFrame,

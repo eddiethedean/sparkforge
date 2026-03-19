@@ -8,7 +8,7 @@ via JDBC or SQLAlchemy.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Literal, Optional, Union
+from typing import Any, Dict, Literal, Optional, Union, cast
 
 from pipeline_builder_base.errors import ValidationError
 
@@ -120,7 +120,7 @@ def write_jdbc(
     if config.driver:
         props["driver"] = config.driver
 
-    row_count = df.count()
+    row_count = cast(int, df.count())
 
     df.write.jdbc(
         url=config.url,
@@ -164,7 +164,7 @@ def write_sqlalchemy(
         >>> rows_written = write_sqlalchemy(df, config)
     """
     try:
-        import pandas as pd  # noqa: F401
+        import pandas as pd  # type: ignore[import-untyped]  # noqa: F401
     except ImportError as e:
         raise RuntimeError(
             "SqlAlchemyWriteConfig requires pandas. Install with: pip install pipeline_builder[sql]"
@@ -180,6 +180,7 @@ def write_sqlalchemy(
     if config.engine is not None:
         engine = config.engine
     else:
+        assert config.url is not None
         engine = create_engine(config.url)
 
     pdf = df.toPandas()

@@ -395,10 +395,15 @@ class StorageManager:
                     # table between our existence check and the write, PySpark+Delta may attempt a
                     # truncate-style overwrite and fail. Dropping first avoids that.
                     prepare_delta_overwrite(self.spark, self.table_fqn)
-                    if os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower() == "pyspark":
+                    if (
+                        os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower()
+                        == "pyspark"
+                    ):
                         from ..table_operations import overwrite_table_via_location
 
-                        overwrite_table_via_location(self.spark, empty_df, self.table_fqn)
+                        overwrite_table_via_location(
+                            self.spark, empty_df, self.table_fqn
+                        )
                     else:
                         (
                             empty_df.write.format("delta")
@@ -420,10 +425,19 @@ class StorageManager:
                             )
                             self.spark.sql(f"DROP TABLE IF EXISTS {self.table_fqn}")  # type: ignore[attr-defined]
                             prepare_delta_overwrite(self.spark, self.table_fqn)
-                            if os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower() == "pyspark":
-                                from ..table_operations import overwrite_table_via_location
+                            if (
+                                os.environ.get(
+                                    "SPARKLESS_TEST_MODE", "sparkless"
+                                ).lower()
+                                == "pyspark"
+                            ):
+                                from ..table_operations import (
+                                    overwrite_table_via_location,
+                                )
 
-                                overwrite_table_via_location(self.spark, empty_df, self.table_fqn)
+                                overwrite_table_via_location(
+                                    self.spark, empty_df, self.table_fqn
+                                )
                             else:
                                 (
                                     empty_df.write.format("delta")
@@ -571,10 +585,15 @@ class StorageManager:
             if write_mode == WriteMode.OVERWRITE:
                 # Prepare for Delta overwrite by dropping existing Delta table if it exists
                 prepare_delta_overwrite(self.spark, self.table_fqn)
-                if os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower() == "pyspark":
+                if (
+                    os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower()
+                    == "pyspark"
+                ):
                     from ..table_operations import overwrite_table_via_location
 
-                    overwrite_table_via_location(self.spark, df_prepared, self.table_fqn)
+                    overwrite_table_via_location(
+                        self.spark, df_prepared, self.table_fqn
+                    )
                     writer = None
                 else:
                     writer = (
@@ -595,7 +614,9 @@ class StorageManager:
 
             try:
                 if writer is not None:
-                    print(f"🔍 write_dataframe: Executing saveAsTable({self.table_fqn})")
+                    print(
+                        f"🔍 write_dataframe: Executing saveAsTable({self.table_fqn})"
+                    )
                     writer.saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
                     print("✅ write_dataframe: saveAsTable succeeded")
             except Exception as write_error:
@@ -619,7 +640,9 @@ class StorageManager:
                         if partition_columns:
                             retry_writer = retry_writer.partitionBy(*partition_columns)
                         retry_writer.saveAsTable(self.table_fqn)  # type: ignore[attr-defined]
-                        print("✅ write_dataframe: saveAsTable succeeded after truncate retry")
+                        print(
+                            "✅ write_dataframe: saveAsTable succeeded after truncate retry"
+                        )
                     except Exception:
                         # Fall through to the normal error-handling logic below.
                         pass
