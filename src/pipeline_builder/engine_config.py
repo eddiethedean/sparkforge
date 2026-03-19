@@ -45,13 +45,22 @@ def _configure_engine_from_session(spark: Any) -> None:
     """Configure engine from a SparkSession (PySpark or sparkless). Used by configure_engine(spark=...)."""
     session_module = type(spark).__module__
     session_name = type(spark).__name__
+
+    # sparkless.testing in PySpark mode may wrap the real SparkSession
+    # (e.g. sparkless.testing.jdbc.JdbcSessionWrapper). In that case, the
+    # wrapper itself lives under a "sparkless.*" module, but the real engine
+    # should be detected from its inner `_session`.
+    inner_session = getattr(spark, "_session", None)
+    inner_is_pyspark = (
+        inner_session is not None and "pyspark" in type(inner_session).__module__
+    )
     # Sparkless 4 exposes session as builtins.PySparkSession
     is_sparkless = (
         "sparkless" in session_module
         or "mock_spark" in session_module
         or (session_module == "builtins" and session_name == "PySparkSession")
     )
-    if "pyspark" in session_module:
+    if "pyspark" in session_module or inner_is_pyspark:
         from pyspark.sql import (
             Column as PySparkColumn,
         )
@@ -67,6 +76,33 @@ def _configure_engine_from_session(spark: Any) -> None:
         from pyspark.sql.utils import AnalysisException as PySparkAnalysisException
         from pyspark.sql.window import Window as PySparkWindow
 
+        # sparkless.testing in PySpark mode may wrap the real SparkSession/DF
+        # for JDBC simulations. For compatibility, treat those wrappers as the
+        # "DataFrame" type so `isinstance(..., pipeline_builder.compat.DataFrame)`
+        # works in tests.
+        dataframe_cls: Any = PySparkDataFrame
+        spark_session_cls: Any = PySparkSparkSession
+        column_cls: Any = PySparkColumn
+        if "sparkless.testing.jdbc" in session_module or session_name == "JdbcSessionWrapper":
+            try:
+                from sparkless.testing.jdbc import (  # type: ignore[import-not-found]
+                    JdbcDataFrameWrapper,
+                    JdbcSessionWrapper,
+                )
+
+                # Sparkless JDBC wrappers delegate to the real PySpark engine,
+                # but keep JDBC-aware wrappers around DataFrames.
+                #
+                # In PySpark mode, the tests expect compat.DataFrame to match the
+                # wrapper returned by `sparkless.testing`. Bind compat.DataFrame
+                # directly to `JdbcDataFrameWrapper`.
+                dataframe_cls = JdbcDataFrameWrapper
+                spark_session_cls = PySparkSparkSession
+                column_cls = PySparkColumn
+            except Exception:
+                # If wrappers can't be imported, fall back to raw PySpark classes.
+                pass
+
         configure_engine(
             functions=cast(FunctionsProtocol, pyspark_functions),
             types=cast(TypesProtocol, pyspark_types),
@@ -74,9 +110,9 @@ def _configure_engine_from_session(spark: Any) -> None:
             window=PySparkWindow,
             desc=pyspark_desc,
             engine_name="pyspark",
-            dataframe_cls=PySparkDataFrame,
-            spark_session_cls=PySparkSparkSession,
-            column_cls=PySparkColumn,
+            dataframe_cls=dataframe_cls,
+            spark_session_cls=spark_session_cls,
+            column_cls=column_cls,
         )
     elif is_sparkless:
         from sparkless import Column as MockColumn

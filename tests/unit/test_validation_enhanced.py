@@ -12,6 +12,7 @@ enabling comprehensive testing without requiring a real Spark session.
 import os
 
 import pytest
+from sparkless.testing import Mode
 
 from pipeline_builder.compat import F, types
 from pipeline_builder.validation.data_validation import (
@@ -433,7 +434,7 @@ class TestFunctionsIntegration:
 
     def test_mock_functions_performance(self, spark_mode):
         """Test Functions performance characteristics."""
-        if spark_mode == "real":
+        if spark_mode == Mode.PYSPARK:
             pytest.skip("Tests mock-spark specific functions performance")
         
         import time
@@ -455,7 +456,7 @@ class TestFunctionsIntegration:
 
     def test_mock_functions_error_handling(self, spark_mode):
         """Test Functions error handling."""
-        if spark_mode == "real":
+        if spark_mode == Mode.PYSPARK:
             pytest.skip("Tests mock-spark specific functions error handling")
 
         try:

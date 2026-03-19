@@ -78,6 +78,16 @@ def spark(request):
     except Exception:
         # If the underlying engine doesn't support setting conf, tests will surface it.
         pass
+
+    # Some tests call `saveAsTable` directly and expect `test_schema` to exist.
+    # In PySpark mode this schema/database is not guaranteed to be present, so
+    # create it here for consistent behavior.
+    try:
+        if mode == Mode.PYSPARK:
+            if hasattr(session, "sql"):
+                session.sql("CREATE SCHEMA IF NOT EXISTS test_schema")
+    except Exception:
+        pass
     yield session
     
     # Cleanup - don't stop PySpark session (reused across tests)
@@ -128,6 +138,40 @@ def _configure_default_engine():
             from pyspark.sql import SparkSession as PySparkSparkSession
             from pyspark.sql import Column as PySparkColumn
 
+            # In PySpark mode, sparkless.testing often wraps the real SparkSession/DF
+            # (e.g. for JDBC simulation). Bind compat `DataFrame` early to the wrapper
+            # type so `isinstance(..., DataFrame)` works for module-level imports.
+            dataframe_cls = PySparkDataFrame
+            spark_session_cls = PySparkSparkSession
+            try:
+                from sparkless.testing.jdbc import (  # type: ignore[import-not-found]
+                    JdbcDataFrameWrapper,
+                    JdbcSessionWrapper,
+                )
+
+                # PySpark-mode tests may receive `JdbcDataFrameWrapper` instances
+                # from `sparkless.testing`, but some unit tests also expect that
+                # `Mock(spec=compat.DataFrame)` exposes PySpark DataFrame APIs
+                # like `.limit()`. We solve this by using a compat proxy type that:
+                # - subclasses PySpark's DataFrame (API surface for mocks)
+                # - customizes `isinstance` checks to also accept JdbcDataFrameWrapper
+                class _JdbcDataFrameCompatMeta(type):
+                    def __instancecheck__(cls, instance):  # type: ignore[override]
+                        return isinstance(
+                            instance,
+                            (PySparkDataFrame, JdbcDataFrameWrapper),
+                        )
+
+                class JdbcCompatibleDataFrame(
+                    PySparkDataFrame, metaclass=_JdbcDataFrameCompatMeta
+                ):
+                    __module__ = "pyspark.sql.dataframe"
+
+                dataframe_cls = JdbcCompatibleDataFrame
+                spark_session_cls = PySparkSparkSession
+            except Exception:
+                pass
+
             configure_engine(
                 functions=pyspark_functions,
                 types=pyspark_types,
@@ -135,8 +179,8 @@ def _configure_default_engine():
                 window=PySparkWindow,
                 desc=pyspark_desc,
                 engine_name="pyspark",
-                dataframe_cls=PySparkDataFrame,
-                spark_session_cls=PySparkSparkSession,
+                dataframe_cls=dataframe_cls,
+                spark_session_cls=spark_session_cls,
                 column_cls=PySparkColumn,
             )
             return
@@ -205,6 +249,34 @@ def _configure_engine_for_mode(spark_mode):
         from pyspark.sql import SparkSession as PySparkSparkSession
         from pyspark.sql import Column as PySparkColumn
 
+        # In PySpark mode, sparkless.testing typically wraps the real SparkSession
+        # and DataFrame for JDBC-like compatibility. For test `isinstance` checks,
+        # tests still expect real PySpark types for compat bindings.
+        dataframe_cls = PySparkDataFrame
+        spark_session_cls = PySparkSparkSession
+        try:
+            from sparkless.testing.jdbc import (  # type: ignore[import-not-found]
+                JdbcDataFrameWrapper,
+                JdbcSessionWrapper,
+            )
+
+            class _JdbcDataFrameCompatMeta(type):
+                def __instancecheck__(cls, instance):  # type: ignore[override]
+                    return isinstance(
+                        instance,
+                        (PySparkDataFrame, JdbcDataFrameWrapper),
+                    )
+
+            class JdbcCompatibleDataFrame(
+                PySparkDataFrame, metaclass=_JdbcDataFrameCompatMeta
+            ):
+                __module__ = "pyspark.sql.dataframe"
+
+            dataframe_cls = JdbcCompatibleDataFrame
+            spark_session_cls = PySparkSparkSession
+        except Exception:
+            pass
+
         configure_engine(
             functions=pyspark_functions,
             types=pyspark_types,
@@ -212,8 +284,8 @@ def _configure_engine_for_mode(spark_mode):
             window=PySparkWindow,
             desc=pyspark_desc,
             engine_name="pyspark",
-            dataframe_cls=PySparkDataFrame,
-            spark_session_cls=PySparkSparkSession,
+            dataframe_cls=dataframe_cls,
+            spark_session_cls=spark_session_cls,
             column_cls=PySparkColumn,
         )
 

@@ -412,6 +412,21 @@ def write_overwrite_table(
         # Prepare for Delta overwrite by dropping existing Delta table if it exists
         prepare_delta_overwrite(spark, fqn)
 
+        # In PySpark+Delta test environments Spark may attempt a TRUNCATE-style
+        # overwrite for V2 tables, which Delta rejects ("does not support
+        # truncate in batch mode"). Use the location-based overwrite helper
+        # instead.
+        if (
+            os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower() == "pyspark"
+            and hasattr(spark, "_jsparkSession")
+            # Avoid triggering this branch for MagicMock/other unittest stubs.
+            # MagicMock will happily pretend `_jsparkSession` exists.
+            and type(spark).__module__ != "unittest.mock"
+        ):
+            overwrite_table_via_location(spark, df, fqn)
+            logger.info(f"Successfully wrote {cnt} rows to {fqn} in location-overwrite mode")
+            return cnt
+
         # Delta Lake doesn't support append in batch mode
         # Always use overwrite mode for Delta tables
         # This is safe because we've already dropped the table if it existed

@@ -6,6 +6,7 @@ focusing on the most important functionality.
 """
 
 import pytest
+from sparkless.testing import Mode
 
 from pipeline_builder.validation.data_validation import (
     _convert_rule_to_expression,
@@ -439,7 +440,7 @@ class TestFunctionsIntegrationSimple:
 
     def test_mock_functions_performance(self, spark_mode):
         """Test Functions performance characteristics."""
-        if spark_mode == "real":
+        if spark_mode == Mode.PYSPARK:
             pytest.skip("Tests mock-spark specific functions performance")
         
         import time
@@ -461,7 +462,7 @@ class TestFunctionsIntegrationSimple:
 
     def test_mock_functions_error_handling(self, spark_mode):
         """Test Functions error handling."""
-        if spark_mode == "real":
+        if spark_mode == Mode.PYSPARK:
             pytest.skip("Tests mock-spark specific functions error handling")
         
         try:

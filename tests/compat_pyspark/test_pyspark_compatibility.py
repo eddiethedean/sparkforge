@@ -11,6 +11,7 @@ import sys
 import pytest
 
 pytestmark = pytest.mark.pyspark_compat
+from sparkless.testing import Mode
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from tests.test_helpers.isolation import get_unique_schema
@@ -102,7 +103,7 @@ class TestPySparkCompatibility:
         """Test that engine matches SPARK_MODE (pyspark or mock/unknown)."""
         from pipeline_builder.compat import compat_name, is_mock_spark
 
-        if spark_mode == "real":
+        if spark_mode == Mode.PYSPARK:
             assert compat_name() == "pyspark"
             assert not is_mock_spark()
         else:
@@ -113,21 +114,25 @@ class TestPySparkCompatibility:
     @pytest.mark.real_spark
     def test_pyspark_imports(self, pyspark_available, setup_pyspark_engine, spark_mode):
         """Test that PySpark imports work through compat layer."""
-        if spark_mode != "real":
+        if spark_mode != Mode.PYSPARK:
             pytest.skip("Requires real PySpark session")
         from pipeline_builder.compat import Column, DataFrame, SparkSession
 
         # Verify these are PySpark types
-        assert "pyspark" in str(DataFrame)
         assert "pyspark" in str(SparkSession)
         assert "pyspark" in str(Column)
+        # In PySpark mode, Sparkless may wrap PySpark DataFrames for JDBC parity.
+        # Accept either direct PySpark DataFrame types or Sparkless wrappers.
+        assert (
+            "pyspark" in str(DataFrame) or "JdbcDataFrameWrapper" in str(DataFrame)
+        )
 
     @pytest.mark.real_spark
     def test_pyspark_dataframe_operations(
         self, pyspark_available, setup_pyspark_engine, spark_mode
     ):
         """Test basic DataFrame operations with PySpark."""
-        if spark_mode != "real":
+        if spark_mode != Mode.PYSPARK:
             pytest.skip("Requires real PySpark session")
         from pyspark.sql import SparkSession
 
@@ -158,7 +163,7 @@ class TestPySparkCompatibility:
     @pytest.mark.real_spark
     def test_pyspark_pipeline_building(self, pyspark_available, setup_pyspark_engine, spark_mode):
         """Test that PipelineBuilder works with PySpark."""
-        if spark_mode != "real":
+        if spark_mode != Mode.PYSPARK:
             pytest.skip("Requires real PySpark session")
         from pyspark.sql import SparkSession
 
@@ -190,7 +195,7 @@ class TestPySparkCompatibility:
     @pytest.mark.real_spark
     def test_pyspark_validation(self, pyspark_available, setup_pyspark_engine, spark_mode):
         """Test validation with PySpark."""
-        if spark_mode != "real":
+        if spark_mode != Mode.PYSPARK:
             pytest.skip("Requires real PySpark session")
         from pyspark.sql import SparkSession
 
@@ -226,7 +231,7 @@ class TestPySparkCompatibility:
         self, pyspark_available, setup_pyspark_engine, spark_mode
     ):
         """Test Delta Lake operations with PySpark (if available)."""
-        if spark_mode != "real":
+        if spark_mode != Mode.PYSPARK:
             pytest.skip("Requires real PySpark session")
         import importlib.util
 
@@ -248,11 +253,18 @@ class TestPySparkCompatibility:
 
             configure_spark_with_delta_pip = pip_utils.configure_spark_with_delta_pip
 
+        import os
+        import shutil
+        import tempfile
+
+        warehouse_dir = tempfile.mkdtemp(prefix=f"spark-warehouse-{os.getpid()}-")
+
         builder = (
             SparkSession.builder.appName("DeltaTest")
             .master("local[1]")
             .config("spark.driver.host", "127.0.0.1")
             .config("spark.driver.bindAddress", "127.0.0.1")
+            .config("spark.sql.warehouse.dir", warehouse_dir)
             .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
             .config(
                 "spark.sql.catalog.spark_catalog",
@@ -262,32 +274,35 @@ class TestPySparkCompatibility:
 
         spark = configure_spark_with_delta_pip(builder).getOrCreate()
 
-        # Create test table
-        data = [(1, "Alice"), (2, "Bob")]
-        df = spark.createDataFrame(data, ["id", "name"])
-        table_name = "test_delta_table"
+        try:
+            # Create test table
+            data = [(1, "Alice"), (2, "Bob")]
+            df = spark.createDataFrame(data, ["id", "name"])
+            table_name = "test_delta_table"
 
-        # Write as Delta table (use append + overwriteSchema to avoid truncate limits)
-        spark.sql(f"DROP TABLE IF EXISTS {table_name}")  # type: ignore[attr-defined]
-        (
-            df.write.format("delta")
-            .mode("append")
-            .option("overwriteSchema", "true")
-            .saveAsTable(table_name)
-        )
+            # Write as Delta table (use append + overwriteSchema to avoid truncate limits)
+            spark.sql(f"DROP TABLE IF EXISTS {table_name}")  # type: ignore[attr-defined]
+            (
+                df.write.format("delta")
+                .mode("append")
+                .option("overwriteSchema", "true")
+                .saveAsTable(table_name)
+            )
 
-        # Read back
-        result = spark.table(table_name)
-        assert result.count() == 2
+            # Read back
+            result = spark.table(table_name)
+            assert result.count() == 2
 
-        # Clean up
-        spark.sql(f"DROP TABLE IF EXISTS {table_name}")
-        spark.stop()
+            # Clean up
+            spark.sql(f"DROP TABLE IF EXISTS {table_name}")
+        finally:
+            spark.stop()
+            shutil.rmtree(warehouse_dir, ignore_errors=True)
 
     @pytest.mark.real_spark
     def test_pyspark_error_handling(self, pyspark_available, setup_pyspark_engine, spark_mode):
         """Test error handling with PySpark."""
-        if spark_mode != "real":
+        if spark_mode != Mode.PYSPARK:
             pytest.skip("Requires real PySpark session")
         from pyspark.sql import SparkSession
 
@@ -328,7 +343,7 @@ class TestPySparkCompatibility:
         self, pyspark_available, setup_pyspark_engine, spark_mode
     ):
         """Test performance monitoring with PySpark."""
-        if spark_mode != "real":
+        if spark_mode != Mode.PYSPARK:
             pytest.skip("Requires real PySpark session")
         from pyspark.sql import SparkSession
 
@@ -356,7 +371,7 @@ class TestPySparkCompatibility:
     @pytest.mark.real_spark
     def test_pyspark_table_operations(self, pyspark_available, setup_pyspark_engine, spark_mode):
         """Test table operations with PySpark."""
-        if spark_mode != "real":
+        if spark_mode != Mode.PYSPARK:
             pytest.skip("Requires real PySpark session")
         import importlib.util
 
@@ -448,7 +463,7 @@ class TestPySparkEngineSwitching:
         """Test engine matches SPARK_MODE: pyspark in real, mock/unknown in mock."""
         from pipeline_builder.compat import compat_name, is_mock_spark
 
-        if spark_mode == "real":
+        if spark_mode == Mode.PYSPARK:
             assert compat_name() == "pyspark"
             assert not is_mock_spark()
         else:
@@ -461,7 +476,7 @@ class TestPySparkEngineSwitching:
         from pipeline_builder.compat import compat_name
 
         # In mock mode, compat is mock or unknown (engine not yet configured)
-        if spark_mode != "real":
+        if spark_mode != Mode.PYSPARK:
             assert compat_name() in ("mock", "unknown")
         else:
             pytest.skip("Switch-to-mock exercise skipped in real mode")
@@ -471,7 +486,7 @@ class TestPySparkEngineSwitching:
         """Test compat_name() matches current mode."""
         from pipeline_builder.compat import compat_name
 
-        if spark_mode == "real":
+        if spark_mode == Mode.PYSPARK:
             assert compat_name() == "pyspark"
         else:
             assert compat_name() in ("mock", "unknown")

@@ -398,6 +398,7 @@ class StorageManager:
                     if (
                         os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower()
                         == "pyspark"
+                        and hasattr(self.spark, "_jsparkSession")
                     ):
                         from ..table_operations import overwrite_table_via_location
 
@@ -430,6 +431,7 @@ class StorageManager:
                                     "SPARKLESS_TEST_MODE", "sparkless"
                                 ).lower()
                                 == "pyspark"
+                                and hasattr(self.spark, "_jsparkSession")
                             ):
                                 from ..table_operations import (
                                     overwrite_table_via_location,
@@ -588,6 +590,7 @@ class StorageManager:
                 if (
                     os.environ.get("SPARKLESS_TEST_MODE", "sparkless").lower()
                     == "pyspark"
+                    and hasattr(self.spark, "_jsparkSession")
                 ):
                     from ..table_operations import overwrite_table_via_location
 
