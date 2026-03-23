@@ -13,7 +13,7 @@ from sqlalchemy import Column, Integer, String, Table, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session
 
-from sql_pipeline_builder import SqlPipelineBuilder
+from sql_pipeline_builder import LogWriter, SqlPipelineBuilder
 from sql_pipeline_builder.compat import is_async_engine
 from sql_pipeline_builder.models import SqlBronzeStep, SqlGoldStep, SqlSilverStep
 
@@ -76,9 +76,10 @@ def sqlite_session():
 
 def test_sql_pipeline_builder_import():
     """Test that SqlPipelineBuilder can be imported."""
-    from sql_pipeline_builder import SqlPipelineBuilder
+    from sql_pipeline_builder import LogWriter, SqlPipelineBuilder
 
     assert SqlPipelineBuilder is not None
+    assert LogWriter is not None
 
 
 def test_sql_pipeline_builder_initialization(sqlite_session):
@@ -86,6 +87,12 @@ def test_sql_pipeline_builder_initialization(sqlite_session):
     builder = SqlPipelineBuilder(session=sqlite_session, schema="test_schema")
     assert builder is not None
     assert builder.schema == "test_schema"
+
+
+def test_logwriter_initialization(sqlite_session):
+    """Test that LogWriter can be initialized from top-level package."""
+    writer = LogWriter(sqlite_session, schema="test_schema", table_name="pipeline_logs")
+    assert writer is not None
 
 
 def test_bronze_step_creation(sqlite_session):

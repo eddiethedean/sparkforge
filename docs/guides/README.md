@@ -29,6 +29,7 @@ New to SparkForge? Start here:
 | [Use Case: Business Intelligence](./USE_CASE_BI_GUIDE.md) | KPIs, dashboards, and analytics pipelines. |
 | [Use Case: E-commerce](./USE_CASE_ECOMMERCE_GUIDE.md) | Orders, products, and funnel analytics. |
 | [Use Case: IoT and Events](./USE_CASE_IOT_GUIDE.md) | Sensors, time-series, and event pipelines. |
+| [SQL Pipeline Builder User Guide](../SQL_PIPELINE_BUILDER_USER_GUIDE.md) | End-to-end SQLAlchemy pipeline setup, execution, and troubleshooting. |
 
 ## By task
 
@@ -48,3 +49,4 @@ New to SparkForge? Start here:
 | Understand and fix pipeline errors | [Error Handling](./ERROR_HANDLING_GUIDE.md) |
 | Fix installation, engine, or execution issues | [Troubleshooting](./TROUBLESHOOTING_GUIDE.md) |
 | See BI, e-commerce, or IoT examples | [Use Cases Index](./USE_CASES_INDEX.md) |
+| Build Bronze/Silver/Gold with SQLAlchemy | [SQL Pipeline Builder User Guide](../SQL_PIPELINE_BUILDER_USER_GUIDE.md) |

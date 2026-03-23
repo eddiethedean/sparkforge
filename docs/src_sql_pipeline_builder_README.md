@@ -5,6 +5,9 @@ SQLAlchemy-based pipeline builder implementing the Medallion Architecture patter
 This package provides a SQLAlchemy-based implementation of the pipeline builder framework,
 allowing you to build Bronze → Silver → Gold pipelines using SQL databases instead of Spark.
 
+For a full walkthrough, see the dedicated user guide:
+[`docs/SQL_PIPELINE_BUILDER_USER_GUIDE.md`](./SQL_PIPELINE_BUILDER_USER_GUIDE.md)
+
 ## Features
 
 - **SQLAlchemy ORM**: Use SQLAlchemy ORM objects and queries

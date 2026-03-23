@@ -10,9 +10,11 @@ __version__ = "2.2.0"
 # Export main components
 from .engine import SqlEngine
 from .pipeline import SqlPipelineBuilder, SqlPipelineRunner
+from .writer import LogWriter
 
 __all__ = [
     "SqlEngine",
     "SqlPipelineBuilder",
     "SqlPipelineRunner",
+    "LogWriter",
 ]

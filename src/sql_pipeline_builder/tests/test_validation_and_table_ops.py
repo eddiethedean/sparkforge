@@ -14,7 +14,9 @@ from sqlalchemy.orm import Session
 
 from sql_pipeline_builder.table_operations import (
     create_schema_if_not_exists,
+    fqn,
     read_table,
+    table_exists,
     write_table,
 )
 from sql_pipeline_builder.validation.sql_validation import apply_sql_validation_rules
@@ -166,3 +168,48 @@ def test_write_table_missing_model_class_raises_data_error(sqlite_session):
 
     message = str(exc_info.value)
     assert "model_class is required to write table 'target_items'" in message
+
+
+def test_fqn_rejects_empty_parts():
+    """fqn should reject empty schema/table values."""
+    with pytest.raises(ValueError, match="cannot be empty"):
+        fqn("", "table")
+    with pytest.raises(ValueError, match="cannot be empty"):
+        fqn("schema", "")
+
+
+def test_write_table_rolls_back_on_bulk_insert_error(sqlite_session, monkeypatch):
+    """write_table should rollback and wrap insertion failures in DataError."""
+    query = sqlite_session.query(Item)
+
+    def fail_bulk_insert(*args, **kwargs):
+        raise RuntimeError("forced insert failure")
+
+    monkeypatch.setattr(sqlite_session, "bulk_insert_mappings", fail_bulk_insert)
+
+    with pytest.raises(DataError, match="forced insert failure"):
+        write_table(
+            sqlite_session,
+            query,
+            schema="analytics",
+            table="target_items",
+            mode="append",
+            model_class=TargetItem,
+            drop_existing_table=True,
+        )
+
+    assert sqlite_session.query(TargetItem).count() == 0
+
+
+def test_table_exists_uses_fallback_when_inspector_errors(sqlite_session, monkeypatch):
+    """table_exists should fall back to SQL queries if SQLAlchemy inspect fails."""
+    import sqlalchemy
+
+    # Ensure the table exists.
+    assert sqlite_session.query(Item).count() == 3
+
+    def fail_inspect(*args, **kwargs):
+        raise RuntimeError("inspect failure")
+
+    monkeypatch.setattr(sqlalchemy, "inspect", fail_inspect)
+    assert table_exists(sqlite_session, schema=None, table="items") is True
