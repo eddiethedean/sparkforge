@@ -231,9 +231,13 @@ def write_table(
         #     fqn(effective_schema, table) if effective_schema else table_identifier
         # )
 
-        # Get data from query
+        # Get data from query/statement
         if hasattr(query, "all"):
+            # ORM Query
             rows = query.all()
+        elif hasattr(session, "execute"):
+            # SQLAlchemy Core Select/Statement
+            rows = session.execute(query).all()
         else:
             logger.warning("Async query execution not yet implemented")
             rows = []

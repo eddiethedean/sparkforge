@@ -23,16 +23,27 @@ if TYPE_CHECKING:
         Session = Any  # type: ignore[misc, assignment]
         ColumnElement = Any  # type: ignore[misc, assignment]
 
+    try:
+        # Moltres is required by this repo, but keep type imports guarded.
+        from moltres.dataframe.dataframe import DataFrame as MoltresDataFrame
+        from moltres.expressions.column import Column as MoltresColumn
+
+        HAS_MOLTRES = True
+    except Exception:
+        HAS_MOLTRES = False
+        MoltresDataFrame = Any  # type: ignore[misc, assignment]
+        MoltresColumn = Any  # type: ignore[misc, assignment]
+
     # Type for SQLAlchemy validation rules
     # Can be ColumnElement expressions like User.email.is_not(None) or column('age').between(18, 65)
     # Always use Union[ColumnElement, Any] to cover both cases - if SQLAlchemy not available, ColumnElement = Any
-    SqlValidationRule: TypeAlias = Union[ColumnElement, Any]
+    SqlValidationRule: TypeAlias = Union[ColumnElement, "MoltresColumn", Any]
     SilverTransformFunction: TypeAlias = Union[
-        Callable[[Session, Query, Dict[str, Query]], Query],
+        Callable[[Session, Query, Dict[str, Query]], Union[Query, "MoltresDataFrame"]],
         Callable[[Any, Any, Dict[str, Any]], Any],
     ]
     GoldTransformFunction: TypeAlias = Union[
-        Callable[[Session, Dict[str, Query]], Query],
+        Callable[[Session, Dict[str, Query]], Union[Query, "MoltresDataFrame"]],
         Callable[[Any, Dict[str, Any]], Any],
     ]
 # Note: These types are only used in type annotations, not at runtime

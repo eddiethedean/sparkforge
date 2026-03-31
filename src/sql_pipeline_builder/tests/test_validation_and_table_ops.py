@@ -11,6 +11,7 @@ from pipeline_builder_base.errors import DataError
 from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from sql_pipeline_builder.table_operations import (
     create_schema_if_not_exists,
@@ -123,6 +124,22 @@ def test_write_table_handles_overwrite_and_append(sqlite_session):
     )
     assert rows_written == 2
     assert sqlite_session.query(TargetItem).count() == 2
+
+
+def test_write_table_accepts_core_select(sqlite_session):
+    """write_table should accept SQLAlchemy Core Select (e.g. from Moltres .to_sqlalchemy())."""
+    stmt = select(Item.id, Item.category, Item.value)
+    rows_written = write_table(
+        sqlite_session,
+        stmt,
+        schema="analytics",
+        table="target_items",
+        mode="overwrite",
+        model_class=TargetItem,
+        drop_existing_table=True,
+    )
+    assert rows_written == 3
+    assert sqlite_session.query(TargetItem).count() == 3
 
 
 def test_create_schema_if_not_exists_without_engine_raises_data_error():

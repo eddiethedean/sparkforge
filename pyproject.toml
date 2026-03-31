@@ -38,6 +38,7 @@ classifiers = [
 requires-python = ">=3.8"
 dependencies = [
     "pipeline-builder-base>=2.2.0",
+    "moltres>=0.1.0",
     "psutil>=5.8.0",
 ]
 

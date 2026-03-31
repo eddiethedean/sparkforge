@@ -82,9 +82,9 @@ class SqlEngine(Engine):
             )
 
             valid_rows = valid_query.count() if hasattr(valid_query, "count") else 0
-            invalid_rows = (
-                invalid_query.count() if hasattr(invalid_query, "count") else 0
-            )
+            invalid_rows = 0
+            if invalid_query is not None and hasattr(invalid_query, "count"):
+                invalid_rows = invalid_query.count()
 
             return ValidationReport(
                 source=valid_query,  # Return validated source

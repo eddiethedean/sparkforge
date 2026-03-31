@@ -29,6 +29,11 @@ from pipeline_builder_base.models import (
 from sql_pipeline_builder.compat import is_async_engine
 from sql_pipeline_builder.engine import SqlEngine
 from sql_pipeline_builder.models import SqlBronzeStep, SqlGoldStep, SqlSilverStep
+from sql_pipeline_builder.moltres_integration import (
+    is_moltres_dataframe,
+    moltres_database_from_session,
+    to_sqlalchemy_select,
+)
 from sql_pipeline_builder.table_operations import read_table
 from sql_pipeline_builder.validation import apply_sql_validation_rules
 
@@ -210,9 +215,10 @@ class SqlExecutionEngine:
         from sql_pipeline_builder.table_operations import write_table
 
         drop_existing = mode == ExecutionMode.INITIAL
+        write_source = to_sqlalchemy_select(valid_query) if is_moltres_dataframe(valid_query) else valid_query
         rows_written = write_table(
             self.session,
-            valid_query,
+            write_source,
             schema,
             step.table_name,
             write_mode,
@@ -222,13 +228,20 @@ class SqlExecutionEngine:
 
         # Store in context for gold steps - read from the table that was just written
         # This ensures gold steps query from the actual table, not the original query
-
-        context[step.name] = read_table(
-            self.session,
-            schema,
-            step.table_name,
-            step.model_class,
-        )
+        if is_moltres_dataframe(transformed_query):
+            db = moltres_database_from_session(self.session)
+            engine = getattr(self.session, "bind", None)
+            dialect_name = getattr(getattr(engine, "dialect", None), "name", "") if engine else ""
+            supports_schema = bool(schema) and dialect_name not in {"sqlite"}
+            table_ref = f"{schema}.{step.table_name}" if supports_schema else step.table_name
+            context[step.name] = db.table(table_ref).select()
+        else:
+            context[step.name] = read_table(
+                self.session,
+                schema,
+                step.table_name,
+                step.model_class,
+            )
 
         return {
             "rows_processed": stats.total_rows,
@@ -282,9 +295,10 @@ class SqlExecutionEngine:
 
         from sql_pipeline_builder.table_operations import write_table
 
+        write_source = to_sqlalchemy_select(valid_query) if is_moltres_dataframe(valid_query) else valid_query
         rows_written = write_table(
             self.session,
-            valid_query,
+            write_source,
             schema,
             step.table_name,
             "overwrite",  # Gold always overwrites

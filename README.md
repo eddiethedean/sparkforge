@@ -37,6 +37,47 @@ cd sparkforge
 pip install -e ".[pyspark]"
 ```
 
+### SQLAlchemy pipelines with Moltres
+
+This repo includes `sql_pipeline_builder`, which supports authoring **rules** and **transforms** with [Moltres](https://moltres.readthedocs.io/en/latest/). Moltres operations are lazy and compiled to SQL; `sql_pipeline_builder` converts Moltres DataFrames to SQLAlchemy statements at execution time (see Moltres’ [SQLAlchemy integration guide](https://moltres.readthedocs.io/en/latest/guides/sqlalchemy-integration.html)).
+
+Minimal example:
+
+```python
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+from moltres import Database, col
+
+from sql_pipeline_builder import SqlPipelineBuilder
+
+engine = create_engine("sqlite:///:memory:")
+session = Session(engine)
+# Prefer engine-based construction for broad compatibility
+db = Database.from_engine(engine)
+
+builder = SqlPipelineBuilder(session=session, schema="analytics")
+builder.with_bronze_rules(
+    name="users",
+    rules={"email": [col("email").is_not_null()], "age": [col("age") >= 18]},
+    model_class=MyBronzeUserModel,  # SQLAlchemy ORM model
+)
+
+def silver_users(session, bronze_df, silvers):
+    return bronze_df.select("id", "email", "age").where(col("age") >= 18)
+
+builder.add_silver_transform(
+    name="silver_users",
+    source_bronze="users",
+    transform=silver_users,
+    rules={"id": [col("id").is_not_null()]},
+    table_name="silver_users",
+    model_class=MySilverUserModel,
+)
+
+pipeline = builder.to_pipeline()
+pipeline.run_initial_load(bronze_sources={"users": db.table("users").select()})
+```
+
 **For testing/development with mock-spark:**
 ```bash
 pip install -e ".[mock]"

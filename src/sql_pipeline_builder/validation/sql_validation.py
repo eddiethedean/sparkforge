@@ -14,6 +14,10 @@ from pipeline_builder_base.models import StageStats
 from pipeline_builder_base.validation import safe_divide
 
 from sql_pipeline_builder.types import SqlColumnRules
+from sql_pipeline_builder.moltres_integration import (
+    is_moltres_dataframe,
+    to_sqlalchemy_select,
+)
 
 logger = PipelineLogger("SqlValidation")
 
@@ -41,11 +45,56 @@ def apply_sql_validation_rules(
     """
     from datetime import datetime
 
-    from sqlalchemy import select
+    from sqlalchemy import func, select
 
     start_time = datetime.now()
 
     try:
+        # Moltres DataFrame path: apply rules with df.where(...) then convert to SA Select for counts.
+        if is_moltres_dataframe(query):
+            valid_df = query
+            for _column_name, rule_list in rules.items():
+                for rule in rule_list:
+                    valid_df = valid_df.where(rule)
+
+            total_stmt = to_sqlalchemy_select(query)
+            valid_stmt = to_sqlalchemy_select(valid_df)
+
+            total_count = session.execute(
+                select(func.count()).select_from(total_stmt.subquery())
+            ).scalar()
+            valid_count = session.execute(
+                select(func.count()).select_from(valid_stmt.subquery())
+            ).scalar()
+            total_count_int = int(total_count or 0)
+            valid_count_int = int(valid_count or 0)
+            invalid_count = max(0, total_count_int - valid_count_int)
+
+            validation_rate = safe_divide(valid_count_int, total_count_int, 0.0) * 100
+
+            # We keep the original object type flowing through the pipeline.
+            # Invalid rows are not currently represented as a Moltres DataFrame here.
+            invalid_df = None
+
+            end_time = datetime.now()
+            duration_secs = (end_time - start_time).total_seconds()
+            stats = StageStats(
+                stage="validation",
+                step=step_name,
+                total_rows=total_count_int,
+                valid_rows=valid_count_int,
+                invalid_rows=int(invalid_count),
+                validation_rate=validation_rate,
+                duration_secs=duration_secs,
+                start_time=start_time,
+                end_time=end_time,
+            )
+            logger.info(
+                f"Validation for {step_name}: {valid_count}/{total_count} valid "
+                f"({validation_rate:.2f}%)"
+            )
+            return valid_df, invalid_df, stats
+
         # Normalize query so it supports filtering. ORM Query has .filter(); Core
         # CompoundSelect (e.g. union_all) has neither .filter nor .where() until
         # wrapped in a Select.

@@ -1,13 +1,18 @@
 # SQL Pipeline Builder User Guide
 
-This guide explains how to build and run Bronze -> Silver -> Gold pipelines with `sql_pipeline_builder` using SQLAlchemy sessions and queries.
+This guide explains how to build and run Bronze -> Silver -> Gold pipelines with `sql_pipeline_builder` using:
+
+- **Moltres** for rules and transformation functions (lazy DataFrame API that compiles to SQL)
+- **SQLAlchemy** for sessions and ORM models (execution + table creation/materialization)
+
+Moltres docs: https://moltres.readthedocs.io/en/latest/
 
 ## What It Is
 
 `sql_pipeline_builder` is the SQLAlchemy-based sibling of the Spark pipeline framework. It gives you:
 
 - A fluent builder API for Bronze, Silver, and Gold steps
-- Expression-based validation using SQLAlchemy rules
+- Expression-based validation using Moltres rules
 - Dependency-aware step ordering
 - Initial and incremental execution modes
 - Table creation and write management for Silver and Gold outputs
@@ -15,7 +20,8 @@ This guide explains how to build and run Bronze -> Silver -> Gold pipelines with
 ## Prerequisites
 
 - Python 3.8+
-- SQLAlchemy 2.x
+- Moltres
+- SQLAlchemy
 - A SQLAlchemy-compatible database and driver (SQLite, Postgres, MySQL, etc.)
 
 Install from this repository:
@@ -53,10 +59,10 @@ pip install -e ".[sql]"
 ## Minimal End-to-End Example
 
 ```python
-from sqlalchemy import Column, Integer, String, create_engine, func
+from sqlalchemy import Column, Integer, String, create_engine, func, literal, select
 from sqlalchemy.orm import Session, declarative_base
-from sqlalchemy.sql import column
 
+from moltres import Database, col
 from sql_pipeline_builder import SqlPipelineBuilder
 
 Base = declarative_base()
@@ -90,47 +96,43 @@ class DailyMetric(Base):
 engine = create_engine("sqlite:///:memory:")
 Base.metadata.create_all(engine)
 session = Session(engine)
+db = Database.from_engine(engine)
 
 builder = SqlPipelineBuilder(session=session, schema="analytics")
 
 builder.with_bronze_rules(
     name="events",
     rules={
-        "user_id": [UserEvent.user_id.is_not(None)],
-        "value": [UserEvent.value > 0],
+        "user_id": [col("user_id").is_not_null()],
+        "value": [col("value") > 0],
     },
     incremental_col="event_date",
     model_class=UserEvent,
 )
 
 
-def clean_events(session, bronze_query, silvers):
-    return bronze_query.filter(UserEvent.value >= 10).with_entities(
-        UserEvent.id,
-        UserEvent.user_id,
-        UserEvent.event_type,
-        UserEvent.value,
-        UserEvent.event_date,
-    )
+def clean_events(session, bronze_df, silvers):
+    return bronze_df.select().where(col("value") >= 10)
 
 
 builder.add_silver_transform(
     name="clean_events",
     source_bronze="events",
     transform=clean_events,
-    rules={"user_id": [UserEvent.user_id.is_not(None)]},
+    rules={"user_id": [col("user_id").is_not_null()]},
     table_name="clean_events",
     model_class=CleanEvent,
 )
 
 
 def daily_metrics(session, silvers):
-    q = silvers["clean_events"]
-    return q.with_entities(
-        CleanEvent.event_date,
-        func.count(CleanEvent.id).label("total_events"),
-        func.count(func.distinct(CleanEvent.user_id)).label("unique_users"),
-    ).group_by(CleanEvent.event_date)
+    clean_df = silvers["clean_events"]
+    stmt = clean_df.to_sqlalchemy().subquery()
+    return select(
+        literal("daily").label("event_date"),
+        select(func.count()).select_from(stmt).scalar_subquery().label("total_events"),
+        literal(0).label("unique_users"),
+    )
 
 
 builder.add_gold_transform(
@@ -143,8 +145,8 @@ builder.add_gold_transform(
 )
 
 pipeline = builder.to_pipeline()
-source_query = session.query(UserEvent)
-result = pipeline.run_initial_load(bronze_sources={"events": source_query})
+source_df = db.table("user_events").select()
+result = pipeline.run_initial_load(bronze_sources={"events": source_df})
 
 print(result.success)
 ```
@@ -171,12 +173,12 @@ Silver and Gold steps require `model_class` with SQLAlchemy `__table__` metadata
 
 ### Rules requirement
 
-Rules must be dictionaries of SQLAlchemy expressions. Example:
+Rules must be dictionaries of Moltres expressions. Example:
 
 ```python
 rules = {
-    "email": [User.email.is_not(None)],
-    "age": [column("age").between(18, 65)],
+    "email": [col("email").is_not_null()],
+    "age": [col("age").between(18, 65)],
 }
 ```
 

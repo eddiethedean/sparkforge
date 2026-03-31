@@ -230,3 +230,65 @@ def test_logwriter_generates_unique_run_ids_when_not_provided(sqlite_session):
     assert second["success"] is True
     assert first["run_id"] != second["run_id"]
     assert len(writer._read_log_table()) == 4
+
+
+def test_logwriter_multi_run_mixed_modes_and_metadata(sqlite_session):
+    """
+    Multi-run scenario:
+    - initial run
+    - incremental run
+    - ensure metadata round-trips and run_mode is persisted
+    """
+    writer = LogWriter(sqlite_session, schema="main", table_name="pipeline_logs_multi_run")
+    execution_result = _make_execution_result()
+
+    out1 = writer.append(execution_result, run_id="run-initial", run_mode="initial", metadata={"env": "test"})
+    out2 = writer.append(
+        execution_result, run_id="run-incremental", run_mode="incremental", metadata={"env": "test", "batch": 2}
+    )
+
+    assert out1["success"] is True
+    assert out2["success"] is True
+    rows = writer._read_log_table()
+    assert len(rows) == 4  # 2 rows per run (pipeline + step)
+
+    by_mode = {row["run_mode"] for row in rows}
+    assert by_mode == {"initial", "incremental"}
+
+    # Metadata should be parsed as dict and preserved
+    initial_meta = [r["metadata"] for r in rows if str(r["run_id"]).startswith("run-initial")]
+    # Metadata may be present only on the pipeline-level row depending on row generation.
+    assert any(m.get("env") == "test" for m in initial_meta)
+
+
+def test_logwriter_recovery_after_failed_append_does_not_corrupt_table(sqlite_session):
+    """
+    Error recovery:
+    - first append succeeds
+    - second append reuses same run_id and fails due to PK conflict
+    - third append with new run_id succeeds
+    - verify table contains only successful runs (no partial writes)
+    """
+    writer = LogWriter(sqlite_session, schema="main", table_name="pipeline_logs_recovery")
+    execution_result = _make_execution_result()
+
+    ok1 = writer.append(execution_result, run_id="run-1", run_mode="initial")
+    assert ok1["success"] is True
+    assert len(writer._read_log_table()) == 2
+
+    # Force a PK conflict by reusing the same run_id: this will generate the same PKs
+    with pytest.raises(Exception):
+        writer.append(execution_result, run_id="run-1", run_mode="initial")
+
+    # Table should still have only the first run's two rows
+    rows_after_fail = writer._read_log_table()
+    assert len(rows_after_fail) == 2
+    assert all(str(r["run_id"]).startswith("run-1") for r in rows_after_fail)
+
+    ok2 = writer.append(execution_result, run_id="run-2", run_mode="incremental")
+    assert ok2["success"] is True
+
+    rows_final = writer._read_log_table()
+    assert len(rows_final) == 4
+    run_prefixes = {str(r["run_id"]).split(":")[0] for r in rows_final}
+    assert run_prefixes == {"run-1", "run-2"}
