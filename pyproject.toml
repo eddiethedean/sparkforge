@@ -37,7 +37,6 @@ classifiers = [
 ]
 requires-python = ">=3.8"
 dependencies = [
-    "pipeline-builder-base>=2.2.0",
     "moltres>=0.1.0",
     "psutil>=5.8.0",
 ]
@@ -99,7 +98,13 @@ Repository = "https://github.com/eddiethedean/sparkforge"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["pipeline_builder*", "abstracts*", "interfaces*", "sql_pipeline_builder*"]
+include = [
+    "pipeline_builder*",
+    "pipeline_builder_base*",
+    "abstracts*",
+    "interfaces*",
+    "sql_pipeline_builder*",
+]
 
 [tool.black]
 line-length = 88
